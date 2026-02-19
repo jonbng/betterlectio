@@ -99,10 +99,13 @@ function initLayout() {
     window.location.pathname,
   );
   if (isLoginAspx) {
-    console.log(
-      "[BetterLectio] On login.aspx - session expired, clearing login state",
-    );
-    updateLoginState(); // This will detect not logged in and clear the cache
+    const hasReturnUrl = new URLSearchParams(window.location.search).has('ReturnUrl');
+    if (hasReturnUrl) {
+      console.log("[BetterLectio] On login.aspx with ReturnUrl - auth redirect in progress, keeping state");
+    } else {
+      console.log("[BetterLectio] On login.aspx - session expired, clearing login state");
+      updateLoginState(); // This will detect not logged in and clear the cache
+    }
     document.documentElement.classList.add("il-ready");
     return;
   }
