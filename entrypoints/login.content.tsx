@@ -36,30 +36,31 @@ async function checkAndRedirectIfLoggedIn(): Promise<boolean> {
         "[BetterLectio] Cached login state found, verifying session..."
       );
 
-      // Verify session is actually valid by fetching a page that requires auth
-      // Use GET instead of HEAD - some servers handle HEAD differently
-      const scheduleUrl = new URL(lastSchool.url.replace("default.aspx", "skemany.aspx"), window.location.origin).href;
+      const schoolId = lastSchool.url.match(/\/lectio\/(\d+)\//)?.[1];
+      if (!schoolId) return false;
+
+      const pingUrl = new URL(`/lectio/${schoolId}/ping.aspx`, window.location.origin).href;
 
       try {
-        const response = await fetch(scheduleUrl, {
-          method: 'GET',
+        const response = await fetch(pingUrl, {
+          method: 'HEAD',
           credentials: 'include',
-          redirect: 'follow'
+          redirect: 'manual'
         });
 
-        // Check if we ended up on a login page
-        if (response.url.includes('login.aspx')) {
+        // redirect: 'manual' returns status 0 for opaque redirects, or 302 for redirects
+        if (response.status !== 200) {
           console.log("[BetterLectio] Session expired, showing login page");
           clearLoginState();
           return false;
         }
 
-        // Session is valid, redirect
+        const forsideUrl = new URL(`/lectio/${schoolId}/forside.aspx`, window.location.origin).href;
         console.log(
           "[BetterLectio] Session valid, redirecting to last school:",
           lastSchool.name
         );
-        window.location.href = scheduleUrl;
+        window.location.href = forsideUrl;
         return true;
       } catch (err) {
         // Network error - don't clear state, just show login page

@@ -541,8 +541,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <SettingsSection title="Adfærd">
               <FeatureToggle
                 id="behavior-session"
-                label="Bloker session popup"
-                description="Forhindrer 'Din session udløber snart' popup"
+                label="Smart session vedligeholdelse"
+                description="Skjuler session popup og fornyer automatisk din session"
                 enabled={settings.behavior?.sessionPopupBlocker ?? true}
                 onChange={(v) => handleSettingChange('behavior', 'sessionPopupBlocker', v)}
                 requiresReload
