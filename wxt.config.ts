@@ -7,7 +7,7 @@ export default defineConfig({
   manifest: {
     name: 'BetterLectio',
     description: 'Better styling and improved functionality for Lectio',
-    version: '0.0.10',
+    version: '0.0.11',
     author: 'Jonathan Bangert <jonathan@bangert.dk>' as any,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {

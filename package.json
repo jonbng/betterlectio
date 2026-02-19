@@ -2,7 +2,7 @@
   "name": "betterlectio",
   "description": "Better styling and improved functionality for Lectio",
   "private": true,
-  "version": "0.0.10",
+  "version": "0.0.11",
   "author": "Jonathan Bangert",
   "homepage": "https://github.com/jonbng/betterlectio",
   "repository": {
