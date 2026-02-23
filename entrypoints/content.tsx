@@ -4,6 +4,8 @@ import { FindSkemaPage } from "@/components/FindSkemaPage";
 import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
 import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
+import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
+import { OpgaverPage, parseOpgaverFromDOM } from "@/components/OpgaverPage";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { initPreloading } from "@/lib/preload";
@@ -248,6 +250,22 @@ function initLayout() {
           window.location.pathname.toLowerCase().includes("members.aspx")
         ) {
           injectMembersPage(schoolId);
+        }
+
+        // Inject lektier page UI
+        if (
+          (settings.pages.lektierRedesign ?? true) &&
+          window.location.pathname.toLowerCase().includes("material_lektieoversigt")
+        ) {
+          injectLektierPage(schoolId);
+        }
+
+        // Inject opgaver page UI
+        if (
+          (settings.pages.opgaverRedesign ?? true) &&
+          window.location.pathname.toLowerCase().includes("opgaverelev")
+        ) {
+          injectOpgaverPage(schoolId);
         }
 
         // Inject fravær summary and subnavigation (Oversigt/Fraværsårsager)
@@ -694,6 +712,56 @@ function injectMembersPage(schoolId: string) {
     "[BetterLectio] Members page injected with",
     members.length,
     "members",
+  );
+}
+
+function injectLektierPage(_schoolId: string) {
+  const entries = parseLektierFromDOM();
+  if (entries.length === 0) {
+    console.log("[BetterLectio] No homework entries found on page");
+    return;
+  }
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const lektierContainer = document.createElement("div");
+  lektierContainer.id = "il-lektier-page";
+  contentContainer.appendChild(lektierContainer);
+
+  document.body.classList.add("il-lektier-page-active");
+
+  render(<LektierPage entries={entries} />, lektierContainer);
+
+  console.log(
+    "[BetterLectio] Lektier page injected with",
+    entries.length,
+    "entries",
+  );
+}
+
+function injectOpgaverPage(schoolId: string) {
+  const entries = parseOpgaverFromDOM();
+  if (entries.length === 0) {
+    console.log("[BetterLectio] No assignment entries found on page");
+    return;
+  }
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const opgaverContainer = document.createElement("div");
+  opgaverContainer.id = "il-opgaver-page";
+  contentContainer.appendChild(opgaverContainer);
+
+  document.body.classList.add("il-opgaver-page-active");
+
+  render(<OpgaverPage entries={entries} schoolId={schoolId} />, opgaverContainer);
+
+  console.log(
+    "[BetterLectio] Opgaver page injected with",
+    entries.length,
+    "entries",
   );
 }
 

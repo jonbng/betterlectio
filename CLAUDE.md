@@ -22,10 +22,14 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/LoginPage.tsx` - School selector with "continue to last school" feature
 - `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (with star/back)
+- `components/LektierPage.tsx` - Lektier page redesign with day-grouped homework cards
+- `components/OpgaverPage.tsx` - Opgaver page redesign with urgency-first cards, relative deadlines in Danish, color-coded grades
+- `components/OpgaveDetailSheet.tsx` - Side sheet for assignment details, submission history, and comment/file upload
 - `components/SettingsModal.tsx` - Settings modal with appearance, notifications, about sections
 - `lib/findskema-storage.ts` - Starred people, recents, and picture cache persistence
 - `lib/fuzzy-search.ts` - Fuzzy search algorithm for Danish text
 - `lib/school-storage.ts` - Last school persistence for auto-redirect
+- `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx pages, submission API, localStorage cache
 - `lib/profile-cache.ts` - User profile and viewed entity caching
 - `styles/globals.css` - Main styles, hides original Lectio UI, page-specific styling
 
@@ -60,6 +64,9 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Experimental Dark Mode** - Manual toggle for dark color palette
 - **Clean Page Titles** - Modern titles with unread message badge count
 - **Forside Redesign** - Time-based greeting, live clock, masonry card layout
+- **Lektier Redesign** - Day-grouped homework cards with file/activity links and teacher notes
+- **Opgaver Redesign** - Urgency-first cards with relative Danish deadlines ("Om 3 timer", "I morgen"), visual urgency gradient (overdue→imminent→soon→later), compact submitted rows with color-coded grade badges, hold filters
+- **Opgave Detail Sheet** - Side sheet opens on assignment click with full details, submission history, comment/file upload (fetches ElevAflevering.aspx via fetch-and-parse)
 
 ## Commands
 ```bash

@@ -22,6 +22,8 @@ const PagesSettingsSchema = z.object({
   findSkemaRedesign: z.boolean().default(true),
   forsideRedesign: z.boolean().default(true),
   membersPageCards: z.boolean().default(true),
+  lektierRedesign: z.boolean().default(true),
+  opgaverRedesign: z.boolean().default(true),
   loginPageRedesign: z.boolean().default(true), // requires reload
 });
 

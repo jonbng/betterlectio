@@ -65,6 +65,9 @@ betterlectio/
 │   ├── FindSkemaPage.tsx     # FindSkema search page redesign
 │   ├── PersonCard.tsx        # Reusable person/entity card
 │   ├── MembersPage.tsx       # Members list card grid
+│   ├── LektierPage.tsx      # Lektier page redesign (day-grouped cards)
+│   ├── OpgaverPage.tsx      # Opgaver page redesign (urgency-first cards + submitted rows)
+│   ├── OpgaveDetailSheet.tsx # Side sheet for assignment details + submission
 │   ├── ViewingScheduleHeader.tsx  # Header when viewing others
 │   ├── SettingsModal.tsx     # Settings/about modal
 │   ├── ForsideGreeting.tsx   # Dynamic greeting for forside
@@ -76,6 +79,7 @@ betterlectio/
 │   ├── school-storage.ts     # Last school persistence
 │   ├── findskema-storage.ts  # Starred/recents/picture cache
 │   ├── fuzzy-search.ts       # Fuzzy search algorithm
+│   ├── opgave-detail.ts      # Fetch/parse assignment detail pages
 │   ├── page-titles.ts        # Clean page title management
 │   └── utils.ts              # Helper functions (cn())
 │
@@ -282,7 +286,66 @@ Features:
 - Supports starring members
 - Teachers sorted first, then students
 
-### 12. Profile Cache (`lib/profile-cache.ts`)
+### 12. Lektier Page (`components/LektierPage.tsx`)
+
+**Purpose:** Redesigned homework overview grouped by day
+
+Features:
+- Parses homework table from Lectio DOM (tooltips + cell content)
+- Groups entries by date with Danish day/month formatting
+- Today section highlighted with "I dag" badge
+- Homework cards show module, time, hold badge, teacher/room
+- File download links, activity links, and text-only items
+- Teacher notes rendered in muted callout blocks
+- Toggleable via settings
+
+### 13. Opgaver Page (`components/OpgaverPage.tsx`)
+
+**Purpose:** Redesigned assignments page with urgency-first deadline display
+
+Features:
+- Parses assignment table from Lectio DOM (`#s_m_Content_Content_ExerciseGV`)
+- **Upcoming section**: Flat card list sorted by deadline, urgency drives visual treatment
+  - Deadline is the hero element — shown as relative time in Danish ("Om 3 timer", "I morgen", "Lige overskredet")
+  - 4 urgency tiers: overdue (red), imminent <24h (orange), soon 1-3d (amber), later 3d+ (neutral)
+  - Urgency controls: left border thickness/color, deadline text size/weight, background tint
+  - Cards show deadline, title, hold pill, student hours, awaiting info
+- **Submitted section**: Compact bordered rows with title, hold pill, grade badge, date
+  - Color-coded grade badges (hue varies by grade: 12=gold, 10=green, 7=blue, etc.)
+  - Expandable notes and grade extra info
+  - "Vis alle" expansion (initially 6 items)
+- Hold filter pills for filtering by subject
+- Clicking assignment title opens detail sheet sidebar
+- Toggleable via settings
+
+### 13b. Opgave Detail Sheet (`components/OpgaveDetailSheet.tsx`)
+
+**Purpose:** Side sheet showing full assignment details without leaving the redesigned page
+
+Features:
+- Fetches `ElevAflevering.aspx` HTML via `fetch()` and parses with `DOMParser`
+- Info section: teacher, student time, grade scale, deadline, UV-beskrivelse
+- Assignment note (rendered HTML), description file downloads
+- Student status: awaiting badge, delivery status, grade + grade note
+- Submission history timeline (teacher entries styled differently)
+- Submission form: textarea + file drag-and-drop/picker + send button
+- Posts comments via ASP.NET form tokens (`__EVENTTARGET`, `__VIEWSTATEX`, etc.)
+- File upload via `/dokumentupload.aspx` endpoint
+- localStorage caching with 5-minute TTL (invalidated on submission)
+- Error handling with retry button and "Open in Lectio" fallback
+- Session expiry detection
+
+### 13c. Opgave Detail Parser (`lib/opgave-detail.ts`)
+
+**Purpose:** Fetch, parse, and cache ElevAflevering.aspx pages
+
+Functions:
+- `fetchOpgaveDetail(url)` — fetch + parse assignment detail page
+- `submitComment(detail, comment)` — POST comment with ASP.NET form tokens
+- `uploadFileAndSubmit(detail, file, comment, schoolId)` — upload file + submit
+- `getCachedDetail(url)` / `invalidateDetailCache(url)` — localStorage cache management
+
+### 14. Profile Cache (`lib/profile-cache.ts`)
 
 **Purpose:** Persist user profile data and detect viewed entities
 
@@ -292,7 +355,7 @@ Features:
 - Login state tracking to clear cache on logout
 - `isViewingOwnPage()` and `getViewedEntityId()` helpers
 
-### 13. School Storage (`lib/school-storage.ts`)
+### 15. School Storage (`lib/school-storage.ts`)
 
 **Purpose:** Remember last used school for quick login
 
@@ -300,7 +363,7 @@ Features:
 - Stores last school ID, name, and URL
 - Used by login page for "Continue to last school" feature
 
-### 14. FindSkema Storage (`lib/findskema-storage.ts`)
+### 16. FindSkema Storage (`lib/findskema-storage.ts`)
 
 **Purpose:** Persistent storage for FindSkema features
 
@@ -309,7 +372,7 @@ Features:
 - Profile picture URL cache (7-day TTL, max 1000 entries)
 - Fetch picture URLs from Lectio context cards
 
-### 15. Fuzzy Search (`lib/fuzzy-search.ts`)
+### 17. Fuzzy Search (`lib/fuzzy-search.ts`)
 
 **Purpose:** Fast fuzzy matching for search
 
@@ -318,7 +381,7 @@ Features:
 - Multi-word search (all terms must match)
 - Scoring with bonuses for sequential/boundary matches
 
-### 16. Page Titles (`lib/page-titles.ts`)
+### 18. Page Titles (`lib/page-titles.ts`)
 
 **Purpose:** Clean, modern page titles
 
@@ -328,7 +391,7 @@ Features:
 - Unread message count badge in title
 - MutationObserver for dynamic updates
 
-### 17. Preload System (`lib/preload.ts`)
+### 19. Preload System (`lib/preload.ts`)
 
 **Purpose:** Performance optimization through speculative loading
 
@@ -336,7 +399,7 @@ Features:
 - Hover-based prefetching with 65ms delay
 - Falls back gracefully for unsupported browsers
 
-### 18. Global Styles (`styles/globals.css`)
+### 20. Global Styles (`styles/globals.css`)
 
 **Purpose:** Complete visual overhaul
 
@@ -485,6 +548,20 @@ HTML snapshots of Lectio pages before extension modification:
 - Card grid layout for hold/klasse members
 - Star toggle on each card
 - Teachers sorted first
+
+### Lektier Page
+- Day-grouped homework cards with "I dag" highlight
+- File links, activity links, and text-only homework items
+- Teacher notes in muted callout blocks
+- Module, time, hold badge, teacher/room per card
+
+### Opgaver Page
+- Urgency-first cards with relative Danish deadlines ("Om 3 timer", "I morgen", "2 dage forsinket")
+- 4-tier visual urgency: overdue (red), imminent (orange), soon (amber), later (neutral)
+- Deadline text size grows with urgency — overdue cards are visually heavier
+- Compact submitted rows with color-coded grade badges
+- Hold filter pills for subject filtering
+- **Detail sheet sidebar**: click assignment to open side sheet with full details, submission history, comment/file upload
 
 ### Other Pages
 - Forside: time-based greeting, live clock, masonry layout

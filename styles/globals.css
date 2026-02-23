@@ -253,6 +253,7 @@
     display: flex !important;
     flex-direction: column !important;
     flex: 1 !important;
+    min-width: 0 !important;
     height: 100vh !important;
     overflow: hidden !important;
   }
@@ -260,6 +261,7 @@
   /* Lectio content scroll container */
   #il-lectio-content {
     flex: 1 !important;
+    min-width: 0 !important;
     height: 100% !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
@@ -1278,14 +1280,1872 @@
      Lektieoversigt Page (material_lektieoversigt.aspx) Styles
      ======================================== */
 
-  /* Remove padding from main island section */
-  /* #il-original-content section.lf-island.largeBlock.defaultBlockHeight.ls-island-elevated {
-    padding: 0 !important;
-  } */
-
   /* Remove padding from island elevated section */
   #il-original-content .ls-island-elevated {
     padding: 0 !important;
+  }
+
+  /* Hide original content when lektier redesign is active */
+  body.il-lektier-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  /* Collapse parent containers so they don't take up space */
+  body.il-lektier-page-active #il-original-content,
+  body.il-lektier-page-active #il-original-content #masterContent,
+  body.il-lektier-page-active #il-original-content #aspnetForm,
+  body.il-lektier-page-active #il-original-content .ls-master-container1,
+  body.il-lektier-page-active #il-original-content .ls-master-container2,
+  body.il-lektier-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-lektier-page-active #il-original-content .outerContentFrame,
+  body.il-lektier-page-active #il-original-content .ls-content-container,
+  body.il-lektier-page-active #il-original-content .ls-content {
+    height: fit-content !important;
+    min-height: 0 !important;
+  }
+
+  /* Page container */
+  #il-lektier-page {
+    padding: 0 !important;
+  }
+
+  .il-lektier-page {
+    max-width: 920px !important;
+    margin: 0 auto !important;
+    padding: 2.5rem 2.5rem 4rem !important;
+  }
+
+  /* ── Header ─────────────────────────────── */
+
+  .il-lektier-header {
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 1.5rem !important;
+    margin-bottom: 2.5rem !important;
+    padding-bottom: 1.75rem !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  .il-lektier-header-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+  }
+
+  .il-lektier-title {
+    font-size: 2.25rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.03em !important;
+    color: var(--foreground) !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .il-lektier-subtitle {
+    font-size: 1rem !important;
+    color: var(--muted-foreground) !important;
+    margin: 0 !important;
+  }
+
+  .il-lektier-stats {
+    display: flex !important;
+    gap: 1.75rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .il-lektier-stat {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.125rem !important;
+  }
+
+  .il-lektier-stat-value {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    color: var(--foreground) !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .il-lektier-stat-label {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  /* ── Empty state ────────────────────────── */
+
+  .il-lektier-empty {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 5rem 2rem !important;
+    text-align: center !important;
+    gap: 0.5rem !important;
+  }
+
+  .il-lektier-empty-icon {
+    width: 3rem !important;
+    height: 3rem !important;
+    color: var(--muted-foreground) !important;
+    opacity: 0.3 !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .il-lektier-empty-title {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    color: var(--foreground) !important;
+    margin: 0 !important;
+  }
+
+  .il-lektier-empty-subtitle {
+    font-size: 0.875rem !important;
+    color: var(--muted-foreground) !important;
+    margin: 0 !important;
+  }
+
+  /* ── Timeline ───────────────────────────── */
+
+  .il-lektier-timeline {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* ── Day row ────────────────────────────── */
+
+  .il-lektier-day {
+    display: flex !important;
+    gap: 2rem !important;
+    padding: 2rem 0 !important;
+    border-top: 1px solid var(--border) !important;
+    animation: il-lektier-fade-in 0.5s ease both !important;
+  }
+
+  .il-lektier-day:first-child {
+    border-top: none !important;
+    padding-top: 0 !important;
+  }
+
+  @keyframes il-lektier-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ── Date column ────────────────────────── */
+
+  .il-lektier-date-col {
+    width: 5rem !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 0.125rem !important;
+    padding-top: 0.25rem !important;
+    position: sticky !important;
+    top: 1rem !important;
+    align-self: flex-start !important;
+  }
+
+  .il-lektier-date-number {
+    font-size: 2.75rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    color: var(--foreground) !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .il-lektier-date-weekday {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  .il-lektier-date-month {
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--muted-foreground) !important;
+    opacity: 0.6 !important;
+  }
+
+  .il-lektier-date-today {
+    margin-top: 0.625rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: oklch(0.55 0.16 85) !important;
+    background: oklch(0.95 0.06 85) !important;
+    padding: 0.1875rem 0.5rem !important;
+    border-radius: 9999px !important;
+  }
+
+  /* Today date highlight */
+  .il-lektier-day.is-today .il-lektier-date-number {
+    color: oklch(0.5 0.16 85) !important;
+  }
+
+  .il-lektier-day.is-today .il-lektier-date-weekday {
+    color: oklch(0.55 0.12 85) !important;
+  }
+
+  /* ── Cards column ───────────────────────── */
+
+  .il-lektier-cards-col {
+    flex: 1 !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.875rem !important;
+  }
+
+  /* ── Card ────────────────────────────────── */
+
+  .il-lektier-card {
+    display: flex !important;
+    border-radius: 0.875rem !important;
+    border: 1px solid var(--border) !important;
+    background: var(--card) !important;
+    overflow: hidden !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+  }
+
+  .il-lektier-card:hover {
+    box-shadow: 0 6px 24px oklch(0 0 0 / 0.06) !important;
+    border-color: oklch(0.85 0 0) !important;
+  }
+
+  /* Accent bar */
+  .il-lektier-card-accent {
+    width: 4px !important;
+    flex-shrink: 0 !important;
+    background: oklch(0.65 0.15 var(--hold-hue, 200)) !important;
+  }
+
+  /* Card body */
+  .il-lektier-card-body {
+    flex: 1 !important;
+    min-width: 0 !important;
+    padding: 1.125rem 1.25rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.625rem !important;
+  }
+
+  /* Card top row */
+  .il-lektier-card-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+  }
+
+  .il-lektier-card-module {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 1.0625rem !important;
+    font-weight: 600 !important;
+    color: var(--foreground) !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease !important;
+  }
+
+  .il-lektier-card-module:hover {
+    color: oklch(0.5 0.12 var(--hold-hue, 200)) !important;
+  }
+
+  .il-lektier-card-sep {
+    color: var(--muted-foreground) !important;
+    opacity: 0.4 !important;
+  }
+
+  .il-lektier-card-time {
+    font-weight: 500 !important;
+    color: var(--muted-foreground) !important;
+    font-size: 0.9375rem !important;
+  }
+
+  /* Hold pill */
+  .il-lektier-hold-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.25rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    border-radius: 9999px !important;
+    background: oklch(0.95 0.04 var(--hold-hue, 200)) !important;
+    color: oklch(0.45 0.12 var(--hold-hue, 200)) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Meta row */
+  .il-lektier-card-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.9375rem !important;
+    color: var(--muted-foreground) !important;
+    flex-wrap: wrap !important;
+  }
+
+  .il-lektier-meta-dot {
+    width: 3px !important;
+    height: 3px !important;
+    border-radius: 50% !important;
+    background: var(--muted-foreground) !important;
+    opacity: 0.5 !important;
+  }
+
+  .il-lektier-meta-dash {
+    opacity: 0.35 !important;
+    margin: 0 0.125rem !important;
+  }
+
+  .il-lektier-meta-title {
+    font-style: italic !important;
+  }
+
+  /* ── Homework items section ─────────────── */
+
+  .il-lektier-card-items {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding-top: 0.75rem !important;
+    border-top: 1px solid var(--border) !important;
+  }
+
+  /* ── File download block ────────────────── */
+
+  .il-lektier-file {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.875rem !important;
+    padding: 0.75rem 1rem !important;
+    background: oklch(0.975 0.012 250) !important;
+    border: 1px solid oklch(0.93 0.02 250) !important;
+    border-radius: 0.75rem !important;
+    text-decoration: none !important;
+    color: var(--foreground) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .il-lektier-file:hover {
+    background: oklch(0.96 0.025 250) !important;
+    border-color: oklch(0.88 0.04 250) !important;
+    box-shadow: 0 2px 12px oklch(0.5 0.1 250 / 0.08) !important;
+  }
+
+  .il-lektier-file-icon-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    border-radius: 0.625rem !important;
+    background: oklch(0.93 0.04 250) !important;
+    color: oklch(0.5 0.15 250) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .il-lektier-file-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+
+  .il-lektier-file-name {
+    font-size: 0.9375rem !important;
+    font-weight: 500 !important;
+    word-break: break-word !important;
+    line-height: 1.4 !important;
+  }
+
+  .il-lektier-file-dl {
+    flex-shrink: 0 !important;
+    color: oklch(0.5 0.12 250) !important;
+    opacity: 0 !important;
+    transition: opacity 0.15s ease, transform 0.15s ease !important;
+  }
+
+  .il-lektier-file:hover .il-lektier-file-dl {
+    opacity: 1 !important;
+    transform: translateY(1px) !important;
+  }
+
+  /* ── Activity link block ────────────────── */
+
+  .il-lektier-activity-link {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.875rem !important;
+    padding: 0.75rem 1rem !important;
+    background: oklch(0.975 0.01 160) !important;
+    border: 1px solid oklch(0.93 0.015 160) !important;
+    border-radius: 0.75rem !important;
+    text-decoration: none !important;
+    color: var(--foreground) !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .il-lektier-activity-link:hover {
+    background: oklch(0.96 0.02 160) !important;
+    border-color: oklch(0.88 0.035 160) !important;
+    box-shadow: 0 2px 12px oklch(0.5 0.1 160 / 0.08) !important;
+  }
+
+  .il-lektier-activity-icon-wrap {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    border-radius: 0.625rem !important;
+    background: oklch(0.93 0.03 160) !important;
+    color: oklch(0.45 0.12 160) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .il-lektier-activity-text {
+    flex: 1 !important;
+    min-width: 0 !important;
+    font-size: 0.9375rem !important;
+    font-weight: 500 !important;
+    word-break: break-word !important;
+    line-height: 1.4 !important;
+  }
+
+  .il-lektier-activity-arrow {
+    flex-shrink: 0 !important;
+    color: oklch(0.45 0.1 160) !important;
+    opacity: 0.4 !important;
+    transition: opacity 0.15s ease, transform 0.15s ease !important;
+  }
+
+  .il-lektier-activity-link:hover .il-lektier-activity-arrow {
+    opacity: 1 !important;
+    transform: translate(2px, -2px) !important;
+  }
+
+  /* ── Reading / text item block ──────────── */
+
+  .il-lektier-reading {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 0.875rem !important;
+    padding: 0.75rem 1rem !important;
+    background: var(--muted) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.75rem !important;
+    font-size: 0.9375rem !important;
+    font-weight: 500 !important;
+    color: var(--foreground) !important;
+    line-height: 1.5 !important;
+  }
+
+  .il-lektier-reading-icon {
+    flex-shrink: 0 !important;
+    color: var(--muted-foreground) !important;
+    margin-top: 0.125rem !important;
+  }
+
+  /* ── Note ────────────────────────────────── */
+
+  .il-lektier-note {
+    font-size: 0.9375rem !important;
+    color: var(--muted-foreground) !important;
+    background: var(--muted) !important;
+    padding: 0.875rem 1rem !important;
+    border-radius: 0.625rem !important;
+    line-height: 1.6 !important;
+    white-space: pre-line !important;
+    border-left: 3px solid oklch(0.78 0.06 var(--hold-hue, 200)) !important;
+    margin-top: 0.125rem !important;
+  }
+
+  /* ── Dark mode overrides ────────────────── */
+
+  .dark .il-lektier-card:hover {
+    border-color: oklch(0.35 0 0) !important;
+    box-shadow: 0 6px 24px oklch(0 0 0 / 0.3) !important;
+  }
+
+  .dark .il-lektier-card-accent {
+    background: oklch(0.6 0.14 var(--hold-hue, 200)) !important;
+  }
+
+  .dark .il-lektier-hold-pill {
+    background: oklch(0.28 0.06 var(--hold-hue, 200)) !important;
+    color: oklch(0.78 0.1 var(--hold-hue, 200)) !important;
+  }
+
+  .dark .il-lektier-card-module:hover {
+    color: oklch(0.75 0.1 var(--hold-hue, 200)) !important;
+  }
+
+  .dark .il-lektier-date-today {
+    color: oklch(0.85 0.12 85) !important;
+    background: oklch(0.3 0.08 85) !important;
+  }
+
+  .dark .il-lektier-day.is-today .il-lektier-date-number {
+    color: oklch(0.82 0.12 85) !important;
+  }
+
+  .dark .il-lektier-day.is-today .il-lektier-date-weekday {
+    color: oklch(0.75 0.1 85) !important;
+  }
+
+  .dark .il-lektier-file {
+    background: oklch(0.22 0.02 250) !important;
+    border-color: oklch(0.3 0.03 250) !important;
+  }
+
+  .dark .il-lektier-file:hover {
+    background: oklch(0.25 0.03 250) !important;
+    border-color: oklch(0.35 0.04 250) !important;
+    box-shadow: 0 2px 12px oklch(0 0 0 / 0.2) !important;
+  }
+
+  .dark .il-lektier-file-icon-wrap {
+    background: oklch(0.3 0.05 250) !important;
+    color: oklch(0.7 0.12 250) !important;
+  }
+
+  .dark .il-lektier-file-dl {
+    color: oklch(0.7 0.1 250) !important;
+  }
+
+  .dark .il-lektier-activity-link {
+    background: oklch(0.22 0.015 160) !important;
+    border-color: oklch(0.3 0.02 160) !important;
+  }
+
+  .dark .il-lektier-activity-link:hover {
+    background: oklch(0.25 0.025 160) !important;
+    border-color: oklch(0.35 0.03 160) !important;
+    box-shadow: 0 2px 12px oklch(0 0 0 / 0.2) !important;
+  }
+
+  .dark .il-lektier-activity-icon-wrap {
+    background: oklch(0.3 0.04 160) !important;
+    color: oklch(0.7 0.1 160) !important;
+  }
+
+  .dark .il-lektier-activity-arrow {
+    color: oklch(0.7 0.08 160) !important;
+  }
+
+  .dark .il-lektier-note {
+    border-left-color: oklch(0.5 0.08 var(--hold-hue, 200)) !important;
+  }
+
+  /* ── Responsive ─────────────────────────── */
+
+  @media (max-width: 640px) {
+    .il-lektier-page {
+      padding: 1.5rem 1.25rem 2.5rem !important;
+    }
+
+    .il-lektier-header {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 1rem !important;
+      margin-bottom: 2rem !important;
+    }
+
+    .il-lektier-title {
+      font-size: 1.75rem !important;
+    }
+
+    .il-lektier-day {
+      flex-direction: column !important;
+      gap: 1rem !important;
+      padding: 1.5rem 0 !important;
+    }
+
+    .il-lektier-date-col {
+      flex-direction: row !important;
+      width: auto !important;
+      position: static !important;
+      gap: 0.625rem !important;
+      align-items: baseline !important;
+      padding-top: 0 !important;
+    }
+
+    .il-lektier-date-number {
+      font-size: 1.5rem !important;
+    }
+
+    .il-lektier-date-weekday {
+      font-size: 0.875rem !important;
+    }
+
+    .il-lektier-date-month {
+      font-size: 0.8125rem !important;
+    }
+
+    .il-lektier-date-today {
+      margin-top: 0 !important;
+      margin-left: 0.25rem !important;
+    }
+
+    .il-lektier-file,
+    .il-lektier-activity-link,
+    .il-lektier-reading {
+      padding: 0.625rem 0.875rem !important;
+    }
+
+    .il-lektier-file-icon-wrap,
+    .il-lektier-activity-icon-wrap {
+      width: 2.25rem !important;
+      height: 2.25rem !important;
+    }
+  }
+
+  /* ========================================
+     Opgaver Page (opgaverelev.aspx) Styles
+     ======================================== */
+
+  /* Hide original content when opgaver redesign is active */
+  body.il-opgaver-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-opgaver-page-active #il-original-content,
+  body.il-opgaver-page-active #il-original-content #masterContent,
+  body.il-opgaver-page-active #il-original-content #aspnetForm,
+  body.il-opgaver-page-active #il-original-content .ls-master-container1,
+  body.il-opgaver-page-active #il-original-content .ls-master-container2,
+  body.il-opgaver-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-opgaver-page-active #il-original-content .outerContentFrame,
+  body.il-opgaver-page-active #il-original-content .ls-content-container,
+  body.il-opgaver-page-active #il-original-content .ls-content {
+    height: fit-content !important;
+    min-height: 0 !important;
+  }
+
+  /* ── Page container ──────────────────────── */
+
+  #il-opgaver-page {
+    padding: 0 !important;
+  }
+
+  .il-opgaver-page {
+    max-width: 860px !important;
+    margin: 0 auto !important;
+    padding: 2.5rem 2rem 3rem !important;
+  }
+
+  /* ── Header ──────────────────────────────── */
+
+  .il-opgaver-header {
+    margin-bottom: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  .il-opgaver-title {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.03em !important;
+    color: var(--foreground) !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .il-opgaver-subtitle {
+    font-size: 0.875rem !important;
+    color: var(--muted-foreground) !important;
+    margin: 0.25rem 0 0 !important;
+  }
+
+  /* ── Hold filter pills ───────────────────── */
+
+  .il-opgaver-filters {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    margin-bottom: 2rem !important;
+  }
+
+  .il-opgaver-filter-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    border-radius: 9999px !important;
+    border: 1px solid var(--border) !important;
+    background: var(--background) !important;
+    color: var(--muted-foreground) !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .il-opgaver-filter-pill:hover {
+    background: var(--muted) !important;
+    color: var(--foreground) !important;
+  }
+
+  .il-opgaver-filter-pill.is-active {
+    background: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    border-color: var(--primary) !important;
+  }
+
+  .il-opgaver-filter-pill.is-active:hover {
+    background: color-mix(in oklch, var(--primary) 90%, black) !important;
+  }
+
+  /* ── Empty state ─────────────────────────── */
+
+  .il-opgaver-empty {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 5rem 2rem !important;
+    text-align: center !important;
+    gap: 0.5rem !important;
+  }
+
+  .il-opgaver-empty-icon {
+    width: 3rem !important;
+    height: 3rem !important;
+    color: var(--muted-foreground) !important;
+    opacity: 0.3 !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .il-opgaver-empty-title {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    color: var(--foreground) !important;
+    margin: 0 !important;
+  }
+
+  .il-opgaver-empty-subtitle {
+    font-size: 0.875rem !important;
+    color: var(--muted-foreground) !important;
+    margin: 0 !important;
+  }
+
+  /* ── Sections ────────────────────────────── */
+
+  .il-opgaver-section {
+    margin-bottom: 2.5rem !important;
+  }
+
+  .il-opgaver-section-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: var(--muted-foreground) !important;
+    margin: 0 0 1rem !important;
+  }
+
+  .il-opgaver-section-count {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 1.25rem !important;
+    height: 1.25rem !important;
+    padding: 0 0.375rem !important;
+    font-size: 0.625rem !important;
+    font-weight: 700 !important;
+    border-radius: 9999px !important;
+    background: var(--muted) !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  /* ── Animation ───────────────────────────── */
+
+  @keyframes il-opgaver-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Upcoming cards ──────────────────────── */
+
+  .il-opgaver-upcoming {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.625rem !important;
+  }
+
+  .il-opgaver-card {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+    padding: 0.875rem 1rem !important;
+    border-radius: 0.75rem !important;
+    border: 1px solid var(--border) !important;
+    background: var(--card) !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease !important;
+    animation: il-opgaver-fade-in 0.4s ease both !important;
+    /* Default: neutral left accent */
+    border-left: 2px solid oklch(0.85 0 0) !important;
+  }
+
+  .il-opgaver-card:hover {
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.06) !important;
+    border-color: oklch(0.82 0 0) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  /* ── Urgency: overdue ── */
+  .il-opgaver-card.is-overdue {
+    border-left: 4px solid oklch(0.55 0.22 25) !important;
+    background: oklch(0.985 0.012 25) !important;
+  }
+  .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
+    font-size: 1.0625rem !important;
+    font-weight: 700 !important;
+    color: oklch(0.5 0.22 25) !important;
+    letter-spacing: -0.01em !important;
+  }
+  .il-opgaver-card.is-overdue .il-opgaver-deadline-icon {
+    color: oklch(0.55 0.22 25) !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ── Urgency: imminent (< 24h) ── */
+  .il-opgaver-card.is-imminent {
+    border-left: 4px solid oklch(0.6 0.18 50) !important;
+    background: oklch(0.985 0.008 50) !important;
+  }
+  .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    color: oklch(0.52 0.18 50) !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  /* ── Urgency: soon (1-3 days) ── */
+  .il-opgaver-card.is-soon {
+    border-left: 3px solid oklch(0.72 0.12 80) !important;
+  }
+  .il-opgaver-card.is-soon .il-opgaver-deadline-label {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    color: oklch(0.48 0.1 80) !important;
+  }
+
+  /* ── Urgency: later (3+ days) ── */
+  .il-opgaver-card.is-later .il-opgaver-deadline-label {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  /* ── Deadline row (hero element) ─────────── */
+
+  .il-opgaver-card-deadline {
+    display: flex !important;
+    align-items: baseline !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+  }
+
+  .il-opgaver-deadline-info {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 0.375rem !important;
+    min-width: 0 !important;
+  }
+
+  .il-opgaver-deadline-label {
+    /* base — overridden per urgency above */
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+
+  .il-opgaver-deadline-sep {
+    color: var(--muted-foreground) !important;
+    opacity: 0.4 !important;
+    font-size: 0.75rem !important;
+  }
+
+  .il-opgaver-deadline-detail {
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+    white-space: nowrap !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .il-opgaver-deadline-icon {
+    position: relative !important;
+    top: 1px !important;
+  }
+
+  /* ── Card title ──────────────────────────── */
+
+  .il-opgaver-card-title {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--foreground) !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+  }
+
+  .il-opgaver-card-title:hover {
+    color: oklch(0.5 0.12 var(--hold-hue, 200)) !important;
+  }
+
+  /* ── Hold pill (shared) ──────────────────── */
+
+  .il-opgaver-hold-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.125rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    border-radius: 9999px !important;
+    background: oklch(0.95 0.04 var(--hold-hue, 200)) !important;
+    color: oklch(0.45 0.12 var(--hold-hue, 200)) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ── Meta row ────────────────────────────── */
+
+  .il-opgaver-card-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+    flex-wrap: wrap !important;
+  }
+
+  .il-opgaver-meta-dot {
+    width: 3px !important;
+    height: 3px !important;
+    border-radius: 50% !important;
+    background: var(--muted-foreground) !important;
+    opacity: 0.4 !important;
+  }
+
+  /* ── Note (shared) ───────────────────────── */
+
+  .il-opgaver-note {
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+    background: var(--muted) !important;
+    padding: 0.5rem 0.625rem !important;
+    border-radius: 0.375rem !important;
+    line-height: 1.5 !important;
+    white-space: pre-line !important;
+    border-left: 3px solid oklch(0.78 0.06 var(--hold-hue, 200)) !important;
+    cursor: pointer !important;
+    overflow: hidden !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .il-opgaver-note.is-expanded {
+    -webkit-line-clamp: unset !important;
+    display: block !important;
+  }
+
+  /* ── Submitted list ──────────────────────── */
+
+  .il-opgaver-submitted-list {
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.75rem !important;
+    overflow: hidden !important;
+  }
+
+  .il-opgaver-submitted-row {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0.6875rem 1rem !important;
+    border-bottom: 1px solid var(--border) !important;
+    animation: il-opgaver-fade-in 0.35s ease both !important;
+    transition: background 0.15s ease !important;
+  }
+
+  .il-opgaver-submitted-row:last-child {
+    border-bottom: none !important;
+  }
+
+  .il-opgaver-submitted-row:hover {
+    background: var(--muted) !important;
+  }
+
+  .il-opgaver-submitted-primary {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.625rem !important;
+    min-width: 0 !important;
+  }
+
+  .il-opgaver-submitted-title {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--foreground) !important;
+    text-decoration: none !important;
+    transition: color 0.15s ease !important;
+  }
+
+  .il-opgaver-submitted-title:hover {
+    color: oklch(0.5 0.12 var(--hold-hue, 200)) !important;
+  }
+
+  /* ── Grade badge ─────────────────────────── */
+
+  .il-opgaver-grade {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 2rem !important;
+    padding: 0.125rem 0.5rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 700 !important;
+    border-radius: 0.375rem !important;
+    background: oklch(0.93 0.06 var(--grade-hue, 145)) !important;
+    color: oklch(0.4 0.14 var(--grade-hue, 145)) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .il-opgaver-submitted-date {
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+    flex-shrink: 0 !important;
+    min-width: 5.5rem !important;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .il-opgaver-submitted-detail {
+    padding-top: 0.5rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+  }
+
+  .il-opgaver-grade-extra {
+    font-size: 0.75rem !important;
+    font-style: italic !important;
+    color: var(--muted-foreground) !important;
+    opacity: 0.7 !important;
+  }
+
+  /* ── Show more button ────────────────────── */
+
+  .il-opgaver-show-more {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.375rem !important;
+    width: 100% !important;
+    padding: 0.75rem !important;
+    margin-top: 0.75rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--muted-foreground) !important;
+    background: var(--muted) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.75rem !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .il-opgaver-show-more:hover {
+    background: var(--accent) !important;
+    color: var(--foreground) !important;
+  }
+
+  /* ── Dark mode ───────────────────────────── */
+
+  .dark .il-opgaver-card {
+    border-left-color: oklch(0.35 0 0) !important;
+  }
+
+  .dark .il-opgaver-card:hover {
+    border-color: oklch(0.38 0 0) !important;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.3) !important;
+  }
+
+  .dark .il-opgaver-card.is-overdue {
+    border-left-color: oklch(0.6 0.18 25) !important;
+    background: oklch(0.17 0.02 25) !important;
+  }
+  .dark .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
+    color: oklch(0.72 0.18 25) !important;
+  }
+  .dark .il-opgaver-card.is-overdue .il-opgaver-deadline-icon {
+    color: oklch(0.72 0.18 25) !important;
+  }
+
+  .dark .il-opgaver-card.is-imminent {
+    border-left-color: oklch(0.6 0.15 50) !important;
+    background: oklch(0.17 0.015 50) !important;
+  }
+  .dark .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
+    color: oklch(0.72 0.15 50) !important;
+  }
+
+  .dark .il-opgaver-card.is-soon {
+    border-left-color: oklch(0.55 0.1 80) !important;
+  }
+  .dark .il-opgaver-card.is-soon .il-opgaver-deadline-label {
+    color: oklch(0.72 0.1 80) !important;
+  }
+
+  .dark .il-opgaver-hold-pill {
+    background: oklch(0.28 0.06 var(--hold-hue, 200)) !important;
+    color: oklch(0.78 0.1 var(--hold-hue, 200)) !important;
+  }
+
+  .dark .il-opgaver-card-title:hover,
+  .dark .il-opgaver-submitted-title:hover {
+    color: oklch(0.75 0.1 var(--hold-hue, 200)) !important;
+  }
+
+  .dark .il-opgaver-grade {
+    background: oklch(0.28 0.08 var(--grade-hue, 145)) !important;
+    color: oklch(0.8 0.1 var(--grade-hue, 145)) !important;
+  }
+
+  .dark .il-opgaver-note {
+    border-left-color: oklch(0.5 0.08 var(--hold-hue, 200)) !important;
+  }
+
+  .dark .il-opgaver-submitted-row:hover {
+    background: oklch(0.2 0 0) !important;
+  }
+
+  /* ── Responsive ──────────────────────────── */
+
+  @media (max-width: 640px) {
+    .il-opgaver-page {
+      padding: 1.5rem 1rem 2rem !important;
+    }
+
+    .il-opgaver-title {
+      font-size: 1.5rem !important;
+    }
+
+    .il-opgaver-card-deadline {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 0.375rem !important;
+    }
+
+    .il-opgaver-card-title {
+      white-space: normal !important;
+    }
+
+    .il-opgaver-submitted-primary {
+      flex-wrap: wrap !important;
+      gap: 0.375rem !important;
+    }
+
+    .il-opgaver-submitted-title {
+      flex-basis: 100% !important;
+      white-space: normal !important;
+    }
+
+    .il-opgaver-submitted-date {
+      min-width: auto !important;
+      text-align: left !important;
+    }
+  }
+
+  /* ========================================
+     Opgave Detail Sheet Styles
+     ======================================== */
+
+  /* Wrapper — covers the entire viewport */
+  .il-opgave-sheet-wrapper {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 100 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Backdrop — dim overlay */
+  .il-opgave-sheet-backdrop {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    animation: il-opgave-fade-in 0.2s ease !important;
+  }
+
+  @keyframes il-opgave-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes il-opgave-slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  /* Panel — the slide-in sheet */
+  .il-opgave-sheet-panel {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 90% !important;
+    max-width: 32rem !important;
+    background: var(--background) !important;
+    border-left: 1px solid var(--border) !important;
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    animation: il-opgave-slide-in 0.3s ease !important;
+  }
+
+  /* Close button */
+  .il-opgave-sheet-close {
+    position: absolute !important;
+    top: 1rem !important;
+    right: 1rem !important;
+    z-index: 10 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    border-radius: 0.25rem !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--muted-foreground) !important;
+    cursor: pointer !important;
+    opacity: 0.7 !important;
+    transition: opacity 0.15s, background 0.15s !important;
+  }
+
+  .il-opgave-sheet-close:hover {
+    opacity: 1 !important;
+    background: var(--muted) !important;
+  }
+
+  /* ── Header ───────────────────────────────── */
+
+  .il-opgave-sheet-header {
+    flex-shrink: 0 !important;
+    padding: 1.25rem 1.25rem 0 !important;
+  }
+
+  .il-opgave-sheet-header-top {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .il-opgave-sheet-title {
+    font-size: 1.125rem !important;
+    font-weight: 700 !important;
+    color: var(--foreground) !important;
+    line-height: 1.3 !important;
+    padding-right: 2rem !important;
+  }
+
+  .il-opgave-sheet-header-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.625rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .il-opgave-sheet-deadline {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  /* ── Scrollable body ──────────────────────── */
+
+  .il-opgave-sheet-body {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding: 1.25rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  /* ── Info grid ────────────────────────────── */
+
+  .il-opgave-sheet-info-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .il-opgave-sheet-info-row {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 0.75rem !important;
+  }
+
+  .il-opgave-sheet-info-label {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    color: var(--muted-foreground) !important;
+    min-width: 6.5rem !important;
+    flex-shrink: 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  .il-opgave-sheet-info-value {
+    font-size: 0.8125rem !important;
+    color: var(--foreground) !important;
+    word-break: break-word !important;
+  }
+
+  /* ── Assignment note ──────────────────────── */
+
+  .il-opgave-sheet-note {
+    font-size: 0.8125rem !important;
+    color: var(--foreground) !important;
+    background: var(--muted) !important;
+    padding: 0.75rem 0.875rem !important;
+    border-radius: 0.5rem !important;
+    line-height: 1.6 !important;
+    border-left: 3px solid var(--border) !important;
+  }
+
+  .il-opgave-sheet-note br {
+    display: block !important;
+    content: "" !important;
+    margin: 0.25rem 0 !important;
+  }
+
+  /* ── Description files ────────────────────── */
+
+  .il-opgave-sheet-files {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+  }
+
+  .il-opgave-sheet-file-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    color: oklch(0.45 0.12 250) !important;
+    background: oklch(0.975 0.012 250) !important;
+    border: 1px solid oklch(0.93 0.02 250) !important;
+    border-radius: 0.5rem !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .il-opgave-sheet-file-link:hover {
+    background: oklch(0.96 0.025 250) !important;
+    border-color: oklch(0.88 0.04 250) !important;
+  }
+
+  /* ── Section labels ───────────────────────── */
+
+  .il-opgave-sheet-section-label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--muted-foreground) !important;
+    margin: 0 0 0.5rem !important;
+  }
+
+  .il-opgave-sheet-entry-count {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 1.125rem !important;
+    height: 1.125rem !important;
+    padding: 0 0.3rem !important;
+    font-size: 0.5625rem !important;
+    font-weight: 700 !important;
+    border-radius: 9999px !important;
+    background: var(--muted) !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  /* ── Student status ───────────────────────── */
+
+  .il-opgave-sheet-student-section {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .il-opgave-sheet-student {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.25rem !important;
+    padding: 0.5rem 0 !important;
+  }
+
+  .il-opgave-sheet-student-name {
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    color: var(--foreground) !important;
+  }
+
+  .il-opgave-sheet-student-meta {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .il-opgave-sheet-awaiting-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0.125rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    border-radius: 9999px !important;
+  }
+
+  .il-opgave-sheet-awaiting-badge.is-student {
+    background: oklch(0.94 0.04 50) !important;
+    color: oklch(0.5 0.14 50) !important;
+  }
+
+  .il-opgave-sheet-awaiting-badge.is-teacher {
+    background: oklch(0.94 0.04 250) !important;
+    color: oklch(0.5 0.14 250) !important;
+  }
+
+  .il-opgave-sheet-status-text {
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  .il-opgave-sheet-student-grade {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    margin-top: 0.125rem !important;
+  }
+
+  .il-opgave-sheet-grade-note {
+    font-size: 0.75rem !important;
+    font-style: italic !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  .il-opgave-sheet-student-note {
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+    font-style: italic !important;
+  }
+
+  /* ── Submission entries ───────────────────── */
+
+  .il-opgave-sheet-entries-section {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .il-opgave-sheet-entries {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .il-opgave-sheet-entry {
+    padding: 0.625rem 0.75rem !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.5rem !important;
+    background: var(--background) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+  }
+
+  .il-opgave-sheet-entry.is-teacher {
+    background: oklch(0.98 0.008 250) !important;
+    border-color: oklch(0.92 0.02 250) !important;
+  }
+
+  .il-opgave-sheet-entry-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.5rem !important;
+  }
+
+  .il-opgave-sheet-entry-user {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    color: var(--foreground) !important;
+  }
+
+  .il-opgave-sheet-entry-time {
+    font-size: 0.6875rem !important;
+    color: var(--muted-foreground) !important;
+    flex-shrink: 0 !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .il-opgave-sheet-entry-comment {
+    font-size: 0.8125rem !important;
+    color: var(--foreground) !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    white-space: pre-line !important;
+  }
+
+  .il-opgave-sheet-entry-doc {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    color: oklch(0.45 0.12 250) !important;
+    text-decoration: none !important;
+    transition: color 0.15s !important;
+  }
+
+  .il-opgave-sheet-entry-doc:hover {
+    color: oklch(0.4 0.15 250) !important;
+    text-decoration: underline !important;
+  }
+
+  /* ── Footer / Form ────────────────────────── */
+
+  .il-opgave-sheet-footer {
+    flex-shrink: 0 !important;
+    padding: 0 1.25rem 1.25rem !important;
+  }
+
+  .il-opgave-sheet-form {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding-top: 0.75rem !important;
+  }
+
+  .il-opgave-sheet-textarea {
+    width: 100% !important;
+    min-height: 3rem !important;
+    max-height: 8rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    font-family: inherit !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.5rem !important;
+    background: var(--background) !important;
+    color: var(--foreground) !important;
+    resize: vertical !important;
+    transition: border-color 0.15s !important;
+  }
+
+  .il-opgave-sheet-textarea:focus {
+    outline: none !important;
+    border-color: var(--ring) !important;
+  }
+
+  .il-opgave-sheet-textarea:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+  }
+
+  /* Drop zone */
+  .il-opgave-sheet-dropzone {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.5rem 0.75rem !important;
+    border: 1px dashed var(--border) !important;
+    border-radius: 0.5rem !important;
+    background: var(--background) !important;
+    cursor: pointer !important;
+    transition: all 0.15s !important;
+    position: relative !important;
+  }
+
+  .il-opgave-sheet-dropzone:hover {
+    border-color: var(--ring) !important;
+    background: var(--muted) !important;
+  }
+
+  .il-opgave-sheet-dropzone.is-dragover {
+    border-color: oklch(0.55 0.15 250) !important;
+    background: oklch(0.97 0.02 250) !important;
+    border-style: solid !important;
+  }
+
+  .il-opgave-sheet-dropzone.has-file {
+    border-style: solid !important;
+    cursor: default !important;
+  }
+
+  .il-opgave-sheet-dropzone-hint {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    font-size: 0.75rem !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  .il-opgave-sheet-selected-file {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    font-size: 0.75rem !important;
+    color: var(--foreground) !important;
+  }
+
+  .il-opgave-sheet-file-name {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-weight: 500 !important;
+  }
+
+  .il-opgave-sheet-file-size {
+    font-size: 0.6875rem !important;
+    color: var(--muted-foreground) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .il-opgave-sheet-file-remove {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    border-radius: 9999px !important;
+    border: none !important;
+    background: var(--muted) !important;
+    color: var(--muted-foreground) !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    transition: all 0.15s !important;
+  }
+
+  .il-opgave-sheet-file-remove:hover {
+    background: oklch(0.9 0.05 25) !important;
+    color: oklch(0.5 0.2 25) !important;
+  }
+
+  .il-opgave-sheet-file-input {
+    position: absolute !important;
+    inset: 0 !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
+    pointer-events: none !important;
+  }
+
+  /* Send button */
+  .il-opgave-sheet-send-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.375rem !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    background: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    cursor: pointer !important;
+    transition: opacity 0.15s !important;
+    align-self: flex-end !important;
+  }
+
+  .il-opgave-sheet-send-btn:hover:not(:disabled) {
+    opacity: 0.9 !important;
+  }
+
+  .il-opgave-sheet-send-btn:disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+  }
+
+  @keyframes il-opgave-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .il-opgave-sheet-spinner {
+    animation: il-opgave-spin 0.8s linear infinite !important;
+  }
+
+  /* Lectio fallback link */
+  .il-opgave-sheet-lectio-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.5rem 0 !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    color: var(--muted-foreground) !important;
+    text-decoration: none !important;
+    transition: color 0.15s !important;
+  }
+
+  .il-opgave-sheet-lectio-link:hover {
+    color: var(--foreground) !important;
+  }
+
+  /* ── Error state ──────────────────────────── */
+
+  .il-opgave-sheet-error {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.75rem !important;
+    padding: 3rem 1rem !important;
+    text-align: center !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  .il-opgave-sheet-error p {
+    margin: 0 !important;
+    font-size: 0.875rem !important;
+  }
+
+  .il-opgave-sheet-error-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.625rem !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .il-opgave-sheet-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+    padding: 0.375rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    border-radius: 0.375rem !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.15s !important;
+  }
+
+  .il-opgave-sheet-btn-outline {
+    border: 1px solid var(--border) !important;
+    background: var(--background) !important;
+    color: var(--foreground) !important;
+  }
+
+  .il-opgave-sheet-btn-outline:hover {
+    background: var(--muted) !important;
+  }
+
+  .il-opgave-sheet-btn-ghost {
+    border: none !important;
+    background: none !important;
+    color: var(--muted-foreground) !important;
+  }
+
+  .il-opgave-sheet-btn-ghost:hover {
+    color: var(--foreground) !important;
+  }
+
+  /* ── Loading skeleton ─────────────────────── */
+
+  .il-opgave-sheet-skeleton {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  /* ── Dark mode ────────────────────────────── */
+
+  .dark .il-opgave-sheet-entry.is-teacher {
+    background: oklch(0.2 0.015 250) !important;
+    border-color: oklch(0.28 0.025 250) !important;
+  }
+
+  .dark .il-opgave-sheet-file-link {
+    color: oklch(0.7 0.1 250) !important;
+    background: oklch(0.22 0.02 250) !important;
+    border-color: oklch(0.3 0.03 250) !important;
+  }
+
+  .dark .il-opgave-sheet-file-link:hover {
+    background: oklch(0.25 0.03 250) !important;
+    border-color: oklch(0.35 0.04 250) !important;
+  }
+
+  .dark .il-opgave-sheet-entry-doc {
+    color: oklch(0.7 0.1 250) !important;
+  }
+
+  .dark .il-opgave-sheet-dropzone.is-dragover {
+    border-color: oklch(0.6 0.12 250) !important;
+    background: oklch(0.22 0.03 250) !important;
+  }
+
+  .dark .il-opgave-sheet-awaiting-badge.is-student {
+    background: oklch(0.28 0.06 50) !important;
+    color: oklch(0.78 0.1 50) !important;
+  }
+
+  .dark .il-opgave-sheet-awaiting-badge.is-teacher {
+    background: oklch(0.28 0.06 250) !important;
+    color: oklch(0.78 0.1 250) !important;
+  }
+
+  .dark .il-opgave-sheet-file-remove:hover {
+    background: oklch(0.3 0.06 25) !important;
+    color: oklch(0.7 0.16 25) !important;
   }
 
   /* ========================================
