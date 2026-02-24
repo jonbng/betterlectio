@@ -1,40 +1,46 @@
+/* Pre-declare lectio layer so it has lowest cascade priority.
+   Layer order: lectio < theme < base < components < utilities
+   Lectio's CSS is wrapped in @layer lectio by hide-flash.content.ts,
+   so all our styles automatically win without needing !important. */
+@layer lectio;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.985 0.003 265);
+  --foreground: oklch(0.145 0.014 265);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.145 0.014 265);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.145 0.014 265);
+  --primary: oklch(0.54 0.2 265);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.955 0.01 265);
+  --secondary-foreground: oklch(0.205 0.015 265);
+  --muted: oklch(0.955 0.01 265);
+  --muted-foreground: oklch(0.55 0.02 265);
+  --accent: oklch(0.94 0.012 265);
+  --accent-foreground: oklch(0.205 0.015 265);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.91 0.008 265);
+  --input: oklch(0.91 0.008 265);
+  --ring: oklch(0.54 0.2 265);
   --radius: 0.625rem;
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-  --scrollbar-track: oklch(0.97 0 0);
-  --scrollbar-thumb: oklch(0.708 0 0);
-  --scrollbar-thumb-hover: oklch(0.556 0 0);
+  --sidebar: oklch(0.97 0.006 265);
+  --sidebar-foreground: oklch(0.3 0.02 265);
+  --sidebar-primary: oklch(0.54 0.2 265);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0.012 265);
+  --sidebar-accent-foreground: oklch(0.205 0.015 265);
+  --sidebar-border: oklch(0.91 0.008 265);
+  --sidebar-ring: oklch(0.54 0.2 265);
+  --scrollbar-track: oklch(0.955 0.006 265);
+  --scrollbar-thumb: oklch(0.7 0.015 265);
+  --scrollbar-thumb-hover: oklch(0.55 0.02 265);
 }
 
 @theme inline {
@@ -79,46 +85,46 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.145 0.014 265);
+  --foreground: oklch(0.985 0.005 265);
+  --card: oklch(0.17 0.016 265);
+  --card-foreground: oklch(0.985 0.005 265);
+  --popover: oklch(0.17 0.016 265);
+  --popover-foreground: oklch(0.985 0.005 265);
+  --primary: oklch(0.68 0.17 265);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.24 0.016 265);
+  --secondary-foreground: oklch(0.985 0.005 265);
+  --muted: oklch(0.24 0.016 265);
+  --muted-foreground: oklch(0.65 0.02 265);
+  --accent: oklch(0.24 0.016 265);
+  --accent-foreground: oklch(0.985 0.005 265);
   --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-  --lectio-dark-bg: #212529;
-  --lectio-dark-surface: #343a40;
-  --lectio-dark-element: #495057;
-  --lectio-dark-border: #6c757d;
-  --lectio-dark-text: #e9ecef;
-  --lectio-dark-link: #a2b4f7;
-  --lectio-dark-link-hover: #6f7ffa;
-  --lectio-dark-calendar: #6f7d8b;
-  --lectio-dark-info: #608cba;
-  --lectio-dark-header: #57b756;
-  --scrollbar-track: oklch(0.205 0 0);
-  --scrollbar-thumb: oklch(0.439 0 0);
-  --scrollbar-thumb-hover: oklch(0.556 0 0);
+  --destructive-foreground: oklch(0.985 0.005 265);
+  --border: oklch(0.28 0.016 265);
+  --input: oklch(0.28 0.016 265);
+  --ring: oklch(0.68 0.17 265);
+  --sidebar: oklch(0.17 0.02 265);
+  --sidebar-foreground: oklch(0.93 0.008 265);
+  --sidebar-primary: oklch(0.68 0.17 265);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.22 0.02 265);
+  --sidebar-accent-foreground: oklch(0.93 0.008 265);
+  --sidebar-border: oklch(0.24 0.016 265);
+  --sidebar-ring: oklch(0.68 0.17 265);
+  --lectio-dark-bg: oklch(0.21 0.01 265);
+  --lectio-dark-surface: oklch(0.28 0.012 265);
+  --lectio-dark-element: oklch(0.36 0.012 265);
+  --lectio-dark-border: oklch(0.5 0.012 265);
+  --lectio-dark-text: oklch(0.93 0.005 265);
+  --lectio-dark-link: oklch(0.75 0.12 270);
+  --lectio-dark-link-hover: oklch(0.6 0.2 270);
+  --lectio-dark-calendar: oklch(0.55 0.02 250);
+  --lectio-dark-info: oklch(0.58 0.08 240);
+  --lectio-dark-header: oklch(0.68 0.17 145);
+  --scrollbar-track: oklch(0.18 0.014 265);
+  --scrollbar-thumb: oklch(0.4 0.016 265);
+  --scrollbar-thumb-hover: oklch(0.5 0.02 265);
 }
 
 @layer base {
@@ -151,6 +157,30 @@
   *::-webkit-scrollbar-thumb:hover {
     background-color: var(--scrollbar-thumb-hover);
   }
+
+  /* ── Lectio content isolation ────────────────────────────────
+     Revert ALL Tailwind preflight resets for elements inside
+     Lectio's native DOM. Without this, Tailwind's aggressive
+     resets (margin:0, padding:0, border:0, color:inherit, etc.)
+     override Lectio's CSS since @layer base > @layer lectio.
+
+     Using :where() keeps specificity at (1,0,0) from the ID only,
+     so our @layer components overrides still win easily.
+
+     Injected components (FindSkema, Lektier, etc.) live OUTSIDE
+     #il-original-content, so they still get Tailwind's base. */
+  #il-original-content :where(*) {
+    all: revert-layer;
+  }
+  #il-original-content :where(*)::before,
+  #il-original-content :where(*)::after {
+    all: revert-layer;
+  }
+
+  /* Keep custom scrollbar styling consistent inside Lectio content */
+  #il-original-content :where(*) {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 }
 
 /* ========================================
@@ -171,24 +201,36 @@
     overflow: hidden !important;
   }
 
-  /* Root element for our app */
+  /* ── Root element baseline ──────────────────────────────────
+     Establishes a clean foundation for ALL custom UI (sidebar,
+     injected pages, modals, etc.). Prevents any inherited Lectio
+     styles from leaking in via the <body> cascade. */
   #il-root {
-    height: 100vh !important;
-    width: 100% !important;
+    height: 100vh;
+    width: 100%;
+    font-family: "Geist", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: left;
+    letter-spacing: normal;
+    word-spacing: normal;
   }
 
   /* Force sidebar wrapper to be a proper flex row */
   [data-slot="sidebar-wrapper"] {
-    display: flex !important;
-    flex-direction: row !important;
-    min-height: 100vh !important;
-    width: 100% !important;
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+    width: 100%;
   }
 
   /* Settings modal needs wrapper constrained to modal height */
   .settings-modal[data-slot="sidebar-wrapper"] {
-    min-height: 0 !important;
-    height: 100% !important;
+    min-height: 0;
+    height: 100%;
   }
 
   /* Sidebar wrapper - must be visible (override hidden class) */
@@ -198,73 +240,218 @@
 
   [data-slot="sidebar"] {
     display: block !important;
-    height: 100vh !important;
+    height: 100vh;
   }
 
   .settings-modal [data-slot="sidebar"] {
-    height: 100% !important;
+    height: 100%;
   }
 
   /* Force modal main layout to flex to enable inner scrolling */
   .settings-modal .settings-modal-main {
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
 
   .settings-modal .settings-modal-scroll {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* ── Hold Mapping Editor ─────────────────────────────────────────────── */
+
+  .il-hold-mapping-row {
+    display: grid;
+    grid-template-columns: minmax(80px, auto) 1fr 36px;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+  }
+
+  .il-hold-mapping-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .il-hold-mapping-name-cell {
+    min-width: 0;
+  }
+
+  .il-hold-mapping-name-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    max-width: 100%;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    line-height: 1.4;
+  }
+
+  .il-hold-mapping-name-btn:hover {
+    background: var(--accent);
+    border-color: var(--border);
+  }
+
+  .il-hold-mapping-name-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-hold-mapping-indicator {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  .il-hold-mapping-input {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    font-size: 0.875rem;
+    color: var(--foreground);
+    outline: none;
+    line-height: 1.4;
+  }
+
+  .il-hold-mapping-input:focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 25%, transparent);
+  }
+
+  .il-hold-mapping-color-cell {
+    position: relative;
+  }
+
+  .il-hold-mapping-color-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid oklch(0.92 0.005 265);
+    background: oklch(0.68 0.2 var(--hold-hue));
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .il-hold-mapping-color-btn:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 3px oklch(0.68 0.2 var(--hold-hue) / 0.3);
+  }
+
+  .il-hold-color-picker {
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 50;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px;
+    width: 196px;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--popover);
+    box-shadow:
+      0 4px 16px oklch(0 0 0 / 0.08),
+      0 1px 4px oklch(0 0 0 / 0.04);
+  }
+
+  .il-hold-color-swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    background: oklch(0.68 0.2 var(--swatch-hue));
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+
+  .il-hold-color-swatch:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 2px oklch(0.68 0.2 var(--swatch-hue) / 0.35);
+  }
+
+  .il-hold-color-swatch.is-active {
+    border-color: var(--foreground);
+    box-shadow: 0 0 0 2px oklch(0.68 0.2 var(--swatch-hue) / 0.25);
+  }
+
+  .il-hold-color-swatch.is-default {
+    background: conic-gradient(
+      oklch(0.7 0.2 0),
+      oklch(0.7 0.2 60),
+      oklch(0.7 0.2 120),
+      oklch(0.7 0.2 180),
+      oklch(0.7 0.2 240),
+      oklch(0.7 0.2 300),
+      oklch(0.7 0.2 360)
+    );
   }
 
   /* Sidebar inner container - fixed left panel */
   [data-slot="sidebar-container"] {
-    display: flex !important;
-    flex-direction: column !important;
-    height: 100vh !important;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
     position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
+    left: 0;
+    top: 0;
     z-index: 50 !important;
-    width: var(--sidebar-width, 16rem) !important;
-    background-color: var(--sidebar) !important;
-    border-right: 1px solid var(--sidebar-border) !important;
-    overflow: hidden !important;
+    width: var(--sidebar-width, 16rem);
+    background-color: var(--sidebar);
+    border-right: 1px solid var(--sidebar-border);
+    overflow: hidden;
   }
 
   /* Sidebar inner content wrapper */
   [data-sidebar="sidebar"] {
-    display: flex !important;
-    flex-direction: column !important;
-    height: 100% !important;
-    width: 100% !important;
-    background-color: var(--sidebar) !important;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background-color: var(--sidebar);
   }
 
   /* Sidebar gap - the space taken by the sidebar */
   [data-slot="sidebar-gap"] {
-    flex-shrink: 0 !important;
-    width: var(--sidebar-width, 16rem) !important;
+    flex-shrink: 0;
+    width: var(--sidebar-width, 16rem);
   }
 
   /* Main content area */
   [data-slot="sidebar-inset"] {
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 !important;
-    min-width: 0 !important;
-    height: 100vh !important;
-    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    overflow: hidden;
   }
 
   /* Lectio content scroll container */
   #il-lectio-content {
-    flex: 1 !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
     background: var(--background);
   }
 
@@ -327,12 +514,12 @@
   }
 
   .il-entity-schedule #il-original-content .ls-subnav1 {
-    display: flex !important;
+    display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
     padding: 0.75rem 1rem;
-    background: hsl(var(--muted) / 0.3);
-    border-bottom: 1px solid hsl(var(--border));
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    border-bottom: 1px solid var(--border);
     margin: 0;
   }
 
@@ -346,15 +533,15 @@
     padding: 0.375rem 0.75rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: hsl(var(--muted-foreground));
+    color: var(--muted-foreground);
     text-decoration: none;
     border-radius: 0.375rem;
     transition: all 0.15s;
   }
 
   .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a:hover {
-    background: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
+    background: var(--accent);
+    color: var(--accent-foreground);
   }
 
   .il-entity-schedule
@@ -362,8 +549,8 @@
     .ls-subnav1
     .buttonlink.ls-subnav-active
     a {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
   body.il-fravaer-page #il-fravaer-subnav {
@@ -371,8 +558,8 @@
     flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: hsl(var(--muted) / 0.3);
-    border-bottom: 1px solid hsl(var(--border));
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    border-bottom: 1px solid var(--border);
   }
 
   body.il-fravaer-page #il-fravaer-subnav .il-fravaer-subnav-link {
@@ -381,112 +568,112 @@
     padding: 0.375rem 0.75rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: hsl(var(--muted-foreground));
+    color: var(--muted-foreground);
     text-decoration: none;
     border-radius: 0.375rem;
     transition: all 0.15s;
   }
 
   body.il-fravaer-page #il-fravaer-subnav .il-fravaer-subnav-link:hover {
-    background: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
+    background: var(--accent);
+    color: var(--accent-foreground);
   }
 
   body.il-fravaer-page #il-fravaer-subnav .il-fravaer-subnav-link.is-active {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
   body.il-fravaer-page #il-fravaer-summary {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 6 !important;
-    padding: 0.75rem 1rem 0.5rem !important;
-    background: hsl(var(--background)) !important;
-    backdrop-filter: blur(6px) !important;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    padding: 0.75rem 1rem 0.5rem;
+    background: var(--background);
+    backdrop-filter: blur(6px);
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-inner {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 0.75rem !important;
-    align-items: center !important;
-    justify-content: center !important;
-    max-width: 960px !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-    flex-direction: column !important;
-    background: hsl(var(--muted) / 0.35) !important;
-    border: 1px solid hsl(var(--border)) !important;
-    border-radius: 1rem !important;
-    padding: 0.85rem 1rem !important;
-    box-shadow: 0 6px 18px hsl(var(--foreground) / 0.06) !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
+    flex-direction: column;
+    background: color-mix(in oklch, var(--muted) 35%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 0.85rem 1rem;
+    box-shadow: 0 6px 18px color-mix(in oklch, var(--foreground) 6%, transparent);
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-header {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.15rem !important;
-    align-items: center !important;
-    text-align: center !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    align-items: center;
+    text-align: center;
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-title {
-    font-size: 1rem !important;
-    font-weight: 600 !important;
-    color: hsl(var(--foreground)) !important;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground);
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-period {
-    font-size: 0.875rem !important;
-    color: hsl(var(--muted-foreground)) !important;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-metrics {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 0.75rem !important;
-    justify-content: center !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-metric {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.15rem !important;
-    padding: 0.6rem 0.9rem !important;
-    border-radius: 0.75rem !important;
-    background: hsl(var(--background)) !important;
-    border: 1px solid hsl(var(--border)) !important;
-    min-width: 160px !important;
-    text-align: center !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 0.75rem;
+    background: var(--background);
+    border: 1px solid var(--border);
+    min-width: 160px;
+    text-align: center;
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-label {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.03em !important;
-    color: hsl(var(--muted-foreground)) !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted-foreground);
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-value {
-    font-size: 1.05rem !important;
-    font-weight: 600 !important;
-    color: hsl(var(--foreground)) !important;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--foreground);
   }
 
   body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-subvalue {
-    font-size: 0.8rem !important;
-    color: hsl(var(--muted-foreground)) !important;
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
   }
 
   @media (max-width: 640px) {
     body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-inner {
-      align-items: flex-start !important;
+      align-items: flex-start;
     }
 
     body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-metric {
-      min-width: 140px !important;
+      min-width: 140px;
     }
   }
 
@@ -508,8 +695,8 @@
 
   /* Sidebar content - prevent horizontal overflow */
   [data-slot="sidebar-content"] {
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   /* Ensure sidebar footer is clickable */
@@ -519,8 +706,8 @@
   }
 
   [data-slot="sidebar-footer"] button {
-    cursor: pointer !important;
-    pointer-events: auto !important;
+    cursor: pointer;
+    pointer-events: auto;
   }
 
   /* Dropdown menu portal z-index */
@@ -534,7 +721,7 @@
 
   /* Messages page container - two column layout */
   #il-original-content .ls-std-rowblock-selecteditem {
-    display: flex !important;
+    display: flex;
     gap: 1rem;
     padding: 1rem;
   }
@@ -542,220 +729,220 @@
   /* Force mobile-page-drawer to show on our "desktop" view */
   #il-original-content .mobile-page-drawer {
     display: block !important;
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
-    transform: none !important;
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
     visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   /* Folder tree panel */
   #il-original-content .documentchooser-foldertree-col {
-    width: 250px !important;
-    min-width: 250px !important;
-    max-width: 250px !important;
-    flex-shrink: 0 !important;
-    background: var(--background) !important;
-    border-radius: 0.5rem !important;
-    border: 1px solid var(--border) !important;
-    padding: 0.75rem !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    position: relative !important;
-    max-height: calc(100vh - 200px) !important;
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+    flex-shrink: 0;
+    background: var(--background);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    max-height: calc(100vh - 200px);
   }
 
   /* Show folder tree on desktop */
   #il-original-content .ls-foldertree2 {
     display: block !important;
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
-    transform: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    width: 100% !important;
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    box-shadow: none;
+    background: transparent;
+    width: 100%;
   }
 
   /* Reorder folder list - make Nyeste first */
   #il-original-content #s_m_Content_Content_ListGridSelectionTree {
-    display: flex !important;
-    flex-direction: column !important;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Nyeste (node -70) first */
   #il-original-content [lec-node-id="-70"] {
-    order: 1 !important;
+    order: 1;
   }
   /* Alle ulæste */
   #il-original-content [lec-node-id="-40"] {
-    order: 2 !important;
+    order: 2;
   }
   /* Alle med flag */
   #il-original-content [lec-node-id="-50"] {
-    order: 3 !important;
+    order: 3;
   }
   /* Egne beskeder */
   #il-original-content [lec-node-id="-10"] {
-    order: 4 !important;
+    order: 4;
   }
   /* Sendte beskeder */
   #il-original-content [lec-node-id="-80"] {
-    order: 5 !important;
+    order: 5;
   }
   /* Alle slettede */
   #il-original-content [lec-node-id="-60"] {
-    order: 6 !important;
+    order: 6;
   }
   /* Hold, groups etc */
   #il-original-content [lec-node-id="-20"] {
-    order: 7 !important;
+    order: 7;
   }
   #il-original-content [lec-node-id="-30"] {
-    order: 8 !important;
+    order: 8;
   }
   #il-original-content [lec-node-id="-35"] {
-    order: 9 !important;
+    order: 9;
   }
 
   /* Tree node container */
   #il-original-content [lec-role="treeviewnodecontainer"] {
-    margin: 0.125rem 0 !important;
+    margin: 0.125rem 0;
   }
 
   /* Tree node styling */
   #il-original-content .TreeNode-container {
-    display: flex !important;
-    align-items: center !important;
-    padding: 0.375rem 0.5rem !important;
-    border-radius: 0.375rem !important;
-    cursor: pointer !important;
-    transition: background-color 0.15s !important;
+    display: flex;
+    align-items: center;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
   }
 
   #il-original-content .TreeNode-container:hover {
-    background: var(--accent) !important;
+    background: var(--accent);
   }
 
   /* Selected folder styling */
   #il-original-content .TreeNode.selectedFolder {
-    background: var(--accent) !important;
-    border-radius: 0.25rem !important;
+    background: var(--accent);
+    border-radius: 0.25rem;
   }
 
   #il-original-content .TreeNode {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    text-decoration: none !important;
-    color: var(--foreground) !important;
-    flex: 1 !important;
-    padding: 0.25rem !important;
-    cursor: pointer !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: var(--foreground);
+    flex: 1;
+    padding: 0.25rem;
+    cursor: pointer;
   }
 
   #il-original-content .TreeNode-title {
-    font-size: 0.8125rem !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   #il-original-content .TreeNode-icon {
-    width: 18px !important;
-    height: 18px !important;
-    flex-shrink: 0 !important;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
   }
 
   #il-original-content .TreeNode-chevron {
-    width: 16px !important;
-    height: 16px !important;
-    cursor: pointer !important;
-    opacity: 0.5 !important;
-    flex-shrink: 0 !important;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    opacity: 0.5;
+    flex-shrink: 0;
   }
 
   #il-original-content .TreeNode-chevron:hover {
-    opacity: 1 !important;
+    opacity: 1;
   }
 
   #il-original-content .TreeNode-sublist {
-    display: flex !important;
-    align-items: center !important;
-    padding: 0.25rem !important;
-    cursor: pointer !important;
+    display: flex;
+    align-items: center;
+    padding: 0.25rem;
+    cursor: pointer;
   }
 
   #il-original-content .TreeNode-indent {
-    flex-shrink: 0 !important;
+    flex-shrink: 0;
   }
 
   /* Nested tree items (sublists) */
   #il-original-content [lec-role="ltv-sublist"] {
-    margin-left: 0.5rem !important;
-    border-left: 1px solid var(--border) !important;
-    padding-left: 0.5rem !important;
+    margin-left: 0.5rem;
+    border-left: 1px solid var(--border);
+    padding-left: 0.5rem;
   }
 
   /* Folder content panel */
   #il-original-content .documentchooser-foldercontent-col {
-    flex: 1 !important;
-    min-width: 0 !important;
-    background: var(--background) !important;
-    border-radius: 0.5rem !important;
-    border: 1px solid var(--border) !important;
-    overflow: hidden !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    flex: 1;
+    min-width: 0;
+    background: var(--background);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   /* Message folder header */
   #il-original-content .message-folder-header {
-    padding: 1rem !important;
-    border-bottom: 1px solid var(--border) !important;
-    background: var(--background) !important;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--background);
   }
 
   #il-original-content .message-folder-header h1 {
-    font-size: 1.25rem !important;
-    font-weight: 600 !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    margin: 0 !important;
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
   }
 
   /* Message table styling */
   #il-original-content .ls-table-layout5 {
-    width: 100% !important;
-    border-collapse: collapse !important;
+    width: 100%;
+    border-collapse: collapse;
   }
 
   #il-original-content .ls-table-layout5 th {
-    text-align: left !important;
-    padding: 0.75rem 1rem !important;
-    font-weight: 500 !important;
-    font-size: 0.8125rem !important;
-    color: var(--muted-foreground) !important;
-    border-bottom: 1px solid var(--border) !important;
-    background: var(--muted) !important;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
   }
 
   #il-original-content .ls-table-layout5 td {
-    padding: 0.75rem 1rem !important;
-    border-bottom: 1px solid var(--border) !important;
-    font-size: 0.875rem !important;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
   }
 
   #il-original-content .ls-table-layout5 tr:hover td {
-    background: var(--accent) !important;
+    background: var(--accent);
   }
 
   /* Unread message styling */
   #il-original-content .ls-table-layout5 tr.unread td {
-    font-weight: 700 !important;
+    font-weight: 700;
   }
 
   /* Blue dot indicator before message title for unread messages */
@@ -765,25 +952,25 @@
     td
     .buttonlink
     a[id$="_ch"]::before {
-    content: "" !important;
-    display: inline-block !important;
-    width: 8px !important;
-    height: 8px !important;
-    background: hsl(217 91% 60%) !important;
-    border-radius: 50% !important;
-    margin-right: 8px !important;
-    vertical-align: middle !important;
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: oklch(0.6 0.19 265);
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
   }
 
   /* Message toolbar */
   #il-original-content .ls-std-rowblock-toolbarcontainer {
-    padding: 0.75rem 1rem !important;
-    border-bottom: 1px solid var(--border) !important;
-    background: var(--background) !important;
-    display: flex !important;
-    gap: 0.5rem !important;
-    flex-wrap: wrap !important;
-    align-items: center !important;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--background);
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
   }
 
   /* Hide mobile-only elements on messages page */
@@ -793,75 +980,75 @@
 
   /* Show desktop elements */
   #il-original-content .OnlyDesktop {
-    display: table-cell !important;
+    display: table-cell;
   }
 
   /* Button styling in messages */
   #il-original-content .buttonlink a,
   #il-original-content .ls-std-rowblock-toolbarcontainer a {
-    color: var(--primary) !important;
-    text-decoration: none !important;
+    color: var(--primary);
+    text-decoration: none;
   }
 
   #il-original-content .buttonlink a:hover {
-    text-decoration: underline !important;
+    text-decoration: underline;
   }
 
   /* Hide search in folder checkbox area cleanup */
   #il-original-content .ls-search-container {
-    display: flex !important;
-    gap: 0.5rem !important;
-    align-items: center !important;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
   }
 
   /* Message table wrapper */
   #il-original-content .ls-table-wrapper {
-    overflow-x: auto !important;
+    overflow-x: auto;
   }
 
   /* Icon buttons in message list */
   #il-original-content .buttonIcon {
-    cursor: pointer !important;
-    opacity: 0.7 !important;
-    transition: opacity 0.15s !important;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s;
   }
 
   #il-original-content .buttonIcon:hover {
-    opacity: 1 !important;
+    opacity: 1;
   }
 
   /* New message button styling */
   #il-original-content .button a[id*="NewMessage"],
   #il-original-content a.LectioLinkButtonBig {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    padding: 0.5rem 1rem !important;
-    background: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-    border-radius: 0.375rem !important;
-    font-weight: 500 !important;
-    text-decoration: none !important;
-    transition: opacity 0.15s !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: opacity 0.15s;
   }
 
   #il-original-content .button a[id*="NewMessage"]:hover,
   #il-original-content a.LectioLinkButtonBig:hover {
-    opacity: 0.9 !important;
+    opacity: 0.9;
   }
 
   /* Ensure form elements are visible */
   #il-original-content input[type="text"],
   #il-original-content input[type="search"] {
-    padding: 0.5rem 0.75rem !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.375rem !important;
-    background: var(--background) !important;
-    color: var(--foreground) !important;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    background: var(--background);
+    color: var(--foreground);
   }
 
   #il-original-content input[type="checkbox"] {
-    cursor: pointer !important;
+    cursor: pointer;
   }
 
   /* ========================================
@@ -871,14 +1058,14 @@
   /* Turn the boring table into a nice grid */
   #il-original-content #m_Content_gvhold,
   #il-original-content #m_Content_gvhold tbody {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 0.75rem !important;
-    padding: 1rem !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem;
   }
 
   #il-original-content #m_Content_gvhold tbody {
-    padding: 0 !important;
+    padding: 0;
   }
 
   /* Hide the table header row */
@@ -888,65 +1075,65 @@
 
   /* Style each row as an inline item */
   #il-original-content #m_Content_gvhold tr {
-    display: inline-flex !important;
+    display: inline-flex;
   }
 
   #il-original-content #m_Content_gvhold td {
-    padding: 0 !important;
-    border: none !important;
+    padding: 0;
+    border: none;
   }
 
   /* Style the links as nice pills/chips */
   #il-original-content #m_Content_gvhold .buttonlink a {
-    display: inline-flex !important;
-    align-items: center !important;
-    padding: 0.5rem 1rem !important;
-    background: var(--background) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.5rem !important;
-    color: var(--foreground) !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    text-decoration: none !important;
-    transition: all 0.15s ease !important;
-    white-space: nowrap !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    white-space: nowrap;
   }
 
   #il-original-content #m_Content_gvhold .buttonlink a:hover {
-    background: var(--accent) !important;
-    border-color: var(--ring) !important;
-    text-decoration: none !important;
+    background: var(--accent);
+    border-color: var(--ring);
+    text-decoration: none;
   }
 
   /* Style the island container better */
   #il-original-content .lf-island {
-    background: var(--card) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.75rem !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-    margin: 1rem !important;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.05);
+    margin: 1rem;
   }
 
   #il-original-content .islandHeaderContainer {
-    display: flex !important;
-    align-items: center !important;
-    padding: 0.75rem 1.25rem !important;
-    border-bottom: 1px solid var(--border) !important;
-    background: var(--muted) !important;
-    border-radius: 0.75rem 0.75rem 0 0 !important;
-    min-height: 3rem !important;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+    border-radius: 0.75rem 0.75rem 0 0;
+    min-height: 3rem;
   }
 
   #il-original-content .islandHeader {
-    font-size: 1rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
-    line-height: 1 !important;
-    padding: 0 !important;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1;
+    padding: 0;
   }
 
   #il-original-content .islandContent {
-    padding: 0.5rem !important;
+    padding: 0.5rem;
   }
 
   /* Hide the disabled tab button */
@@ -960,29 +1147,29 @@
 
   /* Reset cursor for activity header title (cluetip sets cursor: help) */
   #s_m_Content_Content_tocAndToolbar_actHeader .s2skemabrik {
-    cursor: default !important;
+    cursor: default;
   }
 
   /* Activity note textarea - remove native tooltip and hover effects */
   #s_m_Content_Content_tocAndToolbar_ActNoteTB_tb {
-    background-color: transparent !important;
-    border: none !important;
-    color: inherit !important;
-    cursor: default !important;
-    resize: none !important;
+    background-color: transparent;
+    border: none;
+    color: inherit;
+    cursor: default;
+    resize: none;
   }
 
   #s_m_Content_Content_tocAndToolbar_ActNoteTB_tb:hover,
   #s_m_Content_Content_tocAndToolbar_ActNoteTB_tb:focus {
-    background-color: transparent !important;
-    border: none !important;
-    color: inherit !important;
-    outline: none !important;
+    background-color: transparent;
+    border: none;
+    color: inherit;
+    outline: none;
   }
 
   /* Remove native title tooltip by hiding the title attribute effect */
   #s_m_Content_Content_tocAndToolbar_ActNoteTB_tb[title] {
-    pointer-events: none !important;
+    pointer-events: none;
   }
 
   /* ========================================
@@ -1012,11 +1199,12 @@
 
   /* Fix height on il-original-content to match content */
   body.il-forside #il-original-content {
-    height: auto !important;
-    min-height: auto !important;
+    height: auto;
+    min-height: auto;
   }
 
-  /* Remove all width constraints on forside */
+  /* Remove all width constraints on forside + force transparent backgrounds
+     so our --background from #il-lectio-content shows through consistently */
   body.il-forside #il-original-content,
   body.il-forside #il-original-content #masterContent,
   body.il-forside #il-original-content #aspnetForm,
@@ -1029,83 +1217,84 @@
   body.il-forside #il-original-content .ls-content,
   body.il-forside #il-original-content .ls-fitcontent,
   body.il-forside #il-original-content .ls-dashboard {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    background: transparent;
   }
 
   /* Add horizontal padding to content table on forside */
   body.il-forside #il-original-content #contenttable {
-    padding: 0 1.5rem !important;
+    padding: 0 1.5rem;
   }
 
   /* Dashboard layout - container for JS masonry */
   body.il-forside #il-original-content .ls-std-island-layout-ltr {
     display: block !important;
-    padding: 0 !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* Remove the column wrappers */
   body.il-forside #il-original-content .ls-std-island-layout-col {
-    display: contents !important;
+    display: contents;
   }
 
   /* Island cards - JS will handle positioning */
   body.il-forside #il-original-content .lf-island {
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    min-width: 0 !important;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    min-width: 0;
   }
 
   /* Prevent content from forcing card wider */
   body.il-forside #il-original-content .lf-island *,
   body.il-forside #il-original-content .lf-island table {
-    max-width: 100% !important;
-    overflow-wrap: break-word !important;
-    word-break: break-word !important;
-    min-width: 0 !important;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
   }
 
   /* Force tables to not overflow */
   body.il-forside #il-original-content .lf-island table {
-    table-layout: fixed !important;
-    width: 100% !important;
+    table-layout: fixed;
+    width: 100%;
   }
 
   /* Dashboard link headers (like "Beskeder") */
   body.il-forside #il-original-content .dashboardLinkHeader {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding: 1rem 1.25rem 1.25rem 1.25rem !important;
-    border-bottom: 1px solid var(--border) !important;
-    background: transparent !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem 1.25rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
   }
 
   body.il-forside #il-original-content .dashboardLinkHeader a {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.75rem !important;
-    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
   }
 
   body.il-forside #il-original-content .dashboardLinkHeaderText {
-    font-size: 1.125rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
-    letter-spacing: -0.01em !important;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--foreground);
+    letter-spacing: -0.01em;
   }
 
   body.il-forside #il-original-content .dashboardLinkHeaderInfoText {
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    color: var(--primary-foreground) !important;
-    background: var(--primary) !important;
-    padding: 0.25rem 0.625rem !important;
-    border-radius: 9999px !important;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--primary-foreground);
+    background: var(--primary);
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
   }
 
   /* Hide empty info text */
@@ -1115,16 +1304,16 @@
 
   /* Dashboard tables */
   body.il-forside #il-original-content table.dashboard {
-    width: 100% !important;
+    width: 100%;
   }
 
   body.il-forside #il-original-content table.dashboard td {
-    padding: 0.5rem 1rem !important;
-    border-bottom: 1px solid var(--border) !important;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
   }
 
   body.il-forside #il-original-content table.dashboard tr:last-child td {
-    border-bottom: none !important;
+    border-bottom: none;
   }
 
   /* Hide time column from messages section on forside */
@@ -1150,22 +1339,22 @@
 
   /* Make the schedule grid container full width but contained */
   #il-original-content .display-grid-skemany {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   /* Schedule print area - full width but contained */
   #il-original-content [id$="skemaprintarea"] {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow: hidden !important;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   /* Make the schedule table fill available space */
   #il-original-content .s2skema {
-    width: 100% !important;
-    table-layout: fixed !important;
+    width: 100%;
+    table-layout: fixed;
   }
 
   /* Constrain the inner container in the first column to match colgroup */
@@ -1182,7 +1371,7 @@
   #il-original-content .s2skema .s2skemabrik {
     width: calc(100% - 1.1em) !important;
     max-width: calc(100% - 1.1em) !important;
-    cursor: pointer !important;
+    cursor: pointer;
   }
 
   /* Handle overlapping bricks - detect by left position indicating right-side placement */
@@ -1207,32 +1396,32 @@
 
   /* Content table full width on schedule pages */
   #il-original-content #contenttable {
-    max-width: 100% !important;
-    overflow: hidden !important;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   /* Highlight today's column - solid background (amber-yellow tint) */
   #il-original-content .s2skema td[data-date].is-today {
-    background-color: rgba(250, 204, 21, 0.1) !important; /* yellow-400 */
+    background-color: oklch(0.85 0.15 90 / 0.1); /* yellow-400 */
   }
 
   /* Make all child elements transparent so column background shows through */
   #il-original-content .s2skema td[data-date].is-today > .s2skemabrikcontainer,
   #il-original-content .s2skema td[data-date].is-today .s2module-bg {
-    background-color: transparent !important;
+    background-color: transparent;
   }
 
   /* Info header row today highlight */
   #il-original-content .s2skema .s2infoHeader.is-today {
-    background-color: rgba(250, 204, 21, 0.1) !important; /* yellow-400 */
+    background-color: oklch(0.85 0.15 90 / 0.1); /* yellow-400 */
   }
 
   /* Today's header styling */
   #il-original-content .s2skema .s2dayHeader td.is-today {
-    background-color: rgb(252, 211, 77) !important; /* amber-300 */
-    color: black !important;
-    font-weight: 600 !important;
-    border-radius: 0.375rem 0.375rem 0 0 !important;
+    background-color: oklch(0.87 0.14 85); /* amber-300 */
+    color: black;
+    font-weight: 600;
+    border-radius: 0.375rem 0.375rem 0 0;
   }
 
   /* Current time indicator */
@@ -1241,7 +1430,7 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: rgb(239, 68, 68); /* red-500 */
+    background: oklch(0.63 0.21 25); /* red-500 */
     z-index: 5;
     pointer-events: none;
   }
@@ -1252,7 +1441,7 @@
     top: -3px;
     width: 8px;
     height: 8px;
-    background: rgb(239, 68, 68);
+    background: oklch(0.63 0.21 25);
     border-radius: 50%;
   }
 
@@ -1264,7 +1453,7 @@
     transform: translateY(-50%);
     font-size: 11px;
     font-weight: 600;
-    color: rgb(239, 68, 68);
+    color: oklch(0.63 0.21 25);
     white-space: nowrap;
   }
 
@@ -1282,7 +1471,7 @@
 
   /* Remove padding from island elevated section */
   #il-original-content .ls-island-elevated {
-    padding: 0 !important;
+    padding: 0;
   }
 
   /* Hide original content when lektier redesign is active */
@@ -1300,136 +1489,136 @@
   body.il-lektier-page-active #il-original-content .outerContentFrame,
   body.il-lektier-page-active #il-original-content .ls-content-container,
   body.il-lektier-page-active #il-original-content .ls-content {
-    height: fit-content !important;
-    min-height: 0 !important;
+    height: fit-content;
+    min-height: 0;
   }
 
   /* Page container */
   #il-lektier-page {
-    padding: 0 !important;
+    padding: 0;
   }
 
   .il-lektier-page {
-    max-width: 920px !important;
-    margin: 0 auto !important;
-    padding: 2.5rem 2.5rem 4rem !important;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 2.5rem 2.5rem 4rem;
   }
 
   /* ── Header ─────────────────────────────── */
 
   .il-lektier-header {
-    display: flex !important;
-    align-items: flex-end !important;
-    justify-content: space-between !important;
-    gap: 1.5rem !important;
-    margin-bottom: 2.5rem !important;
-    padding-bottom: 1.75rem !important;
-    border-bottom: 1px solid var(--border) !important;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid var(--border);
   }
 
   .il-lektier-header-text {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.375rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .il-lektier-title {
-    font-size: 2.25rem !important;
-    font-weight: 800 !important;
-    letter-spacing: -0.03em !important;
-    color: var(--foreground) !important;
-    margin: 0 !important;
-    line-height: 1.1 !important;
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+    margin: 0;
+    line-height: 1.1;
   }
 
   .il-lektier-subtitle {
-    font-size: 1rem !important;
-    color: var(--muted-foreground) !important;
-    margin: 0 !important;
+    font-size: 1rem;
+    color: var(--muted-foreground);
+    margin: 0;
   }
 
   .il-lektier-stats {
-    display: flex !important;
-    gap: 1.75rem !important;
-    flex-shrink: 0 !important;
+    display: flex;
+    gap: 1.75rem;
+    flex-shrink: 0;
   }
 
   .il-lektier-stat {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 0.125rem !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
   }
 
   .il-lektier-stat-value {
-    font-size: 1.75rem !important;
-    font-weight: 700 !important;
-    color: var(--foreground) !important;
-    line-height: 1 !important;
-    letter-spacing: -0.02em !important;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1;
+    letter-spacing: -0.02em;
   }
 
   .il-lektier-stat-label {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color: var(--muted-foreground) !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
   }
 
   /* ── Empty state ────────────────────────── */
 
   .il-lektier-empty {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 5rem 2rem !important;
-    text-align: center !important;
-    gap: 0.5rem !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 2rem;
+    text-align: center;
+    gap: 0.5rem;
   }
 
   .il-lektier-empty-icon {
-    width: 3rem !important;
-    height: 3rem !important;
-    color: var(--muted-foreground) !important;
-    opacity: 0.3 !important;
-    margin-bottom: 0.75rem !important;
+    width: 3rem;
+    height: 3rem;
+    color: var(--muted-foreground);
+    opacity: 0.3;
+    margin-bottom: 0.75rem;
   }
 
   .il-lektier-empty-title {
-    font-size: 1.125rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
-    margin: 0 !important;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
   }
 
   .il-lektier-empty-subtitle {
-    font-size: 0.875rem !important;
-    color: var(--muted-foreground) !important;
-    margin: 0 !important;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    margin: 0;
   }
 
   /* ── Timeline ───────────────────────────── */
 
   .il-lektier-timeline {
-    display: flex !important;
-    flex-direction: column !important;
+    display: flex;
+    flex-direction: column;
   }
 
   /* ── Day row ────────────────────────────── */
 
   .il-lektier-day {
-    display: flex !important;
-    gap: 2rem !important;
-    padding: 2rem 0 !important;
-    border-top: 1px solid var(--border) !important;
-    animation: il-lektier-fade-in 0.5s ease both !important;
+    display: flex;
+    gap: 2rem;
+    padding: 2rem 0;
+    border-top: 1px solid var(--border);
+    animation: il-lektier-fade-in 0.5s ease both;
   }
 
   .il-lektier-day:first-child {
-    border-top: none !important;
-    padding-top: 0 !important;
+    border-top: none;
+    padding-top: 0;
   }
 
   @keyframes il-lektier-fade-in {
@@ -1446,476 +1635,532 @@
   /* ── Date column ────────────────────────── */
 
   .il-lektier-date-col {
-    width: 5rem !important;
-    flex-shrink: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    gap: 0.125rem !important;
-    padding-top: 0.25rem !important;
-    position: sticky !important;
-    top: 1rem !important;
-    align-self: flex-start !important;
+    width: 5rem;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem;
+    padding-top: 0.25rem;
+    position: sticky;
+    top: 1rem;
+    align-self: flex-start;
   }
 
   .il-lektier-date-number {
-    font-size: 2.75rem !important;
-    font-weight: 800 !important;
-    line-height: 1 !important;
-    color: var(--foreground) !important;
-    letter-spacing: -0.04em !important;
+    font-size: 2.75rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--foreground);
+    letter-spacing: -0.04em;
   }
 
   .il-lektier-date-weekday {
-    font-size: 0.875rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: var(--muted-foreground) !important;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted-foreground);
   }
 
   .il-lektier-date-month {
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color: var(--muted-foreground) !important;
-    opacity: 0.6 !important;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    opacity: 0.6;
   }
 
-  .il-lektier-date-today {
-    margin-top: 0.625rem !important;
-    font-size: 0.6875rem !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: oklch(0.55 0.16 85) !important;
-    background: oklch(0.95 0.06 85) !important;
-    padding: 0.1875rem 0.5rem !important;
-    border-radius: 9999px !important;
+  .il-lektier-date-relative {
+    margin-top: 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+  }
+
+  .il-lektier-date-relative.is-today {
+    color: oklch(0.55 0.16 85);
+    background: oklch(0.95 0.06 85);
+  }
+
+  .il-lektier-date-relative.is-tomorrow {
+    color: oklch(0.42 0.14 260);
+    background: oklch(0.94 0.04 260);
+  }
+
+  .il-lektier-date-relative.is-soon {
+    color: oklch(0.48 0.1 200);
+    background: oklch(0.95 0.025 200);
+  }
+
+  .il-lektier-date-relative.is-later {
+    color: var(--muted-foreground);
+    background: var(--muted);
+  }
+
+  .il-lektier-date-relative.is-past {
+    color: var(--muted-foreground);
+    background: var(--muted);
+    opacity: 0.7;
   }
 
   /* Today date highlight */
   .il-lektier-day.is-today .il-lektier-date-number {
-    color: oklch(0.5 0.16 85) !important;
+    color: oklch(0.5 0.16 85);
   }
 
   .il-lektier-day.is-today .il-lektier-date-weekday {
-    color: oklch(0.55 0.12 85) !important;
+    color: oklch(0.55 0.12 85);
+  }
+
+  /* Tomorrow date highlight */
+  .il-lektier-day.is-tomorrow .il-lektier-date-number {
+    color: oklch(0.42 0.14 260);
+  }
+
+  .il-lektier-day.is-tomorrow .il-lektier-date-weekday {
+    color: oklch(0.5 0.1 260);
   }
 
   /* ── Cards column ───────────────────────── */
 
   .il-lektier-cards-col {
-    flex: 1 !important;
-    min-width: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.875rem !important;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
   }
 
   /* ── Card ────────────────────────────────── */
 
   .il-lektier-card {
-    display: flex !important;
-    border-radius: 0.875rem !important;
-    border: 1px solid var(--border) !important;
-    background: var(--card) !important;
-    overflow: hidden !important;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+    display: flex;
+    border-radius: 0.875rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
 
   .il-lektier-card:hover {
-    box-shadow: 0 6px 24px oklch(0 0 0 / 0.06) !important;
-    border-color: oklch(0.85 0 0) !important;
+    box-shadow: 0 6px 24px oklch(0 0 0 / 0.06);
+    border-color: oklch(0.85 0 0);
   }
 
   /* Accent bar */
   .il-lektier-card-accent {
-    width: 4px !important;
-    flex-shrink: 0 !important;
-    background: oklch(0.65 0.15 var(--hold-hue, 200)) !important;
+    width: 4px;
+    flex-shrink: 0;
+    background: oklch(0.68 0.2 var(--hold-hue, 235));
   }
 
   /* Card body */
   .il-lektier-card-body {
-    flex: 1 !important;
-    min-width: 0 !important;
-    padding: 1.125rem 1.25rem !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.625rem !important;
+    flex: 1;
+    min-width: 0;
+    padding: 1.125rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
   }
 
   /* Card top row */
   .il-lektier-card-top {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 0.75rem !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
   }
 
   .il-lektier-card-module {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    font-size: 1.0625rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
-    text-decoration: none !important;
-    transition: color 0.15s ease !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: var(--foreground);
+    text-decoration: none;
+    transition: color 0.15s ease;
   }
 
   .il-lektier-card-module:hover {
-    color: oklch(0.5 0.12 var(--hold-hue, 200)) !important;
+    color: oklch(0.5 0.16 var(--hold-hue, 235));
   }
 
   .il-lektier-card-sep {
-    color: var(--muted-foreground) !important;
-    opacity: 0.4 !important;
+    color: var(--muted-foreground);
+    opacity: 0.4;
   }
 
   .il-lektier-card-time {
-    font-weight: 500 !important;
-    color: var(--muted-foreground) !important;
-    font-size: 0.9375rem !important;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    font-size: 0.9375rem;
   }
 
   /* Hold pill */
   .il-lektier-hold-pill {
-    display: inline-flex !important;
-    align-items: center !important;
-    padding: 0.25rem 0.75rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 600 !important;
-    border-radius: 9999px !important;
-    background: oklch(0.95 0.04 var(--hold-hue, 200)) !important;
-    color: oklch(0.45 0.12 var(--hold-hue, 200)) !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: oklch(0.94 0.06 var(--hold-hue, 235));
+    color: oklch(0.42 0.16 var(--hold-hue, 235));
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   /* Meta row */
   .il-lektier-card-meta {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    font-size: 0.9375rem !important;
-    color: var(--muted-foreground) !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9375rem;
+    color: var(--muted-foreground);
+    flex-wrap: wrap;
   }
 
   .il-lektier-meta-dot {
-    width: 3px !important;
-    height: 3px !important;
-    border-radius: 50% !important;
-    background: var(--muted-foreground) !important;
-    opacity: 0.5 !important;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+    opacity: 0.5;
   }
 
   .il-lektier-meta-dash {
-    opacity: 0.35 !important;
-    margin: 0 0.125rem !important;
+    opacity: 0.35;
+    margin: 0 0.125rem;
   }
 
   .il-lektier-meta-title {
-    font-style: italic !important;
+    font-style: italic;
   }
 
   /* ── Homework items section ─────────────── */
 
   .il-lektier-card-items {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
-    padding-top: 0.75rem !important;
-    border-top: 1px solid var(--border) !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
   }
 
-  /* ── File download block ────────────────── */
+  /* ── Teacher instruction (standalone note) ─ */
+
+  .il-lektier-instruction {
+    font-size: 0.9375rem;
+    font-weight: 450;
+    line-height: 1.6;
+    color: var(--foreground);
+    white-space: pre-line;
+    word-break: break-word;
+    padding: 0.625rem 0.75rem;
+    background: oklch(0.96 0.025 var(--hold-hue, 235));
+    border-left: 3px solid oklch(0.7 0.15 var(--hold-hue, 235));
+    border-radius: 0.375rem;
+  }
+
+  /* ── Content items list (readings, tasks) ── */
+
+  .il-lektier-content-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .il-lektier-content-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+  }
+
+  .il-lektier-content-icon {
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    opacity: 0.45;
+    margin-top: 0.1875rem;
+  }
+
+  .il-lektier-content-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .il-lektier-content-link {
+    display: inline;
+    color: var(--foreground);
+    text-decoration: none;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.5;
+    word-break: break-word;
+    transition: color 0.15s ease;
+  }
+
+  .il-lektier-content-link:hover {
+    color: oklch(0.42 0.16 var(--hold-hue, 235));
+    text-decoration: underline;
+    text-decoration-color: oklch(0.65 0.15 var(--hold-hue, 235) / 0.4);
+    text-underline-offset: 2px;
+  }
+
+  .il-lektier-content-arrow {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.25rem;
+    color: var(--muted-foreground);
+    opacity: 0.35;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  .il-lektier-content-link:hover .il-lektier-content-arrow {
+    opacity: 0.8;
+    transform: translate(1px, -1px);
+  }
+
+  .il-lektier-content-text {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--foreground);
+    word-break: break-word;
+  }
+
+  /* Item-level annotation (e.g. "OBS! check attached notes") */
+  .il-lektier-item-annotation {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    margin-top: 0.1875rem;
+    padding-left: 0.625rem;
+    border-left: 2px solid oklch(0.82 0.08 var(--hold-hue, 235));
+    line-height: 1.5;
+    white-space: pre-line;
+  }
+
+  /* ── File attachments ────────────────────── */
+
+  .il-lektier-files {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
 
   .il-lektier-file {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.875rem !important;
-    padding: 0.75rem 1rem !important;
-    background: oklch(0.975 0.012 250) !important;
-    border: 1px solid oklch(0.93 0.02 250) !important;
-    border-radius: 0.75rem !important;
-    text-decoration: none !important;
-    color: var(--foreground) !important;
-    transition: all 0.2s ease !important;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: oklch(0.975 0.012 250);
+    border: 1px solid oklch(0.93 0.02 250);
+    border-radius: 0.625rem;
+    text-decoration: none;
+    color: var(--foreground);
+    transition: all 0.2s ease;
   }
 
   .il-lektier-file:hover {
-    background: oklch(0.96 0.025 250) !important;
-    border-color: oklch(0.88 0.04 250) !important;
-    box-shadow: 0 2px 12px oklch(0.5 0.1 250 / 0.08) !important;
+    background: oklch(0.96 0.025 250);
+    border-color: oklch(0.88 0.04 250);
+    box-shadow: 0 2px 12px oklch(0.5 0.1 250 / 0.08);
   }
 
   .il-lektier-file-icon-wrap {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    border-radius: 0.625rem !important;
-    background: oklch(0.93 0.04 250) !important;
-    color: oklch(0.5 0.15 250) !important;
-    flex-shrink: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    background: oklch(0.93 0.04 250);
+    color: oklch(0.5 0.15 250);
+    flex-shrink: 0;
   }
 
   .il-lektier-file-info {
-    flex: 1 !important;
-    min-width: 0 !important;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
   }
 
   .il-lektier-file-name {
-    font-size: 0.9375rem !important;
-    font-weight: 500 !important;
-    word-break: break-word !important;
-    line-height: 1.4 !important;
+    font-size: 0.875rem;
+    font-weight: 500;
+    word-break: break-word;
+    line-height: 1.4;
+  }
+
+  .il-lektier-file-annotation {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    line-height: 1.4;
   }
 
   .il-lektier-file-dl {
-    flex-shrink: 0 !important;
-    color: oklch(0.5 0.12 250) !important;
-    opacity: 0 !important;
-    transition: opacity 0.15s ease, transform 0.15s ease !important;
+    flex-shrink: 0;
+    color: oklch(0.5 0.12 250);
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
   }
 
   .il-lektier-file:hover .il-lektier-file-dl {
-    opacity: 1 !important;
-    transform: translateY(1px) !important;
-  }
-
-  /* ── Activity link block ────────────────── */
-
-  .il-lektier-activity-link {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.875rem !important;
-    padding: 0.75rem 1rem !important;
-    background: oklch(0.975 0.01 160) !important;
-    border: 1px solid oklch(0.93 0.015 160) !important;
-    border-radius: 0.75rem !important;
-    text-decoration: none !important;
-    color: var(--foreground) !important;
-    transition: all 0.2s ease !important;
-  }
-
-  .il-lektier-activity-link:hover {
-    background: oklch(0.96 0.02 160) !important;
-    border-color: oklch(0.88 0.035 160) !important;
-    box-shadow: 0 2px 12px oklch(0.5 0.1 160 / 0.08) !important;
-  }
-
-  .il-lektier-activity-icon-wrap {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    border-radius: 0.625rem !important;
-    background: oklch(0.93 0.03 160) !important;
-    color: oklch(0.45 0.12 160) !important;
-    flex-shrink: 0 !important;
-  }
-
-  .il-lektier-activity-text {
-    flex: 1 !important;
-    min-width: 0 !important;
-    font-size: 0.9375rem !important;
-    font-weight: 500 !important;
-    word-break: break-word !important;
-    line-height: 1.4 !important;
-  }
-
-  .il-lektier-activity-arrow {
-    flex-shrink: 0 !important;
-    color: oklch(0.45 0.1 160) !important;
-    opacity: 0.4 !important;
-    transition: opacity 0.15s ease, transform 0.15s ease !important;
-  }
-
-  .il-lektier-activity-link:hover .il-lektier-activity-arrow {
-    opacity: 1 !important;
-    transform: translate(2px, -2px) !important;
-  }
-
-  /* ── Reading / text item block ──────────── */
-
-  .il-lektier-reading {
-    display: flex !important;
-    align-items: flex-start !important;
-    gap: 0.875rem !important;
-    padding: 0.75rem 1rem !important;
-    background: var(--muted) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.75rem !important;
-    font-size: 0.9375rem !important;
-    font-weight: 500 !important;
-    color: var(--foreground) !important;
-    line-height: 1.5 !important;
-  }
-
-  .il-lektier-reading-icon {
-    flex-shrink: 0 !important;
-    color: var(--muted-foreground) !important;
-    margin-top: 0.125rem !important;
-  }
-
-  /* ── Note ────────────────────────────────── */
-
-  .il-lektier-note {
-    font-size: 0.9375rem !important;
-    color: var(--muted-foreground) !important;
-    background: var(--muted) !important;
-    padding: 0.875rem 1rem !important;
-    border-radius: 0.625rem !important;
-    line-height: 1.6 !important;
-    white-space: pre-line !important;
-    border-left: 3px solid oklch(0.78 0.06 var(--hold-hue, 200)) !important;
-    margin-top: 0.125rem !important;
+    opacity: 1;
+    transform: translateY(1px);
   }
 
   /* ── Dark mode overrides ────────────────── */
 
   .dark .il-lektier-card:hover {
-    border-color: oklch(0.35 0 0) !important;
-    box-shadow: 0 6px 24px oklch(0 0 0 / 0.3) !important;
+    border-color: oklch(0.35 0 0);
+    box-shadow: 0 6px 24px oklch(0 0 0 / 0.3);
   }
 
   .dark .il-lektier-card-accent {
-    background: oklch(0.6 0.14 var(--hold-hue, 200)) !important;
+    background: oklch(0.62 0.18 var(--hold-hue, 235));
   }
 
   .dark .il-lektier-hold-pill {
-    background: oklch(0.28 0.06 var(--hold-hue, 200)) !important;
-    color: oklch(0.78 0.1 var(--hold-hue, 200)) !important;
+    background: oklch(0.28 0.08 var(--hold-hue, 235));
+    color: oklch(0.78 0.14 var(--hold-hue, 235));
   }
 
   .dark .il-lektier-card-module:hover {
-    color: oklch(0.75 0.1 var(--hold-hue, 200)) !important;
+    color: oklch(0.75 0.14 var(--hold-hue, 235));
   }
 
-  .dark .il-lektier-date-today {
-    color: oklch(0.85 0.12 85) !important;
-    background: oklch(0.3 0.08 85) !important;
+  .dark .il-lektier-date-relative.is-today {
+    color: oklch(0.85 0.12 85);
+    background: oklch(0.3 0.08 85);
+  }
+
+  .dark .il-lektier-date-relative.is-tomorrow {
+    color: oklch(0.8 0.1 260);
+    background: oklch(0.28 0.06 260);
+  }
+
+  .dark .il-lektier-date-relative.is-soon {
+    color: oklch(0.75 0.08 200);
+    background: oklch(0.28 0.04 200);
   }
 
   .dark .il-lektier-day.is-today .il-lektier-date-number {
-    color: oklch(0.82 0.12 85) !important;
+    color: oklch(0.82 0.12 85);
   }
 
   .dark .il-lektier-day.is-today .il-lektier-date-weekday {
-    color: oklch(0.75 0.1 85) !important;
+    color: oklch(0.75 0.1 85);
+  }
+
+  .dark .il-lektier-day.is-tomorrow .il-lektier-date-number {
+    color: oklch(0.78 0.1 260);
+  }
+
+  .dark .il-lektier-day.is-tomorrow .il-lektier-date-weekday {
+    color: oklch(0.7 0.08 260);
+  }
+
+  .dark .il-lektier-instruction {
+    background: oklch(0.22 0.04 var(--hold-hue, 235));
+    border-left-color: oklch(0.5 0.14 var(--hold-hue, 235));
+  }
+
+  .dark .il-lektier-content-link:hover {
+    color: oklch(0.78 0.14 var(--hold-hue, 235));
+  }
+
+  .dark .il-lektier-item-annotation {
+    border-left-color: oklch(0.35 0.08 var(--hold-hue, 235));
   }
 
   .dark .il-lektier-file {
-    background: oklch(0.22 0.02 250) !important;
-    border-color: oklch(0.3 0.03 250) !important;
+    background: oklch(0.22 0.02 250);
+    border-color: oklch(0.3 0.03 250);
   }
 
   .dark .il-lektier-file:hover {
-    background: oklch(0.25 0.03 250) !important;
-    border-color: oklch(0.35 0.04 250) !important;
-    box-shadow: 0 2px 12px oklch(0 0 0 / 0.2) !important;
+    background: oklch(0.25 0.03 250);
+    border-color: oklch(0.35 0.04 250);
+    box-shadow: 0 2px 12px oklch(0 0 0 / 0.2);
   }
 
   .dark .il-lektier-file-icon-wrap {
-    background: oklch(0.3 0.05 250) !important;
-    color: oklch(0.7 0.12 250) !important;
+    background: oklch(0.3 0.05 250);
+    color: oklch(0.7 0.12 250);
   }
 
   .dark .il-lektier-file-dl {
-    color: oklch(0.7 0.1 250) !important;
-  }
-
-  .dark .il-lektier-activity-link {
-    background: oklch(0.22 0.015 160) !important;
-    border-color: oklch(0.3 0.02 160) !important;
-  }
-
-  .dark .il-lektier-activity-link:hover {
-    background: oklch(0.25 0.025 160) !important;
-    border-color: oklch(0.35 0.03 160) !important;
-    box-shadow: 0 2px 12px oklch(0 0 0 / 0.2) !important;
-  }
-
-  .dark .il-lektier-activity-icon-wrap {
-    background: oklch(0.3 0.04 160) !important;
-    color: oklch(0.7 0.1 160) !important;
-  }
-
-  .dark .il-lektier-activity-arrow {
-    color: oklch(0.7 0.08 160) !important;
-  }
-
-  .dark .il-lektier-note {
-    border-left-color: oklch(0.5 0.08 var(--hold-hue, 200)) !important;
+    color: oklch(0.7 0.1 250);
   }
 
   /* ── Responsive ─────────────────────────── */
 
   @media (max-width: 640px) {
     .il-lektier-page {
-      padding: 1.5rem 1.25rem 2.5rem !important;
+      padding: 1.5rem 1.25rem 2.5rem;
     }
 
     .il-lektier-header {
-      flex-direction: column !important;
-      align-items: flex-start !important;
-      gap: 1rem !important;
-      margin-bottom: 2rem !important;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 2rem;
     }
 
     .il-lektier-title {
-      font-size: 1.75rem !important;
+      font-size: 1.75rem;
     }
 
     .il-lektier-day {
-      flex-direction: column !important;
-      gap: 1rem !important;
-      padding: 1.5rem 0 !important;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.5rem 0;
     }
 
     .il-lektier-date-col {
-      flex-direction: row !important;
-      width: auto !important;
-      position: static !important;
-      gap: 0.625rem !important;
-      align-items: baseline !important;
-      padding-top: 0 !important;
+      flex-direction: row;
+      width: auto;
+      position: static;
+      gap: 0.625rem;
+      align-items: baseline;
+      padding-top: 0;
     }
 
     .il-lektier-date-number {
-      font-size: 1.5rem !important;
+      font-size: 1.5rem;
     }
 
     .il-lektier-date-weekday {
-      font-size: 0.875rem !important;
+      font-size: 0.875rem;
     }
 
     .il-lektier-date-month {
-      font-size: 0.8125rem !important;
+      font-size: 0.8125rem;
     }
 
-    .il-lektier-date-today {
-      margin-top: 0 !important;
-      margin-left: 0.25rem !important;
+    .il-lektier-date-relative {
+      margin-top: 0;
+      margin-left: 0.25rem;
     }
 
-    .il-lektier-file,
-    .il-lektier-activity-link,
-    .il-lektier-reading {
-      padding: 0.625rem 0.875rem !important;
+    .il-lektier-file {
+      padding: 0.5rem 0.75rem;
     }
 
-    .il-lektier-file-icon-wrap,
-    .il-lektier-activity-icon-wrap {
-      width: 2.25rem !important;
-      height: 2.25rem !important;
+    .il-lektier-file-icon-wrap {
+      width: 2rem;
+      height: 2rem;
     }
   }
 
@@ -1937,146 +2182,146 @@
   body.il-opgaver-page-active #il-original-content .outerContentFrame,
   body.il-opgaver-page-active #il-original-content .ls-content-container,
   body.il-opgaver-page-active #il-original-content .ls-content {
-    height: fit-content !important;
-    min-height: 0 !important;
+    height: fit-content;
+    min-height: 0;
   }
 
   /* ── Page container ──────────────────────── */
 
   #il-opgaver-page {
-    padding: 0 !important;
+    padding: 0;
   }
 
   .il-opgaver-page {
-    max-width: 860px !important;
-    margin: 0 auto !important;
-    padding: 2.5rem 2rem 3rem !important;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 3rem;
   }
 
   /* ── Header ──────────────────────────────── */
 
   .il-opgaver-header {
-    margin-bottom: 1.5rem !important;
-    padding-bottom: 1.5rem !important;
-    border-bottom: 1px solid var(--border) !important;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
   }
 
   .il-opgaver-title {
-    font-size: 2rem !important;
-    font-weight: 800 !important;
-    letter-spacing: -0.03em !important;
-    color: var(--foreground) !important;
-    margin: 0 !important;
-    line-height: 1.1 !important;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+    margin: 0;
+    line-height: 1.1;
   }
 
   .il-opgaver-subtitle {
-    font-size: 0.875rem !important;
-    color: var(--muted-foreground) !important;
-    margin: 0.25rem 0 0 !important;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    margin: 0.25rem 0 0;
   }
 
   /* ── Hold filter pills ───────────────────── */
 
   .il-opgaver-filters {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
-    margin-bottom: 2rem !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
   }
 
   .il-opgaver-filter-pill {
-    display: inline-flex !important;
-    align-items: center !important;
-    padding: 0.375rem 0.75rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    border-radius: 9999px !important;
-    border: 1px solid var(--border) !important;
-    background: var(--background) !important;
-    color: var(--muted-foreground) !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
 
   .il-opgaver-filter-pill:hover {
-    background: var(--muted) !important;
-    color: var(--foreground) !important;
+    background: var(--muted);
+    color: var(--foreground);
   }
 
   .il-opgaver-filter-pill.is-active {
-    background: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-    border-color: var(--primary) !important;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
   }
 
   .il-opgaver-filter-pill.is-active:hover {
-    background: color-mix(in oklch, var(--primary) 90%, black) !important;
+    background: color-mix(in oklch, var(--primary) 90%, black);
   }
 
   /* ── Empty state ─────────────────────────── */
 
   .il-opgaver-empty {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 5rem 2rem !important;
-    text-align: center !important;
-    gap: 0.5rem !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 5rem 2rem;
+    text-align: center;
+    gap: 0.5rem;
   }
 
   .il-opgaver-empty-icon {
-    width: 3rem !important;
-    height: 3rem !important;
-    color: var(--muted-foreground) !important;
-    opacity: 0.3 !important;
-    margin-bottom: 0.75rem !important;
+    width: 3rem;
+    height: 3rem;
+    color: var(--muted-foreground);
+    opacity: 0.3;
+    margin-bottom: 0.75rem;
   }
 
   .il-opgaver-empty-title {
-    font-size: 1.125rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
-    margin: 0 !important;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
   }
 
   .il-opgaver-empty-subtitle {
-    font-size: 0.875rem !important;
-    color: var(--muted-foreground) !important;
-    margin: 0 !important;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    margin: 0;
   }
 
   /* ── Sections ────────────────────────────── */
 
   .il-opgaver-section {
-    margin-bottom: 2.5rem !important;
+    margin-bottom: 2.5rem;
   }
 
   .il-opgaver-section-title {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-    color: var(--muted-foreground) !important;
-    margin: 0 0 1rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-foreground);
+    margin: 0 0 1rem;
   }
 
   .il-opgaver-section-count {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 1.25rem !important;
-    height: 1.25rem !important;
-    padding: 0 0.375rem !important;
-    font-size: 0.625rem !important;
-    font-weight: 700 !important;
-    border-radius: 9999px !important;
-    background: var(--muted) !important;
-    color: var(--muted-foreground) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    background: var(--muted);
+    color: var(--muted-foreground);
   }
 
   /* ── Animation ───────────────────────────── */
@@ -2089,404 +2334,404 @@
   /* ── Upcoming cards ──────────────────────── */
 
   .il-opgaver-upcoming {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.625rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
   }
 
   .il-opgaver-card {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.375rem !important;
-    padding: 0.875rem 1rem !important;
-    border-radius: 0.75rem !important;
-    border: 1px solid var(--border) !important;
-    background: var(--card) !important;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease !important;
-    animation: il-opgaver-fade-in 0.4s ease both !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    animation: il-opgaver-fade-in 0.4s ease both;
     /* Default: neutral left accent */
-    border-left: 2px solid oklch(0.85 0 0) !important;
+    border-left: 2px solid oklch(0.85 0 0);
   }
 
   .il-opgaver-card:hover {
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.06) !important;
-    border-color: oklch(0.82 0 0) !important;
-    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.06);
+    border-color: oklch(0.82 0 0);
+    transform: translateY(-1px);
   }
 
   /* ── Urgency: overdue ── */
   .il-opgaver-card.is-overdue {
-    border-left: 4px solid oklch(0.55 0.22 25) !important;
-    background: oklch(0.985 0.012 25) !important;
+    border-left: 4px solid oklch(0.55 0.22 25);
+    background: oklch(0.985 0.012 25);
   }
   .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
-    font-size: 1.0625rem !important;
-    font-weight: 700 !important;
-    color: oklch(0.5 0.22 25) !important;
-    letter-spacing: -0.01em !important;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: oklch(0.5 0.22 25);
+    letter-spacing: -0.01em;
   }
   .il-opgaver-card.is-overdue .il-opgaver-deadline-icon {
-    color: oklch(0.55 0.22 25) !important;
-    flex-shrink: 0 !important;
+    color: oklch(0.55 0.22 25);
+    flex-shrink: 0;
   }
 
   /* ── Urgency: imminent (< 24h) ── */
   .il-opgaver-card.is-imminent {
-    border-left: 4px solid oklch(0.6 0.18 50) !important;
-    background: oklch(0.985 0.008 50) !important;
+    border-left: 4px solid oklch(0.6 0.18 50);
+    background: oklch(0.985 0.008 50);
   }
   .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
-    font-size: 1rem !important;
-    font-weight: 700 !important;
-    color: oklch(0.52 0.18 50) !important;
-    letter-spacing: -0.01em !important;
+    font-size: 1rem;
+    font-weight: 700;
+    color: oklch(0.52 0.18 50);
+    letter-spacing: -0.01em;
   }
 
   /* ── Urgency: soon (1-3 days) ── */
   .il-opgaver-card.is-soon {
-    border-left: 3px solid oklch(0.72 0.12 80) !important;
+    border-left: 3px solid oklch(0.72 0.12 80);
   }
   .il-opgaver-card.is-soon .il-opgaver-deadline-label {
-    font-size: 0.9375rem !important;
-    font-weight: 600 !important;
-    color: oklch(0.48 0.1 80) !important;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: oklch(0.48 0.1 80);
   }
 
   /* ── Urgency: later (3+ days) ── */
   .il-opgaver-card.is-later .il-opgaver-deadline-label {
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    color: var(--muted-foreground) !important;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
   }
 
   /* ── Deadline row (hero element) ─────────── */
 
   .il-opgaver-card-deadline {
-    display: flex !important;
-    align-items: baseline !important;
-    justify-content: space-between !important;
-    gap: 0.75rem !important;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
   }
 
   .il-opgaver-deadline-info {
-    display: flex !important;
-    align-items: baseline !important;
-    gap: 0.375rem !important;
-    min-width: 0 !important;
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    min-width: 0;
   }
 
   .il-opgaver-deadline-label {
     /* base — overridden per urgency above */
-    line-height: 1.2 !important;
-    white-space: nowrap !important;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .il-opgaver-deadline-sep {
-    color: var(--muted-foreground) !important;
-    opacity: 0.4 !important;
-    font-size: 0.75rem !important;
+    color: var(--muted-foreground);
+    opacity: 0.4;
+    font-size: 0.75rem;
   }
 
   .il-opgaver-deadline-detail {
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
-    white-space: nowrap !important;
-    font-variant-numeric: tabular-nums !important;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
   .il-opgaver-deadline-icon {
-    position: relative !important;
-    top: 1px !important;
+    position: relative;
+    top: 1px;
   }
 
   /* ── Card title ──────────────────────────── */
 
   .il-opgaver-card-title {
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    color: var(--foreground) !important;
-    text-decoration: none !important;
-    transition: color 0.15s ease !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    display: block !important;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    text-decoration: none;
+    transition: color 0.15s ease;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
   }
 
   .il-opgaver-card-title:hover {
-    color: oklch(0.5 0.12 var(--hold-hue, 200)) !important;
+    color: oklch(0.5 0.16 var(--hold-hue, 235));
   }
 
   /* ── Hold pill (shared) ──────────────────── */
 
   .il-opgaver-hold-pill {
-    display: inline-flex !important;
-    align-items: center !important;
-    padding: 0.125rem 0.5rem !important;
-    font-size: 0.6875rem !important;
-    font-weight: 600 !important;
-    border-radius: 9999px !important;
-    background: oklch(0.95 0.04 var(--hold-hue, 200)) !important;
-    color: oklch(0.45 0.12 var(--hold-hue, 200)) !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: oklch(0.94 0.06 var(--hold-hue, 235));
+    color: oklch(0.42 0.16 var(--hold-hue, 235));
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   /* ── Meta row ────────────────────────────── */
 
   .il-opgaver-card-meta {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    flex-wrap: wrap;
   }
 
   .il-opgaver-meta-dot {
-    width: 3px !important;
-    height: 3px !important;
-    border-radius: 50% !important;
-    background: var(--muted-foreground) !important;
-    opacity: 0.4 !important;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--muted-foreground);
+    opacity: 0.4;
   }
 
   /* ── Note (shared) ───────────────────────── */
 
   .il-opgaver-note {
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
-    background: var(--muted) !important;
-    padding: 0.5rem 0.625rem !important;
-    border-radius: 0.375rem !important;
-    line-height: 1.5 !important;
-    white-space: pre-line !important;
-    border-left: 3px solid oklch(0.78 0.06 var(--hold-hue, 200)) !important;
-    cursor: pointer !important;
-    overflow: hidden !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important;
-    -webkit-box-orient: vertical !important;
-    transition: all 0.2s ease !important;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.375rem;
+    line-height: 1.5;
+    white-space: pre-line;
+    border-left: 3px solid oklch(0.75 0.12 var(--hold-hue, 235));
+    cursor: pointer;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    transition: all 0.2s ease;
   }
 
   .il-opgaver-note.is-expanded {
-    -webkit-line-clamp: unset !important;
-    display: block !important;
+    -webkit-line-clamp: unset;
+    display: block;
   }
 
   /* ── Submitted list ──────────────────────── */
 
   .il-opgaver-submitted-list {
-    display: flex !important;
-    flex-direction: column !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.75rem !important;
-    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
   }
 
   .il-opgaver-submitted-row {
-    display: flex !important;
-    flex-direction: column !important;
-    padding: 0.6875rem 1rem !important;
-    border-bottom: 1px solid var(--border) !important;
-    animation: il-opgaver-fade-in 0.35s ease both !important;
-    transition: background 0.15s ease !important;
+    display: flex;
+    flex-direction: column;
+    padding: 0.6875rem 1rem;
+    border-bottom: 1px solid var(--border);
+    animation: il-opgaver-fade-in 0.35s ease both;
+    transition: background 0.15s ease;
   }
 
   .il-opgaver-submitted-row:last-child {
-    border-bottom: none !important;
+    border-bottom: none;
   }
 
   .il-opgaver-submitted-row:hover {
-    background: var(--muted) !important;
+    background: var(--muted);
   }
 
   .il-opgaver-submitted-primary {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.625rem !important;
-    min-width: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-width: 0;
   }
 
   .il-opgaver-submitted-title {
-    flex: 1 !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    color: var(--foreground) !important;
-    text-decoration: none !important;
-    transition: color 0.15s ease !important;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    text-decoration: none;
+    transition: color 0.15s ease;
   }
 
   .il-opgaver-submitted-title:hover {
-    color: oklch(0.5 0.12 var(--hold-hue, 200)) !important;
+    color: oklch(0.5 0.16 var(--hold-hue, 235));
   }
 
   /* ── Grade badge ─────────────────────────── */
 
   .il-opgaver-grade {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 2rem !important;
-    padding: 0.125rem 0.5rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 700 !important;
-    border-radius: 0.375rem !important;
-    background: oklch(0.93 0.06 var(--grade-hue, 145)) !important;
-    color: oklch(0.4 0.14 var(--grade-hue, 145)) !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
-    font-variant-numeric: tabular-nums !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    border-radius: 0.375rem;
+    background: oklch(0.93 0.06 var(--grade-hue, 145));
+    color: oklch(0.4 0.14 var(--grade-hue, 145));
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   .il-opgaver-submitted-date {
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
-    flex-shrink: 0 !important;
-    min-width: 5.5rem !important;
-    text-align: right !important;
-    font-variant-numeric: tabular-nums !important;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+    min-width: 5.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
 
   .il-opgaver-submitted-detail {
-    padding-top: 0.5rem !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.375rem !important;
+    padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .il-opgaver-grade-extra {
-    font-size: 0.75rem !important;
-    font-style: italic !important;
-    color: var(--muted-foreground) !important;
-    opacity: 0.7 !important;
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--muted-foreground);
+    opacity: 0.7;
   }
 
   /* ── Show more button ────────────────────── */
 
   .il-opgaver-show-more {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.375rem !important;
-    width: 100% !important;
-    padding: 0.75rem !important;
-    margin-top: 0.75rem !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    color: var(--muted-foreground) !important;
-    background: var(--muted) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.75rem !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
 
   .il-opgaver-show-more:hover {
-    background: var(--accent) !important;
-    color: var(--foreground) !important;
+    background: var(--accent);
+    color: var(--foreground);
   }
 
   /* ── Dark mode ───────────────────────────── */
 
   .dark .il-opgaver-card {
-    border-left-color: oklch(0.35 0 0) !important;
+    border-left-color: oklch(0.35 0 0);
   }
 
   .dark .il-opgaver-card:hover {
-    border-color: oklch(0.38 0 0) !important;
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.3) !important;
+    border-color: oklch(0.38 0 0);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.3);
   }
 
   .dark .il-opgaver-card.is-overdue {
-    border-left-color: oklch(0.6 0.18 25) !important;
-    background: oklch(0.17 0.02 25) !important;
+    border-left-color: oklch(0.6 0.18 25);
+    background: oklch(0.17 0.02 25);
   }
   .dark .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
-    color: oklch(0.72 0.18 25) !important;
+    color: oklch(0.72 0.18 25);
   }
   .dark .il-opgaver-card.is-overdue .il-opgaver-deadline-icon {
-    color: oklch(0.72 0.18 25) !important;
+    color: oklch(0.72 0.18 25);
   }
 
   .dark .il-opgaver-card.is-imminent {
-    border-left-color: oklch(0.6 0.15 50) !important;
-    background: oklch(0.17 0.015 50) !important;
+    border-left-color: oklch(0.6 0.15 50);
+    background: oklch(0.17 0.015 50);
   }
   .dark .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
-    color: oklch(0.72 0.15 50) !important;
+    color: oklch(0.72 0.15 50);
   }
 
   .dark .il-opgaver-card.is-soon {
-    border-left-color: oklch(0.55 0.1 80) !important;
+    border-left-color: oklch(0.55 0.1 80);
   }
   .dark .il-opgaver-card.is-soon .il-opgaver-deadline-label {
-    color: oklch(0.72 0.1 80) !important;
+    color: oklch(0.72 0.1 80);
   }
 
   .dark .il-opgaver-hold-pill {
-    background: oklch(0.28 0.06 var(--hold-hue, 200)) !important;
-    color: oklch(0.78 0.1 var(--hold-hue, 200)) !important;
+    background: oklch(0.28 0.08 var(--hold-hue, 235));
+    color: oklch(0.78 0.14 var(--hold-hue, 235));
   }
 
   .dark .il-opgaver-card-title:hover,
   .dark .il-opgaver-submitted-title:hover {
-    color: oklch(0.75 0.1 var(--hold-hue, 200)) !important;
+    color: oklch(0.75 0.14 var(--hold-hue, 235));
   }
 
   .dark .il-opgaver-grade {
-    background: oklch(0.28 0.08 var(--grade-hue, 145)) !important;
-    color: oklch(0.8 0.1 var(--grade-hue, 145)) !important;
+    background: oklch(0.28 0.08 var(--grade-hue, 145));
+    color: oklch(0.8 0.1 var(--grade-hue, 145));
   }
 
   .dark .il-opgaver-note {
-    border-left-color: oklch(0.5 0.08 var(--hold-hue, 200)) !important;
+    border-left-color: oklch(0.5 0.12 var(--hold-hue, 235));
   }
 
   .dark .il-opgaver-submitted-row:hover {
-    background: oklch(0.2 0 0) !important;
+    background: oklch(0.2 0 0);
   }
 
   /* ── Responsive ──────────────────────────── */
 
   @media (max-width: 640px) {
     .il-opgaver-page {
-      padding: 1.5rem 1rem 2rem !important;
+      padding: 1.5rem 1rem 2rem;
     }
 
     .il-opgaver-title {
-      font-size: 1.5rem !important;
+      font-size: 1.5rem;
     }
 
     .il-opgaver-card-deadline {
-      flex-direction: column !important;
-      align-items: flex-start !important;
-      gap: 0.375rem !important;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.375rem;
     }
 
     .il-opgaver-card-title {
-      white-space: normal !important;
+      white-space: normal;
     }
 
     .il-opgaver-submitted-primary {
-      flex-wrap: wrap !important;
-      gap: 0.375rem !important;
+      flex-wrap: wrap;
+      gap: 0.375rem;
     }
 
     .il-opgaver-submitted-title {
-      flex-basis: 100% !important;
-      white-space: normal !important;
+      flex-basis: 100%;
+      white-space: normal;
     }
 
     .il-opgaver-submitted-date {
-      min-width: auto !important;
-      text-align: left !important;
+      min-width: auto;
+      text-align: left;
     }
   }
 
@@ -2496,18 +2741,18 @@
 
   /* Wrapper — covers the entire viewport */
   .il-opgave-sheet-wrapper {
-    position: fixed !important;
-    inset: 0 !important;
+    position: fixed;
+    inset: 0;
     z-index: 100 !important;
-    pointer-events: auto !important;
+    pointer-events: auto;
   }
 
   /* Backdrop — dim overlay */
   .il-opgave-sheet-backdrop {
-    position: absolute !important;
-    inset: 0 !important;
-    background: rgba(0, 0, 0, 0.5) !important;
-    animation: il-opgave-fade-in 0.2s ease !important;
+    position: absolute;
+    inset: 0;
+    background: oklch(0 0 0 / 0.5);
+    animation: il-opgave-fade-in 0.2s ease;
   }
 
   @keyframes il-opgave-fade-in {
@@ -2522,496 +2767,496 @@
 
   /* Panel — the slide-in sheet */
   .il-opgave-sheet-panel {
-    position: absolute !important;
-    top: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 90% !important;
-    max-width: 32rem !important;
-    background: var(--background) !important;
-    border-left: 1px solid var(--border) !important;
-    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.1) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-    animation: il-opgave-slide-in 0.3s ease !important;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 90%;
+    max-width: 32rem;
+    background: var(--background);
+    border-left: 1px solid var(--border);
+    box-shadow: -8px 0 30px oklch(0.15 0.01 265 / 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: il-opgave-slide-in 0.3s ease;
   }
 
   /* Close button */
   .il-opgave-sheet-close {
-    position: absolute !important;
-    top: 1rem !important;
-    right: 1rem !important;
-    z-index: 10 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 1.75rem !important;
-    height: 1.75rem !important;
-    border-radius: 0.25rem !important;
-    border: none !important;
-    background: transparent !important;
-    color: var(--muted-foreground) !important;
-    cursor: pointer !important;
-    opacity: 0.7 !important;
-    transition: opacity 0.15s, background 0.15s !important;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.25rem;
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s, background 0.15s;
   }
 
   .il-opgave-sheet-close:hover {
-    opacity: 1 !important;
-    background: var(--muted) !important;
+    opacity: 1;
+    background: var(--muted);
   }
 
   /* ── Header ───────────────────────────────── */
 
   .il-opgave-sheet-header {
-    flex-shrink: 0 !important;
-    padding: 1.25rem 1.25rem 0 !important;
+    flex-shrink: 0;
+    padding: 1.25rem 1.25rem 0;
   }
 
   .il-opgave-sheet-header-top {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .il-opgave-sheet-title {
-    font-size: 1.125rem !important;
-    font-weight: 700 !important;
-    color: var(--foreground) !important;
-    line-height: 1.3 !important;
-    padding-right: 2rem !important;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.3;
+    padding-right: 2rem;
   }
 
   .il-opgave-sheet-header-meta {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.625rem !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
   }
 
   .il-opgave-sheet-deadline {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.25rem !important;
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
   }
 
   /* ── Scrollable body ──────────────────────── */
 
   .il-opgave-sheet-body {
-    flex: 1 !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-    padding: 1.25rem !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1rem !important;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   /* ── Info grid ────────────────────────────── */
 
   .il-opgave-sheet-info-grid {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .il-opgave-sheet-info-row {
-    display: flex !important;
-    align-items: baseline !important;
-    gap: 0.75rem !important;
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
   }
 
   .il-opgave-sheet-info-label {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    color: var(--muted-foreground) !important;
-    min-width: 6.5rem !important;
-    flex-shrink: 0 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.03em !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    min-width: 6.5rem;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
 
   .il-opgave-sheet-info-value {
-    font-size: 0.8125rem !important;
-    color: var(--foreground) !important;
-    word-break: break-word !important;
+    font-size: 0.8125rem;
+    color: var(--foreground);
+    word-break: break-word;
   }
 
   /* ── Assignment note ──────────────────────── */
 
   .il-opgave-sheet-note {
-    font-size: 0.8125rem !important;
-    color: var(--foreground) !important;
-    background: var(--muted) !important;
-    padding: 0.75rem 0.875rem !important;
-    border-radius: 0.5rem !important;
-    line-height: 1.6 !important;
-    border-left: 3px solid var(--border) !important;
+    font-size: 0.8125rem;
+    color: var(--foreground);
+    background: var(--muted);
+    padding: 0.75rem 0.875rem;
+    border-radius: 0.5rem;
+    line-height: 1.6;
+    border-left: 3px solid var(--border);
   }
 
   .il-opgave-sheet-note br {
-    display: block !important;
-    content: "" !important;
-    margin: 0.25rem 0 !important;
+    display: block;
+    content: "";
+    margin: 0.25rem 0;
   }
 
   /* ── Description files ────────────────────── */
 
   .il-opgave-sheet-files {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.375rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .il-opgave-sheet-file-link {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    padding: 0.5rem 0.75rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    color: oklch(0.45 0.12 250) !important;
-    background: oklch(0.975 0.012 250) !important;
-    border: 1px solid oklch(0.93 0.02 250) !important;
-    border-radius: 0.5rem !important;
-    text-decoration: none !important;
-    transition: all 0.15s ease !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.45 0.12 250);
+    background: oklch(0.975 0.012 250);
+    border: 1px solid oklch(0.93 0.02 250);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
   }
 
   .il-opgave-sheet-file-link:hover {
-    background: oklch(0.96 0.025 250) !important;
-    border-color: oklch(0.88 0.04 250) !important;
+    background: oklch(0.96 0.025 250);
+    border-color: oklch(0.88 0.04 250);
   }
 
   /* ── Section labels ───────────────────────── */
 
   .il-opgave-sheet-section-label {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    font-size: 0.6875rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.06em !important;
-    color: var(--muted-foreground) !important;
-    margin: 0 0 0.5rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    margin: 0 0 0.5rem;
   }
 
   .il-opgave-sheet-entry-count {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 1.125rem !important;
-    height: 1.125rem !important;
-    padding: 0 0.3rem !important;
-    font-size: 0.5625rem !important;
-    font-weight: 700 !important;
-    border-radius: 9999px !important;
-    background: var(--muted) !important;
-    color: var(--muted-foreground) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    padding: 0 0.3rem;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    background: var(--muted);
+    color: var(--muted-foreground);
   }
 
   /* ── Student status ───────────────────────── */
 
   .il-opgave-sheet-student-section {
-    display: flex !important;
-    flex-direction: column !important;
+    display: flex;
+    flex-direction: column;
   }
 
   .il-opgave-sheet-student {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.25rem !important;
-    padding: 0.5rem 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
   }
 
   .il-opgave-sheet-student-name {
-    font-size: 0.8125rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground);
   }
 
   .il-opgave-sheet-student-meta {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .il-opgave-sheet-awaiting-badge {
-    display: inline-flex !important;
-    align-items: center !important;
-    padding: 0.125rem 0.5rem !important;
-    font-size: 0.6875rem !important;
-    font-weight: 600 !important;
-    border-radius: 9999px !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: 9999px;
   }
 
   .il-opgave-sheet-awaiting-badge.is-student {
-    background: oklch(0.94 0.04 50) !important;
-    color: oklch(0.5 0.14 50) !important;
+    background: oklch(0.94 0.04 50);
+    color: oklch(0.5 0.14 50);
   }
 
   .il-opgave-sheet-awaiting-badge.is-teacher {
-    background: oklch(0.94 0.04 250) !important;
-    color: oklch(0.5 0.14 250) !important;
+    background: oklch(0.94 0.04 250);
+    color: oklch(0.5 0.14 250);
   }
 
   .il-opgave-sheet-status-text {
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-student-grade {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    margin-top: 0.125rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.125rem;
   }
 
   .il-opgave-sheet-grade-note {
-    font-size: 0.75rem !important;
-    font-style: italic !important;
-    color: var(--muted-foreground) !important;
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-student-note {
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
-    font-style: italic !important;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    font-style: italic;
   }
 
   /* ── Submission entries ───────────────────── */
 
   .il-opgave-sheet-entries-section {
-    display: flex !important;
-    flex-direction: column !important;
+    display: flex;
+    flex-direction: column;
   }
 
   .il-opgave-sheet-entries {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .il-opgave-sheet-entry {
-    padding: 0.625rem 0.75rem !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.5rem !important;
-    background: var(--background) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.375rem !important;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .il-opgave-sheet-entry.is-teacher {
-    background: oklch(0.98 0.008 250) !important;
-    border-color: oklch(0.92 0.02 250) !important;
+    background: oklch(0.98 0.008 250);
+    border-color: oklch(0.92 0.02 250);
   }
 
   .il-opgave-sheet-entry-header {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 0.5rem !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 
   .il-opgave-sheet-entry-user {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground);
   }
 
   .il-opgave-sheet-entry-time {
-    font-size: 0.6875rem !important;
-    color: var(--muted-foreground) !important;
-    flex-shrink: 0 !important;
-    font-variant-numeric: tabular-nums !important;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   .il-opgave-sheet-entry-comment {
-    font-size: 0.8125rem !important;
-    color: var(--foreground) !important;
-    line-height: 1.5 !important;
-    margin: 0 !important;
-    white-space: pre-line !important;
+    font-size: 0.8125rem;
+    color: var(--foreground);
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-line;
   }
 
   .il-opgave-sheet-entry-doc {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    font-size: 0.75rem !important;
-    font-weight: 500 !important;
-    color: oklch(0.45 0.12 250) !important;
-    text-decoration: none !important;
-    transition: color 0.15s !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: oklch(0.45 0.12 250);
+    text-decoration: none;
+    transition: color 0.15s;
   }
 
   .il-opgave-sheet-entry-doc:hover {
-    color: oklch(0.4 0.15 250) !important;
-    text-decoration: underline !important;
+    color: oklch(0.4 0.15 250);
+    text-decoration: underline;
   }
 
   /* ── Footer / Form ────────────────────────── */
 
   .il-opgave-sheet-footer {
-    flex-shrink: 0 !important;
-    padding: 0 1.25rem 1.25rem !important;
+    flex-shrink: 0;
+    padding: 0 1.25rem 1.25rem;
   }
 
   .il-opgave-sheet-form {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.5rem !important;
-    padding-top: 0.75rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
   }
 
   .il-opgave-sheet-textarea {
-    width: 100% !important;
-    min-height: 3rem !important;
-    max-height: 8rem !important;
-    padding: 0.5rem 0.75rem !important;
-    font-size: 0.8125rem !important;
-    font-family: inherit !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.5rem !important;
-    background: var(--background) !important;
-    color: var(--foreground) !important;
-    resize: vertical !important;
-    transition: border-color 0.15s !important;
+    width: 100%;
+    min-height: 3rem;
+    max-height: 8rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    resize: vertical;
+    transition: border-color 0.15s;
   }
 
   .il-opgave-sheet-textarea:focus {
-    outline: none !important;
-    border-color: var(--ring) !important;
+    outline: none;
+    border-color: var(--ring);
   }
 
   .il-opgave-sheet-textarea:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /* Drop zone */
   .il-opgave-sheet-dropzone {
-    display: flex !important;
-    align-items: center !important;
-    padding: 0.5rem 0.75rem !important;
-    border: 1px dashed var(--border) !important;
-    border-radius: 0.5rem !important;
-    background: var(--background) !important;
-    cursor: pointer !important;
-    transition: all 0.15s !important;
-    position: relative !important;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
   }
 
   .il-opgave-sheet-dropzone:hover {
-    border-color: var(--ring) !important;
-    background: var(--muted) !important;
+    border-color: var(--ring);
+    background: var(--muted);
   }
 
   .il-opgave-sheet-dropzone.is-dragover {
-    border-color: oklch(0.55 0.15 250) !important;
-    background: oklch(0.97 0.02 250) !important;
-    border-style: solid !important;
+    border-color: oklch(0.55 0.15 250);
+    background: oklch(0.97 0.02 250);
+    border-style: solid;
   }
 
   .il-opgave-sheet-dropzone.has-file {
-    border-style: solid !important;
-    cursor: default !important;
+    border-style: solid;
+    cursor: default;
   }
 
   .il-opgave-sheet-dropzone-hint {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-selected-file {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    width: 100% !important;
-    font-size: 0.75rem !important;
-    color: var(--foreground) !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    font-size: 0.75rem;
+    color: var(--foreground);
   }
 
   .il-opgave-sheet-file-name {
-    flex: 1 !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-    font-weight: 500 !important;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
   }
 
   .il-opgave-sheet-file-size {
-    font-size: 0.6875rem !important;
-    color: var(--muted-foreground) !important;
-    flex-shrink: 0 !important;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
   }
 
   .il-opgave-sheet-file-remove {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 1.25rem !important;
-    height: 1.25rem !important;
-    border-radius: 9999px !important;
-    border: none !important;
-    background: var(--muted) !important;
-    color: var(--muted-foreground) !important;
-    cursor: pointer !important;
-    flex-shrink: 0 !important;
-    transition: all 0.15s !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    border: none;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
   }
 
   .il-opgave-sheet-file-remove:hover {
-    background: oklch(0.9 0.05 25) !important;
-    color: oklch(0.5 0.2 25) !important;
+    background: oklch(0.9 0.05 25);
+    color: oklch(0.5 0.2 25);
   }
 
   .il-opgave-sheet-file-input {
-    position: absolute !important;
-    inset: 0 !important;
-    opacity: 0 !important;
-    cursor: pointer !important;
-    pointer-events: none !important;
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    pointer-events: none;
   }
 
   /* Send button */
   .il-opgave-sheet-send-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.375rem !important;
-    padding: 0.5rem 1rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 600 !important;
-    border: none !important;
-    border-radius: 0.5rem !important;
-    background: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-    cursor: pointer !important;
-    transition: opacity 0.15s !important;
-    align-self: flex-end !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.5rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    cursor: pointer;
+    transition: opacity 0.15s;
+    align-self: flex-end;
   }
 
   .il-opgave-sheet-send-btn:hover:not(:disabled) {
-    opacity: 0.9 !important;
+    opacity: 0.9;
   }
 
   .il-opgave-sheet-send-btn:disabled {
-    opacity: 0.4 !important;
-    cursor: not-allowed !important;
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   @keyframes il-opgave-spin {
@@ -3020,132 +3265,132 @@
   }
 
   .il-opgave-sheet-spinner {
-    animation: il-opgave-spin 0.8s linear infinite !important;
+    animation: il-opgave-spin 0.8s linear infinite;
   }
 
   /* Lectio fallback link */
   .il-opgave-sheet-lectio-link {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    padding: 0.5rem 0 !important;
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    color: var(--muted-foreground) !important;
-    text-decoration: none !important;
-    transition: color 0.15s !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    transition: color 0.15s;
   }
 
   .il-opgave-sheet-lectio-link:hover {
-    color: var(--foreground) !important;
+    color: var(--foreground);
   }
 
   /* ── Error state ──────────────────────────── */
 
   .il-opgave-sheet-error {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.75rem !important;
-    padding: 3rem 1rem !important;
-    text-align: center !important;
-    color: var(--muted-foreground) !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-error p {
-    margin: 0 !important;
-    font-size: 0.875rem !important;
+    margin: 0;
+    font-size: 0.875rem;
   }
 
   .il-opgave-sheet-error-actions {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.625rem !important;
-    margin-top: 0.5rem !important;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-top: 0.5rem;
   }
 
   .il-opgave-sheet-btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    padding: 0.375rem 0.75rem !important;
-    font-size: 0.8125rem !important;
-    font-weight: 500 !important;
-    border-radius: 0.375rem !important;
-    cursor: pointer !important;
-    text-decoration: none !important;
-    transition: all 0.15s !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
   }
 
   .il-opgave-sheet-btn-outline {
-    border: 1px solid var(--border) !important;
-    background: var(--background) !important;
-    color: var(--foreground) !important;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
   }
 
   .il-opgave-sheet-btn-outline:hover {
-    background: var(--muted) !important;
+    background: var(--muted);
   }
 
   .il-opgave-sheet-btn-ghost {
-    border: none !important;
-    background: none !important;
-    color: var(--muted-foreground) !important;
+    border: none;
+    background: none;
+    color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-btn-ghost:hover {
-    color: var(--foreground) !important;
+    color: var(--foreground);
   }
 
   /* ── Loading skeleton ─────────────────────── */
 
   .il-opgave-sheet-skeleton {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1rem !important;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   /* ── Dark mode ────────────────────────────── */
 
   .dark .il-opgave-sheet-entry.is-teacher {
-    background: oklch(0.2 0.015 250) !important;
-    border-color: oklch(0.28 0.025 250) !important;
+    background: oklch(0.2 0.015 250);
+    border-color: oklch(0.28 0.025 250);
   }
 
   .dark .il-opgave-sheet-file-link {
-    color: oklch(0.7 0.1 250) !important;
-    background: oklch(0.22 0.02 250) !important;
-    border-color: oklch(0.3 0.03 250) !important;
+    color: oklch(0.7 0.1 250);
+    background: oklch(0.22 0.02 250);
+    border-color: oklch(0.3 0.03 250);
   }
 
   .dark .il-opgave-sheet-file-link:hover {
-    background: oklch(0.25 0.03 250) !important;
-    border-color: oklch(0.35 0.04 250) !important;
+    background: oklch(0.25 0.03 250);
+    border-color: oklch(0.35 0.04 250);
   }
 
   .dark .il-opgave-sheet-entry-doc {
-    color: oklch(0.7 0.1 250) !important;
+    color: oklch(0.7 0.1 250);
   }
 
   .dark .il-opgave-sheet-dropzone.is-dragover {
-    border-color: oklch(0.6 0.12 250) !important;
-    background: oklch(0.22 0.03 250) !important;
+    border-color: oklch(0.6 0.12 250);
+    background: oklch(0.22 0.03 250);
   }
 
   .dark .il-opgave-sheet-awaiting-badge.is-student {
-    background: oklch(0.28 0.06 50) !important;
-    color: oklch(0.78 0.1 50) !important;
+    background: oklch(0.28 0.06 50);
+    color: oklch(0.78 0.1 50);
   }
 
   .dark .il-opgave-sheet-awaiting-badge.is-teacher {
-    background: oklch(0.28 0.06 250) !important;
-    color: oklch(0.78 0.1 250) !important;
+    background: oklch(0.28 0.06 250);
+    color: oklch(0.78 0.1 250);
   }
 
   .dark .il-opgave-sheet-file-remove:hover {
-    background: oklch(0.3 0.06 25) !important;
-    color: oklch(0.7 0.16 25) !important;
+    background: oklch(0.3 0.06 25);
+    color: oklch(0.7 0.16 25);
   }
 
   /* ========================================
@@ -3159,388 +3404,389 @@
 
   /* FindSkema page container */
   .findskema-page {
-    min-height: 100% !important;
-    background: var(--background) !important;
+    min-height: 100%;
+    background: var(--background);
   }
 
   /* Search container - prominent at top */
   .findskema-search-container {
-    padding: 2rem 1.5rem !important;
+    padding: 2rem 1.5rem;
     background: linear-gradient(
       to bottom,
       var(--muted),
       transparent
-    ) !important;
+    );
   }
 
   .findskema-search-wrapper {
-    position: relative !important;
-    max-width: 800px !important;
-    margin: 0 auto !important;
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
   }
 
   .findskema-search-icon {
-    position: absolute !important;
-    left: 1.25rem !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    width: 1.5rem !important;
-    height: 1.5rem !important;
-    color: var(--muted-foreground) !important;
-    pointer-events: none !important;
+    position: absolute;
+    left: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.5rem;
+    height: 1.5rem;
+    color: var(--muted-foreground);
+    pointer-events: none;
   }
 
   .findskema-search-input {
-    width: 100% !important;
-    height: 4rem !important;
-    padding-left: 3.5rem !important;
-    padding-right: 5rem !important;
-    font-size: 1.25rem !important;
-    border-radius: 1rem !important;
-    border: 2px solid var(--border) !important;
-    background: var(--background) !important;
-    color: var(--foreground) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
-    transition: all 0.2s ease !important;
+    width: 100%;
+    height: 4rem;
+    padding-left: 3.5rem;
+    padding-right: 5rem;
+    font-size: 1.25rem;
+    border-radius: 1rem;
+    border: 2px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.05);
+    transition: all 0.2s ease;
   }
 
   .findskema-search-input::placeholder {
-    color: var(--muted-foreground) !important;
+    color: var(--muted-foreground);
   }
 
   .findskema-search-input:focus {
-    outline: none !important;
-    border-color: var(--ring) !important;
+    outline: none;
+    border-color: var(--ring);
     box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.1),
-      0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent) !important;
+      0 4px 12px oklch(0 0 0 / 0.1),
+      0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
   }
 
   .findskema-search-input:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .findskema-search-actions {
-    position: absolute !important;
-    right: 1rem !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .findskema-clear-btn {
-    padding: 0.5rem !important;
-    color: var(--muted-foreground) !important;
-    border-radius: 0.5rem !important;
-    transition: all 0.15s ease !important;
-    cursor: pointer !important;
-    background: transparent !important;
-    border: none !important;
+    padding: 0.5rem;
+    color: var(--muted-foreground);
+    border-radius: 0.5rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    background: transparent;
+    border: none;
   }
 
   .findskema-clear-btn:hover {
-    color: var(--foreground) !important;
-    background: var(--accent) !important;
+    color: var(--foreground);
+    background: var(--accent);
   }
 
   .findskema-shortcut-hint {
-    display: none !important;
-    align-items: center !important;
-    gap: 0.25rem !important;
-    padding: 0.25rem 0.5rem !important;
-    font-family: ui-monospace, monospace !important;
-    font-size: 0.75rem !important;
-    color: var(--muted-foreground) !important;
-    background: var(--muted) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 0.375rem !important;
+    display: none;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
   }
 
   @media (min-width: 640px) {
     .findskema-shortcut-hint {
-      display: inline-flex !important;
+      display: inline-flex;
     }
   }
 
   .findskema-error {
-    margin-top: 0.75rem !important;
-    text-align: center !important;
-    color: var(--destructive) !important;
-    font-size: 0.875rem !important;
+    margin-top: 0.75rem;
+    text-align: center;
+    color: var(--destructive);
+    font-size: 0.875rem;
   }
 
   /* Filter pills */
   .findskema-filters {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
-    padding: 0 1.5rem 1rem !important;
-    max-width: 800px !important;
-    margin: 0 auto !important;
-    justify-content: center !important;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 1.5rem 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+    justify-content: center;
   }
 
   .findskema-filter-pill {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.375rem !important;
-    padding: 0.5rem 0.875rem !important;
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-    border-radius: 9999px !important;
-    border: 1px solid var(--border) !important;
-    background: var(--background) !important;
-    color: var(--muted-foreground) !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
-    user-select: none !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
   }
 
   .findskema-filter-pill:hover {
-    background: var(--muted) !important;
-    color: var(--foreground) !important;
+    background: var(--muted);
+    color: var(--foreground);
   }
 
   .findskema-filter-pill.is-active {
-    background: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-    border-color: var(--primary) !important;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
   }
 
   .findskema-filter-pill.is-active:hover {
-    background: color-mix(in oklch, var(--primary) 90%, black) !important;
+    background: color-mix(in oklch, var(--primary) 90%, black);
   }
 
   /* Section styling */
   .findskema-section {
-    margin-bottom: 1.5rem !important;
+    margin-bottom: 1.5rem;
   }
 
   .findskema-section-header {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    padding: 0.75rem 1.5rem !important;
-    font-size: 0.875rem !important;
-    font-weight: 600 !important;
-    color: var(--muted-foreground) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   /* Card grid - responsive */
   .findskema-card-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
-    gap: 1rem !important;
-    padding: 0 1.5rem !important;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    padding: 0 1.5rem;
   }
 
   @media (max-width: 640px) {
     .findskema-card-grid {
-      grid-template-columns: repeat(2, 1fr) !important;
-      gap: 0.75rem !important;
-      padding: 0 1rem !important;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      padding: 0 1rem;
     }
 
     .findskema-search-container {
-      padding: 1rem !important;
+      padding: 1rem;
     }
 
     .findskema-search-input {
-      height: 3.5rem !important;
-      font-size: 1rem !important;
-      padding-left: 3rem !important;
+      height: 3.5rem;
+      font-size: 1rem;
+      padding-left: 3rem;
     }
 
     .findskema-search-icon {
-      left: 1rem !important;
-      width: 1.25rem !important;
-      height: 1.25rem !important;
+      left: 1rem;
+      width: 1.25rem;
+      height: 1.25rem;
     }
 
     .findskema-section-header {
-      padding: 0.75rem 1rem !important;
+      padding: 0.75rem 1rem;
     }
   }
 
   /* Person card styling - vertical layout */
   .findskema-person-card {
-    display: flex !important;
-    flex-direction: column !important;
-    border-radius: 1rem !important;
-    border: 1px solid var(--border) !important;
-    background: var(--card) !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    text-decoration: none !important;
-    color: inherit !important;
-    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
   }
 
   .findskema-person-card:hover {
-    border-color: var(--ring) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
-    transform: translateY(-2px) !important;
+    border-color: var(--ring);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.1);
+    transform: translateY(-2px);
+    opacity: 1;
   }
 
   /* Image container at top */
   .findskema-card-image-container {
-    position: relative !important;
-    width: 100% !important;
-    aspect-ratio: 3 / 4 !important;
-    background: var(--muted) !important;
-    overflow: hidden !important;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: var(--muted);
+    overflow: hidden;
   }
 
   .findskema-card-image {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    object-position: top !important;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
     transition:
       transform 0.3s ease,
-      opacity 0.3s ease !important;
-    opacity: 0 !important;
+      opacity 0.3s ease;
+    opacity: 0;
   }
 
   .findskema-card-image.is-loaded {
-    opacity: 1 !important;
+    opacity: 1;
   }
 
   .findskema-person-card:hover .findskema-card-image.is-loaded {
-    transform: scale(1.05) !important;
+    transform: scale(1.05);
   }
 
   .findskema-card-fallback {
-    position: absolute !important;
-    inset: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-size: 2.5rem !important;
-    font-weight: 600 !important;
-    color: var(--muted-foreground) !important;
-    background: var(--muted) !important;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    background: var(--muted);
   }
 
   .findskema-card-fallback.hidden {
-    display: none !important;
+    display: none;
   }
 
   /* Content below image */
   .findskema-card-content {
-    padding: 0.875rem !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.375rem !important;
+    padding: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .findskema-card-name {
-    font-size: 0.9375rem !important;
-    font-weight: 600 !important;
-    color: var(--foreground) !important;
-    line-height: 1.3 !important;
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .findskema-card-meta {
-    display: flex !important;
-    align-items: center !important;
-    gap: 0.5rem !important;
-    flex-wrap: wrap !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .findskema-card-class {
-    font-size: 0.8125rem !important;
-    color: var(--muted-foreground) !important;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
   }
 
   .findskema-card-badge {
-    font-size: 0.6875rem !important;
-    font-weight: 500 !important;
-    padding: 0.125rem 0.5rem !important;
-    border-radius: 9999px !important;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
   }
 
   /* Action buttons - overlay on image */
   .findskema-card-actions {
-    position: absolute !important;
-    top: 0.5rem !important;
-    right: 0.5rem !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.25rem !important;
-    opacity: 0 !important;
-    transition: opacity 0.2s ease !important;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
   }
 
   .findskema-person-card:hover .findskema-card-actions,
   .findskema-card-actions:has(.is-starred) {
-    opacity: 1 !important;
+    opacity: 1;
   }
 
   .findskema-star-btn,
   .findskema-remove-btn {
-    padding: 0.5rem !important;
-    border-radius: 50% !important;
-    background: rgba(255, 255, 255, 0.9) !important;
-    backdrop-filter: blur(4px) !important;
-    border: none !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
-    color: var(--muted-foreground) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    padding: 0.5rem;
+    border-radius: 50%;
+    background: oklch(1 0 0 / 0.9);
+    backdrop-filter: blur(4px);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--muted-foreground);
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.1);
   }
 
   .findskema-star-btn:hover {
-    background: white !important;
-    color: rgb(245, 158, 11) !important; /* amber-500 */
-    transform: scale(1.1) !important;
+    background: white;
+    color: oklch(0.75 0.16 70); /* amber-500 */
+    transform: scale(1.1);
   }
 
   .findskema-star-btn.is-starred {
-    color: rgb(245, 158, 11) !important; /* amber-500 */
-    background: white !important;
+    color: oklch(0.75 0.16 70); /* amber-500 */
+    background: white;
   }
 
   .findskema-remove-btn:hover {
-    background: white !important;
-    color: var(--destructive) !important;
-    transform: scale(1.1) !important;
+    background: white;
+    color: var(--destructive);
+    transform: scale(1.1);
   }
 
   /* Empty state */
   .findskema-empty {
-    padding: 2rem 1.5rem !important;
-    text-align: center !important;
-    color: var(--muted-foreground) !important;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: var(--muted-foreground);
   }
 
   /* Loading state */
   .findskema-loading {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 1rem !important;
-    padding: 3rem 1.5rem !important;
-    color: var(--muted-foreground) !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 3rem 1.5rem;
+    color: var(--muted-foreground);
   }
 
   .findskema-spinner {
-    width: 2rem !important;
-    height: 2rem !important;
-    border: 2px solid var(--border) !important;
-    border-top-color: var(--primary) !important;
-    border-radius: 50% !important;
-    animation: findskema-spin 0.8s linear infinite !important;
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: findskema-spin 0.8s linear infinite;
   }
 
   @keyframes findskema-spin {
@@ -3568,13 +3814,735 @@
   body.il-members-page-active #il-original-content .outerContentFrame,
   body.il-members-page-active #il-original-content .ls-content-container,
   body.il-members-page-active #il-original-content .ls-content {
-    height: fit-content !important;
-    min-height: 0 !important;
+    height: fit-content;
+    min-height: 0;
   }
 
   /* Members page grid container */
   #il-members-page {
-    padding: 1rem 1.5rem 1.5rem 1.5rem !important;
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+  }
+
+  /* ========================================
+     Lectio Modernizer — Phase 3
+     Restyles native Lectio elements with a
+     clean, modern look. All rules live in
+     @layer components so they beat Lectio's
+     @layer lectio without !important.
+     ======================================== */
+
+  /* ── Content area baseline ───────────────── */
+
+  #il-original-content .outerContentFrame,
+  #il-original-content .ls-content-container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  #il-original-content #contenttable {
+    padding: 1.25rem 1.5rem 2rem;
+  }
+
+  /* ── Typography ──────────────────────────── */
+
+  #il-original-content .maintitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--foreground);
+  }
+
+  #il-original-content .ls-label,
+  #il-original-content .ls-label-normal,
+  #il-original-content .ls-label-block {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    letter-spacing: 0.01em;
+  }
+
+  /* ── Links ───────────────────────────────── */
+
+  #il-original-content a {
+    color: oklch(0.5 0.14 250);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  #il-original-content a:hover {
+    color: oklch(0.42 0.16 250);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Context-card links (person/hold names) - inherit container color */
+  #il-original-content [data-lectiocontextcard] {
+    color: oklch(0.5 0.14 250);
+    cursor: pointer;
+  }
+
+  #il-original-content [data-lectiocontextcard]:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ── Tables (lf-grid) ────────────────────── */
+
+  #il-original-content .ls-table-wrapper {
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+  }
+
+  #il-original-content table.lf-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  #il-original-content table.lf-grid th {
+    text-align: left;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  #il-original-content table.lf-grid td {
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid oklch(0.95 0 0);
+    color: var(--foreground);
+    vertical-align: middle;
+  }
+
+  #il-original-content table.lf-grid tr:last-child td {
+    border-bottom: none;
+  }
+
+  #il-original-content table.lf-grid tbody tr:hover td {
+    background: oklch(0.98 0.005 250);
+  }
+
+  /* Separator rows between groups */
+  #il-original-content table.lf-grid tr.separationCell td {
+    background: var(--muted);
+  }
+
+  /* ── Info tables (label:value pairs) ─────── */
+
+  #il-original-content table.ls-std-table-inputlist {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  #il-original-content table.ls-std-table-inputlist th {
+    text-align: left;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    vertical-align: top;
+    width: 10rem;
+    border-bottom: 1px solid oklch(0.95 0 0);
+  }
+
+  #il-original-content table.ls-std-table-inputlist td {
+    padding: 0.5rem 0.875rem;
+    color: var(--foreground);
+    border-bottom: 1px solid oklch(0.95 0 0);
+    vertical-align: top;
+  }
+
+  /* ── Buttons ─────────────────────────────── */
+
+  /* Primary filled button */
+  #il-original-content .buttonfilled a,
+  #il-original-content .buttonfilled a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-foreground);
+    background: var(--primary);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonfilled a:hover {
+    opacity: 0.9;
+    text-decoration: none;
+  }
+
+  /* Tonal filled button */
+  #il-original-content .buttonfilledtonal a,
+  #il-original-content .buttonfilledtonal a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--secondary-foreground);
+    background: var(--secondary);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonfilledtonal a:hover {
+    background: color-mix(in oklch, var(--secondary) 85%, black);
+    text-decoration: none;
+  }
+
+  /* Outlined button */
+  #il-original-content .buttonoutlined a,
+  #il-original-content .buttonoutlined a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonoutlined a:hover {
+    background: var(--muted);
+    text-decoration: none;
+  }
+
+  /* Icon button */
+  #il-original-content .buttonicon a,
+  #il-original-content .buttonicon a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    border-radius: 0.375rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonicon a:hover {
+    background: var(--muted);
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
+  /* ── Form elements ──────────────────────── */
+
+  #il-original-content input[type="text"],
+  #il-original-content input[type="search"],
+  #il-original-content input[type="password"],
+  #il-original-content input[type="email"],
+  #il-original-content input[type="number"],
+  #il-original-content .ls-control-textbox-large {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  #il-original-content input[type="text"]:focus,
+  #il-original-content input[type="search"]:focus,
+  #il-original-content input[type="password"]:focus,
+  #il-original-content .ls-control-textbox-large:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+  }
+
+  #il-original-content textarea,
+  #il-original-content .ls-control-textbox-multiline {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    resize: vertical;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  #il-original-content textarea:focus,
+  #il-original-content .ls-control-textbox-multiline:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+  }
+
+  #il-original-content select {
+    padding: 0.375rem 2rem 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    transition: border-color 0.15s ease;
+  }
+
+  #il-original-content select:focus {
+    outline: none;
+    border-color: var(--ring);
+  }
+
+  #il-original-content input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    accent-color: oklch(0.5 0.14 250);
+  }
+
+  /* Datepicker */
+  #il-original-content .ls-datepickerbox {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    width: auto;
+    min-width: 8rem;
+  }
+
+  /* ── Schedule bricks ─────────────────────── */
+
+  #il-original-content .s2skemabrik {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease, transform 0.1s ease;
+    text-decoration: none;
+  }
+
+  #il-original-content .s2skemabrik:hover {
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.12);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  #il-original-content .s2skemabrikcontent {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  /* Cancelled lessons - strikethrough effect */
+  #il-original-content .s2skemabrik.s2cancelled {
+    opacity: 0.55;
+  }
+
+  /* Day headers */
+  #il-original-content .s2dayHeader td {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Week header */
+  #il-original-content .s2weekHeader td {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--foreground);
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Module info (time labels on left) */
+  #il-original-content .s2module-info {
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+
+  #il-original-content .s2time {
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Islands / Cards ─────────────────────── */
+
+  #il-original-content .ls-card-filled {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  /* ── Rowblocks ───────────────────────────── */
+
+  #il-original-content .ls-std-rowblock {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    flex-wrap: wrap;
+  }
+
+  /* ── Horizontal rule ─────────────────────── */
+
+  #il-original-content .ls-hr-solid {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.75rem 0;
+  }
+
+  /* ── Status badges ───────────────────────── */
+
+  #il-original-content .exercisewait {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: oklch(0.94 0.05 50);
+    color: oklch(0.48 0.15 50);
+    white-space: nowrap;
+  }
+
+  /* Delivered status */
+  #il-original-content [class^="delivered_"] {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.45 0.12 145);
+  }
+
+  /* Attention text (urgent dates) */
+  #il-original-content .attention {
+    font-weight: 600;
+    color: oklch(0.52 0.2 25);
+  }
+
+  /* ── Context cards popup ─────────────────── */
+
+  #il-original-content .lec-context-menu {
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 30px oklch(0 0 0 / 0.12);
+    overflow: hidden;
+  }
+
+  /* ── Horizontal link list (Hold og grupper) ── */
+
+  #il-original-content ul.linklist-horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #il-original-content ul.linklist-horizontal li {
+    display: inline-flex;
+  }
+
+  #il-original-content ul.linklist-horizontal li a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.5 0.1 250);
+    background: oklch(0.97 0.01 250);
+    border: 1px solid oklch(0.93 0.02 250);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  #il-original-content ul.linklist-horizontal li a:hover {
+    background: oklch(0.95 0.02 250);
+    border-color: oklch(0.88 0.04 250);
+    text-decoration: none;
+  }
+
+  /* ── Dashboard table rows (forside) ──────── */
+
+  #il-original-content table.dashboard td.infoCol {
+    font-size: 0.8125rem;
+  }
+
+  #il-original-content table.dashboard td.countCol {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  #il-original-content table.dashboard td.timeCol {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground);
+  }
+
+  /* ── Homework note ───────────────────────── */
+
+  #il-original-content .ls-homework-note {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border-left: 3px solid var(--border);
+    margin-top: 0.375rem;
+    line-height: 1.5;
+  }
+
+  /* ── Info / warning / error messages ──────── */
+
+  #il-original-content .ls-info-message {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    background: oklch(0.97 0.01 250);
+    border: 1px solid oklch(0.92 0.03 250);
+    border-radius: 0.5rem;
+    color: oklch(0.4 0.12 250);
+  }
+
+  #il-original-content .ls-warning-message {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    background: oklch(0.97 0.02 70);
+    border: 1px solid oklch(0.92 0.04 70);
+    border-radius: 0.5rem;
+    color: oklch(0.4 0.14 70);
+  }
+
+  #il-original-content .ls-error-message {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    background: oklch(0.97 0.02 25);
+    border: 1px solid oklch(0.92 0.04 25);
+    border-radius: 0.5rem;
+    color: oklch(0.45 0.18 25);
+  }
+
+  /* ── Tabs ─────────────────────────────────── */
+
+  #il-original-content .lectioTabToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  #il-original-content .lectioTabToolbar a,
+  #il-original-content .lectioTabToolbar .lectioTabSelected a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    border-radius: 0.375rem;
+    transition: all 0.15s ease;
+  }
+
+  #il-original-content .lectioTabToolbar a:hover {
+    background: var(--background);
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
+  #il-original-content .lectioTabToolbar .lectioTabSelected a {
+    background: var(--background);
+    color: var(--foreground);
+    font-weight: 600;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
+  }
+
+  #il-original-content .lectioTabContent {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 0.75rem 0.75rem;
+    overflow: hidden;
+  }
+
+  /* ── Tooltips (Lectio title popups) ──────── */
+
+  #il-original-content .ls-tooltip,
+  #il-original-content #s_m_Content_Content_tooltip {
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.1);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    max-width: 24rem;
+  }
+
+  /* ========================================
+     Lectio Modernizer — Dark Mode
+     Dark counterparts for hardcoded oklch
+     values in the modernizer section above.
+     Rules using CSS variables (var(--border),
+     var(--muted), etc.) adapt automatically.
+     ======================================== */
+
+  /* ── Links ───────────────────────────────── */
+
+  .dark #il-original-content a {
+    color: oklch(0.75 0.12 265);
+  }
+
+  .dark #il-original-content a:hover {
+    color: oklch(0.82 0.14 265);
+  }
+
+  .dark #il-original-content [data-lectiocontextcard] {
+    color: oklch(0.75 0.12 265);
+  }
+
+  /* ── Tables ──────────────────────────────── */
+
+  .dark #il-original-content table.lf-grid td {
+    border-bottom-color: oklch(0.25 0.01 265);
+  }
+
+  .dark #il-original-content table.lf-grid tbody tr:hover td {
+    background: oklch(0.2 0.01 265);
+  }
+
+  .dark #il-original-content table.lf-grid tr.separationCell td {
+    background: oklch(0.22 0.012 265);
+  }
+
+  .dark #il-original-content table.ls-std-table-inputlist th,
+  .dark #il-original-content table.ls-std-table-inputlist td {
+    border-bottom-color: oklch(0.25 0.01 265);
+  }
+
+  /* ── Schedule bricks ─────────────────────── */
+
+  .dark #il-original-content .s2skemabrik:hover {
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.35);
+  }
+
+  /* ── Form elements ──────────────────────── */
+
+  .dark #il-original-content input[type="checkbox"] {
+    accent-color: oklch(0.68 0.17 265);
+  }
+
+  .dark #il-original-content select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  /* ── Status badges ───────────────────────── */
+
+  .dark #il-original-content .exercisewait {
+    background: oklch(0.28 0.06 50);
+    color: oklch(0.78 0.12 50);
+  }
+
+  .dark #il-original-content [class^="delivered_"] {
+    color: oklch(0.72 0.1 145);
+  }
+
+  .dark #il-original-content .attention {
+    color: oklch(0.72 0.16 25);
+  }
+
+  /* ── Context cards popup ─────────────────── */
+
+  .dark #il-original-content .lec-context-menu {
+    box-shadow: 0 8px 30px oklch(0 0 0 / 0.4);
+  }
+
+  /* ── Horizontal link list ─────────────────── */
+
+  .dark #il-original-content ul.linklist-horizontal li a {
+    color: oklch(0.75 0.1 265);
+    background: oklch(0.22 0.02 265);
+    border-color: oklch(0.3 0.03 265);
+  }
+
+  .dark #il-original-content ul.linklist-horizontal li a:hover {
+    background: oklch(0.25 0.03 265);
+    border-color: oklch(0.35 0.04 265);
+  }
+
+  /* ── Homework note ───────────────────────── */
+
+  .dark #il-original-content .ls-homework-note {
+    background: oklch(0.22 0.012 265);
+    border-left-color: oklch(0.35 0.02 265);
+  }
+
+  /* ── Info / warning / error messages ──────── */
+
+  .dark #il-original-content .ls-info-message {
+    background: oklch(0.2 0.02 265);
+    border-color: oklch(0.3 0.03 265);
+    color: oklch(0.75 0.1 265);
+  }
+
+  .dark #il-original-content .ls-warning-message {
+    background: oklch(0.2 0.02 70);
+    border-color: oklch(0.3 0.04 70);
+    color: oklch(0.75 0.12 70);
+  }
+
+  .dark #il-original-content .ls-error-message {
+    background: oklch(0.2 0.02 25);
+    border-color: oklch(0.3 0.04 25);
+    color: oklch(0.75 0.14 25);
+  }
+
+  /* ── Tabs ─────────────────────────────────── */
+
+  .dark #il-original-content .lectioTabToolbar .lectioTabSelected a {
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.25);
+  }
+
+  /* ── Tooltips ────────────────────────────── */
+
+  .dark #il-original-content .ls-tooltip,
+  .dark #il-original-content #s_m_Content_Content_tooltip {
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.35);
   }
 
   /* ========================================
@@ -3756,10 +4724,10 @@
   }
 
   .dark .ls-master-container2 .ls-master-header-institution {
-    color: #0ca59f !important;
+    color: oklch(0.62 0.12 185) !important;
   }
 
   .dark .maintitle {
-    color: #ffffff !important;
+    color: oklch(1 0 0) !important;
   }
 }

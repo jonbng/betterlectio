@@ -37,8 +37,8 @@ const BehaviorSettingsSchema = z.object({
 
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting
 const DataSettingsSchema = z.object({
-  starredPeople: z.boolean().default(true),
-  recentSearches: z.boolean().default(true),
+  starredPeople: z.boolean().default(false),
+  recentSearches: z.boolean().default(false),
 });
 
 const SidebarSettingsSchema = z.object({

@@ -55,10 +55,10 @@ export function ForsideGreeting() {
         <p className="text-base font-medium text-muted-foreground uppercase tracking-[0.2em]">
           {formatDate(time)}
         </p>
-        <h1 className="text-8xl font-bold tracking-tighter text-foreground">
+        <h1 className="text-4xl font-bold tracking-tight text-foreground">
           {greeting}{firstName ? `, ${firstName}` : ''}
         </h1>
-        <p className="text-5xl font-extralight text-muted-foreground tabular-nums mt-2">
+        <p className="text-2xl font-extralight text-muted-foreground tabular-nums mt-1">
           {formatTime(time)}
         </p>
       </div>

@@ -113,7 +113,7 @@ export function LoginPage({ schools }: LoginPageProps) {
     return (
       <>
         {name.slice(0, index)}
-        <span className="bg-[#1b5c9e]/20 text-[#1b5c9e] font-medium">
+        <span className="bg-[oklch(0.54_0.2_265)]/20 text-[oklch(0.54_0.2_265)] font-medium">
           {name.slice(index, index + searchQuery.length)}
         </span>
         {name.slice(index + searchQuery.length)}
@@ -122,7 +122,7 @@ export function LoginPage({ schools }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex flex-col">
+    <div className="min-h-screen bg-[oklch(0.965_0.003_265)] flex flex-col">
       {/* Header */}
       <header className="pt-12 pb-6">
         <div className="max-w-2xl mx-auto px-4 text-center">
@@ -144,18 +144,18 @@ export function LoginPage({ schools }: LoginPageProps) {
           <div className="mb-8">
             <button
               onClick={handleContinueToLastSchool}
-              className="w-full bg-white border-2 border-[#1b5c9e] rounded-lg p-6 text-left hover:bg-[#1b5c9e]/5 transition-colors group cursor-pointer"
+              className="w-full bg-white border-2 border-[oklch(0.54_0.2_265)] rounded-lg p-6 text-left hover:bg-[oklch(0.54_0.2_265)]/5 transition-colors group cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#1b5c9e] font-medium mb-1">
+                  <p className="text-sm text-[oklch(0.54_0.2_265)] font-medium mb-1">
                     Fortsæt til
                   </p>
                   <p className="text-xl font-semibold text-gray-900">
                     {lastSchool.name}
                   </p>
                 </div>
-                <div className="bg-[#1b5c9e] text-white p-3 rounded-lg group-hover:bg-[#144a7d] transition-colors">
+                <div className="bg-[oklch(0.54_0.2_265)] text-white p-3 rounded-lg group-hover:bg-[oklch(0.45_0.2_265)] transition-colors">
                   <ArrowRight className="size-5" />
                 </div>
               </div>
@@ -170,7 +170,7 @@ export function LoginPage({ schools }: LoginPageProps) {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-[#f5f5f5] text-gray-500">
+              <span className="px-3 bg-[oklch(0.965_0.003_265)] text-gray-500">
                 Eller vælg en anden skole
               </span>
             </div>
@@ -189,7 +189,7 @@ export function LoginPage({ schools }: LoginPageProps) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Søg efter skole..."
-            className="w-full h-14 pl-12 pr-12 rounded-lg border-2 border-gray-200 bg-white text-base focus:outline-none focus:border-[#1b5c9e] focus:ring-2 focus:ring-[#1b5c9e]/20 transition-all placeholder:text-gray-400"
+            className="w-full h-14 pl-12 pr-12 rounded-lg border-2 border-gray-200 bg-white text-base focus:outline-none focus:border-[oklch(0.54_0.2_265)] focus:ring-2 focus:ring-[oklch(0.54_0.2_265)]/20 transition-all placeholder:text-gray-400"
           />
           {query && (
             <button
@@ -221,7 +221,7 @@ export function LoginPage({ schools }: LoginPageProps) {
                 onClick={() => handleSchoolSelect(school)}
                 className={`w-full px-4 py-3 text-left border-b border-gray-100 last:border-b-0 transition-colors cursor-pointer ${
                   index === selectedIndex
-                    ? "bg-[#1b5c9e]/10"
+                    ? "bg-[oklch(0.54_0.2_265)]/10"
                     : "hover:bg-gray-50"
                 }`}
               >

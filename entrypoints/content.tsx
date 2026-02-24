@@ -5,7 +5,7 @@ import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
 import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
-import { OpgaverPage, parseOpgaverFromDOM } from "@/components/OpgaverPage";
+import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver } from "@/components/OpgaverPage";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { initPreloading } from "@/lib/preload";
@@ -19,6 +19,8 @@ import {
 } from "@/lib/profile-cache";
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
+import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
+import { scanDOMForHolds, replaceHoldCodesInDOM } from "@/lib/hold-mapping";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -218,6 +220,13 @@ function initLayout() {
 
       contentContainer.appendChild(wrapper);
 
+      // Scan DOM for hold codes, register them, and replace with display names
+      scanDOMForHolds(wrapper);
+      const holdReplacements = replaceHoldCodesInDOM(wrapper);
+      if (holdReplacements > 0) {
+        console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
+      }
+
       // Reveal the page now that our UI is ready
       document.documentElement.classList.add("il-ready");
 
@@ -296,6 +305,18 @@ function initLayout() {
             document.body.classList.add("il-entity-schedule");
           }
         }
+
+        // Replace teacher initials with full names in original Lectio DOM
+        loadTeacherNames(schoolId).then(cache => {
+          if (!cache) return;
+          const originalContent = document.getElementById("il-original-content");
+          if (originalContent) {
+            const count = replaceTeacherInitialsInDOM(cache, originalContent);
+            if (count > 0) {
+              console.log(`[BetterLectio] Replaced ${count} teacher initials with full names`);
+            }
+          }
+        });
       }
 
       // Set up title observer for dynamic updates (e.g., unread message count)
@@ -740,13 +761,7 @@ function injectLektierPage(_schoolId: string) {
   );
 }
 
-function injectOpgaverPage(schoolId: string) {
-  const entries = parseOpgaverFromDOM();
-  if (entries.length === 0) {
-    console.log("[BetterLectio] No assignment entries found on page");
-    return;
-  }
-
+async function injectOpgaverPage(schoolId: string) {
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
@@ -756,13 +771,18 @@ function injectOpgaverPage(schoolId: string) {
 
   document.body.classList.add("il-opgaver-page-active");
 
-  render(<OpgaverPage entries={entries} schoolId={schoolId} />, opgaverContainer);
+  // Render immediately with current (possibly filtered) entries
+  const initialEntries = parseOpgaverFromDOM();
+  render(<OpgaverPage entries={initialEntries} schoolId={schoolId} />, opgaverContainer);
 
-  console.log(
-    "[BetterLectio] Opgaver page injected with",
-    entries.length,
-    "entries",
-  );
+  // Fetch all opgaver (with "Vis kun aktuelle" unchecked)
+  const allEntries = await fetchAllOpgaver();
+  if (allEntries && allEntries.length > 0) {
+    render(<OpgaverPage entries={allEntries} schoolId={schoolId} />, opgaverContainer);
+  }
+
+  const entries = allEntries && allEntries.length > 0 ? allEntries : initialEntries;
+  console.log("[BetterLectio] Opgaver page injected with", entries.length, "entries");
 }
 
 function injectFravaerSubnav() {

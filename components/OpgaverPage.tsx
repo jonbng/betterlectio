@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { ClipboardList, Clock, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
+import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -28,14 +29,6 @@ const DANISH_MONTHS = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────
-
-function getHoldHue(hold: string): number {
-  let hash = 0;
-  for (let i = 0; i < hold.length; i++) {
-    hash = hold.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash) % 360;
-}
 
 function formatTime(date: Date): string {
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
@@ -143,8 +136,8 @@ function getGradeHue(grade: string): number {
 
 // ── DOM parser (exported) ──────────────────────────────────────────────
 
-export function parseOpgaverFromDOM(): OpgaveEntry[] {
-  const table = document.querySelector<HTMLTableElement>(
+export function parseOpgaverFromDOM(root: Document | Element = document): OpgaveEntry[] {
+  const table = root.querySelector<HTMLTableElement>(
     '#s_m_Content_Content_ExerciseGV'
   );
   if (!table) return [];
@@ -228,6 +221,72 @@ function parseDeadline(text: string): Date {
   return new Date();
 }
 
+// ── Fetch all opgaver (with filter unchecked) ─────────────────────────
+
+export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
+  // Check if "Vis kun aktuelle" is checked on the current page
+  const checkbox = document.querySelector<HTMLInputElement>(
+    '#s_m_Content_Content_CurrentExerciseFilterCB'
+  );
+  if (!checkbox || !checkbox.checked) {
+    return null;
+  }
+
+  // Serialize the entire ASP.NET form — just like a real browser submission
+  const form = document.querySelector<HTMLFormElement>('#aspnetForm');
+  if (!form) return null;
+
+  const formData = new URLSearchParams();
+
+  // Collect all form elements
+  const elements = form.elements;
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i] as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    const name = el.getAttribute('name');
+    if (!name) continue;
+
+    if (el instanceof HTMLInputElement) {
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        // Skip the "Vis kun aktuelle" checkbox — we want it unchecked
+        if (name === 's$m$Content$Content$CurrentExerciseFilterCB') continue;
+        // Only include checked checkboxes/radios
+        if (el.checked) formData.append(name, el.value || 'on');
+      } else if (el.type !== 'submit' && el.type !== 'button' && el.type !== 'image') {
+        formData.append(name, el.value);
+      }
+    } else if (el instanceof HTMLSelectElement) {
+      formData.append(name, el.value);
+    } else if (el instanceof HTMLTextAreaElement) {
+      formData.append(name, el.value);
+    }
+  }
+
+  // Override __EVENTTARGET to simulate the checkbox postback
+  formData.set('__EVENTTARGET', 's$m$Content$Content$CurrentExerciseFilterCB');
+  formData.set('__EVENTARGUMENT', '');
+
+  try {
+    const pageUrl = new URL(window.location.pathname + window.location.search, window.location.origin).href;
+    const response = await fetch(pageUrl, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    return parseOpgaverFromDOM(doc);
+  } catch (err) {
+    console.error('[BetterLectio] Failed to fetch all opgaver:', err);
+    return null;
+  }
+}
+
 // ── Component ──────────────────────────────────────────────────────────
 
 interface OpgaverPageProps {
@@ -301,7 +360,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               }
               style={{ '--hold-hue': getHoldHue(hold) } as any}
             >
-              {hold}
+              {getHoldDisplayName(hold)}
             </button>
           ))}
         </div>
@@ -371,7 +430,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                           className="il-opgaver-hold-pill"
                           style={{ '--hold-hue': hue } as any}
                         >
-                          {entry.hold}
+                          {getHoldDisplayName(entry.hold)}
                         </span>
                       </div>
 
@@ -458,7 +517,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                           className="il-opgaver-hold-pill"
                           style={{ '--hold-hue': hue } as any}
                         >
-                          {entry.hold}
+                          {getHoldDisplayName(entry.hold)}
                         </span>
                         {entry.grade && (
                           <span

@@ -6,7 +6,7 @@ A command-line tool for authenticated access to Lectio, the Danish school manage
 
 - **Browser-based authentication** - Opens Chrome for you to log in, captures cookies automatically
 - **School selection** - Search and select from 280+ Danish schools
-- **Authenticated requests** - Fetch any Lectio page with your session
+- **Authenticated GET & POST requests** - Fetch or submit to any Lectio page with your session
 - **Session management** - Tracks session validity, prompts for re-auth when expired
 - **JSON output mode** - All commands support `--json` for scripting and AI agents
 - **Cross-platform** - Works on macOS, Linux, and Windows
@@ -95,6 +95,38 @@ lectio fetch forside.aspx --no-follow
 - `FindSkema.aspx?type=elev` - Find schedule (student)
 - `FindSkema.aspx?type=laerer` - Find schedule (teacher)
 - `grades/grade_report.aspx` - Grades
+
+### `lectio post` - Send a POST request to Lectio
+
+Sends authenticated POST requests to Lectio endpoints.
+
+```bash
+# Post form data (URL-encoded string)
+lectio post ElevAflevering.aspx -d "__EVENTTARGET=btn&comment=hello"
+
+# Post with key=value form fields
+lectio post ElevAflevering.aspx --form __EVENTTARGET=btn comment=hello
+
+# Read body from a file
+lectio post ElevAflevering.aspx --data-file body.txt
+
+# Custom Content-Type (e.g., JSON)
+lectio post some-endpoint.aspx -d '{"key":"value"}' -t "application/json"
+
+# Save response to file
+lectio post ElevAflevering.aspx --form key=val -o response.html
+
+# Output as JSON with headers
+lectio post ElevAflevering.aspx -d "data=1" --json
+
+# Don't follow redirects
+lectio post forside.aspx -d "data=1" --no-follow
+```
+
+**Body input options (one required):**
+- `--data` / `-d` — Raw body string (typically URL-encoded)
+- `--data-file` / `-f` — Read body from a file
+- `--form` — Key=value pairs, auto-encoded as `application/x-www-form-urlencoded`
 
 ### `lectio schools` - List and search schools
 

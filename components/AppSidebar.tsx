@@ -495,7 +495,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     onClick={(e) => {
                       e.preventDefault();
                       clearLoginState();
-                      fetch(`${baseUrl}/logout.aspx`).then(() => {
+                      fetch(`${baseUrl}/logout.aspx`, { credentials: 'include' }).then(() => {
                         window.location.href = "https://www.lectio.dk";
                       });
                     }}

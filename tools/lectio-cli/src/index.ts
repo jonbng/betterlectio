@@ -3,6 +3,7 @@ import { Command } from "commander";
 
 import { authCommand } from "./commands/auth.js";
 import { fetchCommand } from "./commands/fetch.js";
+import { postCommand } from "./commands/post.js";
 import { schoolsCommand } from "./commands/schools.js";
 import { configCommand } from "./commands/config.js";
 import { statusCommand } from "./commands/status.js";
@@ -17,6 +18,7 @@ program
 // Add commands
 program.addCommand(authCommand);
 program.addCommand(fetchCommand);
+program.addCommand(postCommand);
 program.addCommand(schoolsCommand);
 program.addCommand(configCommand);
 program.addCommand(statusCommand);

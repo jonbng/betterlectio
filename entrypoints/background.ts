@@ -2,11 +2,16 @@ export default defineBackground(() => {
   console.log('[BetterLectio] Background script loaded');
 
   // Handle extension icon click - open settings modal
-  browser.action.onClicked.addListener(async (tab) => {
-    if (tab.id && tab.url?.includes('lectio.dk')) {
+  // Use action (MV3) or browserAction (MV2/Firefox) for cross-browser support
+  const actionApi = browser.action ?? (browser as any).browserAction;
+  actionApi?.onClicked.addListener(async (tab: { id?: number }) => {
+    if (!tab.id) return;
+
+    try {
+      // Try sending message to the content script on the active tab
       await browser.tabs.sendMessage(tab.id, { action: 'openSettings' });
-    } else {
-      // If not on Lectio, open Lectio in a new tab
+    } catch {
+      // Content script not running (not on lectio.dk or not loaded yet)
       await browser.tabs.create({ url: 'https://www.lectio.dk/' });
     }
   });

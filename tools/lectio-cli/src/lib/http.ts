@@ -6,6 +6,9 @@ interface FetchOptions {
   schoolId?: string;
   followRedirects?: boolean;
   timeout?: number;
+  method?: "GET" | "POST";
+  body?: string;
+  contentType?: string;
 }
 
 const DEFAULT_TIMEOUT = 30000;
@@ -32,7 +35,13 @@ export async function fetchLectio(
   path: string,
   options: FetchOptions = {}
 ): Promise<FetchResult> {
-  const { followRedirects = true, timeout = DEFAULT_TIMEOUT } = options;
+  const {
+    followRedirects = true,
+    timeout = DEFAULT_TIMEOUT,
+    method = "GET",
+    body,
+    contentType,
+  } = options;
 
   // Get school ID from options or stored cookies
   const schoolId = options.schoolId ?? getStoredSchoolId();
@@ -57,28 +66,36 @@ export async function fetchLectio(
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
+    const headers: Record<string, string> = {
+      Cookie: cookieHeader,
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Accept-Language": "da,en-US;q=0.7,en;q=0.3",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    };
+
+    if (method === "POST") {
+      headers["Content-Type"] =
+        contentType ?? "application/x-www-form-urlencoded";
+    }
+
     const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Cookie: cookieHeader,
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "da,en-US;q=0.7,en;q=0.3",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-      },
+      method,
+      headers,
+      body: method === "POST" ? body : undefined,
       redirect: followRedirects ? "follow" : "manual",
       signal: controller.signal,
     });
 
-    const body = await response.text();
+    const responseBody = await response.text();
 
-    // Convert headers to plain object
-    const headers: Record<string, string> = {};
+    // Convert response headers to plain object
+    const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
-      headers[key] = value;
+      responseHeaders[key] = value;
     });
 
     // Update stored cookies from Set-Cookie headers
@@ -100,8 +117,8 @@ export async function fetchLectio(
     return {
       status: response.status,
       url: response.url,
-      headers,
-      body,
+      headers: responseHeaders,
+      body: responseBody,
       redirected: response.redirected,
     };
   } finally {

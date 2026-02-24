@@ -318,8 +318,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
   // Determine which sections to show
   const showSearchResults = query.length >= 2;
-  const showRecents = !showSearchResults && filteredRecents.length > 0 && (settings.data?.recentSearches ?? true);
-  const showStarred = !showSearchResults && filteredStarred.length > 0 && (settings.data?.starredPeople ?? true);
+  const showRecents = !showSearchResults && filteredRecents.length > 0 && (settings.data?.recentSearches ?? false);
+  const showStarred = !showSearchResults && filteredStarred.length > 0 && (settings.data?.starredPeople ?? false);
   const showClassmates = !showSearchResults && classmates.length > 0 && activeFilters.has('S');
 
   return (

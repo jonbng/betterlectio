@@ -79,6 +79,7 @@ betterlectio/
 │   ├── school-storage.ts     # Last school persistence
 │   ├── findskema-storage.ts  # Starred/recents/picture cache
 │   ├── fuzzy-search.ts       # Fuzzy search algorithm
+│   ├── hold-mapping.ts       # Hold-to-subject name mapping system
 │   ├── opgave-detail.ts      # Fetch/parse assignment detail pages
 │   ├── page-titles.ts        # Clean page title management
 │   └── utils.ts              # Helper functions (cn())
@@ -117,7 +118,8 @@ The extension follows a **content script injection architecture** where custom U
 ├─────────────────────────────────────────────────────────────┤
 │  Content Scripts (inject into lectio.dk pages)              │
 │  ├── hide-flash.content.ts  [document_start]                │
-│  │   └── Injects skeleton, hides original UI                │
+│  │   ├── Hides page until custom UI is ready (FOUC)         │
+│  │   └── Wraps Lectio CSS in @layer lectio (cascade layers) │
 │  └── content.tsx            [document_idle]                 │
 │      └── Renders custom UI wrapper, moves original DOM      │
 ├─────────────────────────────────────────────────────────────┤
@@ -136,8 +138,8 @@ The extension follows a **content script injection architecture** where custom U
          │
          ▼
 2. hide-flash.content.ts runs at document_start
-   ├── Injects CSS (body opacity: 0)
-   └── Creates skeleton sidebar placeholder
+   ├── Injects CSS (visibility: hidden until ready)
+   └── Intercepts Lectio <link>/<style> tags → wraps in @layer lectio
          │
          ▼
 3. content.tsx runs after DOM ready
@@ -164,13 +166,13 @@ The extension follows a **content script injection architecture** where custom U
 
 ### 1. Hide Flash Script (`entrypoints/hide-flash.content.ts`)
 
-**Purpose:** Prevent Flash of Unstyled Content (FOUC)
+**Purpose:** Prevent Flash of Unstyled Content (FOUC) + CSS cascade layer wrapping
 
 - Runs at `document_start` (earliest possible moment)
-- Hides the body with `opacity: 0`
-- Injects a skeleton sidebar placeholder
+- Hides the page with `visibility: hidden` until custom UI is ready
 - Supports prerendering optimization
-- Creates smooth transition experience
+- **CSS Layer Wrapping:** Intercepts Lectio's `<link href="lectio-css.bundle.css">` and inline `<style>` tags via MutationObserver, wraps them in `@layer lectio { }` so our extension CSS always wins without `!important`
+- Layer order: `lectio < theme < base < components < utilities`
 
 ### 2. Session Block (`entrypoints/session-block.content.ts`)
 
@@ -272,7 +274,9 @@ Features:
 
 Sections:
 - **Udseende (Appearance)** - Experimental dark mode toggle
-- **Notifikationer** - Notification preferences (planned)
+- **Adfærd** - Session management, messages redirect, preloading
+- **Sidebar** - Toggle sidebar menu items
+- **Fag** - Hold/subject name and color management (HoldMappingEditor)
 - **Avanceret** - Advanced settings, clear cache option
 - **Om (About)** - Version info, install date, links to GitHub/bug reports
 
@@ -344,6 +348,39 @@ Functions:
 - `submitComment(detail, comment)` — POST comment with ASP.NET form tokens
 - `uploadFileAndSubmit(detail, file, comment, schoolId)` — upload file + submit
 - `getCachedDetail(url)` / `invalidateDetailCache(url)` — localStorage cache management
+
+### 13d. Hold/Subject Mapping (`lib/hold-mapping.ts`)
+
+**Purpose:** Map Lectio hold codes to human-readable subject names
+
+Features:
+- Built-in Danish subject dictionary (~40 entries, case-insensitive)
+- Extracts abbreviation from hold code ("1x HI" → "HI" → "Historie")
+- School-scoped localStorage persistence (`il-hold-mappings`)
+- User overrides for display names and color hues
+- DOM scanning for hold discovery (tooltips + context card spans)
+- In-memory cache for fast lookups
+
+Functions:
+- `getHoldDisplayName(holdCode)` — display name or fallback
+- `getHoldHue(holdCode)` — user override hue or hash default
+- `registerHold(holdCode, holdelementId?)` — add/update mapping
+- `scanDOMForHolds(root?)` — discover holds from DOM
+- `getAllHolds()` — all mappings sorted (for settings UI)
+- `setHoldDisplayName(holdCode, name)` / `setHoldColorHue(holdCode, hue)` — user overrides
+- `resetAllMappings()` / `clearHoldMappings()` — reset/clear
+
+### 13e. Hold Mapping Editor (`components/settings/HoldMappingEditor.tsx`)
+
+**Purpose:** Settings UI for managing hold display names and colors
+
+Features:
+- Table-like list of discovered holds
+- Inline-editable display names (click to edit)
+- Auto-guessed indicator (sparkle) vs user-edited (pencil)
+- Color circle picker with 12 preset hues + rainbow "Standard" reset
+- "Nulstil alle navne" button to reset all overrides
+- Empty state message when no holds discovered yet
 
 ### 14. Profile Cache (`lib/profile-cache.ts`)
 
@@ -562,6 +599,7 @@ HTML snapshots of Lectio pages before extension modification:
 - Compact submitted rows with color-coded grade badges
 - Hold filter pills for subject filtering
 - **Detail sheet sidebar**: click assignment to open side sheet with full details, submission history, comment/file upload
+- **Hold/subject name mapping**: auto-guesses subject names from Danish dictionary, user can override in Settings → Fag
 
 ### Other Pages
 - Forside: time-based greeting, live clock, masonry layout
@@ -581,6 +619,72 @@ HTML snapshots of Lectio pages before extension modification:
 
 ---
 
+## CSS Architecture
+
+### Cascade Layer Strategy
+
+Lectio's CSS is wrapped in `@layer lectio { }` at `document_start`, establishing this layer priority:
+
+```
+Layer order (lowest → highest priority):
+  lectio        ← Lectio's entire CSS bundle + inline styles
+  theme         ← Tailwind theme layer
+  base          ← Tailwind base + our resets
+  components    ← Our custom styles (globals.css @layer components)
+  utilities     ← Tailwind utility classes
+```
+
+**Key benefits:**
+- Extension CSS automatically beats Lectio CSS without `!important`
+- Lectio's CSS still loads and works for everything we haven't overridden
+- Resilient to Lectio updates (their CSS still functions, just at lower priority)
+- Only ~99 `!important` declarations remain (for inline style overrides, display toggling, critical layout)
+
+### Content Isolation
+
+Since `@layer base > @layer lectio`, Tailwind's preflight (margin:0, padding:0, border:0, color:inherit, etc.) would break Lectio's native layout. Two defenses:
+
+1. **Lectio content revert** (`@layer base`): `#il-original-content :where(*) { all: revert-layer }` reverts ALL Tailwind base resets for elements inside Lectio's native DOM, letting Lectio's CSS apply naturally. Our `@layer components` overrides still win (higher layer).
+
+2. **Root baseline** (`@layer components`): `#il-root` has explicit font, color, and line-height to prevent Lectio body styles from leaking into our custom UI via inheritance.
+
+```
+DOM structure:
+  body
+  └── #il-root (baseline: Geist font, --foreground color, etc.)
+       ├── AppSidebar          ← Tailwind base applies ✓
+       └── #il-lectio-content
+            ├── injected pages  ← Tailwind base applies ✓
+            └── #il-original-content
+                 └── Lectio DOM ← Tailwind base REVERTED, Lectio CSS applies ✓
+```
+
+### Lectio Modernizer (Phase 3)
+
+The "Lectio Modernizer" section in `globals.css` restyles Lectio's **native** elements with modern design. Since all styles live in `@layer components`, they automatically beat Lectio's `@layer lectio` styles without `!important`.
+
+**Modernized elements:**
+- **Tables** (`table.lf-grid`) — Modern headers, clean borders, subtle hover
+- **Info tables** (`ls-std-table-inputlist`) — Label/value pair tables
+- **Buttons** (`.buttonfilled`, `.buttonoutlined`, `.buttonfilledtonal`, `.buttonicon`) — Rounded, proper padding, hover transitions
+- **Form elements** — Inputs, selects, textareas, checkboxes, datepickers with consistent border-radius and focus rings
+- **Schedule bricks** (`.s2skemabrik`) — Rounded corners, hover shadow, cleaner typography
+- **Links** — Consistent blue color, hover underline with offset
+- **Cards** (`.ls-card-filled`, `.lf-island`) — Modern border-radius, consistent borders
+- **Tabs** (`.lectioTabToolbar`) — Pill-style tab navigation
+- **Status badges** (`.exercisewait`, `.attention`) — Color-coded pills
+- **Messages** (`.ls-info-message`, `.ls-warning-message`, `.ls-error-message`) — Color-coded alert boxes
+- **Typography** — Labels, headings, context card links
+- **Misc** — Horizontal rules, horizontal link lists, homework notes, tooltips
+
+### When to use `!important`
+- Overriding Lectio's inline `style=""` attributes (e.g., schedule brick widths)
+- `display: none/block` for hiding/showing Lectio elements (defense against JS toggling)
+- Critical layout: body overflow, sidebar position:fixed, z-index
+- Dark mode rules targeting native Lectio elements
+
+---
+
 ## Performance Optimizations
 
 1. **Preact over React** - 3KB vs 40KB+ bundle size
@@ -589,6 +693,7 @@ HTML snapshots of Lectio pages before extension modification:
 4. **Hover prefetching** - Links prefetched on hover (65ms delay)
 5. **Picture caching** - Profile pictures cached 7 days, lazy-loaded
 6. **IntersectionObserver** - Pictures only fetched when visible
+7. **CSS Cascade Layers** - No specificity wars, clean style overrides
 
 ---
 

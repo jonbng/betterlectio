@@ -24,6 +24,7 @@ import {
   uploadFileAndSubmit,
 } from '@/lib/opgave-detail';
 import type { OpgaveDetail } from '@/lib/opgave-detail';
+import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -50,14 +51,6 @@ interface OpgaveDetailSheetProps {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
-
-function getHoldHue(hold: string): number {
-  let hash = 0;
-  for (let i = 0; i < hold.length; i++) {
-    hash = hold.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash) % 360;
-}
 
 function getGradeHue(grade: string): number {
   const g = grade.trim();
@@ -230,7 +223,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   className="il-opgaver-hold-pill"
                   style={{ '--hold-hue': holdHue } as any}
                 >
-                  {entry.hold}
+                  {getHoldDisplayName(entry.hold)}
                 </span>
                 <span className="il-opgave-sheet-deadline">
                   <Clock size={12} />

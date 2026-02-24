@@ -13,7 +13,7 @@ export default defineConfig({
     action: {
       default_title: 'BetterLectio',
     },
-    permissions: ['storage'],
+    permissions: ['storage', 'activeTab'],
     web_accessible_resources: [
       {
         resources: ['assets/*'],

@@ -1,4 +1,5 @@
-import { FileText, BookOpen, ExternalLink, Download, ArrowUpRight } from 'lucide-react';
+import { FileText, BookOpen, Download, ArrowUpRight } from 'lucide-react';
+import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -6,6 +7,7 @@ interface HomeworkItem {
   text: string;
   fileUrl: string | null;
   activityUrl: string | null;
+  note: string | null;
 }
 
 interface LektierEntry {
@@ -13,6 +15,7 @@ interface LektierEntry {
   date: Date;
   activityUrl: string;
   hold: string;
+  teacherName: string;
   teacherAbbrev: string;
   room: string;
   timeRange: string;
@@ -25,13 +28,12 @@ interface LektierEntry {
 interface LektierDay {
   date: Date;
   displayDate: string;
-  isToday: boolean;
   entries: LektierEntry[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-const DANISH_DAYS = ['Sondag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lordag'];
+const DANISH_DAYS = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
 const DANISH_MONTHS = [
   'januar', 'februar', 'marts', 'april', 'maj', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'december',
@@ -41,18 +43,20 @@ function formatDisplayDate(date: Date): string {
   return `${DANISH_DAYS[date.getDay()]} ${date.getDate()}. ${DANISH_MONTHS[date.getMonth()]}`;
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-}
+function getRelativeLabel(date: Date): { text: string; type: 'today' | 'tomorrow' | 'soon' | 'later' | 'past' } | null {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-function getHoldHue(hold: string): number {
-  let hash = 0;
-  for (let i = 0; i < hold.length; i++) {
-    hash = hold.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash) % 360;
+  if (diffDays === 0) return { text: 'i dag', type: 'today' };
+  if (diffDays === 1) return { text: 'i morgen', type: 'tomorrow' };
+  if (diffDays === -1) return { text: 'i går', type: 'past' };
+  if (diffDays > 1 && diffDays <= 3) return { text: `om ${diffDays} dage`, type: 'soon' };
+  if (diffDays > 3 && diffDays <= 7) return { text: `om ${diffDays} dage`, type: 'later' };
+  if (diffDays < -1) return { text: `${Math.abs(diffDays)} dage siden`, type: 'past' };
+  return null;
 }
 
 // ── Tooltip parser ─────────────────────────────────────────────────────
@@ -82,6 +86,7 @@ function parseTooltip(tooltip: string) {
   const date = new Date(year, month - 1, day);
 
   let hold = '';
+  let teacherName = '';
   let teacherAbbrev = '';
   let room = '';
 
@@ -90,14 +95,21 @@ function parseTooltip(tooltip: string) {
     if (line.startsWith('Hold: ')) {
       hold = line.substring(6);
     } else if (line.startsWith('Lærer: ')) {
-      const m = line.substring(7).match(/\(([^)]+)\)$/);
-      teacherAbbrev = m ? m[1] : line.substring(7);
+      const teacherStr = line.substring(7);
+      const m = teacherStr.match(/^(.+?)\s*\(([^)]+)\)$/);
+      if (m) {
+        teacherName = m[1].trim();
+        teacherAbbrev = m[2].trim();
+      } else {
+        teacherName = teacherStr;
+        teacherAbbrev = teacherStr;
+      }
     } else if (line.startsWith('Lokale: ')) {
       room = line.substring(8);
     }
   }
 
-  return { activityTitle, date, timeRange, hold, teacherAbbrev, room };
+  return { activityTitle, date, timeRange, hold, teacherName, teacherAbbrev, room };
 }
 
 // ── Homework cell parser ───────────────────────────────────────────────
@@ -106,13 +118,6 @@ function parseHomeworkCell(cell: HTMLTableCellElement) {
   const items: HomeworkItem[] = [];
   const noteTexts: string[] = [];
 
-  // Collect .ls-homework-note divs
-  cell.querySelectorAll('.ls-homework-note').forEach(div => {
-    const text = div.textContent?.trim();
-    if (text) noteTexts.push(text);
-  });
-
-  // Walk direct child nodes
   const children = Array.from(cell.childNodes);
   let i = 0;
   while (i < children.length) {
@@ -124,11 +129,11 @@ function parseHomeworkCell(cell: HTMLTableCellElement) {
       if (el.tagName === 'A') {
         const href = el.getAttribute('href') || '';
         const text = el.textContent?.trim() || '';
-        if (text) {
+        if (text && href) {
           if (href.includes('/lc/')) {
-            items.push({ text, fileUrl: href, activityUrl: null });
-          } else if (href.includes('/aktivitet/')) {
-            items.push({ text, fileUrl: null, activityUrl: href });
+            items.push({ text, fileUrl: href, activityUrl: null, note: null });
+          } else {
+            items.push({ text, fileUrl: null, activityUrl: href, note: null });
           }
         }
       } else if (el.tagName === 'IMG') {
@@ -146,12 +151,23 @@ function parseHomeworkCell(cell: HTMLTableCellElement) {
         }
         text = text.trim();
         if (text) {
-          items.push({ text, fileUrl: null, activityUrl: null });
+          items.push({ text, fileUrl: null, activityUrl: null, note: null });
           i = j;
           continue;
         }
+      } else if (el.classList?.contains('ls-homework-note')) {
+        // Attach annotation to the most recent item, or collect as standalone
+        const noteText = el.textContent?.trim();
+        if (noteText) {
+          if (items.length > 0) {
+            const lastItem = items[items.length - 1];
+            lastItem.note = lastItem.note ? lastItem.note + '\n' + noteText : noteText;
+          } else {
+            noteTexts.push(noteText);
+          }
+        }
       }
-      // Skip <br>, <div.ls-homework-note> (already collected), etc.
+      // Skip <br>, other elements
     } else if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim();
       if (text && text.length > 3) {
@@ -169,9 +185,6 @@ function parseHomeworkCell(cell: HTMLTableCellElement) {
 // ── Group by day ───────────────────────────────────────────────────────
 
 function groupByDay(entries: LektierEntry[]): LektierDay[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const dayMap = new Map<string, LektierDay>();
 
   for (const entry of entries) {
@@ -180,7 +193,6 @@ function groupByDay(entries: LektierEntry[]): LektierDay[] {
       dayMap.set(key, {
         date: entry.date,
         displayDate: formatDisplayDate(entry.date),
-        isToday: isSameDay(entry.date, today),
         entries: [],
       });
     }
@@ -231,6 +243,7 @@ export function parseLektierFromDOM(): LektierEntry[] {
       date: tooltipData.date,
       activityUrl,
       hold: tooltipData.hold,
+      teacherName: tooltipData.teacherName,
       teacherAbbrev: tooltipData.teacherAbbrev,
       room: tooltipData.room,
       timeRange: tooltipData.timeRange,
@@ -286,109 +299,140 @@ export function LektierPage({ entries }: LektierPageProps) {
         </div>
       ) : (
         <div className="il-lektier-timeline">
-          {days.map((day, dayIdx) => (
-            <div
-              key={day.date.toISOString()}
-              className={`il-lektier-day${day.isToday ? ' is-today' : ''}`}
-              style={{ animationDelay: `${dayIdx * 60}ms` }}
-            >
-              {/* Date column */}
-              <div className="il-lektier-date-col">
-                <div className="il-lektier-date-number">{day.date.getDate()}</div>
-                <div className="il-lektier-date-weekday">
-                  {DANISH_DAYS[day.date.getDay()].substring(0, 3).toLowerCase()}
+          {days.map((day, dayIdx) => {
+            const relative = getRelativeLabel(day.date);
+            const dayClasses = ['il-lektier-day'];
+            if (relative?.type === 'today') dayClasses.push('is-today');
+            if (relative?.type === 'tomorrow') dayClasses.push('is-tomorrow');
+
+            return (
+              <div
+                key={day.date.toISOString()}
+                className={dayClasses.join(' ')}
+                style={{ animationDelay: `${dayIdx * 60}ms` }}
+              >
+                {/* Date column */}
+                <div className="il-lektier-date-col">
+                  <div className="il-lektier-date-number">{day.date.getDate()}</div>
+                  <div className="il-lektier-date-weekday">
+                    {DANISH_DAYS[day.date.getDay()].substring(0, 3).toLowerCase()}
+                  </div>
+                  <div className="il-lektier-date-month">
+                    {DANISH_MONTHS[day.date.getMonth()].substring(0, 3)}
+                  </div>
+                  {relative && (
+                    <div className={`il-lektier-date-relative is-${relative.type}`}>
+                      {relative.text}
+                    </div>
+                  )}
                 </div>
-                <div className="il-lektier-date-month">
-                  {DANISH_MONTHS[day.date.getMonth()].substring(0, 3)}
-                </div>
-                {day.isToday && <div className="il-lektier-date-today">i dag</div>}
-              </div>
 
-              {/* Cards column */}
-              <div className="il-lektier-cards-col">
-                {day.entries.map((entry, idx) => {
-                  const hue = getHoldHue(entry.hold);
-                  return (
-                    <div
-                      key={idx}
-                      className="il-lektier-card"
-                      style={{ '--hold-hue': hue } as any}
-                    >
-                      <div className="il-lektier-card-accent" />
-                      <div className="il-lektier-card-body">
-                        <div className="il-lektier-card-top">
-                          <a href={entry.activityUrl} className="il-lektier-card-module">
-                            {entry.module && <span>{entry.module}</span>}
-                            {entry.module && entry.timeRange && <span className="il-lektier-card-sep">&middot;</span>}
-                            {entry.timeRange && <span className="il-lektier-card-time">{entry.timeRange}</span>}
-                          </a>
-                          <span
-                            className="il-lektier-hold-pill"
-                            style={{ '--hold-hue': hue } as any}
-                          >
-                            {entry.hold}
-                          </span>
-                        </div>
+                {/* Cards column */}
+                <div className="il-lektier-cards-col">
+                  {day.entries.map((entry, idx) => {
+                    const hue = getHoldHue(entry.hold);
+                    const contentItems = entry.homeworkItems.filter(i => !i.fileUrl);
+                    const fileItems = entry.homeworkItems.filter(i => i.fileUrl);
+                    const hasContent = contentItems.length > 0 || entry.note || fileItems.length > 0;
 
-                        <div className="il-lektier-card-meta">
-                          {entry.teacherAbbrev && <span>{entry.teacherAbbrev}</span>}
-                          {entry.teacherAbbrev && entry.room && (
-                            <span className="il-lektier-meta-dot" />
-                          )}
-                          {entry.room && <span>{entry.room}</span>}
-                          {entry.activityTitle && (
-                            <>
-                              <span className="il-lektier-meta-dash">&mdash;</span>
-                              <span className="il-lektier-meta-title">{entry.activityTitle}</span>
-                            </>
-                          )}
-                        </div>
+                    return (
+                      <div
+                        key={idx}
+                        className="il-lektier-card"
+                        style={{ '--hold-hue': hue } as any}
+                      >
+                        <div className="il-lektier-card-accent" />
+                        <div className="il-lektier-card-body">
+                          <div className="il-lektier-card-top">
+                            <a href={entry.activityUrl} className="il-lektier-card-module">
+                              {entry.module && <span>{entry.module}</span>}
+                              {entry.module && entry.timeRange && <span className="il-lektier-card-sep">&middot;</span>}
+                              {entry.timeRange && <span className="il-lektier-card-time">{entry.timeRange}</span>}
+                            </a>
+                            <span
+                              className="il-lektier-hold-pill"
+                              style={{ '--hold-hue': hue } as any}
+                            >
+                              {getHoldDisplayName(entry.hold)}
+                            </span>
+                          </div>
 
-                        {(entry.homeworkItems.length > 0 || entry.note) && (
-                          <div className="il-lektier-card-items">
-                            {entry.homeworkItems.map((item, itemIdx) => (
-                              <div key={itemIdx}>
-                                {item.fileUrl ? (
-                                  <a href={item.fileUrl} className="il-lektier-file">
-                                    <div className="il-lektier-file-icon-wrap">
-                                      <FileText size={20} />
-                                    </div>
-                                    <div className="il-lektier-file-info">
-                                      <span className="il-lektier-file-name">{item.text}</span>
-                                    </div>
-                                    <Download size={16} className="il-lektier-file-dl" />
-                                  </a>
-                                ) : item.activityUrl ? (
-                                  <a href={item.activityUrl} className="il-lektier-activity-link">
-                                    <div className="il-lektier-activity-icon-wrap">
-                                      <ExternalLink size={18} />
-                                    </div>
-                                    <span className="il-lektier-activity-text">{item.text}</span>
-                                    <ArrowUpRight size={16} className="il-lektier-activity-arrow" />
-                                  </a>
-                                ) : (
-                                  <div className="il-lektier-reading">
-                                    <BookOpen size={20} className="il-lektier-reading-icon" />
-                                    <span>{item.text}</span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-
-                            {entry.note && (
-                              <div className="il-lektier-note">
-                                <span>{entry.note}</span>
-                              </div>
+                          <div className="il-lektier-card-meta">
+                            {entry.teacherName && <span title={entry.teacherAbbrev}>{entry.teacherName}</span>}
+                            {entry.teacherName && entry.room && (
+                              <span className="il-lektier-meta-dot" />
+                            )}
+                            {entry.room && <span>{entry.room}</span>}
+                            {entry.activityTitle && (
+                              <>
+                                <span className="il-lektier-meta-dash">&mdash;</span>
+                                <span className="il-lektier-meta-title">{entry.activityTitle}</span>
+                              </>
                             )}
                           </div>
-                        )}
+
+                          {hasContent && (
+                            <div className="il-lektier-card-items">
+                              {/* Teacher instruction — the most important content */}
+                              {entry.note && (
+                                <div className="il-lektier-instruction">
+                                  {entry.note}
+                                </div>
+                              )}
+
+                              {/* Homework content items (descriptions, readings, linked tasks) */}
+                              {contentItems.length > 0 && (
+                                <div className="il-lektier-content-list">
+                                  {contentItems.map((item, itemIdx) => (
+                                    <div key={itemIdx} className="il-lektier-content-item">
+                                      <BookOpen size={15} className="il-lektier-content-icon" />
+                                      <div className="il-lektier-content-body">
+                                        {item.activityUrl ? (
+                                          <a href={item.activityUrl} className="il-lektier-content-link">
+                                            <span>{item.text}</span>
+                                            <ArrowUpRight size={13} className="il-lektier-content-arrow" />
+                                          </a>
+                                        ) : (
+                                          <span className="il-lektier-content-text">{item.text}</span>
+                                        )}
+                                        {item.note && (
+                                          <div className="il-lektier-item-annotation">{item.note}</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* File attachments */}
+                              {fileItems.length > 0 && (
+                                <div className="il-lektier-files">
+                                  {fileItems.map((item, itemIdx) => (
+                                    <a key={itemIdx} href={item.fileUrl!} className="il-lektier-file">
+                                      <div className="il-lektier-file-icon-wrap">
+                                        <FileText size={18} />
+                                      </div>
+                                      <div className="il-lektier-file-info">
+                                        <span className="il-lektier-file-name">{item.text}</span>
+                                        {item.note && (
+                                          <span className="il-lektier-file-annotation">{item.note}</span>
+                                        )}
+                                      </div>
+                                      <Download size={16} className="il-lektier-file-dl" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

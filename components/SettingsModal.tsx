@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { FeatureToggle } from "@/components/settings/FeatureToggle";
 import { SettingsSection } from "@/components/settings/SettingsSection";
+import { HoldMappingEditor } from "@/components/settings/HoldMappingEditor";
 import {
   getSettings,
   saveSettings,
@@ -46,6 +47,7 @@ import {
   Calendar,
   PanelLeft,
   Zap,
+  GraduationCap,
 } from "lucide-react";
 
 interface SettingsModalProps {
@@ -57,6 +59,7 @@ const navItems = [
   { id: "appearance", name: "Udseende", icon: Palette },
   { id: "behavior", name: "Adfærd", icon: Zap },
   { id: "sidebar", name: "Sidebar", icon: PanelLeft },
+  { id: "subjects", name: "Fag", icon: GraduationCap },
   { id: "advanced", name: "Avanceret", icon: Wrench },
   { id: "about", name: "Om", icon: Info },
 ];
@@ -515,7 +518,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 description="Fuzzy søgning, filtre, personkort og favoritter"
                 enabled={settings.pages?.findSkemaRedesign ?? true}
                 onChange={(v) => handleSettingChange('pages', 'findSkemaRedesign', v)}
-                hasDependent={(settings.data?.starredPeople ?? true) || (settings.data?.recentSearches ?? true)}
+                hasDependent={(settings.data?.starredPeople ?? false) || (settings.data?.recentSearches ?? false)}
               />
               <FeatureToggle
                 id="pages-forside"
@@ -610,7 +613,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 id="data-starred"
                 label="Favoritter"
                 description={`Gem favorit-personer til hurtig adgang (${starredCount} gemt)`}
-                enabled={settings.data?.starredPeople ?? true}
+                enabled={settings.data?.starredPeople ?? false}
                 onChange={(v) => handleSettingChange('data', 'starredPeople', v)}
                 disabled={!(settings.pages?.findSkemaRedesign ?? true)}
                 disabledReason="Kræver FindSkema redesign er aktiveret"
@@ -619,7 +622,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 id="data-recents"
                 label="Seneste søgninger"
                 description={`Husk dine seneste søgninger (${recentsCount} gemt)`}
-                enabled={settings.data?.recentSearches ?? true}
+                enabled={settings.data?.recentSearches ?? false}
                 onChange={(v) => handleSettingChange('data', 'recentSearches', v)}
                 disabled={!(settings.pages?.findSkemaRedesign ?? true)}
                 disabledReason="Kræver FindSkema redesign er aktiveret"
@@ -739,6 +742,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             </SettingsSection>
           </div>
         );
+
+      case "subjects":
+        return <HoldMappingEditor />;
 
       case "advanced":
         return (
