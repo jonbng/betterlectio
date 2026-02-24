@@ -20,7 +20,7 @@ import {
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
-import { scanDOMForHolds, replaceHoldCodesInDOM } from "@/lib/hold-mapping";
+import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue } from "@/lib/hold-mapping";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -226,6 +226,9 @@ function initLayout() {
       if (holdReplacements > 0) {
         console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
       }
+
+      // Enhance schedule brick layout with subject hierarchy and hold colors
+      enhanceScheduleBricks();
 
       // Reveal the page now that our UI is ready
       document.documentElement.classList.add("il-ready");
@@ -493,6 +496,150 @@ function injectScheduleColgroup() {
 
     // Insert colgroup at the beginning of the table
     table.insertBefore(colgroup, table.firstChild);
+  });
+}
+
+function enhanceScheduleBricks() {
+  const bricks = document.querySelectorAll<HTMLElement>(
+    "#il-original-content .s2skemabrik.s2bgbox.s2brik",
+  );
+
+  bricks.forEach((brick) => {
+    const innerContainer = brick.querySelector<HTMLElement>(
+      ".s2skemabrikInnerContainer",
+    );
+    if (!innerContainer || innerContainer.classList.contains("il-enhanced"))
+      return;
+
+    const content = innerContainer.querySelector<HTMLElement>(
+      ".s2skemabrikcontent",
+    );
+    if (!content) return;
+
+    // Extract components from the original DOM
+    const holdSpan = content.querySelector<HTMLElement>(
+      'span[data-lectiocontextcard^="HE"]',
+    );
+    const teacherSpan = content.querySelector<HTMLElement>(
+      'span[data-lectiocontextcard^="T"]',
+    );
+    const topicSpan = content.querySelector<HTMLElement>(
+      'span[style*="word-wrap"]',
+    );
+    const timeline = innerContainer.querySelector<HTMLElement>(".s2timeline");
+    const icons = innerContainer.querySelector<HTMLElement>(
+      ".s2skemabrikIcons",
+    );
+
+    // Get hold code for coloring (title attr has original code)
+    const holdCode =
+      holdSpan?.getAttribute("title") || holdSpan?.textContent?.trim() || "";
+
+    // Extract room from content text: "\nHistorie • MR • 25\nMiddelalderen"
+    // Content starts with a newline, so find the first non-empty line
+    const contentText = content.textContent || "";
+    const contentLines = contentText
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const firstLine = contentLines[0] || "";
+    const dotParts = firstLine
+      .split("•")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    let room = "";
+    if (dotParts.length >= 3) {
+      room = dotParts[dotParts.length - 1];
+    }
+
+    // Apply hold color as CSS custom property
+    const hue = holdCode ? getHoldHue(holdCode) : 265;
+    brick.style.setProperty("--brick-hue", String(hue));
+
+    // Mark as enhanced and clear old content
+    innerContainer.classList.add("il-enhanced");
+    innerContainer.textContent = "";
+
+    // ── Header: subject + room ──
+    const header = document.createElement("div");
+    header.className = "il-brick-header";
+
+    let topicUsedAsSubject = false;
+    if (holdSpan) {
+      holdSpan.classList.add("il-brick-subject");
+      header.appendChild(holdSpan);
+    } else if (topicSpan) {
+      // Fallback: use topic as subject when no hold span exists
+      topicSpan.classList.add("il-brick-subject");
+      topicSpan.style.removeProperty("word-wrap");
+      header.appendChild(topicSpan);
+      topicUsedAsSubject = true;
+    }
+
+    if (room) {
+      const roomBadge = document.createElement("span");
+      roomBadge.className = "il-brick-room";
+      roomBadge.textContent = room;
+      header.appendChild(roomBadge);
+    }
+
+    // Add "Aflyst" badge for cancelled bricks
+    if (brick.classList.contains("s2cancelled")) {
+      const cancelledBadge = document.createElement("span");
+      cancelledBadge.className = "il-brick-cancelled-badge";
+      cancelledBadge.textContent = "Aflyst";
+      header.appendChild(cancelledBadge);
+    }
+
+    // Add "Ændret" badge for changed/moved bricks
+    if (
+      brick.classList.contains("s2changed") &&
+      !brick.classList.contains("s2cancelled")
+    ) {
+      const changedBadge = document.createElement("span");
+      changedBadge.className = "il-brick-changed-badge";
+      changedBadge.textContent = "Ændret";
+      header.appendChild(changedBadge);
+    }
+
+    innerContainer.appendChild(header);
+
+    // ── Meta: teacher, time ──
+    if (teacherSpan || timeline) {
+      const meta = document.createElement("div");
+      meta.className = "il-brick-meta";
+
+      if (teacherSpan) {
+        meta.appendChild(teacherSpan);
+      }
+
+      if (timeline) {
+        if (teacherSpan) {
+          meta.appendChild(document.createTextNode(" \u00B7 "));
+        }
+        timeline.style.display = "inline";
+        meta.appendChild(timeline);
+      }
+
+      innerContainer.appendChild(meta);
+    }
+
+    // ── Topic ──
+    if (topicSpan && !topicUsedAsSubject) {
+      const topicText = topicSpan.textContent?.trim();
+      if (topicText) {
+        const topicDiv = document.createElement("div");
+        topicDiv.className = "il-brick-topic";
+        topicDiv.textContent = topicText;
+        innerContainer.appendChild(topicDiv);
+      }
+    }
+
+    // ── Icons (homework, notes) ──
+    if (icons && icons.children.length > 0) {
+      icons.className = "il-brick-icons";
+      innerContainer.appendChild(icons);
+    }
   });
 }
 
