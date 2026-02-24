@@ -20,7 +20,7 @@ import {
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
-import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue } from "@/lib/hold-mapping";
+import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName } from "@/lib/hold-mapping";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -227,6 +227,9 @@ function initLayout() {
         console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
       }
 
+      // Merge cancelled+replacement brick pairs into combined bricks
+      mergeReplacedBricks();
+
       // Enhance schedule brick layout with subject hierarchy and hold colors
       enhanceScheduleBricks();
 
@@ -327,8 +330,9 @@ function initLayout() {
         observeTitleChanges();
       }
 
-      // Set up schedule table column widths and highlight today
+      // Set up schedule table column widths, clean labels, and highlight today
       injectScheduleColgroup();
+      cleanUpModuleLabels();
       if (settings.schedule.todayHighlight ?? true) {
         highlightTodayInSchedule();
         if (settings.schedule.currentTimeIndicator ?? true) {
@@ -499,12 +503,112 @@ function injectScheduleColgroup() {
   });
 }
 
+function cleanUpModuleLabels() {
+  const moduleInfos = document.querySelectorAll<HTMLElement>(
+    "#il-original-content .s2module-info",
+  );
+
+  moduleInfos.forEach((info) => {
+    const innerDiv = info.querySelector<HTMLElement>("div");
+    if (!innerDiv) return;
+
+    // Extract times from text like "1. modul\n8:10 - 9:50"
+    const text = innerDiv.textContent || "";
+    const timeMatch = text.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+    if (!timeMatch) return;
+
+    const startTime = timeMatch[1];
+    const endTime = timeMatch[2];
+
+    // Get the matching module-bg height for this module
+    const top = info.style.top;
+    const container = info.parentElement;
+    const matchingBg = container?.querySelector<HTMLElement>(
+      `.s2module-bg[style*="top:${top}"], .s2module-bg[style*="top: ${top}"]`,
+    );
+    const bgHeight = matchingBg?.style.height || "6.364em";
+
+    // Set height on module-info to match the module-bg
+    info.style.height = bgHeight;
+
+    // Replace inner content with start/end times
+    innerDiv.style.cssText =
+      "display:flex;flex-direction:column;justify-content:space-between;height:117%;padding:0.15em 0.35em 0;box-sizing:border-box;";
+    innerDiv.innerHTML = `<span class="il-module-time">${startTime}</span><span class="il-module-time il-module-time-end">${endTime}</span>`;
+  });
+}
+
+/**
+ * Find cancelled+replacement brick pairs in the same time slot and merge them.
+ * The cancelled brick is hidden, the replacement expands to full width,
+ * and a subtle note shows what was replaced.
+ */
+function mergeReplacedBricks() {
+  const containers = document.querySelectorAll<HTMLElement>(
+    "#il-original-content .s2skemabrikcontainer",
+  );
+
+  containers.forEach((container) => {
+    const bricks = Array.from(
+      container.querySelectorAll<HTMLElement>(".s2skemabrik.s2brik"),
+    );
+
+    // Group bricks by their top position (same time slot)
+    const byTop = new Map<string, HTMLElement[]>();
+    for (const brick of bricks) {
+      const top = brick.style.top;
+      if (!top) continue;
+      const group = byTop.get(top) || [];
+      group.push(brick);
+      byTop.set(top, group);
+    }
+
+    for (const [, group] of byTop) {
+      if (group.length !== 2) continue;
+
+      const cancelled = group.find((b) => b.classList.contains("s2cancelled"));
+      const replacement = group.find(
+        (b) => !b.classList.contains("s2cancelled"),
+      );
+
+      if (!cancelled || !replacement) continue;
+
+      // Extract subject info from the cancelled brick
+      const cancelledHold = cancelled.querySelector<HTMLElement>(
+        'span[data-lectiocontextcard^="HE"]',
+      );
+      const cancelledCode =
+        cancelledHold?.getAttribute("title") ||
+        cancelledHold?.textContent?.trim() ||
+        "";
+      const cancelledName = cancelledCode
+        ? getHoldDisplayName(cancelledCode)
+        : "";
+
+      // Hide the cancelled brick
+      cancelled.style.display = "none";
+
+      // Expand replacement to full width (use the standard full-width values)
+      replacement.style.width = "13.82em";
+      replacement.style.left = "0.55em";
+
+      // Store info for the enhancement pass
+      replacement.dataset.replacesName =
+        cancelledName !== cancelledCode ? cancelledName : "";
+      replacement.dataset.replacesCode = cancelledCode;
+    }
+  });
+}
+
 function enhanceScheduleBricks() {
   const bricks = document.querySelectorAll<HTMLElement>(
     "#il-original-content .s2skemabrik.s2bgbox.s2brik",
   );
 
   bricks.forEach((brick) => {
+    // Skip bricks hidden by merge (cancelled bricks absorbed into replacements)
+    if (brick.style.display === "none") return;
+
     const innerContainer = brick.querySelector<HTMLElement>(
       ".s2skemabrikInnerContainer",
     );
@@ -515,6 +619,12 @@ function enhanceScheduleBricks() {
       ".s2skemabrikcontent",
     );
     if (!content) return;
+
+    // Detect narrow bricks (side-by-side overlap, ~half width)
+    const inlineWidth = brick.style.width;
+    if (inlineWidth && parseFloat(inlineWidth) < 8) {
+      brick.classList.add("il-narrow");
+    }
 
     // Extract components from the original DOM
     const holdSpan = content.querySelector<HTMLElement>(
@@ -603,6 +713,16 @@ function enhanceScheduleBricks() {
     }
 
     innerContainer.appendChild(header);
+
+    // ── "Replaces" note (for merged cancelled+replacement pairs) ──
+    const replacesCode = brick.dataset.replacesCode;
+    if (replacesCode) {
+      const replacesName = brick.dataset.replacesName || replacesCode;
+      const replacesDiv = document.createElement("div");
+      replacesDiv.className = "il-brick-replaces";
+      replacesDiv.textContent = `Erstatter ${replacesName}`;
+      innerContainer.appendChild(replacesDiv);
+    }
 
     // ── Meta: teacher, time ──
     if (teacherSpan || timeline) {
