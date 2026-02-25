@@ -333,6 +333,7 @@ function initLayout() {
       // Set up schedule table column widths, clean labels, and highlight today
       injectScheduleColgroup();
       cleanUpModuleLabels();
+      injectTodayButton();
       if (settings.schedule.todayHighlight ?? true) {
         highlightTodayInSchedule();
         if (settings.schedule.currentTimeIndicator ?? true) {
@@ -501,6 +502,47 @@ function injectScheduleColgroup() {
     // Insert colgroup at the beginning of the table
     table.insertBefore(colgroup, table.firstChild);
   });
+}
+
+function injectTodayButton() {
+  // Find the schedule toolbar's first div (contains week nav + view buttons)
+  const toolbar = document.querySelector(
+    ".display-grid-skemany > .ls-std-rowblock > div",
+  );
+  if (!toolbar) return;
+
+  // Don't add if already present
+  if (toolbar.querySelector(".il-today-btn")) return;
+
+  // Build the URL: current page without ?week= param (defaults to current week)
+  const url = new URL(window.location.href);
+  url.searchParams.delete("week");
+
+  // Check if we're already on the current week (no week param in URL)
+  const isCurrentWeek = !new URLSearchParams(window.location.search).has("week");
+
+  // Create a .buttonlink wrapper to match Lectio's view buttons
+  const wrapper = document.createElement("span");
+  wrapper.className = "buttonlink il-today-btn";
+
+  const link = document.createElement("a");
+  link.textContent = "I dag";
+
+  if (isCurrentWeek) {
+    link.setAttribute("disabled", "disabled");
+  } else {
+    link.href = url.href;
+  }
+
+  wrapper.appendChild(link);
+
+  // Insert after the datepicker (before the first view button)
+  const datepicker = toolbar.querySelector(".ls-datepicker");
+  if (datepicker?.nextSibling) {
+    toolbar.insertBefore(wrapper, datepicker.nextSibling);
+  } else {
+    toolbar.appendChild(wrapper);
+  }
 }
 
 function cleanUpModuleLabels() {
