@@ -91,7 +91,7 @@ jobs:
       - name: Submit to stores
         continue-on-error: true
         run: |
-          bunx wxt@latest submit \
+          npx wxt@latest submit \
             --chrome-zip .output/*-chrome.zip \
             --firefox-zip .output/*-firefox.zip \
             --firefox-sources-zip .output/*-sources.zip
