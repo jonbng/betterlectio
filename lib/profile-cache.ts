@@ -237,7 +237,7 @@ export function extractViewedEntity(): ViewedEntity | null {
 
   switch (viewed.type) {
     case 'student': {
-      const match = titleText.match(/^Eleven\s+(.+?)\([^)]+\),\s*(\S+)/);
+      const match = titleText.match(/^Eleven\s+(.+?)(?:\([^)]+\))?,\s*(\S+)/);
       if (match) {
         name = match[1].trim();
         subtitle = match[2];
@@ -361,12 +361,12 @@ export function extractProfileFromPage(): Partial<UserProfile> | null {
 
   const profile: Partial<UserProfile> = {};
 
-  // Try to extract from the title: "Eleven Jonathan Arthur Hojer Bangert(k), 1x - Skema - Lectio - ..."
-  const titleMatch = document.title.match(/^Eleven\s+(.+?)\(([^)]+)\),\s*(\S+)\s*-/);
+  // Try to extract from the title: "Eleven Name, 1x - Skema" or "Eleven Name(k), 1x - Skema"
+  const titleMatch = document.title.match(/^Eleven\s+(.+?)(?:\([^)]+\))?,\s*(\S+)\s*-/);
   if (titleMatch) {
     profile.fullName = titleMatch[1].trim();
     profile.name = profile.fullName.split(' ')[0];
-    profile.className = titleMatch[3];
+    profile.className = titleMatch[2];
   }
 
   // Get logged-in user's ID

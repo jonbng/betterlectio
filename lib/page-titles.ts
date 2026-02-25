@@ -14,11 +14,11 @@ interface TitleConfig {
 
 /**
  * Extract the name and class from viewing another student's page.
- * Matches: "Eleven Carl Christian Meding(k), 1x - Skema"
+ * Matches: "Eleven Name, 1x - Skema" or "Eleven Name(k), 1x - Skema"
  */
 function extractStudentInfo(): string | null {
   const title = document.title;
-  const match = title.match(/^Eleven\s+(.+?)\([^)]+\),\s*(\S+)\s*-/);
+  const match = title.match(/^Eleven\s+(.+?)(?:\([^)]+\))?,\s*(\S+)\s*-/);
   if (match) {
     const fullName = match[1].trim();
     const className = match[2];

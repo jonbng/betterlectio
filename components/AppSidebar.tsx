@@ -125,8 +125,8 @@ function getUserName(): string {
     if (cached?.name) return cached.name;
   }
 
-  // Try to parse from title: "Eleven Jonathan Arthur Hojer Bangert(k), 1x - Skema - Lectio - ..."
-  const titleMatch = document.title.match(/^Eleven\s+(.+?)\([^)]+\),/);
+  // Try to parse from title: "Eleven Name, 1x - Skema" or "Eleven Name(k), 1x - Skema"
+  const titleMatch = document.title.match(/^Eleven\s+(.+?)(?:\([^)]+\))?,\s/);
   if (titleMatch) {
     const fullName = titleMatch[1].trim();
     return fullName.split(' ')[0];
@@ -154,8 +154,8 @@ function getUserClass(): string {
     if (cached?.className) return cached.className;
   }
 
-  // Try to parse from title: "Eleven Jonathan Arthur Hojer Bangert(k), 1x - Skema - Lectio - ..."
-  const titleMatch = document.title.match(/\([^)]+\),\s*(\S+)\s*-/);
+  // Try to parse from title: "Eleven Name, 1x - Skema" or "Eleven Name(k), 1x - Skema"
+  const titleMatch = document.title.match(/^Eleven\s+.+?(?:\([^)]+\))?,\s*(\S+)\s*-/);
   if (titleMatch) {
     return titleMatch[1];
   }
