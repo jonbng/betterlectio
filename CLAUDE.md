@@ -26,10 +26,12 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/OpgaverPage.tsx` - Opgaver page redesign with urgency-first cards, relative deadlines in Danish, color-coded grades
 - `components/OpgaveDetailSheet.tsx` - Side sheet for assignment details, submission history, and comment/file upload
 - `components/SettingsModal.tsx` - Settings modal with appearance, notifications, about sections
+- `components/ActivityClassModal.tsx` - Class/activity modal for skema activities (metadata, lektier, related links)
 - `lib/findskema-storage.ts` - Starred people, recents, and picture cache persistence
 - `lib/fuzzy-search.ts` - Fuzzy search algorithm for Danish text
 - `lib/school-storage.ts` - Last school persistence for auto-redirect
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx pages, submission API, localStorage cache
+- `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx pages with rich lektie content + short-term cache
 - `lib/profile-cache.ts` - User profile and viewed entity caching
 - `lib/hold-mapping.ts` - Hold-to-subject mapping system with auto-guess dictionary and user overrides
 - `components/settings/HoldMappingEditor.tsx` - Settings UI for managing hold display names and colors
@@ -91,6 +93,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Lektier Redesign** - Day-grouped homework cards with file/activity links and teacher notes
 - **Opgaver Redesign** - Urgency-first cards with relative Danish deadlines ("Om 3 timer", "I morgen"), visual urgency gradient (overdue→imminent→soon→later), compact submitted rows with color-coded grade badges, hold filters
 - **Opgave Detail Sheet** - Side sheet opens on assignment click with full details, submission history, comment/file upload (fetches ElevAflevering.aspx via fetch-and-parse)
+- **Activity Class Modal** - Opens from aktivitetforside2 links in skema/forside, showing activity metadata, phase, note, rich lektier, and related links without leaving the page
 - **Hold/Subject Mapping** - Auto-guesses subject names from hold codes ("1x HI" → "Historie") via built-in Danish dictionary, user can override display names and colors in Settings → Fag
 
 ## Commands

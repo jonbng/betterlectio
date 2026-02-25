@@ -227,6 +227,12 @@
     width: 100%;
   }
 
+  /* Ensure main content area shrinks properly in Firefox */
+  [data-slot="sidebar-inset"] {
+    min-width: 0;
+    overflow: hidden;
+  }
+
   /* Settings modal needs wrapper constrained to modal height */
   .settings-modal[data-slot="sidebar-wrapper"] {
     min-height: 0;
@@ -447,6 +453,8 @@
 
   /* Lectio content scroll container */
   #il-lectio-content {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -455,8 +463,10 @@
     background: var(--background);
   }
 
-  /* Original content wrapper */
+  /* Original content wrapper — flex child stretches cross-axis (width) automatically */
   #il-original-content {
+    flex: 1 0 auto;
+    min-width: 0;
     min-height: 100%;
   }
 
@@ -1281,7 +1291,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem 1.25rem 1.25rem 1.25rem;
+    padding: 0.5625rem 0.875rem;
     border-bottom: 1px solid var(--border);
     background: transparent;
   }
@@ -1326,6 +1336,34 @@
 
   body.il-forside #il-original-content table.dashboard tr:last-child td {
     border-bottom: none;
+  }
+
+  /* Compact enhanced activity bricks on forside cards */
+  body.il-forside #il-original-content .s2skemabrikInnerContainer.il-enhanced {
+    padding: 0.3125rem 0.4375rem;
+    gap: 0.125rem;
+  }
+
+  body.il-forside #il-original-content .il-brick-subject {
+    font-size: 0.95rem;
+  }
+
+  body.il-forside #il-original-content .il-brick-room {
+    font-size: 0.7rem;
+    padding: 0.03125rem 0.21875rem;
+  }
+
+  body.il-forside #il-original-content .il-brick-meta {
+    font-size: 0.8125rem;
+  }
+
+  body.il-forside #il-original-content .il-brick-topic {
+    font-size: 0.75rem;
+    -webkit-line-clamp: 1;
+  }
+
+  body.il-forside #il-original-content .il-brick-icons .ls-fonticon {
+    font-size: 0.875rem;
   }
 
   /* Hide time column from messages section on forside */
@@ -1493,6 +1531,122 @@
     gap: 0.25rem;
   }
 
+  /* Polished schedule context menu (Privat aftale / Aktivitetsforside actions) */
+  #il-original-content .display-grid-skemany .lec-context-menu,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu,
+  .lec-context-menu[style*="top:"][style*="left:"] {
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    min-width: 13.5rem;
+    padding: 0.25rem;
+    box-shadow: 0 12px 28px oklch(0 0 0 / 0.14);
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu ul,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu ul,
+  .lec-context-menu[style*="top:"][style*="left:"] ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu li,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li,
+  .lec-context-menu[style*="top:"][style*="left:"] li {
+    margin: 0;
+    padding: 0;
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu li[data-role="separator"],
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li[data-role="separator"],
+  .lec-context-menu[style*="top:"][style*="left:"] li[data-role="separator"] {
+    margin: 0.25rem 0;
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu li[data-role="separator"] > div,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li[data-role="separator"] > div,
+  .lec-context-menu[style*="top:"][style*="left:"] li[data-role="separator"] > div {
+    height: 1px;
+    background: var(--border);
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu li > a,
+  #il-original-content .display-grid-skemany .lec-context-menu li > .buttonlink > a,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li > a,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li > .buttonlink > a,
+  .lec-context-menu[style*="top:"][style*="left:"] li > a,
+  .lec-context-menu[style*="top:"][style*="left:"] li > .buttonlink > a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.5rem;
+    color: var(--foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu li > a:hover,
+  #il-original-content .display-grid-skemany .lec-context-menu li > .buttonlink > a:hover,
+  #il-original-content .display-grid-skemany .lec-context-menu li > a:focus-visible,
+  #il-original-content .display-grid-skemany .lec-context-menu li > .buttonlink > a:focus-visible,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li > a:hover,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li > .buttonlink > a:hover,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li > a:focus-visible,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu li > .buttonlink > a:focus-visible,
+  .lec-context-menu[style*="top:"][style*="left:"] li > a:hover,
+  .lec-context-menu[style*="top:"][style*="left:"] li > .buttonlink > a:hover,
+  .lec-context-menu[style*="top:"][style*="left:"] li > a:focus-visible,
+  .lec-context-menu[style*="top:"][style*="left:"] li > .buttonlink > a:focus-visible {
+    background: var(--muted);
+    color: var(--foreground);
+    text-decoration: none;
+    outline: none;
+  }
+
+  #il-original-content .display-grid-skemany .lec-context-menu .ls-fonticon,
+  body:has(#il-original-content .display-grid-skemany) .lec-context-menu .ls-fonticon,
+  .lec-context-menu[style*="top:"][style*="left:"] .ls-fonticon {
+    color: var(--muted-foreground);
+    font-size: 1.0625rem;
+    line-height: 1;
+  }
+
+  /* Tighten and restyle the "more" trigger beside Privat aftale */
+  #il-original-content .display-grid-skemany > .ls-std-rowblock > div:last-child > span[style*="margin-left"] {
+    margin-left: 0.375rem !important;
+  }
+
+  #il-original-content .display-grid-skemany > .ls-std-rowblock > div:last-child .buttonicon {
+    margin: 0;
+  }
+
+  #il-original-content .display-grid-skemany > .ls-std-rowblock > div:last-child .buttonicon a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: 0.5rem;
+    color: var(--muted-foreground);
+    background: transparent;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  #il-original-content .display-grid-skemany > .ls-std-rowblock > div:last-child .buttonicon a:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  #il-original-content .display-grid-skemany > .ls-std-rowblock > div:last-child .buttonicon .ls-fonticon {
+    font-size: 1.125rem;
+  }
+
   /* Schedule print area - full width but contained */
   #il-original-content [id$="skemaprintarea"] {
     width: 100%;
@@ -1586,6 +1740,10 @@
 
   /* Content table full width on schedule pages */
   #il-original-content #contenttable {
+    display: block;
+    width: -moz-available;
+    width: -webkit-fill-available;
+    width: stretch;
     max-width: 100%;
     overflow: hidden;
   }
@@ -3584,6 +3742,657 @@
   }
 
   /* ========================================
+     Activity Class Modal Styles
+     ======================================== */
+
+  .il-activity-modal-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 150 !important;
+    pointer-events: auto;
+  }
+
+  .il-activity-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: oklch(0 0 0 / 0.52);
+    backdrop-filter: blur(3px);
+    animation: il-activity-fade-in 0.2s ease;
+  }
+
+  @keyframes il-activity-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes il-activity-pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .il-activity-modal-panel {
+    position: absolute;
+    inset: 4vh auto auto 50%;
+    transform: translateX(-50%);
+    width: min(1000px, calc(100vw - 2rem));
+    max-height: 92vh;
+    background: linear-gradient(
+      150deg,
+      color-mix(in oklch, var(--background) 94%, oklch(0.98 0.04 260) 6%),
+      var(--background)
+    );
+    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+    border-radius: 1rem;
+    box-shadow:
+      0 22px 44px oklch(0.15 0.02 265 / 0.2),
+      inset 0 1px 0 oklch(1 0 0 / 0.45);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: il-activity-pop-in 0.2s ease;
+  }
+
+  .il-activity-modal-close {
+    position: absolute;
+    top: 0.9rem;
+    right: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+    background: color-mix(in oklch, var(--background) 92%, transparent);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    z-index: 4;
+  }
+
+  .il-activity-modal-close:hover {
+    color: var(--foreground);
+    border-color: var(--border);
+    background: color-mix(in oklch, var(--muted) 88%, transparent);
+  }
+
+  .il-activity-modal-loading {
+    padding: 4rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .il-activity-modal-skeleton {
+    border-radius: 0.6rem;
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--muted) 88%, transparent),
+      color-mix(in oklch, var(--muted) 72%, oklch(1 0 0) 8%),
+      color-mix(in oklch, var(--muted) 88%, transparent)
+    );
+    background-size: 200% 100%;
+    animation: il-activity-skeleton-shimmer 1.2s linear infinite;
+  }
+
+  .il-activity-modal-skeleton-title {
+    height: 2rem;
+    width: min(36rem, 85%);
+  }
+
+  .il-activity-modal-skeleton-chip {
+    height: 1.2rem;
+    width: min(14rem, 50%);
+  }
+
+  .il-activity-modal-skeleton-body {
+    height: 14rem;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  @keyframes il-activity-skeleton-shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  .il-activity-modal-header {
+    padding: 1.3rem 1.4rem 0.8rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 78%, transparent);
+    background:
+      radial-gradient(
+        72% 130% at 0% 0%,
+        oklch(0.86 0.05 260 / 0.35),
+        transparent
+      ),
+      transparent;
+  }
+
+  .il-activity-modal-topline {
+    margin-bottom: 0.5rem;
+  }
+
+  .il-activity-modal-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: var(--muted-foreground);
+  }
+
+  .il-activity-modal-title {
+    margin: 0;
+    padding-right: 2.5rem;
+    font-size: clamp(1.2rem, 2.8vw, 1.65rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--foreground);
+  }
+
+  .il-activity-modal-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+
+  .il-activity-modal-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.5rem 0.55rem;
+    border: 1px solid color-mix(in oklch, var(--border) 66%, transparent);
+    border-radius: 0.6rem;
+    background: color-mix(in oklch, var(--card) 75%, transparent);
+  }
+
+  .il-activity-modal-meta-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-foreground);
+  }
+
+  .il-activity-modal-meta-value {
+    font-size: 0.82rem;
+    color: var(--foreground);
+    font-weight: 560;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .il-activity-modal-chip-row {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .il-activity-modal-hold-pill,
+  .il-activity-modal-chip-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    padding: 0.26rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.74rem;
+    text-decoration: none;
+    border: 1px solid transparent;
+  }
+
+  .il-activity-modal-hold-pill {
+    color: oklch(0.42 0.14 var(--hold-hue, 265));
+    background: oklch(0.95 0.06 var(--hold-hue, 265));
+  }
+
+  .il-activity-modal-chip-link {
+    color: var(--muted-foreground);
+    border-color: color-mix(in oklch, var(--border) 70%, transparent);
+    background: color-mix(in oklch, var(--card) 74%, transparent);
+    transition: all 0.15s ease;
+  }
+
+  .il-activity-modal-chip-link:hover {
+    color: var(--foreground);
+    border-color: var(--border);
+    background: color-mix(in oklch, var(--muted) 75%, transparent);
+  }
+
+  .il-activity-modal-sections {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.7rem 1.1rem 0.65rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
+    background: color-mix(in oklch, var(--card) 48%, transparent);
+  }
+
+  .il-activity-modal-section-btn {
+    padding: 0.32rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 0.78rem;
+    font-weight: 540;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .il-activity-modal-section-btn.is-active {
+    color: var(--foreground);
+    border-color: color-mix(in oklch, var(--border) 82%, transparent);
+    background: color-mix(in oklch, var(--card) 78%, transparent);
+  }
+
+  .il-activity-modal-section-btn:hover {
+    color: var(--foreground);
+  }
+
+  .il-activity-modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 1rem 1.15rem;
+  }
+
+  .il-activity-modal-navbars {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+    padding: 0.6rem 1.1rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
+    background: color-mix(in oklch, var(--card) 58%, transparent);
+  }
+
+  .il-activity-modal-navblock {
+    border: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
+    border-radius: 0.65rem;
+    background: color-mix(in oklch, var(--card) 74%, transparent);
+    padding: 0.45rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .il-activity-modal-navlabel {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-foreground);
+    font-weight: 640;
+  }
+
+  .il-activity-modal-navactions {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+
+  .il-activity-modal-navbtn,
+  .il-activity-modal-navlink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 1.7rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 0.42rem;
+    border: 1px solid color-mix(in oklch, var(--border) 74%, transparent);
+    background: color-mix(in oklch, var(--background) 72%, transparent);
+    color: var(--foreground);
+    font-size: 0.72rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex: 1;
+  }
+
+  .il-activity-modal-navbtn:hover:not(:disabled),
+  .il-activity-modal-navlink:hover {
+    background: color-mix(in oklch, var(--muted) 75%, transparent);
+    border-color: var(--border);
+  }
+
+  .il-activity-modal-navbtn:disabled,
+  .il-activity-modal-navlink.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .il-activity-modal-nav-error {
+    margin: 0.55rem 1.1rem 0;
+    border: 1px solid oklch(0.83 0.07 65);
+    background: oklch(0.97 0.03 65);
+    border-radius: 0.62rem;
+    padding: 0.5rem 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.76rem;
+    color: oklch(0.38 0.08 65);
+  }
+
+  .il-activity-modal-nav-error-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .il-activity-modal-nav-error-btn {
+    border: 1px solid oklch(0.78 0.06 65);
+    background: oklch(0.94 0.04 65);
+    color: oklch(0.36 0.08 65);
+    border-radius: 0.4rem;
+    padding: 0.2rem 0.45rem;
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 560;
+    transition: all 0.15s ease;
+  }
+
+  .il-activity-modal-nav-error-btn:hover:not(:disabled) {
+    background: oklch(0.91 0.05 65);
+  }
+
+  .il-activity-modal-nav-error-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .il-activity-modal-nav-error-btn.is-ghost {
+    border-color: color-mix(in oklch, var(--border) 75%, transparent);
+    background: color-mix(in oklch, var(--background) 72%, transparent);
+    color: var(--muted-foreground);
+  }
+
+  .il-activity-modal-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .il-activity-modal-note-card {
+    border: 1px solid color-mix(in oklch, var(--border) 72%, transparent);
+    border-radius: 0.75rem;
+    background: color-mix(in oklch, var(--card) 78%, transparent);
+    padding: 0.75rem 0.85rem;
+  }
+
+  .il-activity-modal-note-card h3 {
+    margin: 0;
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    font-weight: 650;
+  }
+
+  .il-activity-modal-note-card p {
+    margin: 0.5rem 0 0;
+    line-height: 1.5;
+    font-size: 0.88rem;
+    color: var(--foreground);
+    white-space: pre-wrap;
+  }
+
+  .il-activity-modal-note-card.is-empty p {
+    color: var(--muted-foreground);
+  }
+
+  .il-activity-modal-homework-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .il-activity-modal-homework-card {
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    border-radius: 0.78rem;
+    background: color-mix(in oklch, var(--card) 82%, transparent);
+    overflow: hidden;
+  }
+
+  .il-activity-modal-homework-head {
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
+    background: color-mix(in oklch, var(--muted) 64%, transparent);
+  }
+
+  .il-activity-modal-homework-head h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    color: var(--foreground);
+  }
+
+  .il-activity-modal-homework-content {
+    padding: 0.8rem;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--foreground);
+    overflow-wrap: anywhere;
+  }
+
+  .il-activity-modal-homework-content p {
+    margin: 0 0 0.6rem;
+  }
+
+  .il-activity-modal-homework-content a {
+    color: oklch(0.5 0.15 255);
+    text-decoration: underline;
+  }
+
+  .il-activity-modal-homework-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
+    margin-top: 0.5rem;
+  }
+
+  .il-activity-modal-homework-empty {
+    margin: 0;
+    padding: 0.8rem;
+    color: var(--muted-foreground);
+    font-size: 0.82rem;
+  }
+
+  .il-activity-modal-homework-links {
+    padding: 0 0.8rem 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .il-activity-modal-homework-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.22rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    color: var(--muted-foreground);
+    text-decoration: none;
+    font-size: 0.72rem;
+    transition: all 0.15s ease;
+  }
+
+  .il-activity-modal-homework-link:hover {
+    color: var(--foreground);
+    border-color: var(--border);
+    background: color-mix(in oklch, var(--muted) 70%, transparent);
+  }
+
+  .il-activity-modal-related-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .il-activity-modal-related-item {
+    border: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
+    border-radius: 0.65rem;
+    background: color-mix(in oklch, var(--card) 76%, transparent);
+    padding: 0.55rem 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .il-activity-modal-related-text {
+    min-width: 0;
+    font-size: 0.82rem;
+    color: var(--foreground);
+    line-height: 1.3;
+  }
+
+  .il-activity-modal-related-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: oklch(0.5 0.13 255);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 550;
+    white-space: nowrap;
+  }
+
+  .il-activity-modal-related-link:hover {
+    text-decoration: underline;
+  }
+
+  .il-activity-modal-related-muted {
+    color: var(--muted-foreground);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .il-activity-modal-footer {
+    border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    padding: 0.7rem 1rem;
+    display: flex;
+    justify-content: flex-end;
+    background: color-mix(in oklch, var(--card) 65%, transparent);
+  }
+
+  .il-activity-modal-open-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.45rem;
+  }
+
+  .il-activity-modal-open-link:hover {
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 72%, transparent);
+  }
+
+  .dark .il-activity-modal-panel {
+    background: linear-gradient(
+      155deg,
+      color-mix(in oklch, var(--background) 93%, oklch(0.27 0.06 260) 7%),
+      var(--background)
+    );
+    box-shadow:
+      0 20px 40px oklch(0 0 0 / 0.4),
+      inset 0 1px 0 oklch(1 0 0 / 0.04);
+  }
+
+  .dark .il-activity-modal-hold-pill {
+    color: oklch(0.78 0.14 var(--hold-hue, 265));
+    background: oklch(0.28 0.08 var(--hold-hue, 265));
+  }
+
+  .dark .il-activity-modal-homework-content a,
+  .dark .il-activity-modal-related-link {
+    color: oklch(0.73 0.11 255);
+  }
+
+  .dark .il-activity-modal-nav-error {
+    border-color: oklch(0.52 0.08 65);
+    background: oklch(0.27 0.04 65);
+    color: oklch(0.84 0.08 65);
+  }
+
+  .dark .il-activity-modal-nav-error-btn {
+    border-color: oklch(0.5 0.07 65);
+    background: oklch(0.31 0.04 65);
+    color: oklch(0.86 0.07 65);
+  }
+
+  .dark .il-activity-modal-nav-error-btn:hover:not(:disabled) {
+    background: oklch(0.35 0.05 65);
+  }
+
+  @media (max-width: 860px) {
+    .il-activity-modal-panel {
+      width: calc(100vw - 1rem);
+      inset: 1.5vh auto auto 50%;
+      max-height: 97vh;
+    }
+
+    .il-activity-modal-meta-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .il-activity-modal-navbars {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .il-activity-modal-panel {
+      inset: auto 0 0 0;
+      width: 100vw;
+      max-height: 95vh;
+      border-radius: 1rem 1rem 0 0;
+      transform: none;
+      animation: il-opgave-slide-in 0.2s ease;
+    }
+
+    .il-activity-modal-header {
+      padding: 1.1rem 1rem 0.75rem;
+    }
+
+    .il-activity-modal-sections {
+      overflow-x: auto;
+      padding: 0.6rem 0.8rem;
+    }
+
+    .il-activity-modal-body {
+      padding: 0.85rem;
+    }
+  }
+
+  /* ========================================
      FindSkema Page (FindSkema.aspx) Styles
      ======================================== */
 
@@ -4023,8 +4832,12 @@
 
   /* ── Content area baseline ───────────────── */
 
+  #il-original-content #aspnetForm,
+  #il-original-content .ls-master-container1,
+  #il-original-content .ls-master-container2,
   #il-original-content .outerContentFrame,
   #il-original-content .ls-content-container {
+    width: 100%;
     max-width: 100%;
     padding: 0;
   }
@@ -4428,13 +5241,13 @@
   /* ── Changed/moved brick — keeps subject color, badge indicates change ── */
 
   #il-original-content .il-brick-changed-badge {
-    font-size: 0.5625rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     background: oklch(0.82 0.12 80);
     color: oklch(0.3 0.06 80);
-    padding: 0.0625rem 0.25rem;
-    border-radius: 0.25rem;
+    padding: 0.09375rem 0.375rem;
+    border-radius: 0.28125rem;
     white-space: nowrap;
     flex-shrink: 0;
     line-height: 1.5;
@@ -4457,14 +5270,13 @@
   }
 
   #il-original-content .il-brick-cancelled-badge {
-    font-size: 0.6875rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.01em;
     background: oklch(0.6 0.18 25);
     color: oklch(0.98 0 0);
-    padding: 0.0625rem 0.3125rem;
-    border-radius: 0.25rem;
+    padding: 0.09375rem 0.375rem;
+    border-radius: 0.28125rem;
     white-space: nowrap;
     flex-shrink: 0;
     line-height: 1.5;
@@ -4501,13 +5313,13 @@
   }
 
   #il-original-content .il-brick-room {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     letter-spacing: 0.01em;
     background: oklch(0.55 0.15 var(--brick-hue, 265) / 0.13);
     color: oklch(0.38 0.1 var(--brick-hue, 265));
-    padding: 0.0625rem 0.3125rem;
-    border-radius: 0.25rem;
+    padding: 0.09375rem 0.375rem;
+    border-radius: 0.28125rem;
     white-space: nowrap;
     flex-shrink: 0;
     line-height: 1.5;
@@ -4583,8 +5395,8 @@
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-room {
-    font-size: 0.625rem;
-    padding: 0 0.1875rem;
+    font-size: 0.6875rem;
+    padding: 0.03125rem 0.21875rem;
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-meta {
@@ -4602,8 +5414,8 @@
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-cancelled-badge,
   #il-original-content .s2skemabrik.il-narrow .il-brick-changed-badge {
-    font-size: 0.5rem;
-    padding: 0 0.1875rem;
+    font-size: 0.6875rem;
+    padding: 0.03125rem 0.21875rem;
   }
 
   /* ── Info header (day-level notices at top of column) ── */
@@ -4744,7 +5556,7 @@
 
   /* Cleaned-up module time labels (start at top, end at bottom) */
   #il-original-content .il-module-time {
-    font-size: 0.9375rem;
+    font-size: 1.05rem;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     color: oklch(0.5 0.015 265);
@@ -4760,6 +5572,241 @@
     color: oklch(0.62 0.012 265);
     font-weight: 400;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Schedule brick tooltip ─────────────── */
+
+  #il-brick-tooltip {
+    position: fixed;
+    z-index: 10000;
+    display: none;
+    width: 19rem;
+    max-width: calc(100vw - 1rem);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: oklch(0.25 0.015 265);
+    background: oklch(0.995 0.003 265);
+    border: 1px solid oklch(0.9 0.01 265);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.04),
+      0 4px 16px oklch(0 0 0 / 0.08),
+      0 12px 40px oklch(0 0 0 / 0.06);
+    overflow: hidden;
+    pointer-events: auto;
+
+    /* Enter/exit animation */
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  #il-brick-tooltip.il-tt-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  /* Invisible bridge between brick and tooltip — prevents hover gap flash */
+  #il-brick-tooltip-bridge {
+    position: fixed;
+    z-index: 9999;
+    display: none;
+    pointer-events: auto;
+    /* background: oklch(1 0 0 / 0.05); — debug: uncomment to visualize */
+  }
+
+  /* ── Tooltip header ── */
+
+  .il-tt-header {
+    padding: 0.625rem 0.75rem 0.5rem;
+    border-bottom: 1px solid oklch(0.93 0.008 265);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3125rem;
+  }
+
+  .il-tt-title {
+    font-size: 0.9375rem;
+    font-weight: 650;
+    line-height: 1.3;
+    color: oklch(0.2 0.02 265);
+    word-break: break-word;
+  }
+
+  .il-tt-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    line-height: 1.4;
+  }
+
+  .il-tt-badge--changed {
+    background: oklch(0.88 0.1 80);
+    color: oklch(0.35 0.08 80);
+  }
+
+  .il-tt-time {
+    display: flex;
+    align-items: center;
+    gap: 0.3125rem;
+    font-variant-numeric: tabular-nums;
+    color: oklch(0.45 0.02 265);
+  }
+
+  .il-tt-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+    color: oklch(0.55 0.1 var(--tt-hue, 265));
+  }
+
+  .il-tt-date {
+    font-weight: 550;
+    color: oklch(0.35 0.015 265);
+  }
+
+  .il-tt-timerange {
+    color: oklch(0.5 0.015 265);
+  }
+
+  .il-tt-date + .il-tt-timerange::before {
+    content: "·";
+    margin: 0 0.1875rem;
+    color: oklch(0.7 0.01 265);
+  }
+
+  /* ── Tooltip meta section ── */
+
+  .il-tt-meta {
+    padding: 0.4375rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .il-tt-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+  }
+
+  .il-tt-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.58 0.02 265);
+    min-width: 2.75rem;
+    flex-shrink: 0;
+  }
+
+  .il-tt-value {
+    font-size: 0.8125rem;
+    font-weight: 450;
+    color: oklch(0.3 0.02 265);
+  }
+
+  .il-tt-students {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: oklch(0.4 0.015 265);
+  }
+
+  .il-tt-holds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .il-tt-hold {
+    font-size: 0.75rem;
+    font-weight: 550;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.25rem;
+    background: oklch(0.55 0.15 var(--hold-hue, 265) / 0.12);
+    color: oklch(0.38 0.1 var(--hold-hue, 265));
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+
+  .il-tt-room {
+    font-weight: 550;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Homework section ── */
+
+  .il-tt-homework {
+    padding: 0.4375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+  }
+
+  .il-tt-homework-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.55 0.06 var(--tt-hue, 265));
+    margin-bottom: 0.3125rem;
+  }
+
+  .il-tt-hw-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    padding: 0.1875rem 0;
+  }
+
+  .il-tt-hw-item + .il-tt-hw-item {
+    border-top: 1px dashed oklch(0.93 0.006 265);
+  }
+
+  .il-tt-hw-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.3 0.015 265);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-tt-hw-desc {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: oklch(0.5 0.015 265);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ── Note section ── */
+
+  .il-tt-note {
+    padding: 0.375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+    font-size: 0.75rem;
+    font-style: italic;
+    color: oklch(0.45 0.015 265);
+    line-height: 1.45;
+  }
+
+  /* ── Suppress Lectio's native cluetip ── */
+
+  #cluetip {
+    display: none !important;
   }
 
   /* ── Islands / Cards ─────────────────────── */
@@ -4863,7 +5910,7 @@
   /* ── Dashboard table rows (forside) ──────── */
 
   #il-original-content table.dashboard td.infoCol {
-    font-size: 0.8125rem;
+    font-size: 0.9375rem;
   }
 
   #il-original-content table.dashboard td.countCol {
@@ -5137,6 +6184,93 @@
 
   .dark #il-original-content .s2infoHeader .s2skemabrikIcons .ls-fonticon {
     color: oklch(0.6 0.06 265) !important;
+  }
+
+  /* ── Schedule brick tooltip (dark) ──────── */
+
+  .dark #il-brick-tooltip {
+    background: oklch(0.19 0.018 265) !important;
+    border-color: oklch(0.28 0.018 265) !important;
+    color: oklch(0.88 0.01 265) !important;
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.2),
+      0 4px 16px oklch(0 0 0 / 0.3),
+      0 12px 40px oklch(0 0 0 / 0.2) !important;
+  }
+
+  .dark .il-tt-header {
+    border-bottom-color: oklch(0.26 0.015 265) !important;
+  }
+
+  .dark .il-tt-title {
+    color: oklch(0.94 0.005 265) !important;
+  }
+
+  .dark .il-tt-badge--changed {
+    background: oklch(0.35 0.08 80) !important;
+    color: oklch(0.85 0.1 80) !important;
+  }
+
+  .dark .il-tt-time {
+    color: oklch(0.6 0.02 265) !important;
+  }
+
+  .dark .il-tt-icon {
+    color: oklch(0.55 0.12 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-date {
+    color: oklch(0.72 0.015 265) !important;
+  }
+
+  .dark .il-tt-timerange {
+    color: oklch(0.58 0.015 265) !important;
+  }
+
+  .dark .il-tt-date + .il-tt-timerange::before {
+    color: oklch(0.4 0.01 265) !important;
+  }
+
+  .dark .il-tt-label {
+    color: oklch(0.52 0.02 265) !important;
+  }
+
+  .dark .il-tt-value {
+    color: oklch(0.82 0.01 265) !important;
+  }
+
+  .dark .il-tt-students {
+    color: oklch(0.62 0.01 265) !important;
+  }
+
+  .dark .il-tt-hold {
+    background: oklch(0.55 0.15 var(--hold-hue, 265) / 0.18) !important;
+    color: oklch(0.78 0.1 var(--hold-hue, 265)) !important;
+  }
+
+  .dark .il-tt-homework {
+    border-top-color: oklch(0.26 0.015 265) !important;
+  }
+
+  .dark .il-tt-homework-label {
+    color: oklch(0.55 0.08 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-hw-item + .il-tt-hw-item {
+    border-top-color: oklch(0.25 0.01 265) !important;
+  }
+
+  .dark .il-tt-hw-label {
+    color: oklch(0.82 0.01 265) !important;
+  }
+
+  .dark .il-tt-hw-desc {
+    color: oklch(0.58 0.015 265) !important;
+  }
+
+  .dark .il-tt-note {
+    border-top-color: oklch(0.26 0.015 265) !important;
+    color: oklch(0.6 0.015 265) !important;
   }
 
   /* ── Form elements ──────────────────────── */

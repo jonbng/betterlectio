@@ -70,6 +70,7 @@ betterlectio/
 │   ├── OpgaveDetailSheet.tsx # Side sheet for assignment details + submission
 │   ├── ViewingScheduleHeader.tsx  # Header when viewing others
 │   ├── SettingsModal.tsx     # Settings/about modal
+│   ├── ActivityClassModal.tsx # Modal for class/activity detail from schedule links
 │   ├── ForsideGreeting.tsx   # Dynamic greeting for forside
 │   └── ui/                   # shadcn/ui components (20+)
 │
@@ -81,6 +82,7 @@ betterlectio/
 │   ├── fuzzy-search.ts       # Fuzzy search algorithm
 │   ├── hold-mapping.ts       # Hold-to-subject name mapping system
 │   ├── opgave-detail.ts      # Fetch/parse assignment detail pages
+│   ├── activity-detail.ts    # Fetch/parse activity detail pages (aktivitetforside2)
 │   ├── page-titles.ts        # Clean page title management
 │   └── utils.ts              # Helper functions (cn())
 │
@@ -156,6 +158,7 @@ The extension follows a **content script injection architecture** where custom U
          ▼
 4. User interaction
    ├── Sidebar navigation → Native Lectio links
+   ├── Activity link click → BetterLectio modal (in-place) with fallback navigation
    ├── Hover on links → Prefetch in background
    └── Original forms/scripts → Work normally (DOM preserved)
 ```
@@ -238,6 +241,28 @@ Features:
 ### 7. Person Card (`components/PersonCard.tsx`)
 
 **Purpose:** Reusable card component for displaying people/entities
+
+### 8. Activity Class Modal (`components/ActivityClassModal.tsx`)
+
+**Purpose:** Show class/activity details in-place from schedule/forside activity links without leaving the current page.
+
+Features:
+- Opens via custom `betterlectio:openActivityModal` event dispatched from content script link interception
+- Uses `createPortal` from `preact/compat` into `#il-root` (same modal strategy as settings/opgave sheet)
+- Renders activity metadata (date/time/module/hold/teacher/room), phase link, note, rich lektie content, and related items
+- Supports large rich HTML lektier blocks with sanitized markup and absolute URL normalization
+- Falls back to native Lectio navigation if fetch/parse fails (reliability-first behavior)
+
+### 9. Activity Detail Parser (`lib/activity-detail.ts`)
+
+**Purpose:** Fetch and parse `aktivitet/aktivitetforside2.aspx` into typed modal-friendly data.
+
+Responsibilities:
+- Fetch activity pages with credentials
+- Parse header brick + tooltip metadata, phase links, tabs, note, lektier articles, and related TOC entries
+- Normalize relative links to absolute URLs for Firefox compatibility
+- Sanitize rendered homework HTML (remove scripts/event handlers)
+- Cache parsed results in localStorage (short TTL) to improve reopen performance
 
 Features:
 - Lazy-loaded profile pictures using IntersectionObserver

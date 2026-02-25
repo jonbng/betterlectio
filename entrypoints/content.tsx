@@ -21,6 +21,7 @@ import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName } from "@/lib/hold-mapping";
+import { initBrickTooltips } from "@/lib/brick-tooltip";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -81,7 +82,7 @@ function DashboardLayout() {
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset>
-        <div id="il-lectio-content" className="flex-1 overflow-auto" />
+        <div id="il-lectio-content" />
       </SidebarInset>
       <Toaster position="bottom-right" />
     </SidebarProvider>
@@ -90,6 +91,58 @@ function DashboardLayout() {
 
 function applyDarkMode(enabled: boolean) {
   document.documentElement.classList.toggle("dark", enabled);
+}
+
+let activityModalInterceptorInstalled = false;
+
+function isActivityDetailUrl(url: URL): boolean {
+  return /\/lectio\/\d+\/aktivitet\/aktivitetforside2\.aspx$/i.test(url.pathname);
+}
+
+function installActivityModalClickInterceptor() {
+  if (activityModalInterceptorInstalled) return;
+  activityModalInterceptorInstalled = true;
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      if (anchor.closest("[data-no-activity-modal]")) return;
+      if (window.location.pathname.toLowerCase().includes("/aktivitet/aktivitetforside2.aspx")) {
+        return;
+      }
+
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+
+      let activityUrl: URL;
+      try {
+        activityUrl = new URL(href, window.location.origin);
+      } catch {
+        return;
+      }
+
+      if (!isActivityDetailUrl(activityUrl)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      window.dispatchEvent(
+        new CustomEvent("betterlectio:openActivityModal", {
+          detail: { url: activityUrl.href },
+        }),
+      );
+    },
+    true,
+  );
 }
 
 function initLayout() {
@@ -140,6 +193,7 @@ function initLayout() {
   const settings = getSettings();
 
   applyDarkMode(settings.visual.darkMode ?? false);
+  installActivityModalClickInterceptor();
 
   // Redirect messages page to "Nyeste" folder by default
   if (
@@ -227,11 +281,32 @@ function initLayout() {
         console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
       }
 
-      // Merge cancelled+replacement brick pairs into combined bricks
-      mergeReplacedBricks();
+      const pathnameLower = window.location.pathname.toLowerCase();
+      const isSchedulePage =
+        pathnameLower.includes("skemany.aspx") ||
+        pathnameLower.includes("/skema/skema1dag.aspx") ||
+        pathnameLower.includes("findskema.aspx");
+      const isForsidePage = pathnameLower.includes("forside.aspx");
 
-      // Enhance schedule brick layout with subject hierarchy and hold colors
-      enhanceScheduleBricks();
+      // Only run schedule brick transforms on schedule pages.
+      // Running these on lektier can mutate activity bricks we parse.
+      if (isSchedulePage) {
+        // Merge cancelled+replacement brick pairs into combined bricks
+        mergeReplacedBricks();
+
+        // Enhance schedule brick layout with subject hierarchy and hold colors
+        enhanceScheduleBricks();
+
+        // Replace Lectio's cluetip tooltips with custom tooltip cards
+        initBrickTooltips();
+      }
+
+      // Forside contains activity bricks too, but does not need schedule-specific
+      // cancelled/replacement merging logic.
+      if (isForsidePage) {
+        enhanceScheduleBricks();
+        initBrickTooltips();
+      }
 
       // Reveal the page now that our UI is ready
       document.documentElement.classList.add("il-ready");
@@ -490,7 +565,7 @@ function injectScheduleColgroup() {
 
     // First column (module times) - fixed narrow width
     const firstCol = document.createElement("col");
-    firstCol.style.width = "7.5em";
+    firstCol.style.width = "3.8em";
     colgroup.appendChild(firstCol);
 
     // Day columns - equal distribution of remaining space
@@ -1047,10 +1122,6 @@ function injectMembersPage(schoolId: string) {
 
 function injectLektierPage(_schoolId: string) {
   const entries = parseLektierFromDOM();
-  if (entries.length === 0) {
-    console.log("[BetterLectio] No homework entries found on page");
-    return;
-  }
 
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
@@ -1063,11 +1134,15 @@ function injectLektierPage(_schoolId: string) {
 
   render(<LektierPage entries={entries} />, lektierContainer);
 
-  console.log(
-    "[BetterLectio] Lektier page injected with",
-    entries.length,
-    "entries",
-  );
+  if (entries.length === 0) {
+    console.log("[BetterLectio] Lektier page injected in empty state");
+  } else {
+    console.log(
+      "[BetterLectio] Lektier page injected with",
+      entries.length,
+      "entries",
+    );
+  }
 }
 
 async function injectOpgaverPage(schoolId: string) {
@@ -1285,4 +1360,3 @@ function formatMetric(primaryCell?: Element, secondaryCell?: Element) {
   if (primary && secondary) return `${primary} (${secondary})`;
   return primary || secondary || "";
 }
-

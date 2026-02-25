@@ -56,6 +56,7 @@ import {
 import { clearLoginState } from '@/lib/profile-cache';
 import { getSettings } from '@/lib/settings-storage';
 import { SettingsModal } from './SettingsModal';
+import { ActivityClassModal } from './ActivityClassModal';
 
 function getSchoolIdFromUrl(): string {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
@@ -177,12 +178,12 @@ const navMain = [
   { title: 'Elever', icon: Users, page: 'FindSkema', settingKey: 'showElever' as const },
   { title: 'Opgaver', icon: FileText, page: 'opgaverelev', settingKey: 'showOpgaver' as const },
   { title: 'Lektier', icon: BookOpen, page: 'material_lektieoversigt', settingKey: 'showLektier' as const },
+  { title: 'Fravær', icon: Clock, page: 'subnav/fravaerelev_fravaersaarsager', settingKey: 'showFravaer' as const },
   { title: 'Beskeder', icon: MessageSquare, page: 'beskeder2', settingKey: 'showBeskeder' as const },
 ];
 
 const navSecondary = [
   { title: 'Karakterer', icon: GraduationCap, page: 'grades/grade_report', settingKey: 'showKarakterer' as const },
-  { title: 'Fravær', icon: Clock, page: 'subnav/fravaerelev_fravaersaarsager', settingKey: 'showFravaer' as const },
   { title: 'Studieplan', icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' as const },
   { title: 'Dokumenter', icon: FolderOpen, page: 'dokumentoversigt', settingKey: 'showDokumenter' as const },
   { title: 'Spørgeskema', icon: HelpCircle, page: 'spoergeskema/spoergeskema_rapport', settingKey: 'showSpoergeskema' as const },
@@ -211,6 +212,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [findSkemaOpen, setFindSkemaOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activityModalOpen, setActivityModalOpen] = useState(false);
+  const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Get settings for sidebar visibility
@@ -269,11 +272,28 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     return () => window.removeEventListener('betterlectio:openSettings', handleOpenSettings);
   }, []);
 
+  useEffect(() => {
+    const handleOpenActivityModal = (event: Event) => {
+      const customEvent = event as CustomEvent<{ url?: string }>;
+      const nextUrl = customEvent.detail?.url;
+      if (!nextUrl) return;
+      setActivityModalUrl(nextUrl);
+      setActivityModalOpen(true);
+    };
+
+    window.addEventListener("betterlectio:openActivityModal", handleOpenActivityModal as EventListener);
+    return () =>
+      window.removeEventListener(
+        "betterlectio:openActivityModal",
+        handleOpenActivityModal as EventListener,
+      );
+  }, []);
+
   const isActive = (page: string) => {
     const pageLower = page.toLowerCase();
     if (currentPage === pageLower) return true;
     // Match skema pages but not findskema
-    if (currentPage.includes('skema') && !currentPage.includes('findskema') && pageLower === 'skemany') return true;
+    if ((currentPage === 'skemany' || currentPage === 'skema') && pageLower === 'skemany') return true;
     if (currentPage === pageLower.split('/').pop()) return true;
     return false;
   };
@@ -554,6 +574,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
       {/* Settings modal */}
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ActivityClassModal
+        open={activityModalOpen}
+        url={activityModalUrl}
+        onOpenChange={(next) => {
+          setActivityModalOpen(next);
+          if (!next) {
+            setActivityModalUrl(null);
+          }
+        }}
+      />
     </Sidebar>
   );
 }

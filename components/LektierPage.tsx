@@ -64,8 +64,12 @@ function getRelativeLabel(date: Date): { text: string; type: 'today' | 'tomorrow
 function parseTooltip(tooltip: string) {
   const lines = tooltip.split('\n');
 
-  // Find the date/time line: "DD/M-YYYY HH:MM til HH:MM"
-  const dateTimeRe = /^(\d{1,2})\/(\d{1,2})-(\d{4})\s+(\d{2}:\d{2})\s+til\s+(\d{2}:\d{2})$/;
+  // Find the date/time line. Lectio has used multiple variants over time.
+  // Examples:
+  // "25/2-2026 08:10 til 09:50"
+  // "25/2-2026 08:10 - 09:50"
+  // "25/2 08:10 til 09:50"
+  const dateTimeRe = /^(\d{1,2})\/(\d{1,2})(?:-(\d{4}))?\s+(\d{1,2}:\d{2})\s*(?:til|-)\s*(\d{1,2}:\d{2})$/i;
   let dateLineIdx = -1;
   let dateMatch: RegExpMatchArray | null = null;
 
@@ -81,7 +85,7 @@ function parseTooltip(tooltip: string) {
 
   const day = parseInt(dateMatch[1]);
   const month = parseInt(dateMatch[2]);
-  const year = parseInt(dateMatch[3]);
+  const year = dateMatch[3] ? parseInt(dateMatch[3]) : new Date().getFullYear();
   const timeRange = `${dateMatch[4]}-${dateMatch[5]}`;
   const date = new Date(year, month - 1, day);
 
@@ -110,6 +114,82 @@ function parseTooltip(tooltip: string) {
   }
 
   return { activityTitle, date, timeRange, hold, teacherName, teacherAbbrev, room };
+}
+
+function parseDateFromDateText(dateText: string): Date | null {
+  const match = dateText.match(/(\d{1,2})\/(\d{1,2})/);
+  if (!match) return null;
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const now = new Date();
+  const candidate = new Date(now.getFullYear(), month - 1, day);
+
+  // If this date appears to be far in the past, it is likely next year.
+  if (candidate.getTime() < now.getTime() - 1000 * 60 * 60 * 24 * 30) {
+    candidate.setFullYear(candidate.getFullYear() + 1);
+  }
+  return candidate;
+}
+
+function parseFallbackActivityMeta(activityLink: HTMLAnchorElement) {
+  const contentText =
+    activityLink.querySelector('.s2skemabrikcontent')?.textContent?.replace(/\s+/g, ' ').trim() || '';
+  const moduleMatch = contentText.match(/(\d+)\.\s*modul/i);
+  const module = moduleMatch ? `${moduleMatch[1]}. modul` : '';
+
+  // Typical format: "<module> - <hold> • <teacher> • <room>"
+  const parts = contentText.split('•').map((s) => s.trim()).filter(Boolean);
+  let hold = '';
+  let teacherName = '';
+  let teacherAbbrev = '';
+  let room = '';
+
+  if (parts.length >= 1) {
+    const first = parts[0].split('-').map((s) => s.trim()).filter(Boolean);
+    hold = first[first.length - 1] || '';
+  }
+  if (parts.length >= 2) {
+    teacherName = parts[1];
+    teacherAbbrev = parts[1];
+  }
+  if (parts.length >= 3) {
+    room = parts[2];
+  }
+
+  return {
+    module,
+    hold,
+    teacherName,
+    teacherAbbrev,
+    room,
+  };
+}
+
+function parseContextCardMeta(activityLink: HTMLAnchorElement) {
+  const holdSpan = activityLink.querySelector<HTMLElement>(
+    'span[data-lectiocontextcard^="HE"], span[data-lectioContextCard^="HE"]'
+  );
+  const teacherSpan = activityLink.querySelector<HTMLElement>(
+    'span[data-lectiocontextcard^="T"], span[data-lectioContextCard^="T"]'
+  );
+  const contentText =
+    activityLink.querySelector('.s2skemabrikcontent')?.textContent?.replace(/\s+/g, ' ').trim() || '';
+
+  const moduleMatch = contentText.match(/(\d+)\.\s*modul/i);
+  const module = moduleMatch ? `${moduleMatch[1]}. modul` : '';
+  const roomParts = contentText.split('•').map((s) => s.trim()).filter(Boolean);
+  const room = roomParts.length >= 3 ? roomParts[2] : '';
+
+  const hold = holdSpan?.textContent?.trim() || holdSpan?.getAttribute('title') || '';
+  const teacherAbbrev = teacherSpan?.textContent?.trim() || '';
+
+  return {
+    module,
+    hold,
+    teacherName: teacherAbbrev,
+    teacherAbbrev,
+    room,
+  };
 }
 
 // ── Homework cell parser ───────────────────────────────────────────────
@@ -205,9 +285,15 @@ function groupByDay(entries: LektierEntry[]): LektierDay[] {
 // ── DOM parser (exported) ──────────────────────────────────────────────
 
 export function parseLektierFromDOM(): LektierEntry[] {
-  const table = document.querySelector<HTMLTableElement>(
+  const explicitTable = document.querySelector<HTMLTableElement>(
     '#s_m_Content_Content_MaterialLektieOverblikGV'
   );
+  const fallbackTables = Array.from(
+    document.querySelectorAll<HTMLTableElement>('table')
+  );
+  const table =
+    explicitTable ||
+    fallbackTables.find((t) => !!t.querySelector('a.s2skemabrik'));
   if (!table) return [];
 
   const entries: LektierEntry[] = [];
@@ -215,40 +301,54 @@ export function parseLektierFromDOM(): LektierEntry[] {
 
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
-    const cells = row.querySelectorAll<HTMLTableCellElement>('td.OnlyDesktop');
-    if (cells.length < 3) continue;
+    const allCells = Array.from(row.querySelectorAll<HTMLTableCellElement>('td'));
+    if (allCells.length === 0) continue;
 
-    const dateText = cells[0].textContent?.trim() || '';
+    // Find activity cell robustly instead of relying on fixed column classes/order.
+    const activityCell = allCells.find((cell) => !!cell.querySelector('a.s2skemabrik'));
+    if (!activityCell) continue;
+    const activityIdx = allCells.indexOf(activityCell);
+
+    const dateCell = allCells
+      .slice(0, activityIdx)
+      .reverse()
+      .find((cell) => !cell.classList.contains('OnlyMobile')) || allCells[0];
+    const homeworkCell = allCells
+      .slice(activityIdx + 1)
+      .find((cell) => !cell.classList.contains('OnlyMobile')) || allCells[activityIdx + 1];
+    if (!homeworkCell) continue;
+
+    const dateText = dateCell.textContent?.trim() || '';
 
     // Activity link with tooltip metadata
-    const activityLink = cells[1].querySelector<HTMLAnchorElement>('a.s2skemabrik');
+    const activityLink = activityCell.querySelector<HTMLAnchorElement>('a.s2skemabrik');
     if (!activityLink) continue;
 
-    const tooltip = activityLink.getAttribute('data-tooltip') || '';
+    const tooltip =
+      activityLink.getAttribute('data-tooltip') ||
+      activityLink.getAttribute('title') ||
+      '';
     const activityUrl = activityLink.getAttribute('href') || '';
     const tooltipData = parseTooltip(tooltip);
-    if (!tooltipData) continue;
-
-    // Module from content div (e.g. "3. modul")
-    const contentDiv = activityLink.querySelector('.s2skemabrikcontent');
-    const contentText = contentDiv?.textContent || '';
-    const moduleMatch = contentText.match(/(\d+)\.\s*modul/);
-    const module = moduleMatch ? `${moduleMatch[1]}. modul` : '';
+    const fallbackMeta = parseFallbackActivityMeta(activityLink);
+    const contextMeta = parseContextCardMeta(activityLink);
+    const fallbackDate = parseDateFromDateText(dateText);
+    if (!tooltipData && !fallbackDate) continue;
 
     // Homework items & note from third cell
-    const { items, note } = parseHomeworkCell(cells[2]);
+    const { items, note } = parseHomeworkCell(homeworkCell);
 
     entries.push({
       dateText,
-      date: tooltipData.date,
+      date: tooltipData?.date || fallbackDate!,
       activityUrl,
-      hold: tooltipData.hold,
-      teacherName: tooltipData.teacherName,
-      teacherAbbrev: tooltipData.teacherAbbrev,
-      room: tooltipData.room,
-      timeRange: tooltipData.timeRange,
-      module,
-      activityTitle: tooltipData.activityTitle,
+      hold: tooltipData?.hold || contextMeta.hold || fallbackMeta.hold,
+      teacherName: tooltipData?.teacherName || contextMeta.teacherName || fallbackMeta.teacherName,
+      teacherAbbrev: tooltipData?.teacherAbbrev || contextMeta.teacherAbbrev || fallbackMeta.teacherAbbrev,
+      room: tooltipData?.room || contextMeta.room || fallbackMeta.room,
+      timeRange: tooltipData?.timeRange || '',
+      module: contextMeta.module || fallbackMeta.module,
+      activityTitle: tooltipData?.activityTitle || null,
       homeworkItems: items,
       note,
     });
