@@ -11,6 +11,8 @@ const TYPE_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   R: { label: 'Ressource', badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300' },
   H: { label: 'Hold', badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' },
   G: { label: 'Gruppe', badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
+  F: { label: 'Fag', badgeClass: 'bg-lime-100 text-lime-700 dark:bg-lime-900 dark:text-lime-300' },
+  J: { label: 'Faggruppe', badgeClass: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300' },
 };
 
 // Types that typically have pictures

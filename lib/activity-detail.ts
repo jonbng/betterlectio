@@ -53,10 +53,7 @@ export interface ActivityNavigation {
 
 export interface ActivityFormTokens {
   action: string;
-  viewStateX: string;
-  viewState: string;
-  viewStateEncrypted: string;
-  eventValidation: string;
+  hiddenFields: Record<string, string>;
 }
 
 export interface ActivityDetail {
@@ -443,21 +440,17 @@ function parseFormTokens(doc: Document, pageUrl: string): ActivityFormTokens {
   const actionRaw = form?.getAttribute("action") || pageUrl;
 
   const action = new URL(actionRaw, new URL(pageUrl, window.location.origin)).href;
-  const viewStateX =
-    (doc.querySelector<HTMLInputElement>('input[name="__VIEWSTATEX"]')?.value || "");
-  const viewState =
-    (doc.querySelector<HTMLInputElement>('input[name="__VIEWSTATE"]')?.value || "");
-  const viewStateEncrypted =
-    (doc.querySelector<HTMLInputElement>('input[name="__VIEWSTATEENCRYPTED"]')?.value || "");
-  const eventValidation =
-    (doc.querySelector<HTMLInputElement>('input[name="__EVENTVALIDATION"]')?.value || "");
+  const hiddenFields: Record<string, string> = {};
+
+  form?.querySelectorAll<HTMLInputElement>('input[type="hidden"][name]').forEach((input) => {
+    const name = input.name?.trim();
+    if (!name) return;
+    hiddenFields[name] = input.value ?? "";
+  });
 
   return {
     action,
-    viewStateX,
-    viewState,
-    viewStateEncrypted,
-    eventValidation,
+    hiddenFields,
   };
 }
 
@@ -519,23 +512,33 @@ export async function postbackNavigateActivity(
   detail: ActivityDetail,
   eventTarget: string,
 ): Promise<ActivityDetail> {
-  const formData = new URLSearchParams();
-  formData.set("__EVENTTARGET", eventTarget);
-  formData.set("__EVENTARGUMENT", "");
-  formData.set("__VIEWSTATEX", detail.formTokens.viewStateX);
-  formData.set("__VIEWSTATE", detail.formTokens.viewState);
-  formData.set("__VIEWSTATEENCRYPTED", detail.formTokens.viewStateEncrypted);
-  formData.set("__EVENTVALIDATION", detail.formTokens.eventValidation);
+  const doPostback = async (source: ActivityDetail): Promise<ActivityDetail> => {
+    const formData = new URLSearchParams();
+    const fields = source.formTokens.hiddenFields;
+    for (const [name, value] of Object.entries(fields)) {
+      formData.set(name, value);
+    }
+    formData.set("__EVENTTARGET", eventTarget);
+    formData.set("__EVENTARGUMENT", "");
 
-  const { doc, url } = await fetchActivityDoc(detail.formTokens.action, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: formData.toString(),
-  });
+    const { doc, url } = await fetchActivityDoc(source.formTokens.action, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formData.toString(),
+    });
 
-  const nextDetail = parseActivityDetail(doc, url);
-  setCachedActivityDetail(url, nextDetail);
-  return nextDetail;
+    const nextDetail = parseActivityDetail(doc, url);
+    setCachedActivityDetail(url, nextDetail);
+    return nextDetail;
+  };
+
+  try {
+    return await doPostback(detail);
+  } catch {
+    // Cached pages can have stale viewstate/eventvalidation; refresh once and retry.
+    const fresh = await fetchActivityDetail(detail.url);
+    return doPostback(fresh);
+  }
 }

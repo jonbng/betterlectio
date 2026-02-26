@@ -431,11 +431,6 @@ function removeActivityTitleTooltip() {
   );
   if (!activityHeader) return;
 
-  const tooltipElement = activityHeader.querySelector("[data-tooltip]");
-  if (tooltipElement) {
-    tooltipElement.removeAttribute("data-tooltip");
-  }
-
   // Remove native browser tooltip from activity note textarea
   const activityNote = document.getElementById(
     "s_m_Content_Content_tocAndToolbar_ActNoteTB_tb",
@@ -898,6 +893,8 @@ function injectFindSkemaPage(schoolId: string) {
     | "ressource"
     | "hold"
     | "gruppe"
+    | "fag"
+    | "faggruppe"
     | undefined;
 
   // Create container for our FindSkema page

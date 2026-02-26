@@ -80,6 +80,9 @@ betterlectio/
 │   ├── school-storage.ts     # Last school persistence
 │   ├── findskema-storage.ts  # Starred/recents/picture cache
 │   ├── fuzzy-search.ts       # Fuzzy search algorithm
+│   ├── findskema-cache.ts    # Resolves AvanceretSkema afdeling/subcache keys
+│   ├── findskema-types.ts    # Maps AvanceretSkema ids to BetterLectio entity types
+│   ├── findskema-advanced.ts # Fetches FindSkemaAdv postback lists (Fag/Faggrupper)
 │   ├── hold-mapping.ts       # Hold-to-subject name mapping system
 │   ├── opgave-detail.ts      # Fetch/parse assignment detail pages
 │   ├── activity-detail.ts    # Fetch/parse activity detail pages (aktivitetforside2)
@@ -218,6 +221,18 @@ Key responsibilities:
 
 Features:
 - Dynamic school name extraction
+
+### FindSkema Data Fetching Note
+
+`FindSkemaPage` and `StudentSearch` fetch autocomplete data from:
+
+`/lectio/{schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling={afdelingId}&subcache={subcache}`
+
+Important: `subcache` must come from Lectio's runtime dataset key format `AvanceretSkema_<afdeling>_<subcache>` (found in page scripts or `FindSkemaAdv.aspx`), not from `new Date().getFullYear()`. School-year subcache values can lag calendar year (e.g. `2025` during early `2026`), and forcing calendar year can hide valid students from search.
+
+Type mapping must use real AvanceretSkema prefixes, not assumed single-letter categories. In production data, `SC*` represents stamklasser and `RO*` represents lokaler (while `RE*` = ressourcer, `HE*` = hold, `GE*` = grupper). Misclassifying `SC` as students or `RO` as resources causes broken filters for classes/rooms/resources.
+
+`Fag` and `Faggrupper` are fetched through `FindSkemaAdv.aspx` postbacks (`ChangeFagBtn`, `ChangeFaggruppeBtn`) and parsed from response lists, because they are not consistently present in `AvanceretSkema` dropdown payloads.
 - User profile display with dropdown menu
 - Profile picture click-to-enlarge with fullscreen overlay
 - Navigation groups with collapsible sections
@@ -232,10 +247,11 @@ Features:
 
 Features:
 - Fuzzy search with Danish text normalization (handles æ, ø, å)
-- Type filter toggles (Elev, Lærer, Klasse, Lokale, Ressource, Hold, Gruppe)
+- Type filter toggles (Elev, Lærer, Klasse, Lokale, Ressource, Hold, Gruppe, Fag, Faggruppe)
 - Starred people section with persistent storage
 - Recent searches with click-to-remove
 - Person cards with lazy-loaded profile pictures
+- Default browse sections that show sample entities per active filter (larger lists when a single filter is selected)
 - Back navigation preservation (returns to search with query intact)
 
 ### 7. Person Card (`components/PersonCard.tsx`)

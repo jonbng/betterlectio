@@ -17,9 +17,14 @@ const UNMATCHED_LETTER_PENALTY = -1;
 export function normalizeString(str: string): string {
   return str
     .toLowerCase()
+    .replace(/æ/g, 'ae')
+    .replace(/ø/g, 'oe')
+    .replace(/å/g, 'aa')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-    .replace(/[-_]/g, ' '); // Treat hyphens and underscores as spaces
+    .replace(/[^\p{L}\p{N}]+/gu, ' ') // Treat punctuation/separators as spaces
+    .trim()
+    .replace(/\s+/g, ' '); // Collapse repeated whitespace
 }
 
 /**
@@ -182,6 +187,7 @@ export interface SearchableItem {
   type: string;
   shortName: string | null;
   longName: string | null;
+  scheduleUrl?: string; // Optional explicit URL if ID can't be mapped reliably
   searchText: string; // Pre-computed combined search text
 }
 
@@ -240,9 +246,10 @@ export function searchItems(
   activeFilters: Set<string>,
   limit: number = 50
 ): SearchResult[] {
-  if (query.length < 2) return [];
+  if (normalizeString(query).length < 2) return [];
 
   const normalizedQuery = normalizeString(query);
+  const compactQuery = normalizedQuery.replace(/\s+/g, '');
   const results: SearchResult[] = [];
 
   // Debug: Check for "Alle 1x-elever" specifically
@@ -261,6 +268,7 @@ export function searchItems(
     if (!activeFilters.has(item.type)) continue;
 
     const normalizedSearchText = normalizeString(item.searchText);
+    const compactSearchText = normalizedSearchText.replace(/\s+/g, '');
 
     // Strategy 1: Exact substring match
     if (normalizedSearchText.includes(normalizedQuery)) {
@@ -268,6 +276,16 @@ export function searchItems(
       const matchIndex = normalizedSearchText.indexOf(normalizedQuery);
       const lengthRatio = normalizedQuery.length / normalizedSearchText.length;
       const score = 200 - matchIndex + lengthRatio * 50;
+      results.push({ item, score, matchType: 'exact' });
+      continue;
+    }
+
+    // Strategy 1b: Compact exact match (ignores spacing differences)
+    // Helps match class suffixes like "Eks 25 01" vs "Eks2501".
+    if (compactQuery.length >= 4 && compactSearchText.includes(compactQuery)) {
+      const matchIndex = compactSearchText.indexOf(compactQuery);
+      const lengthRatio = compactQuery.length / compactSearchText.length;
+      const score = 180 - matchIndex + lengthRatio * 40;
       results.push({ item, score, matchType: 'exact' });
       continue;
     }

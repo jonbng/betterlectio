@@ -29,6 +29,9 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ActivityClassModal.tsx` - Class/activity modal for skema activities (metadata, lektier, related links)
 - `lib/findskema-storage.ts` - Starred people, recents, and picture cache persistence
 - `lib/fuzzy-search.ts` - Fuzzy search algorithm for Danish text
+- `lib/findskema-cache.ts` - Resolves Lectio AvanceretSkema cache params (`afdeling` + `subcache`) from page scripts
+- `lib/findskema-types.ts` - Maps Lectio AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to BetterLectio filter types
+- `lib/findskema-advanced.ts` - Fetches FindSkemaAdv postback lists (Fag/Faggrupper) and parses entities
 - `lib/school-storage.ts` - Last school persistence for auto-redirect
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx pages, submission API, localStorage cache
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx pages with rich lektie content + short-term cache
@@ -77,13 +80,19 @@ fetch(`${window.location.origin}/lectio/${schoolId}/path.aspx`)
 
 Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine with relative URLs - this only applies to `fetch()` and similar APIs.
 
+**FindSkema dropdown cache key:** Do not assume `subcache` equals current calendar year. Read both `afdeling` and `subcache` from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key (from page scripts or `FindSkemaAdv.aspx`) before calling `cache/DropDown.aspx?type=AvanceretSkema...`. This avoids missing students when school year and calendar year differ.
+
+**FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms on all schools. Real AvanceretSkema IDs commonly use `SC*` for stamklasser and `RO*` for lokaler (`RE*` for ressourcer, `HE*` for hold, `GE*` for grupper). Always map by actual ID prefixes via shared helper logic.
+
+**FindSkema advanced entities:** `Fag` and `Faggrupper` are fetched via `FindSkemaAdv.aspx` postback targets (`ChangeFagBtn`, `ChangeFaggruppeBtn`) and parsed into first-class filter entities.
+
 **Lectio Modernizer:** The "Lectio Modernizer" section in `globals.css` restyles Lectio's native elements (tables, buttons, forms, schedule bricks, links, etc.) with modern design. When adding new Lectio element overrides, add them to this section under `@layer components`. Key targets: `table.lf-grid` (data tables), `.buttonfilled`/`.buttonoutlined`/`.buttonfilledtonal` (buttons), `input`/`select`/`textarea` (form elements), `.s2skemabrik` (schedule bricks), `.lf-island` (card containers).
 
 ## Features
 - **Login Page Redesign** - School selector with search, "continue to last school" quick access
 - **Session Popup Block** - Blocks "Din session udløber snart" popup
 - **Custom Sidebar** - Modern navigation with collapsible sections, settings modal access
-- **FindSkema Redesign** - Fuzzy search, type filters, starred people, recent searches, person cards
+- **FindSkema Redesign** - Fuzzy search, first-class filters (including Fag/Faggrupper), starred people, recent searches, person cards, and default browse cards per selected filter
 - **Schedule Enhancements** - Today highlight, current time indicator, optional time label, back navigation
 - **Viewing Header** - Shows whose schedule with star toggle, type badge, back link
 - **Settings Modal** - Appearance, notifications, advanced settings, version info

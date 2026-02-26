@@ -5,6 +5,8 @@ import {
   createSearchText,
   type SearchableItem,
 } from '../lib/fuzzy-search';
+import { resolveAvanceretSkemaCacheParams } from '../lib/findskema-cache';
+import { getFindSkemaTypeKeyFromId, type FindSkemaTypeKey } from '../lib/findskema-types';
 
 interface RecentSearch {
   name: string;
@@ -18,7 +20,7 @@ interface RecentSearch {
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
 interface TypeConfig {
-  prefixes: string[];
+  typeKeys: FindSkemaTypeKey[];
   urlParam: string;
   label: string;
   placeholder: string;
@@ -27,56 +29,56 @@ interface TypeConfig {
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {
   elev: {
-    prefixes: ['S', 'L'], // Also include rooms for convenience
+    typeKeys: ['S', 'L'], // Also include rooms for convenience
     urlParam: 'elevid',
     label: 'Elev',
     placeholder: 'Søg efter elever eller lokaler...',
     badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
   },
   laerer: {
-    prefixes: ['T', 'L'], // Also include rooms for convenience
+    typeKeys: ['T', 'L'], // Also include rooms for convenience
     urlParam: 'laererid',
     label: 'Lærer',
     placeholder: 'Søg efter lærere eller lokaler...',
     badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
   },
   stamklasse: {
-    prefixes: ['K'],
+    typeKeys: ['K'],
     urlParam: 'klasseid',
     label: 'Klasse',
     placeholder: 'Søg efter klasser...',
     badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
   },
   lokale: {
-    prefixes: ['L'],
+    typeKeys: ['L'],
     urlParam: 'lokaleid',
     label: 'Lokale',
     placeholder: 'Søg efter lokaler...',
     badgeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
   },
   ressource: {
-    prefixes: ['R'],
+    typeKeys: ['R'],
     urlParam: 'ressourceid',
     label: 'Ressource',
     placeholder: 'Søg efter ressourcer...',
     badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300',
   },
   hold: {
-    prefixes: ['H'],
+    typeKeys: ['H'],
     urlParam: 'holdid',
     label: 'Hold',
     placeholder: 'Søg efter hold...',
     badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300',
   },
   gruppe: {
-    prefixes: ['G'],
+    typeKeys: ['G'],
     urlParam: 'gruppeid',
     label: 'Gruppe',
     placeholder: 'Søg efter grupper...',
     badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
   },
   all: {
-    prefixes: ['S', 'T', 'L'],
+    typeKeys: ['S', 'T', 'L'],
     urlParam: '',
     label: '',
     placeholder: 'Søg efter elever, lærere eller lokaler...',
@@ -95,23 +97,10 @@ const ITEM_TYPE_CONFIG: Record<string, { label: string; badgeClass: string; urlP
   G: { label: 'Gruppe', badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300', urlParam: 'gruppeid' },
 };
 
-// Extract type key from ID - handles both single char (S, T) and two char (HE, GE, RE, RO) prefixes
-function getTypeKeyFromId(id: string): string {
-  if (!id) return 'S';
-  const prefix = id.substring(0, 2);
-  // Map 2-char prefixes to our single-char type keys
-  if (prefix === 'HE') return 'H'; // Hold elements
-  if (prefix === 'GE') return 'G'; // Gruppe elements
-  if (prefix === 'RE' || prefix === 'RO') return 'R'; // Resources
-  if (prefix === 'SC') return 'S'; // Student codes
-  // For other cases, use first char (S, T, K, L)
-  return id.charAt(0);
-}
-
 function getTypeFromId(id: string): string {
-  const typeKey = getTypeKeyFromId(id);
+  const typeKey = getFindSkemaTypeKeyFromId(id);
   for (const [type, config] of Object.entries(TYPE_CONFIG)) {
-    if (config.prefixes.includes(typeKey)) {
+    if (config.typeKeys.includes(typeKey)) {
       return type;
     }
   }
@@ -134,7 +123,7 @@ function getRecentSearches(filterType?: SearchType): RecentSearch[] {
       return all;
     }
     const config = TYPE_CONFIG[filterType];
-    return all.filter(r => config.prefixes.some(p => r.id.startsWith(p)));
+    return all.filter(r => config.typeKeys.includes(getFindSkemaTypeKeyFromId(r.id)));
   } catch {
     return [];
   }
@@ -175,50 +164,29 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
   useEffect(() => {
     async function loadData() {
       try {
-        // First, we need to get the afdeling ID from the page or try common patterns
-        // The URL pattern is: /lectio/{schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling={afdelingId}&subcache={year}
-        const year = new Date().getFullYear();
+        const cacheParams = await resolveAvanceretSkemaCacheParams(schoolId);
+        const afdelingId = cacheParams?.afdelingId;
+        const subcache = cacheParams?.subcache || String(new Date().getFullYear());
 
-        // Try to find afdeling from page scripts
-        const scripts = document.querySelectorAll('script');
-        let afdelingId: string | null = null;
-
-        for (const script of scripts) {
-          const match = script.textContent?.match(/AvanceretSkema_(\d+)_/);
-          if (match) {
-            afdelingId = match[1];
-            break;
-          }
-        }
-
-        if (!afdelingId) {
-          // Try fetching FindSkemaAdv page to get the afdeling
-          const advPage = await fetch(`${window.location.origin}/lectio/${schoolId}/FindSkemaAdv.aspx`);
-          const html = await advPage.text();
-          const match = html.match(/AvanceretSkema_(\d+)_/);
-          if (match) {
-            afdelingId = match[1];
-          }
-        }
-
-        if (!afdelingId) {
+        if (!cacheParams || !afdelingId) {
           throw new Error('Could not find afdeling ID');
         }
 
         // Fetch the autocomplete data
         const response = await fetch(
-          `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${afdelingId}&subcache=${year}`
+          `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${afdelingId}&subcache=${subcache}`
         );
         const data = await response.json();
 
         // Parse items - filter based on searchType prefixes
         // API response format: [title, key, flags, group, cssClass, _que, isContextCard, shortName, longName]
-        const allowedPrefixes = typeConfig.prefixes;
+        const allowedTypeKeys = typeConfig.typeKeys;
         const parsed: SearchableItem[] = data.items
           .filter((item: any[]) => {
             const id = item[1];
             if (!id) return false;
-            return allowedPrefixes.some(prefix => id.startsWith(prefix));
+            const typeKey = getFindSkemaTypeKeyFromId(String(id));
+            return allowedTypeKeys.includes(typeKey);
           })
           .map((item: any[]) => {
             const name = item[0] as string;
@@ -228,7 +196,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
             return {
               name,
               id,
-              type: getTypeKeyFromId(id),
+              type: getFindSkemaTypeKeyFromId(id),
               shortName,
               longName,
               searchText: createSearchText(name, shortName, longName),
@@ -281,7 +249,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
   }, []);
 
   // Create a filter set from the allowed prefixes for this search type
-  const activeFilters = useMemo(() => new Set(typeConfig.prefixes), [typeConfig.prefixes]);
+  const activeFilters = useMemo(() => new Set(typeConfig.typeKeys), [typeConfig.typeKeys]);
 
   // Use fuzzy search for better matching
   const filteredItems = useMemo(() => {

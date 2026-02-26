@@ -124,9 +124,12 @@ function getFindSkemaType(): string | null {
     'laerer': 'Lærer',
     'lokale': 'Lokale',
     'hold': 'Hold',
+    'stamklasse': 'Stamklasse',
     'klasse': 'Klasse',
     'ressource': 'Ressource',
     'gruppe': 'Gruppe',
+    'fag': 'Fag',
+    'faggruppe': 'Faggruppe',
   };
 
   return type ? typeMap[type] || type : null;

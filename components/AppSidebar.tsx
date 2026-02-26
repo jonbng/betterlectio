@@ -26,6 +26,7 @@ import {
   Box,
   UsersRound,
   LayoutGrid,
+  Shapes,
   FileSearch,
   BookMarked,
   Settings,
@@ -198,6 +199,8 @@ const findSkemaItems = [
   { title: 'Ressource', type: 'ressource', icon: Box },
   { title: 'Hold', type: 'hold', icon: UsersRound },
   { title: 'Gruppe', type: 'gruppe', icon: LayoutGrid },
+  { title: 'Fag', type: 'fag', icon: BookOpen },
+  { title: 'Faggruppe', type: 'faggruppe', icon: Shapes },
 ];
 
 const calendarItems = [

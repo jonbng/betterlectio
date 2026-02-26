@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { X, Clock, Star, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
+import { X, Clock, Star, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid, BookOpen, Shapes } from 'lucide-react';
 import { PersonCard } from './PersonCard';
 import { getCachedProfile } from '../lib/profile-cache';
 import { getSettings } from '../lib/settings-storage';
@@ -20,8 +20,11 @@ import {
   createSearchText,
   type SearchableItem,
 } from '../lib/fuzzy-search';
+import { resolveAvanceretSkemaCacheParams } from '../lib/findskema-cache';
+import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
+import { fetchAdvancedCategoryItems } from '../lib/findskema-advanced';
 
-type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
+type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'fag' | 'faggruppe' | 'all';
 
 // Filter configuration with icons and labels
 const FILTER_CONFIG = [
@@ -32,6 +35,8 @@ const FILTER_CONFIG = [
   { key: 'R', label: 'Ressourcer', icon: Box, type: 'ressource' },
   { key: 'H', label: 'Hold', icon: UsersRound, type: 'hold' },
   { key: 'G', label: 'Grupper', icon: LayoutGrid, type: 'gruppe' },
+  { key: 'F', label: 'Fag', icon: BookOpen, type: 'fag' },
+  { key: 'J', label: 'Faggrupper', icon: Shapes, type: 'faggruppe' },
 ] as const;
 
 // Map search type to prefix
@@ -43,19 +48,23 @@ const TYPE_TO_PREFIX: Record<string, string> = {
   ressource: 'R',
   hold: 'H',
   gruppe: 'G',
+  fag: 'F',
+  faggruppe: 'J',
 };
 
-// Extract type key from ID - handles both single char (S, T) and two char (HE, GE, RE, RO) prefixes
-function getTypeFromId(id: string): string {
-  if (!id) return 'S';
-  const prefix = id.substring(0, 2);
-  // Map 2-char prefixes to our single-char type keys
-  if (prefix === 'HE') return 'H'; // Hold elements
-  if (prefix === 'GE') return 'G'; // Gruppe elements
-  if (prefix === 'RE' || prefix === 'RO') return 'R'; // Resources
-  if (prefix === 'SC') return 'S'; // Student codes
-  // For other cases, use first char (S, T, K, L)
-  return id.charAt(0);
+const ALL_FILTER_KEYS = ['S', 'T', 'K', 'L', 'R', 'H', 'G', 'F', 'J'];
+
+function getBrowseLimit(typeKey: string, activeFilterCount: number): number {
+  if (activeFilterCount === 1) {
+    if (typeKey === 'S' || typeKey === 'T') return 32;
+    return 50;
+  }
+  if (activeFilterCount <= 3) {
+    if (typeKey === 'S' || typeKey === 'T') return 18;
+    return 24;
+  }
+  if (typeKey === 'S' || typeKey === 'T') return 12;
+  return 10;
 }
 
 interface FindSkemaPageProps {
@@ -79,10 +88,10 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   // Initialize active filters based on searchType prop
   const getInitialFilters = (): Set<string> => {
     if (searchType === 'all') {
-      return new Set(['S', 'T', 'K', 'L', 'R', 'H', 'G']);
+      return new Set(ALL_FILTER_KEYS);
     }
     const prefix = TYPE_TO_PREFIX[searchType];
-    return prefix ? new Set([prefix]) : new Set(['S', 'T', 'K', 'L', 'R', 'H', 'G']);
+    return prefix ? new Set([prefix]) : new Set(ALL_FILTER_KEYS);
   };
 
   const [activeFilters, setActiveFilters] = useState<Set<string>>(getInitialFilters);
@@ -91,8 +100,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
   // Get placeholder text based on active filters
   const placeholderText = useMemo(() => {
-    if (activeFilters.size === 7) {
-      return 'Søg efter elever, lærere, klasser...';
+    if (activeFilters.size === ALL_FILTER_KEYS.length) {
+      return 'Søg efter elever, lærere, klasser, hold, fag...';
     }
     const activeLabels = FILTER_CONFIG
       .filter(f => activeFilters.has(f.key))
@@ -123,42 +132,23 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
   // Select all filters
   const selectAllFilters = useCallback(() => {
-    setActiveFilters(new Set(['S', 'T', 'K', 'L', 'R', 'H', 'G']));
+    setActiveFilters(new Set(ALL_FILTER_KEYS));
   }, []);
 
   // Load autocomplete data - always load ALL items
   useEffect(() => {
     async function loadData() {
       try {
-        const year = new Date().getFullYear();
+        const cacheParams = await resolveAvanceretSkemaCacheParams(schoolId);
+        const afdelingId = cacheParams?.afdelingId;
+        const subcache = cacheParams?.subcache || String(new Date().getFullYear());
 
-        // Try to find afdeling from page scripts
-        const scripts = document.querySelectorAll('script');
-        let afdelingId: string | null = null;
-
-        for (const script of scripts) {
-          const match = script.textContent?.match(/AvanceretSkema_(\d+)_/);
-          if (match) {
-            afdelingId = match[1];
-            break;
-          }
-        }
-
-        if (!afdelingId) {
-          const advPage = await fetch(`${window.location.origin}/lectio/${schoolId}/FindSkemaAdv.aspx`);
-          const html = await advPage.text();
-          const match = html.match(/AvanceretSkema_(\d+)_/);
-          if (match) {
-            afdelingId = match[1];
-          }
-        }
-
-        if (!afdelingId) {
+        if (!cacheParams || !afdelingId) {
           throw new Error('Could not find afdeling ID');
         }
 
         const response = await fetch(
-          `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${afdelingId}&subcache=${year}`
+          `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${afdelingId}&subcache=${subcache}`
         );
         const data = await response.json();
 
@@ -189,7 +179,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             return {
               name,
               id,
-              type: getTypeFromId(id),
+              type: getFindSkemaTypeKeyFromId(id),
               shortName,
               longName,
               searchText: createSearchText(name, shortName, longName),
@@ -200,7 +190,28 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         const parsedAlleItems = parsed.filter(i => i.name.toLowerCase().includes('alle'));
         console.log('[FindSkemaPage] Parsed items containing "alle":', parsedAlleItems.map(i => ({ name: i.name, id: i.id, type: i.type, searchText: i.searchText })));
 
-        setItems(parsed);
+        let advancedItems: SearchableItem[] = [];
+        try {
+          const [fagItems, faggruppeItems] = await Promise.all([
+            fetchAdvancedCategoryItems(schoolId, 'fag'),
+            fetchAdvancedCategoryItems(schoolId, 'faggruppe'),
+          ]);
+          advancedItems = [...fagItems, ...faggruppeItems];
+        } catch (advancedErr) {
+          console.warn('[FindSkemaPage] Failed to load advanced Fag/Faggrupper:', advancedErr);
+        }
+
+        const combinedMap = new Map<string, SearchableItem>();
+        for (const item of parsed) {
+          combinedMap.set(item.id, item);
+        }
+        for (const item of advancedItems) {
+          if (!combinedMap.has(item.id)) {
+            combinedMap.set(item.id, item);
+          }
+        }
+
+        setItems([...combinedMap.values()]);
         setLoading(false);
       } catch (err) {
         console.error('[FindSkemaPage] Failed to load data:', err);
@@ -239,6 +250,26 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     const results = searchItems(items, query, activeFilters, 50);
     return results.map(r => r.item);
   }, [items, query, activeFilters]);
+
+  const showSearchResults = query.length >= 2;
+
+  const browseSections = useMemo(() => {
+    if (showSearchResults) return [];
+
+    const activeCount = activeFilters.size;
+    return FILTER_CONFIG
+      .filter(({ key }) => activeFilters.has(key))
+      .filter(({ key }) => key !== 'S') // Student discovery is handled by the dedicated classmates section
+      .map((filter) => {
+        const limit = getBrowseLimit(filter.key, activeCount);
+        const list = items
+          .filter((item) => item.type === filter.key)
+          .sort((a, b) => a.name.localeCompare(b.name, 'da-DK'))
+          .slice(0, limit);
+        return { ...filter, items: list, limit };
+      })
+      .filter((section) => section.items.length > 0);
+  }, [items, activeFilters, showSearchResults]);
 
   // Get classmates (people in same class as user)
   const classmates = useMemo(() => {
@@ -295,12 +326,13 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   // Handle card click (add to recents)
   const handleCardClick = useCallback((item: SearchableItem) => {
     const { displayName, classCode } = parsePersonInfo(item.name);
+    const url = item.scheduleUrl || getScheduleUrl(item.id, schoolId);
     addRecentPerson({
       id: item.id,
       name: displayName,
       classCode,
       type: item.type,
-      url: getScheduleUrl(item.id, schoolId),
+      url,
     });
   }, [schoolId]);
 
@@ -317,7 +349,6 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const settings = getSettings();
 
   // Determine which sections to show
-  const showSearchResults = query.length >= 2;
   const showRecents = !showSearchResults && filteredRecents.length > 0 && (settings.data?.recentSearches ?? false);
   const showStarred = !showSearchResults && filteredStarred.length > 0 && (settings.data?.starredPeople ?? false);
   const showClassmates = !showSearchResults && classmates.length > 0 && activeFilters.has('S');
@@ -360,7 +391,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         <button
           type="button"
           onClick={selectAllFilters}
-          className={`findskema-filter-pill ${activeFilters.size === 7 ? 'is-active' : ''}`}
+          className={`findskema-filter-pill ${activeFilters.size === ALL_FILTER_KEYS.length ? 'is-active' : ''}`}
         >
           Alle
         </button>
@@ -406,7 +437,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                     name={displayName}
                     classCode={classCode}
                     type={item.type}
-                    href={getScheduleUrl(item.id, schoolId)}
+                    href={item.scheduleUrl || getScheduleUrl(item.id, schoolId)}
                     isStarred={isPersonStarred(item.id)}
                     onStarToggle={handleStarToggle}
                     onClick={() => handleCardClick(item)}
@@ -421,6 +452,36 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
           )}
         </section>
       )}
+
+      {/* Browse Sections */}
+      {!showSearchResults && browseSections.map(({ key, label, icon: Icon, items: sectionItems, limit }) => (
+        <section key={key} className="findskema-section">
+          <div className="findskema-section-header">
+            <Icon className="size-4" />
+            <span>{label} (viser {sectionItems.length}{sectionItems.length >= limit ? '+' : ''})</span>
+          </div>
+          <div className="findskema-card-grid">
+            {sectionItems.map(item => {
+              const { displayName, classCode } = parsePersonInfo(item.name);
+              return (
+                <PersonCard
+                  key={item.id}
+                  id={item.id}
+                  name={displayName}
+                  classCode={classCode}
+                  type={item.type}
+                  href={item.scheduleUrl || getScheduleUrl(item.id, schoolId)}
+                  isStarred={isPersonStarred(item.id)}
+                  onStarToggle={handleStarToggle}
+                  onClick={() => handleCardClick(item)}
+                  schoolId={schoolId}
+                  searchQuery={query}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       {/* Recents Section */}
       {showRecents && (
