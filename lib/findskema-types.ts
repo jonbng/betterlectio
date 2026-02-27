@@ -1,4 +1,4 @@
-export type FindSkemaTypeKey = 'S' | 'T' | 'K' | 'L' | 'R' | 'H' | 'G' | 'F' | 'J';
+export type FindSkemaTypeKey = 'S' | 'T' | 'K' | 'L' | 'R' | 'H' | 'G';
 
 /**
  * Map Lectio entity ids from AvanceretSkema dropdown to BetterLectio type keys.
@@ -13,8 +13,6 @@ export type FindSkemaTypeKey = 'S' | 'T' | 'K' | 'L' | 'R' | 'H' | 'G' | 'F' | '
  */
 export function getFindSkemaTypeKeyFromId(id: string): FindSkemaTypeKey {
   if (!id) return 'S';
-  if (id.startsWith('F')) return 'F';
-  if (id.startsWith('J')) return 'J';
   if (id.startsWith('URL:')) return 'S';
   const prefix2 = id.substring(0, 2);
 

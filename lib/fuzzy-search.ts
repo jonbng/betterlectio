@@ -189,6 +189,7 @@ export interface SearchableItem {
   longName: string | null;
   scheduleUrl?: string; // Optional explicit URL if ID can't be mapped reliably
   searchText: string; // Pre-computed combined search text
+  classGrade?: number; // For classes (type K): computed grade (1, 2, 3, etc.)
 }
 
 /**

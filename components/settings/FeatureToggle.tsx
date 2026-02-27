@@ -36,10 +36,10 @@ export function FeatureToggle({
             {label}
           </Label>
           {requiresReload && (
-            <RefreshCw className="size-3.5 text-muted-foreground" title="Kræver genindlæsning" />
+            <span title="Kræver genindlæsning"><RefreshCw className="size-3.5 text-muted-foreground" /></span>
           )}
           {hasDependent && enabled && (
-            <AlertCircle className="size-3.5 text-amber-500" title="Andre funktioner afhænger af denne" />
+            <span title="Andre funktioner afhænger af denne"><AlertCircle className="size-3.5 text-amber-500" /></span>
           )}
         </div>
         <p className="text-sm text-muted-foreground">

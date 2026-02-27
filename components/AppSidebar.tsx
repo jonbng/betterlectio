@@ -26,7 +26,6 @@ import {
   Box,
   UsersRound,
   LayoutGrid,
-  Shapes,
   FileSearch,
   BookMarked,
   Settings,
@@ -58,6 +57,7 @@ import { clearLoginState } from '@/lib/profile-cache';
 import { getSettings } from '@/lib/settings-storage';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
+import { ScheduleCountdown } from './ScheduleCountdown';
 
 function getSchoolIdFromUrl(): string {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
@@ -188,7 +188,6 @@ const navSecondary = [
   { title: 'Studieplan', icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' as const },
   { title: 'Dokumenter', icon: FolderOpen, page: 'dokumentoversigt', settingKey: 'showDokumenter' as const },
   { title: 'Spørgeskema', icon: HelpCircle, page: 'spoergeskema/spoergeskema_rapport', settingKey: 'showSpoergeskema' as const },
-  { title: 'UV-beskrivelser', icon: BookMarked, page: 'studieplan/uvb_list_off', settingKey: 'showUVBeskrivelser' as const },
 ];
 
 const findSkemaItems = [
@@ -199,8 +198,6 @@ const findSkemaItems = [
   { title: 'Ressource', type: 'ressource', icon: Box },
   { title: 'Hold', type: 'hold', icon: UsersRound },
   { title: 'Gruppe', type: 'gruppe', icon: LayoutGrid },
-  { title: 'Fag', type: 'fag', icon: BookOpen },
-  { title: 'Faggruppe', type: 'faggruppe', icon: Shapes },
 ];
 
 const calendarItems = [
@@ -434,6 +431,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter className="px-2 pb-3">
+        {(settings.schedule.countdownBar ?? true) && (
+          <div className="px-1 pb-1 group-data-[collapsible=icon]:hidden">
+            <ScheduleCountdown schoolId={schoolId} />
+          </div>
+        )}
         <SidebarSeparator className="mb-3 opacity-50" />
         <div className="relative" ref={menuRef}>
             {/* Dropdown menu - positioned above the trigger */}
@@ -485,18 +487,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     Bøger
                   </a>
                   <a
-                    href={`${baseUrl}/default.aspx?menu=kontakt`}
+                    href={`${baseUrl}/studieplan/uvb_list_off.aspx`}
                     className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
                   >
-                    <MessageSquare className="size-[1.1rem] opacity-70" />
-                    Kontakt
-                  </a>
-                  <a
-                    href={`${baseUrl}/help/mainhelp.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
-                  >
-                    <HelpCircle className="size-[1.1rem] opacity-70" />
-                    Hjælp
+                    <BookMarked className="size-[1.1rem] opacity-70" />
+                    UV-beskrivelser
                   </a>
                 </div>
                 <div className="p-1.5 border-t border-border/50">

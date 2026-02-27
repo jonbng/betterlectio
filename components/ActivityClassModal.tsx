@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
 import {
   BookOpen,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock,
   ExternalLink,
   FileText,
   GraduationCap,
   Link2,
   List,
   MapPin,
-  Sparkles,
   User,
   X,
 } from "lucide-react";
@@ -32,8 +29,6 @@ interface ActivityClassModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type SectionKey = "overview" | "homework" | "related";
-
 export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassModalProps) {
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,12 +37,9 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
   const [lastNavTarget, setLastNavTarget] = useState<string | null>(null);
   const [teacherCache, setTeacherCache] = useState<TeacherCache | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
-  const [activeSection, setActiveSection] = useState<SectionKey>("overview");
 
   useEffect(() => {
     if (!open || !url) return;
-
-    setActiveSection("overview");
 
     const cached = getCachedActivityDetail(url);
     if (cached) {
@@ -142,23 +134,6 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     setTeacherName(rawTeacher);
   }, [detail?.meta.teacher, teacherCache]);
 
-  const sections = useMemo(() => {
-    const hasHomework = (detail?.homework.length ?? 0) > 0;
-    const hasRelated = (detail?.related.length ?? 0) > 0;
-
-    return [
-      { id: "overview" as const, label: "Overblik" },
-      { id: "homework" as const, label: "Lektier", hidden: !hasHomework },
-      { id: "related" as const, label: "Relateret", hidden: !hasRelated },
-    ].filter((item) => !item.hidden);
-  }, [detail]);
-
-  useEffect(() => {
-    if (!sections.some((section) => section.id === activeSection)) {
-      setActiveSection("overview");
-    }
-  }, [sections, activeSection]);
-
   if (!open || !url) return null;
 
   const holdHue = detail?.meta.hold ? getHoldHue(detail.meta.hold) : 265;
@@ -182,78 +157,106 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     try {
       const next = await postbackNavigateActivity(detail, eventTarget);
       setDetail(next);
-      setActiveSection("overview");
       setNavError(null);
     } catch {
-      setNavError("Kunne ikke hente næste aktivitet. Du er stadig på den nuværende aktivitet.");
+      setNavError("Kunne ikke hente næste aktivitet.");
     } finally {
       setNavigating(false);
     }
   };
 
-  const modal = (
-    <div className="il-activity-modal-wrapper" role="dialog" aria-modal="true" aria-label="Aktivitetsdetaljer">
-      <div className="il-activity-modal-backdrop" onClick={() => onOpenChange(false)} aria-hidden="true" />
+  const hasContent = !!detail?.note || (detail?.homework.length ?? 0) > 0 || (detail?.related.length ?? 0) > 0;
+  const metaLine = [detail?.meta.dateText, detail?.meta.timeText, detail?.meta.moduleText]
+    .filter(Boolean)
+    .join(" \u00b7 ");
 
-      <div className="il-activity-modal-panel" onClick={(event) => event.stopPropagation()}>
-        <button
-          type="button"
-          className="il-activity-modal-close"
-          onClick={() => onOpenChange(false)}
-          aria-label="Luk"
-        >
-          <X size={16} />
-        </button>
+  const sheet = (
+    <div className="il-act-sheet-wrapper" role="dialog" aria-modal="true" aria-label="Aktivitetsdetaljer">
+      <div className="il-act-sheet-backdrop" onClick={() => onOpenChange(false)} aria-hidden="true" />
 
+      <aside
+        className="il-act-sheet"
+        style={{ "--accent-hue": holdHue } as any}
+        onClick={(event) => event.stopPropagation()}
+      >
         {loading || !detail ? (
-          <div className="il-activity-modal-loading">
-            <div className="il-activity-modal-skeleton il-activity-modal-skeleton-title" />
-            <div className="il-activity-modal-skeleton il-activity-modal-skeleton-chip" />
-            <div className="il-activity-modal-skeleton il-activity-modal-skeleton-body" />
+          <div className="il-act-sheet-loading">
+            <div className="il-act-sheet-skeleton il-act-sheet-sk-title" />
+            <div className="il-act-sheet-skeleton il-act-sheet-sk-meta" />
+            <div className="il-act-sheet-skeleton il-act-sheet-sk-body" />
+            <div className="il-act-sheet-skeleton il-act-sheet-sk-body-sm" />
           </div>
         ) : (
           <>
-            <header className="il-activity-modal-header">
-              <div className="il-activity-modal-topline">
-                <span className="il-activity-modal-kicker">
-                  <Sparkles size={13} />
-                  Aktivitet
-                </span>
+            {navigating && (
+              <div className="il-act-sheet-progress">
+                <div className="il-act-sheet-progress-bar" />
+              </div>
+            )}
+
+            <header className="il-act-sheet-header">
+              <div className="il-act-sheet-header-row">
+                <div className="il-act-sheet-sched-nav">
+                  <button
+                    type="button"
+                    onClick={() => navigateByPostback(detail.navigation.schedule.prevEventTarget)}
+                    disabled={!detail.navigation.schedule.prevEventTarget || navigating}
+                    aria-label="Forrige aktivitet"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigateByPostback(detail.navigation.schedule.nextEventTarget)}
+                    disabled={!detail.navigation.schedule.nextEventTarget || navigating}
+                    aria-label="Næste aktivitet"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="il-act-sheet-close"
+                  onClick={() => onOpenChange(false)}
+                  aria-label="Luk"
+                >
+                  <X size={15} />
+                </button>
               </div>
 
-              <h2 className="il-activity-modal-title">{resolvedTitle}</h2>
+              <h2 className="il-act-sheet-title">{resolvedTitle}</h2>
 
-              <div className="il-activity-modal-meta-grid">
-                {detail.meta.dateText ? (
-                  <MetaItem icon={CalendarDays} label="Dato" value={detail.meta.dateText} />
-                ) : null}
-                {detail.meta.timeText ? <MetaItem icon={Clock} label="Tid" value={detail.meta.timeText} /> : null}
-                {detail.meta.moduleText ? (
-                  <MetaItem icon={Clock} label="Modul" value={detail.meta.moduleText} />
-                ) : null}
-                {teacherName ? <MetaItem icon={User} label="Lærer" value={teacherName} /> : null}
-                {detail.meta.room ? <MetaItem icon={MapPin} label="Lokale" value={detail.meta.room} /> : null}
-              </div>
+              {metaLine ? <p className="il-act-sheet-datetime">{metaLine}</p> : null}
 
-              <div className="il-activity-modal-chip-row">
+              <div className="il-act-sheet-pills">
                 {detail.meta.hold ? (
-                    <span className="il-activity-modal-hold-pill" style={{ "--hold-hue": holdHue } as any}>
-                      <GraduationCap size={12} />
+                  <span className="il-act-sheet-hold-pill">
+                    <GraduationCap size={12} />
                     {holdDisplayName}
                   </span>
                 ) : null}
-
+                {teacherName ? (
+                  <span className="il-act-sheet-pill">
+                    <User size={12} />
+                    {teacherName}
+                  </span>
+                ) : null}
+                {detail.meta.room ? (
+                  <span className="il-act-sheet-pill">
+                    <MapPin size={12} />
+                    {detail.meta.room}
+                  </span>
+                ) : null}
                 {detail.phase ? (
                   <a
                     href={detail.phase.url}
                     data-no-activity-modal="true"
-                    className="il-activity-modal-chip-link"
+                    className="il-act-sheet-pill is-link"
                   >
                     <BookOpen size={12} />
-                    Forløb: {detail.phase.title}
+                    {detail.phase.title}
                   </a>
                 ) : null}
-
                 {detail.tabs
                   .filter((tab) => !tab.active && tab.url)
                   .map((tab) => (
@@ -261,7 +264,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                       key={tab.label}
                       href={tab.url}
                       data-no-activity-modal="true"
-                      className="il-activity-modal-chip-link"
+                      className="il-act-sheet-pill is-link"
                     >
                       <Link2 size={12} />
                       {tab.label}
@@ -270,217 +273,142 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
               </div>
             </header>
 
-            <nav className="il-activity-modal-sections" aria-label="Sektioner">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  className={`il-activity-modal-section-btn${activeSection === section.id ? " is-active" : ""}`}
-                  onClick={() => setActiveSection(section.id)}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </nav>
-
-            <div className="il-activity-modal-navbars">
-              <div className="il-activity-modal-navblock">
-                <span className="il-activity-modal-navlabel">{detail.navigation.schedule.label}</span>
-                <div className="il-activity-modal-navactions">
-                  <button
-                    type="button"
-                    className="il-activity-modal-navbtn"
-                    onClick={() => navigateByPostback(detail.navigation.schedule.prevEventTarget)}
-                    disabled={!detail.navigation.schedule.prevEventTarget || navigating}
-                  >
-                    <ChevronLeft size={13} />
-                    Forrige
-                  </button>
-                  <button
-                    type="button"
-                    className="il-activity-modal-navbtn"
-                    onClick={() => navigateByPostback(detail.navigation.schedule.nextEventTarget)}
-                    disabled={!detail.navigation.schedule.nextEventTarget || navigating}
-                  >
-                    Næste
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="il-activity-modal-navblock">
-                <span className="il-activity-modal-navlabel">Holdets aktiviteter</span>
-                <div className="il-activity-modal-navactions">
-                  <button
-                    type="button"
-                    className="il-activity-modal-navbtn"
-                    onClick={() => navigateByPostback(detail.navigation.hold.prevEventTarget)}
-                    disabled={!detail.navigation.hold.prevEventTarget || navigating}
-                  >
-                    <ChevronLeft size={13} />
-                    Forrige
-                  </button>
-                  {detail.navigation.hold.listUrl ? (
-                    <a
-                      href={detail.navigation.hold.listUrl}
-                      data-no-activity-modal="true"
-                      className="il-activity-modal-navlink"
-                    >
-                      <List size={13} />
-                      Liste
-                    </a>
-                  ) : (
-                    <span className="il-activity-modal-navlink is-disabled">
-                      <List size={13} />
-                      Liste
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className="il-activity-modal-navbtn"
-                    onClick={() => navigateByPostback(detail.navigation.hold.nextEventTarget)}
-                    disabled={!detail.navigation.hold.nextEventTarget || navigating}
-                  >
-                    Næste
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {navError ? (
-              <div className="il-activity-modal-nav-error" role="status" aria-live="polite">
+              <div className="il-act-sheet-error" role="status" aria-live="polite">
                 <span>{navError}</span>
-                <div className="il-activity-modal-nav-error-actions">
+                <div className="il-act-sheet-error-actions">
                   <button
                     type="button"
-                    className="il-activity-modal-nav-error-btn"
                     onClick={() => navigateByPostback(lastNavTarget)}
                     disabled={!lastNavTarget || navigating}
                   >
                     Prøv igen
                   </button>
-                  <button
-                    type="button"
-                    className="il-activity-modal-nav-error-btn is-ghost"
-                    onClick={() => setNavError(null)}
-                  >
+                  <button type="button" className="is-ghost" onClick={() => setNavError(null)}>
                     Luk
                   </button>
                 </div>
               </div>
             ) : null}
 
-            <div className="il-activity-modal-body">
-              {activeSection === "overview" ? (
-                <section className="il-activity-modal-overview">
-                  {detail.note ? (
-                    <article className="il-activity-modal-note-card">
-                      <h3>Note</h3>
-                      <p>{detail.note}</p>
-                    </article>
-                  ) : (
-                    <article className="il-activity-modal-note-card is-empty">
-                      <h3>Note</h3>
-                      <p>Ingen note tilknyttet denne aktivitet.</p>
-                    </article>
-                  )}
+            <div className="il-act-sheet-body">
+              {!hasContent ? (
+                <div className="il-act-sheet-empty">
+                  <FileText size={28} strokeWidth={1.2} />
+                  <p>Ingen yderligere information for denne aktivitet.</p>
+                </div>
+              ) : null}
 
-                  {detail.homework.length > 0 ? (
-                    <article className="il-activity-modal-note-card">
-                      <h3>Lektier</h3>
-                      <p>
-                        {detail.homework.length} lektiepunkt
-                        {detail.homework.length === 1 ? "" : "er"} tilgængelig
-                        {detail.homework.length === 1 ? "" : "e"}.
-                      </p>
-                    </article>
-                  ) : null}
+              {detail.note ? (
+                <section className="il-act-sheet-section">
+                  <h3 className="il-act-sheet-label">Note</h3>
+                  <div className="il-act-sheet-note">{detail.note}</div>
                 </section>
               ) : null}
 
-              {activeSection === "homework" ? (
-                <section className="il-activity-modal-homework-list">
-                  {detail.homework.map((item) => (
-                    <HomeworkCard key={item.id} item={item} />
-                  ))}
+              {detail.homework.length > 0 ? (
+                <section className="il-act-sheet-section">
+                  <h3 className="il-act-sheet-label">
+                    Lektier
+                    <span className="il-act-sheet-label-count">{detail.homework.length}</span>
+                  </h3>
+                  <div className="il-act-sheet-hw-list">
+                    {detail.homework.map((item) => (
+                      <HomeworkCard key={item.id} item={item} />
+                    ))}
+                  </div>
                 </section>
               ) : null}
 
-              {activeSection === "related" ? (
-                <section className="il-activity-modal-related-list">
-                  {detail.related.map((item, index) => (
-                    <div key={`${item.label}-${index}`} className="il-activity-modal-related-item">
-                      <div className="il-activity-modal-related-text">
+              {detail.related.length > 0 ? (
+                <section className="il-act-sheet-section">
+                  <h3 className="il-act-sheet-label">Relateret</h3>
+                  <div className="il-act-sheet-rel-list">
+                    {detail.related.map((item, index) => (
+                      <div key={`${item.label}-${index}`} className="il-act-sheet-rel-item">
                         <span>{item.label}</span>
+                        {item.url ? (
+                          <a href={item.url} data-no-activity-modal="true">
+                            Åbn
+                            <ExternalLink size={11} />
+                          </a>
+                        ) : (
+                          <span className="is-muted">&mdash;</span>
+                        )}
                       </div>
-                      {item.url ? (
-                        <a href={item.url} data-no-activity-modal="true" className="il-activity-modal-related-link">
-                          Åbn
-                          <ExternalLink size={12} />
-                        </a>
-                      ) : (
-                        <span className="il-activity-modal-related-muted">Ingen side</span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </section>
               ) : null}
             </div>
 
-            <footer className="il-activity-modal-footer">
-              <a href={detail.url} data-no-activity-modal="true" className="il-activity-modal-open-link">
-                Åbn i Lectio
+            <footer className="il-act-sheet-footer">
+              <a href={detail.url} data-no-activity-modal="true" className="il-act-sheet-lectio-link">
                 <ExternalLink size={13} />
+                Åbn i Lectio
               </a>
+              <div className="il-act-sheet-hold-nav">
+                <button
+                  type="button"
+                  onClick={() => navigateByPostback(detail.navigation.hold.prevEventTarget)}
+                  disabled={!detail.navigation.hold.prevEventTarget || navigating}
+                  title="Forrige holdaktivitet"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+                {detail.navigation.hold.listUrl ? (
+                  <a
+                    href={detail.navigation.hold.listUrl}
+                    data-no-activity-modal="true"
+                    title="Holdaktivitetsliste"
+                  >
+                    <List size={13} />
+                  </a>
+                ) : (
+                  <span className="is-disabled">
+                    <List size={13} />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigateByPostback(detail.navigation.hold.nextEventTarget)}
+                  disabled={!detail.navigation.hold.nextEventTarget || navigating}
+                  title="Næste holdaktivitet"
+                >
+                  <ChevronRight size={13} />
+                </button>
+              </div>
             </footer>
           </>
         )}
-      </div>
+      </aside>
     </div>
   );
 
   const portalTarget = document.getElementById("il-root") || document.body;
-  return createPortal(modal, portalTarget);
-}
-
-function MetaItem({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Clock;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="il-activity-modal-meta-item">
-      <span className="il-activity-modal-meta-label">
-        <Icon size={12} />
-        {label}
-      </span>
-      <span className="il-activity-modal-meta-value">{value}</span>
-    </div>
-  );
+  return createPortal(sheet, portalTarget);
 }
 
 function HomeworkCard({ item }: { item: ActivityHomeworkItem }) {
   return (
-    <article className="il-activity-modal-homework-card">
-      <header className="il-activity-modal-homework-head">
-        <h3>{item.title}</h3>
-      </header>
+    <article className="il-act-sheet-hw-card">
+      <h4 className="il-act-sheet-hw-title">{item.title}</h4>
 
       {item.contentHtml ? (
-        <div className="il-activity-modal-homework-content" dangerouslySetInnerHTML={{ __html: item.contentHtml }} />
+        <div className="il-act-sheet-hw-content" dangerouslySetInnerHTML={{ __html: item.contentHtml }} />
       ) : (
-        <p className="il-activity-modal-homework-empty">Intet ekstra indhold.</p>
+        <p className="il-act-sheet-hw-empty">Intet ekstra indhold.</p>
       )}
 
       {item.links.length > 0 ? (
-        <div className="il-activity-modal-homework-links">
+        <div className="il-act-sheet-hw-links">
           {item.links.map((link, index) => (
-            <a key={`${link.url}-${index}`} href={link.url} data-no-activity-modal="true" className="il-activity-modal-homework-link">
+            <a
+              key={`${link.url}-${index}`}
+              href={link.url}
+              data-no-activity-modal="true"
+              className="il-act-sheet-hw-link"
+            >
               <FileText size={12} />
               {link.label}
             </a>

@@ -55,7 +55,7 @@ betterlectio/
 │   ├── content.tsx           # Main content script
 │   ├── login.content.tsx     # Login page redesign
 │   ├── hide-flash.content.ts # FOUC prevention script
-│   ├── session-block.content.ts # Blocks session timeout popup
+│   ├── session-renew.content.ts # Blocks session timeout popup + proactive renewal
 │   ├── redirect-forside.content.ts # Redirects default.aspx to forside.aspx
 │   └── background.ts         # Background service worker
 │
@@ -82,7 +82,6 @@ betterlectio/
 │   ├── fuzzy-search.ts       # Fuzzy search algorithm
 │   ├── findskema-cache.ts    # Resolves AvanceretSkema afdeling/subcache keys
 │   ├── findskema-types.ts    # Maps AvanceretSkema ids to BetterLectio entity types
-│   ├── findskema-advanced.ts # Fetches FindSkemaAdv postback lists (Fag/Faggrupper)
 │   ├── hold-mapping.ts       # Hold-to-subject name mapping system
 │   ├── opgave-detail.ts      # Fetch/parse assignment detail pages
 │   ├── activity-detail.ts    # Fetch/parse activity detail pages (aktivitetforside2)
@@ -232,7 +231,6 @@ Important: `subcache` must come from Lectio's runtime dataset key format `Avance
 
 Type mapping must use real AvanceretSkema prefixes, not assumed single-letter categories. In production data, `SC*` represents stamklasser and `RO*` represents lokaler (while `RE*` = ressourcer, `HE*` = hold, `GE*` = grupper). Misclassifying `SC` as students or `RO` as resources causes broken filters for classes/rooms/resources.
 
-`Fag` and `Faggrupper` are fetched through `FindSkemaAdv.aspx` postbacks (`ChangeFagBtn`, `ChangeFaggruppeBtn`) and parsed from response lists, because they are not consistently present in `AvanceretSkema` dropdown payloads.
 - User profile display with dropdown menu
 - Profile picture click-to-enlarge with fullscreen overlay
 - Navigation groups with collapsible sections
@@ -247,7 +245,7 @@ Type mapping must use real AvanceretSkema prefixes, not assumed single-letter ca
 
 Features:
 - Fuzzy search with Danish text normalization (handles æ, ø, å)
-- Type filter toggles (Elev, Lærer, Klasse, Lokale, Ressource, Hold, Gruppe, Fag, Faggruppe)
+- Single-select type filters (Elev, Lærer, Klasse, Lokale, Ressource, Hold, Gruppe)
 - Starred people section with persistent storage
 - Recent searches with click-to-remove
 - Person cards with lazy-loaded profile pictures
@@ -612,6 +610,7 @@ HTML snapshots of Lectio pages before extension modification:
 ### Schedule Features
 - Today column highlight with "I dag" label
 - Current time indicator line (optional time label)
+- Countdown bar showing time remaining in current class / time until next class starts
 - Viewing header with star toggle and back navigation
 - Support for all entity types (student, teacher, class, room, hold, group, resource)
 

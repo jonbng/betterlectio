@@ -147,9 +147,8 @@ function installActivityModalClickInterceptor() {
 
 function initLayout() {
   // If this page was prerendered and is now activating, it's already set up
-  // @ts-ignore
   const wasPrerendered =
-    (window as any).__IL_PRERENDERED__ && !document.prerendering;
+    (window as any).__IL_PRERENDERED__ && !(document as any).prerendering;
 
   // Check if this is the login.aspx page (session expired redirect, e.g. /lectio/94/login.aspx)
   const isLoginAspx = /\/lectio\/\d+\/login\.aspx/.test(
@@ -893,8 +892,6 @@ function injectFindSkemaPage(schoolId: string) {
     | "ressource"
     | "hold"
     | "gruppe"
-    | "fag"
-    | "faggruppe"
     | undefined;
 
   // Create container for our FindSkema page

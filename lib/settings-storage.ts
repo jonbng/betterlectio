@@ -15,6 +15,7 @@ const ScheduleSettingsSchema = z.object({
   todayHighlight: z.boolean().default(true),
   currentTimeIndicator: z.boolean().default(true),
   currentTimeLabel: z.boolean().default(false),
+  countdownBar: z.boolean().default(true),
   viewingScheduleHeader: z.boolean().default(true),
 });
 

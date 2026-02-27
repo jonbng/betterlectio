@@ -503,6 +503,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 requiresReload
               />
               <FeatureToggle
+                id="schedule-countdown"
+                label="Nedtælling"
+                description="Tæller ned til slutningen af den nuværende lektion eller starten af den næste"
+                enabled={settings.schedule?.countdownBar ?? true}
+                onChange={(v) => handleSettingChange('schedule', 'countdownBar', v)}
+              />
+              <FeatureToggle
                 id="schedule-viewing"
                 label="Visningshoved"
                 description="Viser hvem skemaet tilhører når du ser andres skemaer"

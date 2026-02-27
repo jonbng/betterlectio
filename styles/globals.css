@@ -1805,6 +1805,134 @@
     white-space: nowrap;
   }
 
+  /* ── Sidebar Schedule Countdown ── */
+  .il-cd {
+    border-radius: 0.5rem;
+    background: oklch(0.97 0.008 265);
+    border: 1px solid oklch(0.91 0.015 265);
+    padding: 0.4375rem 0.5625rem;
+    font-family: "Geist", sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .il-cd-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.375rem;
+  }
+
+  .il-cd-subject {
+    font-size: 0.8125rem;
+    font-weight: 650;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  .il-cd-pause {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: oklch(0.4 0.02 265);
+    line-height: 1.2;
+  }
+
+  .il-cd-time {
+    font-size: 0.9375rem;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    color: oklch(0.25 0.03 265);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .il-cd-bar {
+    height: 3px;
+    background: oklch(0.92 0.012 265);
+    border-radius: 1.5px;
+    overflow: hidden;
+  }
+
+  .il-cd-fill {
+    height: 100%;
+    border-radius: 1.5px;
+    transition: width 1s linear;
+  }
+
+  .il-cd-sub {
+    font-size: 0.6875rem;
+    color: oklch(0.52 0.02 265);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .il-cd-done-text {
+    font-size: 0.8125rem;
+    color: oklch(0.42 0.1 145);
+    font-weight: 550;
+    line-height: 1.2;
+  }
+
+  .il-cd-check {
+    flex-shrink: 0;
+  }
+
+  .il-cd[data-state="done"] {
+    background: oklch(0.97 0.012 145);
+    border-color: oklch(0.9 0.03 145);
+  }
+
+  .il-cd[data-state="break"] {
+    border-style: dashed;
+    background: oklch(0.98 0.005 265);
+  }
+
+  /* Dark mode */
+  .dark .il-cd {
+    background: oklch(0.2 0.012 265);
+    border-color: oklch(0.28 0.02 265);
+  }
+
+  .dark .il-cd[data-state="done"] {
+    background: oklch(0.18 0.015 145);
+    border-color: oklch(0.25 0.025 145);
+  }
+
+  .dark .il-cd[data-state="break"] {
+    background: oklch(0.18 0.008 265);
+  }
+
+  .dark .il-cd-pause {
+    color: oklch(0.7 0.02 265);
+  }
+
+  .dark .il-cd-time {
+    color: oklch(0.9 0.01 265);
+  }
+
+  .dark .il-cd-sub {
+    color: oklch(0.58 0.015 265);
+  }
+
+  .dark .il-cd-bar {
+    background: oklch(0.28 0.015 265);
+  }
+
+  .dark .il-cd-done-text {
+    color: oklch(0.7 0.1 145);
+  }
+
+  .dark .il-cd-check path {
+    stroke: oklch(0.7 0.1 145);
+  }
+
   /* Hide "hold og grupper" section at bottom of schedule page */
   #il-original-content #s_m_Content_Content_holdElementLinkList,
   #il-original-content
@@ -3742,653 +3870,621 @@
   }
 
   /* ========================================
-     Activity Class Modal Styles
+     Activity Sheet Styles (Side Panel)
      ======================================== */
 
-  .il-activity-modal-wrapper {
+  .il-act-sheet-wrapper {
     position: fixed;
     inset: 0;
     z-index: 150 !important;
+    display: flex;
+    justify-content: flex-end;
     pointer-events: auto;
   }
 
-  .il-activity-modal-backdrop {
+  .il-act-sheet-backdrop {
     position: absolute;
     inset: 0;
-    background: oklch(0 0 0 / 0.52);
-    backdrop-filter: blur(3px);
-    animation: il-activity-fade-in 0.2s ease;
+    background: oklch(0 0 0 / 0.38);
+    backdrop-filter: blur(4px);
+    animation: il-act-sheet-fade-in 0.2s ease;
   }
 
-  @keyframes il-activity-fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+  @keyframes il-act-sheet-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
-  @keyframes il-activity-pop-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+  @keyframes il-act-sheet-slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
   }
 
-  .il-activity-modal-panel {
-    position: absolute;
-    inset: 4vh auto auto 50%;
-    transform: translateX(-50%);
-    width: min(1000px, calc(100vw - 2rem));
-    max-height: 92vh;
-    background: linear-gradient(
-      150deg,
-      color-mix(in oklch, var(--background) 94%, oklch(0.98 0.04 260) 6%),
-      var(--background)
-    );
-    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
-    border-radius: 1rem;
-    box-shadow:
-      0 22px 44px oklch(0.15 0.02 265 / 0.2),
-      inset 0 1px 0 oklch(1 0 0 / 0.45);
+  .il-act-sheet {
+    position: relative;
+    width: 520px;
+    max-width: 100vw;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    background: var(--background);
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 40px oklch(0 0 0 / 0.1);
+    animation: il-act-sheet-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
-    animation: il-activity-pop-in 0.2s ease;
   }
 
-  .il-activity-modal-close {
+  /* Accent color bar at top */
+  .il-act-sheet::before {
+    content: '';
     position: absolute;
-    top: 0.9rem;
-    right: 0.9rem;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: oklch(0.58 0.18 var(--accent-hue, 265));
+    z-index: 2;
+  }
+
+  /* Progress bar for navigation loading */
+  .il-act-sheet-progress {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 3;
+    overflow: hidden;
+  }
+
+  .il-act-sheet-progress-bar {
+    height: 100%;
+    width: 35%;
+    background: oklch(0.58 0.18 var(--accent-hue, 265));
+    border-radius: 1px;
+    animation: il-act-sheet-progress-slide 1.4s ease-in-out infinite;
+  }
+
+  @keyframes il-act-sheet-progress-slide {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(380%); }
+  }
+
+  /* Header */
+  .il-act-sheet-header {
+    padding: 1.15rem 1.4rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .il-act-sheet-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.85rem;
+  }
+
+  .il-act-sheet-sched-nav {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .il-act-sheet-sched-nav button,
+  .il-act-sheet-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.8rem;
-    height: 1.8rem;
-    border-radius: 9999px;
-    border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
-    background: color-mix(in oklch, var(--background) 92%, transparent);
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--background);
     color: var(--muted-foreground);
     cursor: pointer;
-    transition: all 0.15s ease;
-    z-index: 4;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   }
 
-  .il-activity-modal-close:hover {
+  .il-act-sheet-sched-nav button:hover:not(:disabled),
+  .il-act-sheet-close:hover {
     color: var(--foreground);
-    border-color: var(--border);
-    background: color-mix(in oklch, var(--muted) 88%, transparent);
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 120%, var(--foreground) 10%);
   }
 
-  .il-activity-modal-loading {
-    padding: 4rem 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+  .il-act-sheet-sched-nav button:disabled {
+    opacity: 0.28;
+    cursor: not-allowed;
   }
 
-  .il-activity-modal-skeleton {
-    border-radius: 0.6rem;
-    background: linear-gradient(
-      90deg,
-      color-mix(in oklch, var(--muted) 88%, transparent),
-      color-mix(in oklch, var(--muted) 72%, oklch(1 0 0) 8%),
-      color-mix(in oklch, var(--muted) 88%, transparent)
-    );
-    background-size: 200% 100%;
-    animation: il-activity-skeleton-shimmer 1.2s linear infinite;
-  }
-
-  .il-activity-modal-skeleton-title {
-    height: 2rem;
-    width: min(36rem, 85%);
-  }
-
-  .il-activity-modal-skeleton-chip {
-    height: 1.2rem;
-    width: min(14rem, 50%);
-  }
-
-  .il-activity-modal-skeleton-body {
-    height: 14rem;
-    width: 100%;
-    margin-top: 0.5rem;
-  }
-
-  @keyframes il-activity-skeleton-shimmer {
-    from {
-      background-position: 200% 0;
-    }
-    to {
-      background-position: -200% 0;
-    }
-  }
-
-  .il-activity-modal-header {
-    padding: 1.3rem 1.4rem 0.8rem;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 78%, transparent);
-    background:
-      radial-gradient(
-        72% 130% at 0% 0%,
-        oklch(0.86 0.05 260 / 0.35),
-        transparent
-      ),
-      transparent;
-  }
-
-  .il-activity-modal-topline {
-    margin-bottom: 0.5rem;
-  }
-
-  .il-activity-modal-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    font-weight: 650;
-    color: var(--muted-foreground);
-  }
-
-  .il-activity-modal-title {
+  .il-act-sheet-title {
     margin: 0;
-    padding-right: 2.5rem;
-    font-size: clamp(1.2rem, 2.8vw, 1.65rem);
-    line-height: 1.2;
-    letter-spacing: -0.02em;
+    font-size: 1.3rem;
+    font-weight: 650;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
     color: var(--foreground);
   }
 
-  .il-activity-modal-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.5rem;
-    margin-top: 0.9rem;
-  }
-
-  .il-activity-modal-meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.5rem 0.55rem;
-    border: 1px solid color-mix(in oklch, var(--border) 66%, transparent);
-    border-radius: 0.6rem;
-    background: color-mix(in oklch, var(--card) 75%, transparent);
-  }
-
-  .il-activity-modal-meta-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted-foreground);
-  }
-
-  .il-activity-modal-meta-value {
+  .il-act-sheet-datetime {
+    margin: 0.35rem 0 0;
     font-size: 0.82rem;
-    color: var(--foreground);
-    font-weight: 560;
-    line-height: 1.3;
-    word-break: break-word;
+    color: var(--muted-foreground);
+    line-height: 1.4;
   }
 
-  .il-activity-modal-chip-row {
-    margin-top: 0.75rem;
+  .il-act-sheet-pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
   }
 
-  .il-activity-modal-hold-pill,
-  .il-activity-modal-chip-link {
+  .il-act-sheet-hold-pill {
     display: inline-flex;
     align-items: center;
     gap: 0.28rem;
-    padding: 0.26rem 0.6rem;
-    border-radius: 9999px;
-    font-size: 0.74rem;
-    text-decoration: none;
-    border: 1px solid transparent;
-  }
-
-  .il-activity-modal-hold-pill {
-    color: oklch(0.42 0.14 var(--hold-hue, 265));
-    background: oklch(0.95 0.06 var(--hold-hue, 265));
-  }
-
-  .il-activity-modal-chip-link {
-    color: var(--muted-foreground);
-    border-color: color-mix(in oklch, var(--border) 70%, transparent);
-    background: color-mix(in oklch, var(--card) 74%, transparent);
-    transition: all 0.15s ease;
-  }
-
-  .il-activity-modal-chip-link:hover {
-    color: var(--foreground);
-    border-color: var(--border);
-    background: color-mix(in oklch, var(--muted) 75%, transparent);
-  }
-
-  .il-activity-modal-sections {
-    display: flex;
-    gap: 0.35rem;
-    padding: 0.7rem 1.1rem 0.65rem;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
-    background: color-mix(in oklch, var(--card) 48%, transparent);
-  }
-
-  .il-activity-modal-section-btn {
-    padding: 0.32rem 0.75rem;
+    padding: 0.22rem 0.6rem;
     border-radius: 999px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--muted-foreground);
-    font-size: 0.78rem;
-    font-weight: 540;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    font-size: 0.74rem;
+    font-weight: 580;
+    color: oklch(0.4 0.14 var(--accent-hue, 265));
+    background: oklch(0.95 0.055 var(--accent-hue, 265));
   }
 
-  .il-activity-modal-section-btn.is-active {
-    color: var(--foreground);
-    border-color: color-mix(in oklch, var(--border) 82%, transparent);
-    background: color-mix(in oklch, var(--card) 78%, transparent);
-  }
-
-  .il-activity-modal-section-btn:hover {
-    color: var(--foreground);
-  }
-
-  .il-activity-modal-body {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 1rem 1.15rem;
-  }
-
-  .il-activity-modal-navbars {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.55rem;
-    padding: 0.6rem 1.1rem;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
-    background: color-mix(in oklch, var(--card) 58%, transparent);
-  }
-
-  .il-activity-modal-navblock {
-    border: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
-    border-radius: 0.65rem;
-    background: color-mix(in oklch, var(--card) 74%, transparent);
-    padding: 0.45rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .il-activity-modal-navlabel {
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted-foreground);
-    font-weight: 640;
-  }
-
-  .il-activity-modal-navactions {
-    display: flex;
-    gap: 0.35rem;
-    align-items: center;
-  }
-
-  .il-activity-modal-navbtn,
-  .il-activity-modal-navlink {
+  .il-act-sheet-pill {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.2rem;
-    min-height: 1.7rem;
-    padding: 0.2rem 0.45rem;
-    border-radius: 0.42rem;
-    border: 1px solid color-mix(in oklch, var(--border) 74%, transparent);
-    background: color-mix(in oklch, var(--background) 72%, transparent);
-    color: var(--foreground);
-    font-size: 0.72rem;
+    gap: 0.28rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
     text-decoration: none;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .il-act-sheet-pill.is-link {
     cursor: pointer;
-    transition: all 0.15s ease;
-    flex: 1;
   }
 
-  .il-activity-modal-navbtn:hover:not(:disabled),
-  .il-activity-modal-navlink:hover {
-    background: color-mix(in oklch, var(--muted) 75%, transparent);
-    border-color: var(--border);
+  .il-act-sheet-pill.is-link:hover {
+    color: var(--foreground);
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 120%, var(--foreground) 10%);
   }
 
-  .il-activity-modal-navbtn:disabled,
-  .il-activity-modal-navlink.is-disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-
-  .il-activity-modal-nav-error {
-    margin: 0.55rem 1.1rem 0;
+  /* Nav error */
+  .il-act-sheet-error {
+    margin: 0.65rem 1.4rem 0;
+    padding: 0.55rem 0.7rem;
     border: 1px solid oklch(0.83 0.07 65);
     background: oklch(0.97 0.03 65);
-    border-radius: 0.62rem;
-    padding: 0.5rem 0.65rem;
+    border-radius: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.5rem;
     font-size: 0.76rem;
     color: oklch(0.38 0.08 65);
   }
 
-  .il-activity-modal-nav-error-actions {
+  .il-act-sheet-error-actions {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
     flex-shrink: 0;
   }
 
-  .il-activity-modal-nav-error-btn {
+  .il-act-sheet-error-actions button {
     border: 1px solid oklch(0.78 0.06 65);
     background: oklch(0.94 0.04 65);
     color: oklch(0.36 0.08 65);
-    border-radius: 0.4rem;
+    border-radius: 0.38rem;
     padding: 0.2rem 0.45rem;
     cursor: pointer;
     font-size: 0.72rem;
     font-weight: 560;
-    transition: all 0.15s ease;
+    transition: background 0.15s ease;
   }
 
-  .il-activity-modal-nav-error-btn:hover:not(:disabled) {
+  .il-act-sheet-error-actions button:hover:not(:disabled) {
     background: oklch(0.91 0.05 65);
   }
 
-  .il-activity-modal-nav-error-btn:disabled {
-    opacity: 0.45;
+  .il-act-sheet-error-actions button:disabled {
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
-  .il-activity-modal-nav-error-btn.is-ghost {
-    border-color: color-mix(in oklch, var(--border) 75%, transparent);
-    background: color-mix(in oklch, var(--background) 72%, transparent);
+  .il-act-sheet-error-actions button.is-ghost {
+    border-color: var(--border);
+    background: var(--background);
     color: var(--muted-foreground);
   }
 
-  .il-activity-modal-overview {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 0.8rem;
+  /* Body */
+  .il-act-sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.25rem 1.4rem;
   }
 
-  .il-activity-modal-note-card {
-    border: 1px solid color-mix(in oklch, var(--border) 72%, transparent);
-    border-radius: 0.75rem;
-    background: color-mix(in oklch, var(--card) 78%, transparent);
-    padding: 0.75rem 0.85rem;
+  .il-act-sheet-section {
+    margin-bottom: 1.6rem;
   }
 
-  .il-activity-modal-note-card h3 {
-    margin: 0;
-    font-size: 0.76rem;
-    letter-spacing: 0.04em;
-    color: var(--muted-foreground);
+  .il-act-sheet-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .il-act-sheet-label {
+    margin: 0 0 0.6rem;
+    font-size: 0.64rem;
     text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .il-act-sheet-label-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 999px;
+    background: var(--muted);
+    font-size: 0.62rem;
     font-weight: 650;
-  }
-
-  .il-activity-modal-note-card p {
-    margin: 0.5rem 0 0;
-    line-height: 1.5;
-    font-size: 0.88rem;
-    color: var(--foreground);
-    white-space: pre-wrap;
-  }
-
-  .il-activity-modal-note-card.is-empty p {
+    letter-spacing: 0;
+    text-transform: none;
     color: var(--muted-foreground);
   }
 
-  .il-activity-modal-homework-list {
+  /* Note callout */
+  .il-act-sheet-note {
+    padding: 0.7rem 0.9rem;
+    border-left: 2.5px solid oklch(0.58 0.12 var(--accent-hue, 265));
+    background: color-mix(in oklch, var(--muted) 45%, transparent);
+    border-radius: 0 0.5rem 0.5rem 0;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    color: var(--foreground);
+  }
+
+  /* Homework */
+  .il-act-sheet-hw-list {
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.6rem;
   }
 
-  .il-activity-modal-homework-card {
-    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    border-radius: 0.78rem;
-    background: color-mix(in oklch, var(--card) 82%, transparent);
+  .il-act-sheet-hw-card {
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
     overflow: hidden;
   }
 
-  .il-activity-modal-homework-head {
-    padding: 0.7rem 0.8rem;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
-    background: color-mix(in oklch, var(--muted) 64%, transparent);
-  }
-
-  .il-activity-modal-homework-head h3 {
+  .il-act-sheet-hw-title {
+    padding: 0.6rem 0.85rem;
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.86rem;
+    font-weight: 580;
     line-height: 1.35;
     color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
   }
 
-  .il-activity-modal-homework-content {
-    padding: 0.8rem;
-    font-size: 0.85rem;
+  .il-act-sheet-hw-content {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.84rem;
     line-height: 1.55;
     color: var(--foreground);
     overflow-wrap: anywhere;
   }
 
-  .il-activity-modal-homework-content p {
-    margin: 0 0 0.6rem;
+  .il-act-sheet-hw-content p {
+    margin: 0 0 0.5rem;
   }
 
-  .il-activity-modal-homework-content a {
+  .il-act-sheet-hw-content p:last-child {
+    margin-bottom: 0;
+  }
+
+  .il-act-sheet-hw-content a {
     color: oklch(0.5 0.15 255);
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
-  .il-activity-modal-homework-content img {
+  .il-act-sheet-hw-content img {
     max-width: 100%;
     height: auto;
-    border-radius: 0.5rem;
-    border: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
-    margin-top: 0.5rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--border);
+    margin-top: 0.4rem;
   }
 
-  .il-activity-modal-homework-empty {
+  .il-act-sheet-hw-empty {
     margin: 0;
-    padding: 0.8rem;
+    padding: 0.6rem 0.85rem;
     color: var(--muted-foreground);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
+    font-style: italic;
   }
 
-  .il-activity-modal-homework-links {
-    padding: 0 0.8rem 0.75rem;
+  .il-act-sheet-hw-links {
+    padding: 0.4rem 0.85rem 0.65rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.35rem;
   }
 
-  .il-activity-modal-homework-link {
+  .il-act-sheet-hw-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    padding: 0.22rem 0.5rem;
+    gap: 0.25rem;
+    padding: 0.2rem 0.48rem;
     border-radius: 999px;
-    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    border: 1px solid var(--border);
     color: var(--muted-foreground);
     text-decoration: none;
     font-size: 0.72rem;
-    transition: all 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease;
   }
 
-  .il-activity-modal-homework-link:hover {
+  .il-act-sheet-hw-link:hover {
     color: var(--foreground);
-    border-color: var(--border);
-    background: color-mix(in oklch, var(--muted) 70%, transparent);
+    background: var(--muted);
   }
 
-  .il-activity-modal-related-list {
+  /* Related items */
+  .il-act-sheet-rel-list {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.35rem;
   }
 
-  .il-activity-modal-related-item {
-    border: 1px solid color-mix(in oklch, var(--border) 68%, transparent);
-    border-radius: 0.65rem;
-    background: color-mix(in oklch, var(--card) 76%, transparent);
-    padding: 0.55rem 0.7rem;
+  .il-act-sheet-rel-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-  }
-
-  .il-activity-modal-related-text {
-    min-width: 0;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
     font-size: 0.82rem;
     color: var(--foreground);
     line-height: 1.3;
   }
 
-  .il-activity-modal-related-link {
+  .il-act-sheet-rel-item a {
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
     color: oklch(0.5 0.13 255);
     text-decoration: none;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     font-weight: 550;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  .il-activity-modal-related-link:hover {
+  .il-act-sheet-rel-item a:hover {
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
-  .il-activity-modal-related-muted {
+  .il-act-sheet-rel-item .is-muted {
     color: var(--muted-foreground);
     font-size: 0.72rem;
-    white-space: nowrap;
   }
 
-  .il-activity-modal-footer {
-    border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    padding: 0.7rem 1rem;
+  /* Empty state */
+  .il-act-sheet-empty {
     display: flex;
-    justify-content: flex-end;
-    background: color-mix(in oklch, var(--card) 65%, transparent);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    padding: 3.5rem 1rem;
+    color: var(--muted-foreground);
+    text-align: center;
   }
 
-  .il-activity-modal-open-link {
+  .il-act-sheet-empty p {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  /* Footer */
+  .il-act-sheet-footer {
+    padding: 0.6rem 1.4rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+  }
+
+  .il-act-sheet-lectio-link {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    font-size: 0.8rem;
     color: var(--muted-foreground);
     text-decoration: none;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.45rem;
+    font-size: 0.78rem;
+    padding: 0.28rem 0.5rem;
+    border-radius: 0.4rem;
+    transition: color 0.15s ease, background 0.15s ease;
   }
 
-  .il-activity-modal-open-link:hover {
+  .il-act-sheet-lectio-link:hover {
     color: var(--foreground);
-    background: color-mix(in oklch, var(--muted) 72%, transparent);
+    background: var(--muted);
   }
 
-  .dark .il-activity-modal-panel {
+  .il-act-sheet-hold-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .il-act-sheet-hold-nav button,
+  .il-act-sheet-hold-nav a,
+  .il-act-sheet-hold-nav span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+    text-decoration: none;
+  }
+
+  .il-act-sheet-hold-nav button:hover:not(:disabled),
+  .il-act-sheet-hold-nav a:hover {
+    color: var(--foreground);
+    background: var(--muted);
+  }
+
+  .il-act-sheet-hold-nav button:disabled,
+  .il-act-sheet-hold-nav span.is-disabled {
+    opacity: 0.28;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Loading skeleton */
+  .il-act-sheet-loading {
+    padding: 1.5rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .il-act-sheet-skeleton {
+    border-radius: 0.45rem;
     background: linear-gradient(
-      155deg,
-      color-mix(in oklch, var(--background) 93%, oklch(0.27 0.06 260) 7%),
-      var(--background)
+      90deg,
+      var(--muted),
+      color-mix(in oklch, var(--muted) 55%, var(--background)),
+      var(--muted)
     );
-    box-shadow:
-      0 20px 40px oklch(0 0 0 / 0.4),
-      inset 0 1px 0 oklch(1 0 0 / 0.04);
+    background-size: 200% 100%;
+    animation: il-act-sheet-shimmer 1.3s linear infinite;
   }
 
-  .dark .il-activity-modal-hold-pill {
-    color: oklch(0.78 0.14 var(--hold-hue, 265));
-    background: oklch(0.28 0.08 var(--hold-hue, 265));
+  .il-act-sheet-sk-title {
+    height: 1.5rem;
+    width: 65%;
   }
 
-  .dark .il-activity-modal-homework-content a,
-  .dark .il-activity-modal-related-link {
+  .il-act-sheet-sk-meta {
+    height: 0.9rem;
+    width: 45%;
+  }
+
+  .il-act-sheet-sk-body {
+    height: 7rem;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .il-act-sheet-sk-body-sm {
+    height: 4rem;
+    width: 100%;
+  }
+
+  @keyframes il-act-sheet-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+
+  /* Dark mode */
+  .dark .il-act-sheet {
+    box-shadow: -12px 0 40px oklch(0 0 0 / 0.35);
+  }
+
+  .dark .il-act-sheet::before {
+    background: oklch(0.65 0.15 var(--accent-hue, 265));
+  }
+
+  .dark .il-act-sheet-hold-pill {
+    color: oklch(0.78 0.14 var(--accent-hue, 265));
+    background: oklch(0.28 0.08 var(--accent-hue, 265));
+  }
+
+  .dark .il-act-sheet-note {
+    border-left-color: oklch(0.55 0.1 var(--accent-hue, 265));
+  }
+
+  .dark .il-act-sheet-hw-content a,
+  .dark .il-act-sheet-rel-item a {
     color: oklch(0.73 0.11 255);
   }
 
-  .dark .il-activity-modal-nav-error {
+  .dark .il-act-sheet-error {
     border-color: oklch(0.52 0.08 65);
     background: oklch(0.27 0.04 65);
     color: oklch(0.84 0.08 65);
   }
 
-  .dark .il-activity-modal-nav-error-btn {
+  .dark .il-act-sheet-error-actions button {
     border-color: oklch(0.5 0.07 65);
     background: oklch(0.31 0.04 65);
     color: oklch(0.86 0.07 65);
   }
 
-  .dark .il-activity-modal-nav-error-btn:hover:not(:disabled) {
+  .dark .il-act-sheet-error-actions button:hover:not(:disabled) {
     background: oklch(0.35 0.05 65);
   }
 
-  @media (max-width: 860px) {
-    .il-activity-modal-panel {
-      width: calc(100vw - 1rem);
-      inset: 1.5vh auto auto 50%;
-      max-height: 97vh;
-    }
-
-    .il-activity-modal-meta-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .il-activity-modal-navbars {
-      grid-template-columns: 1fr;
-    }
-  }
-
+  /* Mobile: bottom sheet instead of side panel */
   @media (max-width: 600px) {
-    .il-activity-modal-panel {
-      inset: auto 0 0 0;
+    .il-act-sheet {
       width: 100vw;
-      max-height: 95vh;
+      height: auto;
+      max-height: 92vh;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      border-left: none;
+      border-top: 1px solid var(--border);
       border-radius: 1rem 1rem 0 0;
-      transform: none;
-      animation: il-opgave-slide-in 0.2s ease;
+      animation: il-act-sheet-mobile-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .il-activity-modal-header {
-      padding: 1.1rem 1rem 0.75rem;
+    .il-act-sheet::before {
+      border-radius: 1rem 1rem 0 0;
     }
 
-    .il-activity-modal-sections {
-      overflow-x: auto;
-      padding: 0.6rem 0.8rem;
+    @keyframes il-act-sheet-mobile-in {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
     }
 
-    .il-activity-modal-body {
-      padding: 0.85rem;
+    .il-act-sheet-header {
+      padding: 1rem 1.15rem 0.85rem;
+    }
+
+    .il-act-sheet-body {
+      padding: 1rem 1.15rem;
+    }
+
+    .il-act-sheet-footer {
+      padding: 0.55rem 1.15rem;
     }
   }
 
@@ -4675,6 +4771,61 @@
   .findskema-card-fallback.hidden {
     display: none;
   }
+
+  /* Entity card variant (classes, rooms, resources, hold, groups) */
+  .findskema-entity-card {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+
+  .findskema-entity-bg-icon {
+    position: absolute;
+    top: -10%;
+    right: -10%;
+    width: 70%;
+    height: 70%;
+    color: var(--foreground);
+    opacity: 0.05;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+
+  .findskema-entity-card:hover .findskema-entity-bg-icon {
+    opacity: 0.09;
+    transform: scale(1.05) rotate(-3deg);
+  }
+
+  .findskema-entity-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1;
+  }
+
+  .findskema-entity-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  .findskema-entity-content > .findskema-card-badge {
+    align-self: flex-start;
+  }
+
+  /* Entity type accent colors — subtle left border */
+  .findskema-entity-K { border-left: 3px solid oklch(0.63 0.18 295); }
+  .findskema-entity-L { border-left: 3px solid oklch(0.7 0.16 55); }
+  .findskema-entity-R { border-left: 3px solid oklch(0.65 0.2 350); }
+  .findskema-entity-H { border-left: 3px solid oklch(0.7 0.14 200); }
+  .findskema-entity-G { border-left: 3px solid oklch(0.75 0.14 85); }
 
   /* Content below image */
   .findskema-card-content {

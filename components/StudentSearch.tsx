@@ -257,7 +257,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
     return results.map(r => r.item);
   }, [items, query, activeFilters]);
 
-  const handleRemoveRecent = useCallback((e: React.MouseEvent, id: string) => {
+  const handleRemoveRecent = useCallback((e: React.MouseEvent<HTMLButtonElement>, id: string) => {
     e.stopPropagation();
     removeRecentSearch(id);
     setRecentSearches(getRecentSearches());
@@ -272,7 +272,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
           ref={inputRef}
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
           onFocus={() => setFocused(true)}
           placeholder={loading ? 'Indlæser søgedata...' : typeConfig.placeholder}
           disabled={loading || !!error}

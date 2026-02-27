@@ -43,7 +43,7 @@ export function LoginPage({ schools }: LoginPageProps) {
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((prev) =>
@@ -186,7 +186,7 @@ export function LoginPage({ schools }: LoginPageProps) {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
             onKeyDown={handleKeyDown}
             placeholder="Søg efter skole..."
             className="w-full h-14 pl-12 pr-12 rounded-lg border-2 border-gray-200 bg-white text-base focus:outline-none focus:border-[oklch(0.54_0.2_265)] focus:ring-2 focus:ring-[oklch(0.54_0.2_265)]/20 transition-all placeholder:text-gray-400"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { Star, Trash2 } from 'lucide-react';
+import { Star, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
 import { fetchPictureUrl, getCachedPictureUrl } from '../lib/findskema-storage';
 
 // Type configuration for badge display
@@ -11,8 +11,15 @@ const TYPE_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   R: { label: 'Ressource', badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300' },
   H: { label: 'Hold', badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' },
   G: { label: 'Gruppe', badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
-  F: { label: 'Fag', badgeClass: 'bg-lime-100 text-lime-700 dark:bg-lime-900 dark:text-lime-300' },
-  J: { label: 'Faggruppe', badgeClass: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300' },
+};
+
+// Icons for entity types (non-person)
+const TYPE_ICONS: Record<string, typeof School> = {
+  K: School,
+  L: DoorOpen,
+  R: Box,
+  H: UsersRound,
+  G: LayoutGrid,
 };
 
 // Types that typically have pictures
@@ -46,11 +53,14 @@ export function PersonCard({
   searchQuery,
 }: PersonCardProps) {
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.S;
+  const isEntityCard = !TYPES_WITH_PICTURES.includes(type);
+  const EntityIcon = TYPE_ICONS[type];
 
   // Build href with navigation context (for back button on schedule page)
+  const separator = href.includes('?') ? '&' : '?';
   const fullHref = searchQuery
-    ? `${href}&from=findskema&q=${encodeURIComponent(searchQuery)}`
-    : `${href}&from=findskema`;
+    ? `${href}${separator}from=findskema&q=${encodeURIComponent(searchQuery)}`
+    : `${href}${separator}from=findskema`;
   const initials = name
     .split(' ')
     .slice(0, 2)
@@ -66,7 +76,7 @@ export function PersonCard({
 
   // Load picture - check cache first, then fetch if visible
   useEffect(() => {
-    if (!TYPES_WITH_PICTURES.includes(type)) {
+    if (isEntityCard) {
       setPictureError(true); // Show initials for non-picture types
       return;
     }
@@ -137,7 +147,7 @@ export function PersonCard({
         (cardRef as any)._observer = null;
       }
     };
-  }, [id, schoolId, type]);
+  }, [id, schoolId, type, isEntityCard]);
 
   const handleStarClick = (e: MouseEvent) => {
     e.preventDefault();
@@ -162,6 +172,54 @@ export function PersonCard({
   // Show fallback if: no URL yet, error loading, or image hasn't loaded
   const showFallback = !pictureUrl || pictureError || !pictureLoaded;
 
+  // Entity card layout (classes, rooms, resources, hold, groups)
+  if (isEntityCard) {
+    return (
+      <a
+        ref={cardRef}
+        href={fullHref}
+        onClick={onClick}
+        className={`findskema-person-card findskema-entity-card findskema-entity-${type} group`}
+      >
+        {/* Decorative background icon */}
+        {EntityIcon && (
+          <EntityIcon className="findskema-entity-bg-icon" strokeWidth={1} />
+        )}
+
+        {/* Action buttons */}
+        <div className="findskema-card-actions">
+          {onRemove && (
+            <button
+              type="button"
+              onClick={handleRemoveClick}
+              className="findskema-remove-btn"
+              title="Fjern fra seneste"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleStarClick}
+            className={`findskema-star-btn ${isStarred ? 'is-starred' : ''}`}
+            title={isStarred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
+          >
+            <Star className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+
+        {/* Entity content */}
+        <div className="findskema-entity-content">
+          <span className="findskema-entity-name">{name}</span>
+          <span className={`findskema-card-badge ${config.badgeClass}`}>
+            {config.label}
+          </span>
+        </div>
+      </a>
+    );
+  }
+
+  // Person card layout (students, teachers)
   return (
     <a
       ref={cardRef}

@@ -128,8 +128,6 @@ function getFindSkemaType(): string | null {
     'klasse': 'Klasse',
     'ressource': 'Ressource',
     'gruppe': 'Gruppe',
-    'fag': 'Fag',
-    'faggruppe': 'Faggruppe',
   };
 
   return type ? typeMap[type] || type : null;
