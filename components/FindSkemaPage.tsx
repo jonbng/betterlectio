@@ -203,11 +203,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
         const combinedMap = new Map<string, SearchableItem>();
         for (const item of parsed) {
-          combinedMap.set(item.id, item);
+          combinedMap.set(`${item.type}:${item.id}`, item);
         }
         for (const item of advancedItems) {
-          if (!combinedMap.has(item.id)) {
-            combinedMap.set(item.id, item);
+          const key = `${item.type}:${item.id}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, item);
           }
         }
 

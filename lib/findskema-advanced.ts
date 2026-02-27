@@ -66,20 +66,20 @@ function parseAdvancedList(
 ): SearchableItem[] {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const targetList = doc.getElementById(listId);
-  const roots: Element[] = [];
+  const roots: Array<{ element: Element; isFallback: boolean }> = [];
   if (targetList) {
-    roots.push(targetList);
+    roots.push({ element: targetList, isFallback: false });
   }
   const fallbackListContainer = doc.getElementById('m_Content_listecontainer');
   if (fallbackListContainer) {
-    roots.push(fallbackListContainer);
+    roots.push({ element: fallbackListContainer, isFallback: true });
   }
 
   const items: SearchableItem[] = [];
   const seen = new Set<string>();
 
   for (const root of roots) {
-    const anchors = root.querySelectorAll('a[href]');
+    const anchors = root.element.querySelectorAll('a[href]');
     for (const anchor of anchors) {
       const name = anchor.textContent?.trim();
       const rawHref = anchor.getAttribute('href');
@@ -89,10 +89,12 @@ function parseAdvancedList(
       if (!absoluteHref.pathname.toLowerCase().includes('/skemany.aspx')) continue;
 
       // Guardrail: if fallback content is just student/teacher lists, don't misclassify them as F/J.
-      const hasKnownEntityParam = [...KNOWN_ENTITY_PARAMS].some((param) =>
-        absoluteHref.searchParams.has(param)
-      );
-      if (hasKnownEntityParam) continue;
+      if (root.isFallback) {
+        const hasKnownEntityParam = [...KNOWN_ENTITY_PARAMS].some((param) =>
+          absoluteHref.searchParams.has(param)
+        );
+        if (hasKnownEntityParam) continue;
+      }
 
       const relativeHref = toRelativeLectioUrl(absoluteHref);
       const contextCard = anchor.getAttribute('data-lectiocontextcard')?.trim();
@@ -131,6 +133,7 @@ export async function fetchAdvancedCategoryItems(
   formData.set('__EVENTTARGET', config.eventTarget);
   formData.set('__EVENTARGUMENT', '');
   formData.set('__LASTFOCUS', '');
+  formData.set('LectioPostbackId', '');
 
   const responseHtml = await fetch(advUrl.href, {
     method: 'POST',
