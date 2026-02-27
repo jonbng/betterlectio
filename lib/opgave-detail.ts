@@ -1,6 +1,7 @@
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface OpgaveDetail {
+  sourceUrl: string;
   title: string;
   hold: string;
   gradeScale: string;
@@ -34,6 +35,7 @@ export interface OpgaveDetail {
     viewState: string;
     viewStateEncrypted: string;
     eventValidation: string;
+    hiddenFields: Record<string, string>;
   };
 }
 
@@ -105,6 +107,65 @@ export function invalidateDetailCache(url: string): void {
   try {
     localStorage.removeItem(CACHE_PREFIX + id);
   } catch { /* ignore */ }
+}
+
+// Submit as a real page form POST (targeted at a hidden iframe) to mimic
+// Lectio's native ASP.NET postback flow and cookie/origin behavior.
+async function postFormViaHiddenIframe(action: string, fields: Record<string, string>): Promise<Document> {
+  return new Promise((resolve, reject) => {
+    const iframeName = `il-opgave-post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const iframe = document.createElement('iframe');
+    const form = document.createElement('form');
+    let didSubmit = false;
+
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+
+    form.method = 'POST';
+    form.action = action;
+    form.target = iframeName;
+    form.style.display = 'none';
+
+    for (const [name, value] of Object.entries(fields)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value ?? '';
+      form.appendChild(input);
+    }
+
+    const cleanup = () => {
+      form.remove();
+      iframe.remove();
+    };
+
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Submission timeout'));
+    }, 20000);
+
+    iframe.addEventListener('load', () => {
+      if (!didSubmit) return;
+
+      try {
+        const html = iframe.contentDocument?.documentElement?.outerHTML;
+        if (!html) throw new Error('No response HTML');
+        clearTimeout(timeout);
+        cleanup();
+        const parser = new DOMParser();
+        resolve(parser.parseFromString(html, 'text/html'));
+      } catch (err) {
+        clearTimeout(timeout);
+        cleanup();
+        reject(err);
+      }
+    });
+
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    didSubmit = true;
+    form.submit();
+  });
 }
 
 // ── Parser ─────────────────────────────────────────────────────────────
@@ -230,8 +291,14 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
   const viewState = (doc.querySelector('input[name="__VIEWSTATE"]') as HTMLInputElement)?.value || '';
   const viewStateEncrypted = (doc.querySelector('input[name="__VIEWSTATEENCRYPTED"]') as HTMLInputElement)?.value || '';
   const eventValidation = (doc.querySelector('input[name="__EVENTVALIDATION"]') as HTMLInputElement)?.value || '';
+  const hiddenFields: Record<string, string> = {};
+  form?.querySelectorAll('input[type="hidden"][name]').forEach((inputEl) => {
+    const input = inputEl as HTMLInputElement;
+    hiddenFields[input.name] = input.value ?? '';
+  });
 
   return {
+    sourceUrl: pageUrl,
     title,
     hold,
     gradeScale,
@@ -250,6 +317,7 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
       viewState,
       viewStateEncrypted,
       eventValidation,
+      hiddenFields,
     },
   };
 }
@@ -279,23 +347,31 @@ export async function fetchOpgaveDetail(url: string): Promise<OpgaveDetail> {
 // ── Submission ─────────────────────────────────────────────────────────
 
 export async function submitComment(detail: OpgaveDetail, comment: string): Promise<boolean> {
-  const formData = new URLSearchParams();
-  formData.set('__EVENTTARGET', 'm$Content$AddEntryBtn');
-  formData.set('__EVENTARGUMENT', '');
-  formData.set('__VIEWSTATEX', detail.formTokens.viewStateX);
-  formData.set('__VIEWSTATE', detail.formTokens.viewState);
-  formData.set('__VIEWSTATEENCRYPTED', detail.formTokens.viewStateEncrypted);
-  formData.set('__EVENTVALIDATION', detail.formTokens.eventValidation);
-  formData.set('m$Content$CommentsTB$tb', comment);
+  if (!detail.formTokens.action) {
+    throw new Error('Missing form action');
+  }
 
-  const response = await fetch(detail.formTokens.action, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: formData.toString(),
-  });
+  const fields = { ...detail.formTokens.hiddenFields };
+  fields.__EVENTTARGET = 'm$Content$AddEntryBtn';
+  fields.__EVENTARGUMENT = '';
+  fields.__VIEWSTATEX = detail.formTokens.viewStateX;
+  fields.__VIEWSTATE = detail.formTokens.viewState;
+  fields.__VIEWSTATEENCRYPTED = detail.formTokens.viewStateEncrypted;
+  fields.__EVENTVALIDATION = detail.formTokens.eventValidation;
+  fields['m$Content$CommentsTB$tb'] = comment;
 
-  return response.ok;
+  const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
+
+  // Login page or invalid response means the submission did not complete.
+  if (!doc.querySelector('#m_Content_NameLbl')) return false;
+
+  const parsed = parseDetail(doc, detail.sourceUrl);
+  const trimmedComment = comment.trim();
+
+  return (
+    parsed.entries.length > detail.entries.length
+    || parsed.entries.some(entry => entry.comment.trim() === trimmedComment)
+  );
 }
 
 export async function uploadFileAndSubmit(
@@ -304,6 +380,10 @@ export async function uploadFileAndSubmit(
   comment: string,
   schoolId: string,
 ): Promise<boolean> {
+  if (!detail.formTokens.action) {
+    throw new Error('Missing form action');
+  }
+
   // Step 1: Upload file to Lectio's document upload endpoint
   const uploadUrl = new URL(`/lectio/${schoolId}/dokumentupload.aspx`, window.location.origin).href;
   const uploadForm = new FormData();
@@ -321,31 +401,32 @@ export async function uploadFileAndSubmit(
 
   const uploadResult = await uploadResponse.text();
 
-  // Parse the serializedId from the upload response
-  // Lectio returns HTML with the document info - extract the serialized ID
-  const idMatch = uploadResult.match(/serializedId['":\s]+['"]([^'"]+)['"]/);
-  if (!idMatch) {
-    throw new Error('Could not parse upload response');
+  let serializedId = '';
+  try {
+    serializedId = JSON.parse(uploadResult)?.serializedId || '';
+  } catch {
+    const idMatch = uploadResult.match(/serializedId['":\s]+['"]([^'"]+)['"]/);
+    serializedId = idMatch?.[1] || '';
   }
-  const serializedId = idMatch[1];
+  if (!serializedId) throw new Error('Could not parse upload response');
 
   // Step 2: Submit the form with the uploaded document
-  const formData = new URLSearchParams();
-  formData.set('__EVENTTARGET', 'm$Content$choosedocument');
-  formData.set('__EVENTARGUMENT', 'documentId');
-  formData.set('__VIEWSTATEX', detail.formTokens.viewStateX);
-  formData.set('__VIEWSTATE', detail.formTokens.viewState);
-  formData.set('__VIEWSTATEENCRYPTED', detail.formTokens.viewStateEncrypted);
-  formData.set('__EVENTVALIDATION', detail.formTokens.eventValidation);
-  formData.set('m$Content$CommentsTB$tb', comment);
-  formData.set('m$Content$choosedocument$selectedDocumentId', JSON.stringify({ serializedId }));
+  const fields = { ...detail.formTokens.hiddenFields };
+  fields.__EVENTTARGET = 'm$Content$choosedocument';
+  fields.__EVENTARGUMENT = 'documentId';
+  fields.__VIEWSTATEX = detail.formTokens.viewStateX;
+  fields.__VIEWSTATE = detail.formTokens.viewState;
+  fields.__VIEWSTATEENCRYPTED = detail.formTokens.viewStateEncrypted;
+  fields.__EVENTVALIDATION = detail.formTokens.eventValidation;
+  fields['m$Content$CommentsTB$tb'] = comment;
+  fields['m$Content$choosedocument$selectedDocumentId'] = JSON.stringify({ serializedId });
 
-  const response = await fetch(detail.formTokens.action, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: formData.toString(),
-  });
+  const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
+  if (!doc.querySelector('#m_Content_NameLbl')) return false;
 
-  return response.ok;
+  const parsed = parseDetail(doc, detail.sourceUrl);
+  return (
+    parsed.entries.length > detail.entries.length
+    || parsed.entries.some(entry => !!entry.documentName)
+  );
 }

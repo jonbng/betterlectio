@@ -1008,12 +1008,6 @@ function applyMasonryLayout() {
         "important",
       );
 
-      console.log("[BetterLectio] Masonry layout:", {
-        containerWidth,
-        numColumns,
-        cardWidth,
-        scrollContainerWidth: scrollContainer?.clientWidth,
-      });
     };
 
     // Make container relative for absolute positioning

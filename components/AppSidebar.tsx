@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/sidebar';
 import { clearLoginState } from '@/lib/profile-cache';
 import { getSettings } from '@/lib/settings-storage';
+import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
 import { ScheduleCountdown } from './ScheduleCountdown';
@@ -214,6 +215,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
+  const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData('books') ?? true);
+  const [hasSps, setHasSps] = useState(() => getCachedPageHasData('sps') ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Get settings for sidebar visibility
@@ -288,6 +291,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         handleOpenActivityModal as EventListener,
       );
   }, []);
+
+  // Check if school has books/SPS data (async, cached 1 week)
+  useEffect(() => {
+    getPageHasData(schoolId, 'bd/userreservations.aspx', 'books').then(setHasBooks);
+    getPageHasData(schoolId, 'Elev_SPS.aspx', 'sps').then(setHasSps);
+  }, [schoolId]);
 
   const isActive = (page: string) => {
     const pageLower = page.toLowerCase();
@@ -472,20 +481,24 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     <IdCard className="size-[1.1rem] opacity-70" />
                     Studiekort
                   </a>
-                  <a
-                    href={`${baseUrl}/Elev_SPS.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
-                  >
-                    <ListChecks className="size-[1.1rem] opacity-70" />
-                    SPS
-                  </a>
-                  <a
-                    href={`${baseUrl}/bd/userreservations.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
-                  >
-                    <Library className="size-[1.1rem] opacity-70" />
-                    Bøger
-                  </a>
+                  {hasSps && (
+                    <a
+                      href={`${baseUrl}/Elev_SPS.aspx`}
+                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                    >
+                      <ListChecks className="size-[1.1rem] opacity-70" />
+                      SPS
+                    </a>
+                  )}
+                  {hasBooks && (
+                    <a
+                      href={`${baseUrl}/bd/userreservations.aspx`}
+                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                    >
+                      <Library className="size-[1.1rem] opacity-70" />
+                      Bøger
+                    </a>
+                  )}
                   <a
                     href={`${baseUrl}/studieplan/uvb_list_off.aspx`}
                     className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
