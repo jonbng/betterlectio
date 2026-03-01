@@ -8,6 +8,7 @@ export interface ScheduleBlock {
   end: number;   // minutes since midnight
   label: string; // hold/subject display name
   holdCode: string; // raw hold code for color
+  cancelled?: boolean; // true if "Aflyst"
 }
 
 interface CachedSchedule {
@@ -64,7 +65,8 @@ function parseScheduleFromDoc(doc: Document): ScheduleBlock[] {
 
   bricks.forEach((brick) => {
     if (brick.style.display === 'none') return;
-    if (brick.classList.contains('s2cancelled')) return;
+
+    const isCancelled = brick.classList.contains('s2cancelled');
 
     // Parse time from tooltip: "27/2-2026 08:10 til 09:50"
     const tooltip = brick.getAttribute('data-tooltip') || '';
@@ -84,7 +86,7 @@ function parseScheduleFromDoc(doc: Document): ScheduleBlock[] {
 
     const label = holdCode ? getHoldDisplayName(holdCode) : extractTitleFromTooltip(tooltip);
 
-    blocks.push({ start, end, label, holdCode });
+    blocks.push({ start, end, label, holdCode, ...(isCancelled ? { cancelled: true } : {}) });
   });
 
   blocks.sort((a, b) => a.start - b.start);

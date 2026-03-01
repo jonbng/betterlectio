@@ -21,6 +21,7 @@ import {
   getCachedDetail,
   invalidateDetailCache,
   submitComment,
+  type SubmissionStatus,
   uploadFileAndSubmit,
 } from '@/lib/opgave-detail';
 import type { OpgaveDetail } from '@/lib/opgave-detail';
@@ -83,6 +84,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const [comment, setComment] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<SubmissionStatus | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,6 +121,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       setDetail(null);
       setComment('');
       setSelectedFile(null);
+      setSubmitStatus(null);
       loadDetail(entry.url);
     }
   }, [open, entry?.url, loadDetail]);
@@ -136,13 +139,20 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const handleSubmit = async () => {
     if (!detail || !entry || (!comment.trim() && !selectedFile)) return;
     setSubmitting(true);
+    setSubmitStatus(selectedFile ? 'uploading' : 'sending');
 
     try {
       let success: boolean;
       if (selectedFile) {
-        success = await uploadFileAndSubmit(detail, selectedFile, comment.trim(), schoolId);
+        success = await uploadFileAndSubmit(
+          detail,
+          selectedFile,
+          comment.trim(),
+          schoolId,
+          setSubmitStatus,
+        );
       } else {
-        success = await submitComment(detail, comment.trim());
+        success = await submitComment(detail, comment.trim(), setSubmitStatus);
       }
 
       if (success) {
@@ -158,6 +168,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       toast.error('Der opstod en fejl ved afsendelse');
     } finally {
       setSubmitting(false);
+      setSubmitStatus(null);
     }
   };
 
@@ -190,6 +201,14 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   if (!open) return null;
 
   const holdHue = entry ? getHoldHue(entry.hold) : 200;
+  const submitLabel =
+    submitStatus === 'uploading'
+      ? 'Uploader fil...'
+      : submitStatus === 'sending'
+        ? 'Sender til Lectio...'
+        : submitStatus === 'verifying'
+          ? 'Kontrollerer...'
+          : 'Sender...';
 
   const sheetContent = (
     <div className="il-opgave-sheet-wrapper">
@@ -450,7 +469,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 ) : (
                   <Send size={14} />
                 )}
-                {submitting ? 'Sender...' : 'Send'}
+                {submitting ? submitLabel : 'Send'}
               </button>
             </div>
           </div>

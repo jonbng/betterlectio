@@ -44,11 +44,14 @@ export interface OpgaveDetail {
 const CACHE_PREFIX = 'il-opgave-detail-';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_MAX_ENTRIES = 50;
+const SUBMISSION_TIMEOUT_MS = 45_000;
 
 interface CachedEntry {
   detail: OpgaveDetail;
   timestamp: number;
 }
+
+export type SubmissionStatus = 'uploading' | 'sending' | 'verifying';
 
 function getExerciseId(url: string): string | null {
   const match = url.match(/exerciseid=(\d+)/i);
@@ -142,7 +145,7 @@ async function postFormViaHiddenIframe(action: string, fields: Record<string, st
     const timeout = window.setTimeout(() => {
       cleanup();
       reject(new Error('Submission timeout'));
-    }, 20000);
+    }, SUBMISSION_TIMEOUT_MS);
 
     iframe.addEventListener('load', () => {
       if (!didSubmit) return;
@@ -346,7 +349,11 @@ export async function fetchOpgaveDetail(url: string): Promise<OpgaveDetail> {
 
 // ── Submission ─────────────────────────────────────────────────────────
 
-export async function submitComment(detail: OpgaveDetail, comment: string): Promise<boolean> {
+export async function submitComment(
+  detail: OpgaveDetail,
+  comment: string,
+  onStatus?: (status: SubmissionStatus) => void,
+): Promise<boolean> {
   if (!detail.formTokens.action) {
     throw new Error('Missing form action');
   }
@@ -360,11 +367,13 @@ export async function submitComment(detail: OpgaveDetail, comment: string): Prom
   fields.__EVENTVALIDATION = detail.formTokens.eventValidation;
   fields['m$Content$CommentsTB$tb'] = comment;
 
+  onStatus?.('sending');
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
 
   // Login page or invalid response means the submission did not complete.
   if (!doc.querySelector('#m_Content_NameLbl')) return false;
 
+  onStatus?.('verifying');
   const parsed = parseDetail(doc, detail.sourceUrl);
   const trimmedComment = comment.trim();
 
@@ -379,6 +388,7 @@ export async function uploadFileAndSubmit(
   file: File,
   comment: string,
   schoolId: string,
+  onStatus?: (status: SubmissionStatus) => void,
 ): Promise<boolean> {
   if (!detail.formTokens.action) {
     throw new Error('Missing form action');
@@ -389,6 +399,7 @@ export async function uploadFileAndSubmit(
   const uploadForm = new FormData();
   uploadForm.append('file', file);
 
+  onStatus?.('uploading');
   const uploadResponse = await fetch(uploadUrl, {
     method: 'POST',
     credentials: 'include',
@@ -421,9 +432,11 @@ export async function uploadFileAndSubmit(
   fields['m$Content$CommentsTB$tb'] = comment;
   fields['m$Content$choosedocument$selectedDocumentId'] = JSON.stringify({ serializedId });
 
+  onStatus?.('sending');
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return false;
 
+  onStatus?.('verifying');
   const parsed = parseDetail(doc, detail.sourceUrl);
   return (
     parsed.entries.length > detail.entries.length
