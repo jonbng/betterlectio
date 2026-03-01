@@ -1,5 +1,17 @@
-import { useState } from 'preact/hooks';
-import { ClipboardList, Clock, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
+import { useState, useRef, useEffect } from 'preact/hooks';
+import {
+  ClipboardList,
+  Clock,
+  CheckCircle2,
+  ChevronDown,
+  AlertTriangle,
+  Flame,
+  ArrowRight,
+  Check,
+  Search,
+  X,
+  CalendarDays,
+} from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 
@@ -27,6 +39,58 @@ const DANISH_MONTHS = [
   'januar', 'februar', 'marts', 'april', 'maj', 'juni',
   'juli', 'august', 'september', 'oktober', 'november', 'december',
 ];
+
+// ── Date range presets ─────────────────────────────────────────────────
+
+type DatePreset = 'all' | '7d' | '14d' | 'month' | 'next-month';
+
+interface DatePresetOption {
+  key: DatePreset;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: 'all', label: 'Alle' },
+  { key: '7d', label: '7 dage' },
+  { key: '14d', label: '14 dage' },
+  { key: 'month', label: 'Denne måned' },
+  { key: 'next-month', label: 'Næste måned' },
+];
+
+function getDateRange(preset: DatePreset): { from: Date; to: Date } | null {
+  if (preset === 'all') return null;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (preset === '7d') {
+    const to = new Date(today);
+    to.setDate(to.getDate() + 7);
+    to.setHours(23, 59, 59, 999);
+    return { from: today, to };
+  }
+
+  if (preset === '14d') {
+    const to = new Date(today);
+    to.setDate(to.getDate() + 14);
+    to.setHours(23, 59, 59, 999);
+    return { from: today, to };
+  }
+
+  if (preset === 'month') {
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return { from, to };
+  }
+
+  if (preset === 'next-month') {
+    const from = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59, 999);
+    return { from, to };
+  }
+
+  return null;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -73,7 +137,6 @@ function getDeadlineDisplay(deadline: Date): DeadlineDisplay {
   const diffMin = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
 
-  // Calendar day difference
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const deadlineDay = new Date(deadline);
@@ -82,7 +145,6 @@ function getDeadlineDisplay(deadline: Date): DeadlineDisplay {
     (deadlineDay.getTime() - todayStart.getTime()) / 86400000
   );
 
-  // Urgency based on actual time remaining
   const urgency: Urgency =
     diffMs < 24 * 3600000
       ? 'imminent'
@@ -94,7 +156,6 @@ function getDeadlineDisplay(deadline: Date): DeadlineDisplay {
   let detail: string;
 
   if (calDayDiff === 0) {
-    // Today
     if (diffMin < 60) {
       label = `Om ${Math.max(1, diffMin)} min.`;
     } else {
@@ -224,7 +285,6 @@ function parseDeadline(text: string): Date {
 // ── Fetch all opgaver (with filter unchecked) ─────────────────────────
 
 export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
-  // Check if "Vis kun aktuelle" is checked on the current page
   const checkbox = document.querySelector<HTMLInputElement>(
     '#s_m_Content_Content_CurrentExerciseFilterCB'
   );
@@ -232,13 +292,11 @@ export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
     return null;
   }
 
-  // Serialize the entire ASP.NET form — just like a real browser submission
   const form = document.querySelector<HTMLFormElement>('#aspnetForm');
   if (!form) return null;
 
   const formData = new URLSearchParams();
 
-  // Collect all form elements
   const elements = form.elements;
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i] as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -247,9 +305,7 @@ export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
 
     if (el instanceof HTMLInputElement) {
       if (el.type === 'checkbox' || el.type === 'radio') {
-        // Skip the "Vis kun aktuelle" checkbox — we want it unchecked
         if (name === 's$m$Content$Content$CurrentExerciseFilterCB') continue;
-        // Only include checked checkboxes/radios
         if (el.checked) formData.append(name, el.value || 'on');
       } else if (el.type !== 'submit' && el.type !== 'button' && el.type !== 'image') {
         formData.append(name, el.value);
@@ -261,7 +317,6 @@ export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
     }
   }
 
-  // Override __EVENTTARGET to simulate the checkbox postback
   formData.set('__EVENTTARGET', 's$m$Content$Content$CurrentExerciseFilterCB');
   formData.set('__EVENTARGUMENT', '');
 
@@ -296,10 +351,25 @@ interface OpgaverPageProps {
 
 export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAllSubmitted, setShowAllSubmitted] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Focus search on Cmd/Ctrl+K
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const openDetail = (e: MouseEvent, entry: OpgaveEntry) => {
     e.preventDefault();
@@ -307,11 +377,34 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
     setSheetOpen(true);
   };
 
-  const holds = [...new Set(entries.map(e => e.hold))].sort();
+  // Sort holds: active (has upcoming) first, then resolved names before raw codes, then alphabetical
+  const holdsWithUpcoming = new Set(entries.filter(e => e.status === 'venter').map(e => e.hold));
+  const holds = [...new Set(entries.map(e => e.hold))].sort((a, b) => {
+    const aActive = holdsWithUpcoming.has(a) ? 0 : 1;
+    const bActive = holdsWithUpcoming.has(b) ? 0 : 1;
+    if (aActive !== bActive) return aActive - bActive;
 
-  const filtered = selectedHold
-    ? entries.filter(e => e.hold === selectedHold)
-    : entries;
+    const aName = getHoldDisplayName(a);
+    const bName = getHoldDisplayName(b);
+    const aResolved = aName !== a ? 0 : 1;
+    const bResolved = bName !== b ? 0 : 1;
+    if (aResolved !== bResolved) return aResolved - bResolved;
+
+    return aName.localeCompare(bName, 'da');
+  });
+
+  // Combined filtering: hold + search + date range
+  const dateRange = getDateRange(datePreset);
+  const queryLower = searchQuery.toLowerCase().trim();
+
+  const filtered = entries.filter(e => {
+    if (selectedHold && e.hold !== selectedHold) return false;
+    if (queryLower && !e.title.toLowerCase().includes(queryLower) &&
+        !e.hold.toLowerCase().includes(queryLower) &&
+        !getHoldDisplayName(e.hold).toLowerCase().includes(queryLower)) return false;
+    if (dateRange && (e.deadline < dateRange.from || e.deadline > dateRange.to)) return false;
+    return true;
+  });
 
   const upcoming = filtered
     .filter(e => e.status === 'venter')
@@ -332,6 +425,19 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
     });
   };
 
+  // Next urgent deadline (from unfiltered upcoming for the banner)
+  const allUpcoming = entries
+    .filter(e => e.status === 'venter')
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  const nextUrgent = allUpcoming.length > 0 ? (() => {
+    const display = getDeadlineDisplay(allUpcoming[0].deadline);
+    return (display.urgency === 'overdue' || display.urgency === 'imminent')
+      ? { entry: allUpcoming[0], display }
+      : null;
+  })() : null;
+
+  const hasActiveFilters = selectedHold !== null || datePreset !== 'all' || queryLower !== '';
+
   return (
     <div className="il-opgaver-page">
       {/* ── Header ─────────────────────────────── */}
@@ -342,6 +448,66 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
         </p>
       </div>
 
+      {/* ── Urgent banner ──────────────────────── */}
+      {nextUrgent && (
+        <button
+          className={`il-opgaver-alert-banner is-${nextUrgent.display.urgency}`}
+          onClick={(e) => openDetail(e as unknown as MouseEvent, nextUrgent.entry)}
+        >
+          <div className="il-opgaver-alert-icon">
+            {nextUrgent.display.urgency === 'overdue' ? (
+              <AlertTriangle size={20} />
+            ) : (
+              <Flame size={20} />
+            )}
+          </div>
+          <div className="il-opgaver-alert-content">
+            <span className="il-opgaver-alert-time">{nextUrgent.display.label}</span>
+            <span className="il-opgaver-alert-title">{nextUrgent.entry.title}</span>
+          </div>
+          <ArrowRight size={16} className="il-opgaver-alert-arrow" />
+        </button>
+      )}
+
+      {/* ── Search + filters toolbar ───────────── */}
+      <div className="il-opgaver-toolbar">
+        {/* Search */}
+        <div className="il-opgaver-search">
+          <Search size={15} className="il-opgaver-search-icon" />
+          <input
+            ref={searchRef}
+            type="text"
+            className="il-opgaver-search-input"
+            placeholder="Søg opgaver..."
+            value={searchQuery}
+            onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+          />
+          {searchQuery && (
+            <button
+              className="il-opgaver-search-clear"
+              onClick={() => setSearchQuery('')}
+            >
+              <X size={14} />
+            </button>
+          )}
+          <kbd className="il-opgaver-search-kbd">⌘K</kbd>
+        </div>
+
+        {/* Date presets */}
+        <div className="il-opgaver-date-filters">
+          <CalendarDays size={14} className="il-opgaver-date-icon" />
+          {DATE_PRESETS.map(preset => (
+            <button
+              key={preset.key}
+              className={`il-opgaver-date-pill${datePreset === preset.key ? ' is-active' : ''}`}
+              onClick={() => setDatePreset(datePreset === preset.key ? 'all' : preset.key)}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ── Hold filter pills ──────────────────── */}
       {holds.length > 1 && (
         <div className="il-opgaver-filters">
@@ -349,7 +515,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
             className={`il-opgaver-filter-pill${selectedHold === null ? ' is-active' : ''}`}
             onClick={() => setSelectedHold(null)}
           >
-            Alle
+            Alle fag
           </button>
           {holds.map(hold => (
             <button
@@ -360,6 +526,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               }
               style={{ '--hold-hue': getHoldHue(hold) } as any}
             >
+              <span className="il-opgaver-filter-dot" />
               {getHoldDisplayName(hold)}
             </button>
           ))}
@@ -369,11 +536,33 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
       {/* ── Empty state ────────────────────────── */}
       {filtered.length === 0 ? (
         <div className="il-opgaver-empty">
-          <ClipboardList className="il-opgaver-empty-icon" />
-          <p className="il-opgaver-empty-title">Ingen opgaver</p>
-          <p className="il-opgaver-empty-subtitle">
-            Der er ingen opgaver at vise
-          </p>
+          {hasActiveFilters ? (
+            <>
+              <Search className="il-opgaver-empty-icon" />
+              <p className="il-opgaver-empty-title">Ingen resultater</p>
+              <p className="il-opgaver-empty-subtitle">
+                Prøv at ændre dine filtre eller søgning
+              </p>
+              <button
+                className="il-opgaver-empty-reset"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedHold(null);
+                  setDatePreset('all');
+                }}
+              >
+                Nulstil filtre
+              </button>
+            </>
+          ) : (
+            <>
+              <ClipboardList className="il-opgaver-empty-icon" />
+              <p className="il-opgaver-empty-title">Ingen opgaver</p>
+              <p className="il-opgaver-empty-subtitle">
+                Der er ingen opgaver at vise
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -397,14 +586,18 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                     entry.awaiting;
 
                   return (
-                    <div
+                    <a
                       key={idx}
+                      href={entry.url}
                       className={`il-opgaver-card is-${display.urgency}`}
                       style={
                         {
                           '--hold-hue': hue,
-                          animationDelay: `${idx * 40}ms`,
+                          animationDelay: `${idx * 50}ms`,
                         } as any
+                      }
+                      onClick={(e) =>
+                        openDetail(e as unknown as MouseEvent, entry)
                       }
                     >
                       {/* Deadline — the hero element */}
@@ -435,15 +628,9 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       </div>
 
                       {/* Title */}
-                      <a
-                        href={entry.url}
-                        className="il-opgaver-card-title"
-                        onClick={e =>
-                          openDetail(e as unknown as MouseEvent, entry)
-                        }
-                      >
+                      <span className="il-opgaver-card-title">
                         {entry.title}
-                      </a>
+                      </span>
 
                       {/* Meta */}
                       {hasMeta && (
@@ -465,12 +652,16 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       {entry.note && (
                         <div
                           className={`il-opgaver-note${expandedNotes.has(globalIdx) ? ' is-expanded' : ''}`}
-                          onClick={() => toggleNote(globalIdx)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleNote(globalIdx);
+                          }}
                         >
                           <span>{entry.note}</span>
                         </div>
                       )}
-                    </div>
+                    </a>
                   );
                 })}
               </div>
@@ -487,68 +678,60 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                   {submitted.length}
                 </span>
               </h2>
-              <div className="il-opgaver-submitted-list">
+              <div className="il-opgaver-submitted-grid">
                 {visibleSubmitted.map((entry, idx) => {
                   const hue = getHoldHue(entry.hold);
-                  const globalIdx = entries.indexOf(entry);
-                  const gradeHue = entry.grade ? getGradeHue(entry.grade) : 0;
+                  const gradeHue = entry.grade ? getGradeHue(entry.grade) : 145;
                   return (
-                    <div
+                    <a
                       key={idx}
-                      className="il-opgaver-submitted-row"
+                      href={entry.url}
+                      className="il-opgaver-submitted-card"
                       style={
                         {
                           '--hold-hue': hue,
-                          animationDelay: `${idx * 35}ms`,
+                          '--grade-hue': gradeHue,
+                          animationDelay: `${idx * 40}ms`,
                         } as any
                       }
+                      onClick={(e) =>
+                        openDetail(e as unknown as MouseEvent, entry)
+                      }
                     >
-                      <div className="il-opgaver-submitted-primary">
-                        <a
-                          href={entry.url}
-                          className="il-opgaver-submitted-title"
-                          onClick={e =>
-                            openDetail(e as unknown as MouseEvent, entry)
-                          }
-                        >
-                          {entry.title}
-                        </a>
-                        <span
-                          className="il-opgaver-hold-pill"
-                          style={{ '--hold-hue': hue } as any}
-                        >
-                          {getHoldDisplayName(entry.hold)}
-                        </span>
-                        {entry.grade && (
-                          <span
-                            className="il-opgaver-grade"
-                            style={{ '--grade-hue': gradeHue } as any}
-                          >
+                      <div className="il-opgaver-submitted-grade-wrap">
+                        {entry.grade ? (
+                          <span className="il-opgaver-submitted-grade">
                             {entry.grade}
                           </span>
+                        ) : (
+                          <Check
+                            size={18}
+                            className="il-opgaver-submitted-check"
+                          />
                         )}
-                        <span className="il-opgaver-submitted-date">
-                          {formatAbsoluteDeadline(entry.deadline)}
-                        </span>
                       </div>
-                      {(entry.note || entry.gradeExtra) && (
-                        <div className="il-opgaver-submitted-detail">
-                          {entry.gradeExtra && (
-                            <span className="il-opgaver-grade-extra">
-                              {entry.gradeExtra}
-                            </span>
-                          )}
-                          {entry.note && (
-                            <div
-                              className={`il-opgaver-note${expandedNotes.has(globalIdx) ? ' is-expanded' : ''}`}
-                              onClick={() => toggleNote(globalIdx)}
-                            >
-                              <span>{entry.note}</span>
-                            </div>
-                          )}
+                      <div className="il-opgaver-submitted-info">
+                        <span className="il-opgaver-submitted-title">
+                          {entry.title}
+                        </span>
+                        <div className="il-opgaver-submitted-meta">
+                          <span
+                            className="il-opgaver-hold-pill"
+                            style={{ '--hold-hue': hue } as any}
+                          >
+                            {getHoldDisplayName(entry.hold)}
+                          </span>
+                          <span className="il-opgaver-submitted-date">
+                            {formatAbsoluteDeadline(entry.deadline)}
+                          </span>
                         </div>
-                      )}
-                    </div>
+                        {entry.gradeExtra && (
+                          <span className="il-opgaver-submitted-extra">
+                            {entry.gradeExtra}
+                          </span>
+                        )}
+                      </div>
+                    </a>
                   );
                 })}
               </div>

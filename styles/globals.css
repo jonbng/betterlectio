@@ -2758,8 +2758,8 @@
   /* ── Header ──────────────────────────────── */
 
   .il-opgaver-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.75rem;
     border-bottom: 1px solid var(--border);
   }
 
@@ -2775,7 +2775,232 @@
   .il-opgaver-subtitle {
     font-size: 0.875rem;
     color: var(--muted-foreground);
-    margin: 0.25rem 0 0;
+    margin: 0.375rem 0 0;
+  }
+
+  /* ── Search + filters toolbar ──────────────── */
+
+  .il-opgaver-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  /* Search bar */
+  .il-opgaver-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .il-opgaver-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--muted-foreground);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .il-opgaver-search-input {
+    width: 100%;
+    height: 2.5rem;
+    padding: 0 5.5rem 0 2.25rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .il-opgaver-search-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  .il-opgaver-search-input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px oklch(0.54 0.2 265 / 0.1);
+  }
+
+  .il-opgaver-search-clear {
+    position: absolute;
+    right: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    border: none;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-opgaver-search-clear:hover {
+    background: var(--accent);
+    color: var(--foreground);
+  }
+
+  .il-opgaver-search-kbd {
+    position: absolute;
+    right: 0.625rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.625rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    pointer-events: none;
+    line-height: 1.4;
+  }
+
+  /* Date presets */
+  .il-opgaver-date-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+  }
+
+  .il-opgaver-date-icon {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+    flex-shrink: 0;
+    margin-right: 0.125rem;
+  }
+
+  .il-opgaver-date-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .il-opgaver-date-pill:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-opgaver-date-pill.is-active {
+    background: oklch(0.94 0.06 265);
+    color: oklch(0.4 0.16 265);
+    border-color: oklch(0.88 0.08 265);
+  }
+
+  .il-opgaver-date-pill.is-active:hover {
+    background: oklch(0.91 0.08 265);
+  }
+
+  /* ── Alert banner ──────────────────────────── */
+
+  .il-opgaver-alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    width: 100%;
+    padding: 0.875rem 1.125rem;
+    margin-bottom: 1.75rem;
+    border-radius: 0.875rem;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    animation: il-opgaver-slide-up 0.5s ease both;
+  }
+
+  .il-opgaver-alert-banner:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px oklch(0 0 0 / 0.08);
+  }
+
+  .il-opgaver-alert-banner.is-overdue {
+    background: linear-gradient(135deg, oklch(0.97 0.025 25), oklch(0.985 0.01 25));
+    box-shadow: inset 0 0 0 1px oklch(0.88 0.06 25);
+  }
+
+  .il-opgaver-alert-banner.is-imminent {
+    background: linear-gradient(135deg, oklch(0.97 0.02 50), oklch(0.985 0.008 50));
+    box-shadow: inset 0 0 0 1px oklch(0.88 0.04 50);
+  }
+
+  .il-opgaver-alert-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.625rem;
+    flex-shrink: 0;
+  }
+
+  .il-opgaver-alert-banner.is-overdue .il-opgaver-alert-icon {
+    background: oklch(0.92 0.05 25);
+    color: oklch(0.5 0.22 25);
+  }
+
+  .il-opgaver-alert-banner.is-imminent .il-opgaver-alert-icon {
+    background: oklch(0.92 0.04 50);
+    color: oklch(0.52 0.18 50);
+  }
+
+  .il-opgaver-alert-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .il-opgaver-alert-time {
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+
+  .il-opgaver-alert-banner.is-overdue .il-opgaver-alert-time {
+    color: oklch(0.48 0.2 25);
+  }
+
+  .il-opgaver-alert-banner.is-imminent .il-opgaver-alert-time {
+    color: oklch(0.48 0.16 50);
+  }
+
+  .il-opgaver-alert-title {
+    font-size: 0.8125rem;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-opgaver-alert-arrow {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  .il-opgaver-alert-banner:hover .il-opgaver-alert-arrow {
+    opacity: 1;
+    transform: translateX(2px);
   }
 
   /* ── Hold filter pills ───────────────────── */
@@ -2790,9 +3015,11 @@
   .il-opgaver-filter-pill {
     display: inline-flex;
     align-items: center;
+    gap: 0.375rem;
     padding: 0.375rem 0.75rem;
     font-size: 0.8125rem;
     font-weight: 500;
+    font-family: inherit;
     border-radius: 9999px;
     border: 1px solid var(--border);
     background: var(--background);
@@ -2814,6 +3041,18 @@
 
   .il-opgaver-filter-pill.is-active:hover {
     background: color-mix(in oklch, var(--primary) 90%, black);
+  }
+
+  .il-opgaver-filter-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    background: oklch(0.6 0.15 var(--hold-hue, 235));
+    flex-shrink: 0;
+  }
+
+  .il-opgaver-filter-pill.is-active .il-opgaver-filter-dot {
+    background: var(--primary-foreground);
   }
 
   /* ── Empty state ─────────────────────────── */
@@ -2847,6 +3086,25 @@
     font-size: 0.875rem;
     color: var(--muted-foreground);
     margin: 0;
+  }
+
+  .il-opgaver-empty-reset {
+    margin-top: 0.75rem;
+    padding: 0.375rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--primary);
+    background: none;
+    border: 1px solid var(--primary);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .il-opgaver-empty-reset:hover {
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 
   /* ── Sections ────────────────────────────── */
@@ -2883,8 +3141,8 @@
 
   /* ── Animation ───────────────────────────── */
 
-  @keyframes il-opgaver-fade-in {
-    from { opacity: 0; transform: translateY(8px); }
+  @keyframes il-opgaver-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
@@ -2904,27 +3162,33 @@
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: var(--card);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
     transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-    animation: il-opgaver-fade-in 0.4s ease both;
-    /* Default: neutral left accent */
+    animation: il-opgaver-slide-up 0.4s ease both;
     border-left: 2px solid oklch(0.85 0 0);
   }
 
   .il-opgaver-card:hover {
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.06);
+    box-shadow: 0 4px 20px oklch(0 0 0 / 0.07);
     border-color: oklch(0.82 0 0);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
   }
 
   /* ── Urgency: overdue ── */
   .il-opgaver-card.is-overdue {
-    border-left: 4px solid oklch(0.55 0.22 25);
-    background: oklch(0.985 0.012 25);
+    border-left: 5px solid oklch(0.55 0.22 25);
+    background: linear-gradient(135deg, oklch(0.985 0.014 25), oklch(0.995 0.004 25));
+  }
+  .il-opgaver-card.is-overdue:hover {
+    border-color: oklch(0.88 0.04 25);
+    box-shadow: 0 6px 24px oklch(0.55 0.12 25 / 0.12);
   }
   .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
     font-size: 1.0625rem;
-    font-weight: 700;
-    color: oklch(0.5 0.22 25);
+    font-weight: 800;
+    color: oklch(0.48 0.22 25);
     letter-spacing: -0.01em;
   }
   .il-opgaver-card.is-overdue .il-opgaver-deadline-icon {
@@ -2935,12 +3199,16 @@
   /* ── Urgency: imminent (< 24h) ── */
   .il-opgaver-card.is-imminent {
     border-left: 4px solid oklch(0.6 0.18 50);
-    background: oklch(0.985 0.008 50);
+    background: linear-gradient(135deg, oklch(0.985 0.01 50), oklch(0.995 0.003 50));
+  }
+  .il-opgaver-card.is-imminent:hover {
+    border-color: oklch(0.88 0.03 50);
+    box-shadow: 0 6px 24px oklch(0.6 0.1 50 / 0.1);
   }
   .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
     font-size: 1rem;
     font-weight: 700;
-    color: oklch(0.52 0.18 50);
+    color: oklch(0.5 0.18 50);
     letter-spacing: -0.01em;
   }
 
@@ -2978,7 +3246,6 @@
   }
 
   .il-opgaver-deadline-label {
-    /* base — overridden per urgency above */
     line-height: 1.2;
     white-space: nowrap;
   }
@@ -3008,15 +3275,15 @@
     font-weight: 500;
     color: var(--foreground);
     text-decoration: none;
-    transition: color 0.15s ease;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     display: block;
+    transition: color 0.15s ease;
   }
 
-  .il-opgaver-card-title:hover {
+  .il-opgaver-card:hover .il-opgaver-card-title {
     color: oklch(0.5 0.16 var(--hold-hue, 235));
   }
 
@@ -3033,6 +3300,24 @@
     color: oklch(0.42 0.16 var(--hold-hue, 235));
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  /* ── Grade badge (shared with detail sheet) ── */
+
+  .il-opgaver-grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    border-radius: 0.375rem;
+    background: oklch(0.93 0.06 var(--grade-hue, 145));
+    color: oklch(0.4 0.14 var(--grade-hue, 145));
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Meta row ────────────────────────────── */
@@ -3059,7 +3344,7 @@
   .il-opgaver-note {
     font-size: 0.75rem;
     color: var(--muted-foreground);
-    background: var(--muted);
+    background: oklch(0.96 0.005 265 / 0.6);
     padding: 0.5rem 0.625rem;
     border-radius: 0.375rem;
     line-height: 1.5;
@@ -3078,93 +3363,94 @@
     display: block;
   }
 
-  /* ── Submitted list ──────────────────────── */
+  /* ── Submitted grid ────────────────────────── */
 
-  .il-opgaver-submitted-list {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    overflow: hidden;
+  .il-opgaver-submitted-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.625rem;
   }
 
-  .il-opgaver-submitted-row {
-    display: flex;
-    flex-direction: column;
-    padding: 0.6875rem 1rem;
-    border-bottom: 1px solid var(--border);
-    animation: il-opgaver-fade-in 0.35s ease both;
-    transition: background 0.15s ease;
-  }
-
-  .il-opgaver-submitted-row:last-child {
-    border-bottom: none;
-  }
-
-  .il-opgaver-submitted-row:hover {
-    background: var(--muted);
-  }
-
-  .il-opgaver-submitted-primary {
+  .il-opgaver-submitted-card {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
-    min-width: 0;
-  }
-
-  .il-opgaver-submitted-title {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--foreground);
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card);
     text-decoration: none;
-    transition: color 0.15s ease;
+    color: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    animation: il-opgaver-slide-up 0.35s ease both;
   }
 
-  .il-opgaver-submitted-title:hover {
+  .il-opgaver-submitted-card:hover {
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.06);
+    border-color: oklch(0.82 0 0);
+    transform: translateY(-1px);
+  }
+
+  .il-opgaver-submitted-card:hover .il-opgaver-submitted-title {
     color: oklch(0.5 0.16 var(--hold-hue, 235));
   }
 
-  /* ── Grade badge ─────────────────────────── */
-
-  .il-opgaver-grade {
-    display: inline-flex;
+  .il-opgaver-submitted-grade-wrap {
+    display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 2rem;
-    padding: 0.125rem 0.5rem;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    border-radius: 0.375rem;
-    background: oklch(0.93 0.06 var(--grade-hue, 145));
-    color: oklch(0.4 0.14 var(--grade-hue, 145));
-    white-space: nowrap;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    background: oklch(0.94 0.06 var(--grade-hue, 145));
     flex-shrink: 0;
+  }
+
+  .il-opgaver-submitted-grade {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: oklch(0.38 0.16 var(--grade-hue, 145));
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+  }
+
+  .il-opgaver-submitted-check {
+    color: oklch(0.5 0.12 145);
+  }
+
+  .il-opgaver-submitted-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .il-opgaver-submitted-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+  }
+
+  .il-opgaver-submitted-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
   }
 
   .il-opgaver-submitted-date {
-    font-size: 0.75rem;
-    color: var(--muted-foreground);
-    flex-shrink: 0;
-    min-width: 5.5rem;
-    text-align: right;
     font-variant-numeric: tabular-nums;
   }
 
-  .il-opgaver-submitted-detail {
-    padding-top: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .il-opgaver-grade-extra {
-    font-size: 0.75rem;
+  .il-opgaver-submitted-extra {
+    font-size: 0.6875rem;
     font-style: italic;
     color: var(--muted-foreground);
     opacity: 0.7;
@@ -3182,6 +3468,7 @@
     margin-top: 0.75rem;
     font-size: 0.875rem;
     font-weight: 500;
+    font-family: inherit;
     color: var(--muted-foreground);
     background: var(--muted);
     border: 1px solid var(--border);
@@ -3203,12 +3490,16 @@
 
   .dark .il-opgaver-card:hover {
     border-color: oklch(0.38 0 0);
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.3);
+    box-shadow: 0 4px 20px oklch(0 0 0 / 0.35);
   }
 
   .dark .il-opgaver-card.is-overdue {
     border-left-color: oklch(0.6 0.18 25);
-    background: oklch(0.17 0.02 25);
+    background: linear-gradient(135deg, oklch(0.18 0.025 25), oklch(0.16 0.01 25));
+  }
+  .dark .il-opgaver-card.is-overdue:hover {
+    border-color: oklch(0.35 0.04 25);
+    box-shadow: 0 6px 24px oklch(0.5 0.1 25 / 0.15);
   }
   .dark .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
     color: oklch(0.72 0.18 25);
@@ -3219,7 +3510,10 @@
 
   .dark .il-opgaver-card.is-imminent {
     border-left-color: oklch(0.6 0.15 50);
-    background: oklch(0.17 0.015 50);
+    background: linear-gradient(135deg, oklch(0.18 0.02 50), oklch(0.16 0.008 50));
+  }
+  .dark .il-opgaver-card.is-imminent:hover {
+    border-color: oklch(0.35 0.03 50);
   }
   .dark .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
     color: oklch(0.72 0.15 50);
@@ -3237,9 +3531,29 @@
     color: oklch(0.78 0.14 var(--hold-hue, 235));
   }
 
-  .dark .il-opgaver-card-title:hover,
-  .dark .il-opgaver-submitted-title:hover {
+  .dark .il-opgaver-card:hover .il-opgaver-card-title {
     color: oklch(0.75 0.14 var(--hold-hue, 235));
+  }
+
+  .dark .il-opgaver-submitted-card:hover .il-opgaver-submitted-title {
+    color: oklch(0.75 0.14 var(--hold-hue, 235));
+  }
+
+  .dark .il-opgaver-submitted-grade-wrap {
+    background: oklch(0.28 0.08 var(--grade-hue, 145));
+  }
+
+  .dark .il-opgaver-submitted-grade {
+    color: oklch(0.8 0.1 var(--grade-hue, 145));
+  }
+
+  .dark .il-opgaver-submitted-check {
+    color: oklch(0.65 0.1 145);
+  }
+
+  .dark .il-opgaver-submitted-card:hover {
+    border-color: oklch(0.38 0 0);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.35);
   }
 
   .dark .il-opgaver-grade {
@@ -3248,11 +3562,58 @@
   }
 
   .dark .il-opgaver-note {
+    background: oklch(0.2 0.01 265 / 0.6);
     border-left-color: oklch(0.5 0.12 var(--hold-hue, 235));
   }
 
-  .dark .il-opgaver-submitted-row:hover {
-    background: oklch(0.2 0 0);
+  .dark .il-opgaver-search-input {
+    background: oklch(0.2 0.01 265);
+  }
+
+  .dark .il-opgaver-search-input:focus {
+    box-shadow: 0 0 0 3px oklch(0.68 0.17 265 / 0.15);
+  }
+
+  .dark .il-opgaver-date-pill.is-active {
+    background: oklch(0.28 0.08 265);
+    color: oklch(0.78 0.14 265);
+    border-color: oklch(0.38 0.08 265);
+  }
+
+  .dark .il-opgaver-date-pill.is-active:hover {
+    background: oklch(0.32 0.1 265);
+  }
+
+  .dark .il-opgaver-alert-banner.is-overdue {
+    background: linear-gradient(135deg, oklch(0.2 0.03 25), oklch(0.18 0.015 25));
+    box-shadow: inset 0 0 0 1px oklch(0.35 0.06 25);
+  }
+  .dark .il-opgaver-alert-banner.is-overdue .il-opgaver-alert-icon {
+    background: oklch(0.28 0.06 25);
+    color: oklch(0.72 0.18 25);
+  }
+  .dark .il-opgaver-alert-banner.is-overdue .il-opgaver-alert-time {
+    color: oklch(0.72 0.18 25);
+  }
+
+  .dark .il-opgaver-alert-banner.is-imminent {
+    background: linear-gradient(135deg, oklch(0.2 0.02 50), oklch(0.18 0.01 50));
+    box-shadow: inset 0 0 0 1px oklch(0.35 0.04 50);
+  }
+  .dark .il-opgaver-alert-banner.is-imminent .il-opgaver-alert-icon {
+    background: oklch(0.28 0.05 50);
+    color: oklch(0.72 0.15 50);
+  }
+  .dark .il-opgaver-alert-banner.is-imminent .il-opgaver-alert-time {
+    color: oklch(0.72 0.15 50);
+  }
+
+  .dark .il-opgaver-alert-banner:hover {
+    box-shadow: 0 6px 20px oklch(0 0 0 / 0.3);
+  }
+
+  .dark .il-opgaver-filter-dot {
+    background: oklch(0.65 0.12 var(--hold-hue, 235));
   }
 
   /* ── Responsive ──────────────────────────── */
@@ -3266,6 +3627,14 @@
       font-size: 1.5rem;
     }
 
+    .il-opgaver-search-kbd {
+      display: none;
+    }
+
+    .il-opgaver-search-input {
+      padding-right: 2.5rem;
+    }
+
     .il-opgaver-card-deadline {
       flex-direction: column;
       align-items: flex-start;
@@ -3276,19 +3645,17 @@
       white-space: normal;
     }
 
-    .il-opgaver-submitted-primary {
-      flex-wrap: wrap;
-      gap: 0.375rem;
+    .il-opgaver-submitted-grid {
+      grid-template-columns: 1fr;
     }
 
     .il-opgaver-submitted-title {
-      flex-basis: 100%;
       white-space: normal;
     }
 
-    .il-opgaver-submitted-date {
-      min-width: auto;
-      text-align: left;
+    .il-opgaver-alert-banner {
+      padding: 0.75rem;
+      gap: 0.625rem;
     }
   }
 
