@@ -6,6 +6,7 @@ import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
 import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver } from "@/components/OpgaverPage";
+import { ForsideOpgaverCard, parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { initPreloading } from "@/lib/preload";
@@ -330,7 +331,7 @@ function initLayout() {
           (settings.pages.forsideRedesign ?? true) &&
           window.location.pathname.toLowerCase().includes("forside.aspx")
         ) {
-          injectForsideGreeting();
+          injectForsideGreeting(schoolId);
         }
 
         // Inject members page UI
@@ -408,6 +409,7 @@ function initLayout() {
       injectScheduleColgroup();
       cleanUpModuleLabels();
       injectTodayButton();
+      setupWeekendCollapse();
       if (settings.schedule.todayHighlight ?? true) {
         highlightTodayInSchedule();
         if (settings.schedule.currentTimeIndicator ?? true) {
@@ -612,6 +614,87 @@ function injectTodayButton() {
   } else {
     toolbar.appendChild(wrapper);
   }
+}
+
+function setupWeekendCollapse() {
+  const tables = document.querySelectorAll<HTMLTableElement>(".s2skema");
+  if (tables.length === 0) return;
+
+  // Collect weekend column indices across all schedule tables
+  let weekendIndices: number[] = [];
+
+  tables.forEach((table) => {
+    const contentRow = table.querySelector("tr:has(td[data-date])");
+    if (!contentRow) return;
+
+    const dateCells = contentRow.querySelectorAll<HTMLTableCellElement>("td[data-date]");
+    dateCells.forEach((td) => {
+      const dateStr = td.getAttribute("data-date");
+      if (!dateStr) return;
+      const day = new Date(dateStr + "T12:00:00").getDay(); // 0=Sun, 6=Sat
+      if (day === 0 || day === 6) {
+        weekendIndices.push(td.cellIndex);
+      }
+    });
+  });
+
+  // Deduplicate indices
+  weekendIndices = [...new Set(weekendIndices)];
+
+  if (weekendIndices.length === 0) return;
+
+  // Read persisted state (default: collapsed)
+  const stored = localStorage.getItem("il-weekend-collapsed");
+  let isCollapsed = stored !== "false"; // default true
+
+  function applyState() {
+    tables.forEach((table) => {
+      table.classList.toggle("il-weekend-collapsed", isCollapsed);
+
+      const colgroup = table.querySelector("colgroup");
+      if (!colgroup) return;
+      const cols = colgroup.querySelectorAll("col");
+      weekendIndices.forEach((idx) => {
+        if (cols[idx]) {
+          cols[idx].setAttribute("data-il-weekend", isCollapsed ? "collapsed" : "expanded");
+        }
+      });
+    });
+  }
+
+  function toggle() {
+    isCollapsed = !isCollapsed;
+    localStorage.setItem("il-weekend-collapsed", String(isCollapsed));
+    applyState();
+  }
+
+  // Mark all weekend cells, colgroup cols, and make day headers clickable
+  tables.forEach((table) => {
+    const colgroup = table.querySelector("colgroup");
+    if (!colgroup) return;
+
+    // Mark all cells in weekend columns
+    const rows = table.querySelectorAll("tr");
+    rows.forEach((row) => {
+      weekendIndices.forEach((idx) => {
+        const cell = row.children[idx] as HTMLTableCellElement | undefined;
+        if (!cell) return;
+        cell.classList.add("il-weekend-col");
+
+        // For day header row, set abbreviated label and make clickable
+        if (row.classList.contains("s2dayHeader")) {
+          const text = cell.textContent?.trim() || "";
+          // "Lørdag (7/3)" → "Lør" ; "Søndag (8/3)" → "Søn"
+          const abbrev = text.slice(0, 3);
+          cell.setAttribute("data-il-weekend-abbrev", abbrev);
+          cell.addEventListener("click", toggle);
+        }
+      });
+    });
+  });
+
+  // Apply initial state
+  applyState();
 }
 
 function cleanUpModuleLabels() {
@@ -916,7 +999,7 @@ function injectFindSkemaPage(schoolId: string) {
   );
 }
 
-function injectForsideGreeting() {
+function injectForsideGreeting(schoolId: string) {
   // Add body class for forside-specific CSS
   document.body.classList.add("il-forside");
 
@@ -934,10 +1017,37 @@ function injectForsideGreeting() {
   // Render the greeting component
   render(<ForsideGreeting />, greetingContainer);
 
+  // Replace native opgaver card with custom component
+  enhanceForsideOpgaver(schoolId);
+
   // Apply masonry layout to dashboard cards
   applyMasonryLayout();
 
   console.log("[BetterLectio] Forside greeting injected");
+}
+
+function enhanceForsideOpgaver(schoolId: string) {
+  const table = document.querySelector<HTMLTableElement>(
+    '#s_m_Content_Content_ElevOpgaveAfleveringerDBB',
+  );
+  if (!table) return;
+
+  const island = table.closest<HTMLElement>('.lf-island');
+  if (!island) return;
+
+  // Parse data from native DOM before replacing it
+  const entries = parseForsideOpgaver(island);
+  if (entries.length === 0) return;
+
+  const opgaverPageUrl = `/lectio/${schoolId}/OpgaverElev.aspx`;
+
+  // Clear island and render our custom card
+  island.classList.add('il-foc-island');
+  island.innerHTML = '';
+  render(
+    <ForsideOpgaverCard entries={entries} opgaverPageUrl={opgaverPageUrl} />,
+    island,
+  );
 }
 
 function applyMasonryLayout() {

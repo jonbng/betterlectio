@@ -70,8 +70,10 @@ betterlectio/
 │   ├── OpgaveDetailSheet.tsx # Side sheet for assignment details + submission
 │   ├── ViewingScheduleHeader.tsx  # Header when viewing others
 │   ├── SettingsModal.tsx     # Settings/about modal
+│   ├── DesignPlayground.tsx  # Design system playground (colors, components, patterns)
 │   ├── ActivityClassModal.tsx # Modal for class/activity detail from schedule links
 │   ├── ForsideGreeting.tsx   # Dynamic greeting for forside
+│   ├── ForsideOpgaverCard.tsx # Custom opgaver card for forside masonry layout
 │   └── ui/                   # shadcn/ui components (20+)
 │
 ├── lib/                      # Utility libraries
@@ -316,8 +318,22 @@ Sections:
 - **Adfærd** - Session management, messages redirect, preloading
 - **Sidebar** - Toggle sidebar menu items
 - **Fag** - Hold/subject name and color management (HoldMappingEditor)
+- **Design System** - Opens full-screen design playground overlay
 - **Avanceret** - Advanced settings, clear cache option
 - **Om (About)** - Version info, install date, links to GitHub/bug reports
+
+### 10b. Design Playground (`components/DesignPlayground.tsx`)
+
+**Purpose:** Full-screen overlay showcasing all design system tokens and components
+
+Features:
+- Opens from Settings → Design System → "Åbn playground" button
+- `createPortal` into `#il-root` at z-300 (above settings at z-200)
+- Escape key closes playground without closing settings modal
+- 13 sections: Farver, Typografi, Afstand & Radius, Knapper, Badges & Pills, Kort, Formularer, Tabeller, Skema Brikker, Personkort, Opgavekort, Nedtælling, Advarsler
+- Renders real shadcn/ui components (Button, Badge, Card, Table, Input, Switch, Checkbox)
+- Uses real CSS classes for opgaver cards, countdown widgets, person cards
+- Schedule bricks are mock (production CSS is `#il-original-content`-scoped)
 
 ### 11. Members Page (`components/MembersPage.tsx`)
 
@@ -641,8 +657,11 @@ HTML snapshots of Lectio pages before extension modification:
 - **Detail sheet sidebar**: click assignment to open side sheet with full details, submission history, comment/file upload
 - **Hold/subject name mapping**: auto-guesses subject names from Danish dictionary, user can override in Settings → Fag
 
+### Developer Tools
+- **Design System Playground**: full-screen overlay from Settings showing all colors, typography, spacing, real components (buttons, badges, cards, tables, forms), person cards, opgave cards, countdown widgets, and alert callouts
+
 ### Other Pages
-- Forside: time-based greeting, live clock, masonry layout
+- Forside: time-based greeting, live clock, masonry layout, enhanced opgaver card with urgency badges
 - Messages: two-column layout, auto-redirect to Nyeste
 - UV beskrivelser: grid of pills
 

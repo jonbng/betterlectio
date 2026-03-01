@@ -48,7 +48,9 @@ import {
   PanelLeft,
   Zap,
   GraduationCap,
+  FlaskConical,
 } from "lucide-react";
+import { DesignPlayground } from "@/components/DesignPlayground";
 
 interface SettingsModalProps {
   open: boolean;
@@ -60,6 +62,7 @@ const navItems = [
   { id: "behavior", name: "Adfærd", icon: Zap },
   { id: "sidebar", name: "Sidebar", icon: PanelLeft },
   { id: "subjects", name: "Fag", icon: GraduationCap },
+  { id: "design-system", name: "Design System", icon: FlaskConical },
   { id: "advanced", name: "Avanceret", icon: Wrench },
   { id: "about", name: "Om", icon: Info },
 ];
@@ -164,6 +167,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeSection, setActiveSection] = useState("appearance");
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
+  const [playgroundOpen, setPlaygroundOpen] = useState(false);
 
   // Get version info on mount
   useEffect(() => {
@@ -753,6 +757,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       case "subjects":
         return <HoldMappingEditor />;
 
+      case "design-system":
+        return (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Design System Playground</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Se og udforsk alle farver, komponenter og mønstre der bruges i BetterLectio.
+              </p>
+            </div>
+            <Button onClick={() => setPlaygroundOpen(true)} className="cursor-pointer">
+              <FlaskConical className="size-4" />
+              Åbn playground
+            </Button>
+          </div>
+        );
+
       case "advanced":
         return (
           <div className="space-y-6">
@@ -902,5 +922,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // Portal to il-root to ensure styles apply
   const portalTarget = document.getElementById("il-root") || document.body;
-  return createPortal(modalContent, portalTarget);
+  return createPortal(
+    <>
+      {modalContent}
+      <DesignPlayground open={playgroundOpen} onOpenChange={setPlaygroundOpen} />
+    </>,
+    portalTarget,
+  );
 }

@@ -409,83 +409,84 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
           )}
         </div>
 
-        {/* Submission form (sticky footer) */}
-        {detail && detail.hasSubmissionForm && !error && (
+        {/* Footer */}
+        {detail && !error && (
           <div className="il-opgave-sheet-footer">
             <Separator />
-            <div className="il-opgave-sheet-form">
-              <textarea
-                className="il-opgave-sheet-textarea"
-                placeholder="Skriv en kommentar..."
-                value={comment}
-                onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
-                rows={2}
-                disabled={submitting}
-              />
 
-              {/* File drop zone */}
-              <div
-                className={`il-opgave-sheet-dropzone${dragOver ? ' is-dragover' : ''}${selectedFile ? ' has-file' : ''}`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleFileDrop}
-                onClick={() => !selectedFile && fileInputRef.current?.click()}
-              >
-                {selectedFile ? (
-                  <div className="il-opgave-sheet-selected-file">
-                    <FileText size={14} />
-                    <span className="il-opgave-sheet-file-name">{selectedFile.name}</span>
-                    <span className="il-opgave-sheet-file-size">{formatFileSize(selectedFile.size)}</span>
-                    <button
-                      className="il-opgave-sheet-file-remove"
-                      onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="il-opgave-sheet-dropzone-hint">
-                    <Upload size={14} />
-                    <span>Vælg fil eller træk hertil</span>
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="il-opgave-sheet-file-input"
-                  onChange={handleFileSelect}
+            {/* Submission form */}
+            {detail.hasSubmissionForm && (
+              <div className="il-opgave-sheet-form">
+                <textarea
+                  className="il-opgave-sheet-textarea"
+                  placeholder="Skriv en kommentar..."
+                  value={comment}
+                  onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
+                  rows={2}
                   disabled={submitting}
                 />
+
+                {/* File drop zone */}
+                <div
+                  className={`il-opgave-sheet-dropzone${dragOver ? ' is-dragover' : ''}${selectedFile ? ' has-file' : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleFileDrop}
+                  onClick={() => !selectedFile && fileInputRef.current?.click()}
+                >
+                  {selectedFile ? (
+                    <div className="il-opgave-sheet-selected-file">
+                      <FileText size={14} />
+                      <span className="il-opgave-sheet-file-name">{selectedFile.name}</span>
+                      <span className="il-opgave-sheet-file-size">{formatFileSize(selectedFile.size)}</span>
+                      <button
+                        className="il-opgave-sheet-file-remove"
+                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="il-opgave-sheet-dropzone-hint">
+                      <Upload size={14} />
+                      <span>Vælg fil eller træk hertil</span>
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="il-opgave-sheet-file-input"
+                    onChange={handleFileSelect}
+                    disabled={submitting}
+                  />
+                </div>
+
+                {/* Send button */}
+                <button
+                  className="il-opgave-sheet-send-btn"
+                  disabled={submitting || (!comment.trim() && !selectedFile)}
+                  onClick={handleSubmit}
+                >
+                  {submitting ? (
+                    <Loader2 size={14} className="il-opgave-sheet-spinner" />
+                  ) : (
+                    <Send size={14} />
+                  )}
+                  {submitting ? submitLabel : 'Send'}
+                </button>
               </div>
+            )}
 
-              {/* Send button */}
-              <button
-                className="il-opgave-sheet-send-btn"
-                disabled={submitting || (!comment.trim() && !selectedFile)}
-                onClick={handleSubmit}
+            {/* Open in Lectio link (always shown) */}
+            {entry && (
+              <a
+                href={entry.url}
+                className="il-opgave-sheet-lectio-link"
               >
-                {submitting ? (
-                  <Loader2 size={14} className="il-opgave-sheet-spinner" />
-                ) : (
-                  <Send size={14} />
-                )}
-                {submitting ? submitLabel : 'Send'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Fallback: Open in Lectio link */}
-        {entry && detail && !detail.hasSubmissionForm && !error && (
-          <div className="il-opgave-sheet-footer">
-            <Separator />
-            <a
-              href={entry.url}
-              className="il-opgave-sheet-lectio-link"
-            >
-              <ExternalLink size={14} />
-              Åbn i Lectio
-            </a>
+                <ExternalLink size={14} />
+                Åbn i Lectio
+              </a>
+            )}
           </div>
         )}
       </div>

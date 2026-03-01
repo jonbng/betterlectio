@@ -30,6 +30,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/SettingsModal.tsx` - Settings modal with appearance, notifications, about sections
 - `components/ActivityClassModal.tsx` - Class/activity modal for skema activities (metadata, lektier, related links)
 - `components/ScheduleCountdown.tsx` - Sidebar countdown widget showing time remaining in current class or until next class starts
+- `components/ForsideOpgaverCard.tsx` - Custom forside opgaver card replacing native Lectio table with urgency-driven design
 - `lib/schedule-cache.ts` - Fetches and caches today's schedule via network (45min TTL)
 - `lib/findskema-storage.ts` - Starred people, recents, and picture cache persistence
 - `lib/fuzzy-search.ts` - Fuzzy search algorithm for Danish text
@@ -41,6 +42,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/profile-cache.ts` - User profile and viewed entity caching
 - `lib/hold-mapping.ts` - Hold-to-subject mapping system with auto-guess dictionary and user overrides
 - `components/settings/HoldMappingEditor.tsx` - Settings UI for managing hold display names and colors
+- `components/DesignPlayground.tsx` - Full-screen design system playground (colors, typography, components) opened from Settings
 - `styles/globals.css` - Main styles, hides original Lectio UI, page-specific styling
 
 ## Architecture
@@ -99,12 +101,13 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Settings Modal** - Appearance, notifications, advanced settings, version info
 - **Experimental Dark Mode** - Manual toggle for dark color palette
 - **Clean Page Titles** - Modern titles with unread message badge count
-- **Forside Redesign** - Time-based greeting, live clock, masonry card layout
+- **Forside Redesign** - Time-based greeting, live clock, masonry card layout, custom opgaver card (replaces native table with urgency-driven Preact component, progress bars, detail sheet on click)
 - **Lektier Redesign** - Day-grouped homework cards with file/activity links and teacher notes
 - **Opgaver Redesign** - Urgency-first cards with relative Danish deadlines ("Om 3 timer", "I morgen"), visual urgency gradient (overdue→imminent→soon→later), compact submitted rows with color-coded grade badges, hold filters
 - **Opgave Detail Sheet** - Side sheet opens on assignment click with full details, submission history, comment/file upload (fetches ElevAflevering.aspx via fetch-and-parse)
 - **Activity Class Modal** - Opens from aktivitetforside2 links in skema/forside, showing activity metadata, phase, note, rich lektier, and related links without leaving the page
 - **Hold/Subject Mapping** - Auto-guesses subject names from hold codes ("1x HI" → "Historie") via built-in Danish dictionary, user can override display names and colors in Settings → Fag
+- **Design System Playground** - Full-screen overlay (Settings → Design System) showcasing all colors, typography, components, cards, and patterns used in the extension
 
 ## Commands
 ```bash

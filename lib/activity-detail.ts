@@ -162,6 +162,12 @@ function sanitizeActivityHtml(fragmentRoot: ParentNode): void {
         }
       }
     }
+
+    // Strip Lectio's background-image doc icons (e.g. url(/lectio/img/doc-homework.auto))
+    // These tile/repeat and look broken outside Lectio's native CSS
+    if (el.style.backgroundImage) {
+      el.style.backgroundImage = "";
+    }
   });
 }
 
@@ -294,6 +300,41 @@ function parsePhase(doc: Document): ActivityPhase | null {
   };
 }
 
+function linkifyBareUrls(html: string): string {
+  // Match bare URLs that are NOT already inside an href="..." or <a> tag
+  // Only match URLs that are preceded by start-of-string, whitespace, or > (after a tag close)
+  return html.replace(
+    /(?<=^|>|\s)(https?:\/\/[^\s<>"']+)/g,
+    '<a href="$1" target="_blank" rel="noopener">$1</a>',
+  );
+}
+
+function extractLinksFromElement(el: HTMLElement): ActivityHomeworkLink[] {
+  const links: ActivityHomeworkLink[] = [];
+  el.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+    const label = a.textContent?.replace(/\s+/g, " ").trim() || "Link";
+    const href = a.getAttribute("href");
+    if (!href) return;
+
+    let absolute = "";
+    try {
+      absolute = new URL(href, window.location.origin).href;
+    } catch {
+      return;
+    }
+
+    let type: ActivityHomeworkLink["type"] = "internal";
+    if (absolute.includes("/lc/") && absolute.includes("/res/")) {
+      type = "file";
+    } else if (!absolute.startsWith(window.location.origin)) {
+      type = "external";
+    }
+
+    links.push({ label, url: absolute, type });
+  });
+  return links;
+}
+
 function parseHomework(doc: Document): ActivityHomeworkItem[] {
   const articles = doc.querySelectorAll<HTMLElement>(
     "#s_m_Content_Content_tocAndToolbar_inlineHomeworkDiv article",
@@ -302,42 +343,46 @@ function parseHomework(doc: Document): ActivityHomeworkItem[] {
   const items: ActivityHomeworkItem[] = [];
 
   articles.forEach((article, index) => {
-    const titleEl = article.querySelector<HTMLElement>("h1");
+    // Lectio uses h1 or h2 as the article title heading depending on content type
+    const titleEl =
+      article.querySelector<HTMLElement>("h1") ||
+      article.querySelector<HTMLElement>("h2[id*='titleHeader']") ||
+      article.querySelector<HTMLElement>("h2");
+
+    // Extract links from heading BEFORE removing it (heading often wraps file download links)
+    const h1Links = titleEl ? extractLinksFromElement(titleEl) : [];
+
     const title = titleEl?.textContent?.replace(/\s+/g, " ").trim() || `Lektie ${index + 1}`;
 
     const clone = article.cloneNode(true) as HTMLElement;
-    clone.querySelector("h1")?.remove();
+    // Remove the same heading tag from the clone
+    const headingTag = titleEl?.tagName?.toLowerCase() || "h1";
+    clone.querySelector(headingTag)?.remove();
     sanitizeActivityHtml(clone);
 
+    // Extract links from the body content
+    const bodyLinks = extractLinksFromElement(clone);
+
+    // Combine h1 links + body links, deduplicating by URL
+    const seenUrls = new Set<string>();
     const links: ActivityHomeworkLink[] = [];
-    clone.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
-      const label = a.textContent?.replace(/\s+/g, " ").trim() || "Link";
-      const href = a.getAttribute("href");
-      if (!href) return;
-
-      let absolute = "";
-      try {
-        absolute = new URL(href, window.location.origin).href;
-      } catch {
-        return;
+    for (const link of [...h1Links, ...bodyLinks]) {
+      if (!seenUrls.has(link.url)) {
+        seenUrls.add(link.url);
+        links.push(link);
       }
+    }
 
-      let type: ActivityHomeworkLink["type"] = "internal";
-      if (absolute.includes("/lc/") && absolute.includes("/res/")) {
-        type = "file";
-      } else if (!absolute.startsWith(window.location.origin)) {
-        type = "external";
-      }
-
-      links.push({ label, url: absolute, type });
-    });
+    // Auto-linkify bare URLs in the remaining content HTML
+    let contentHtml = clone.innerHTML.trim();
+    contentHtml = linkifyBareUrls(contentHtml);
 
     const id = article.closest("[id]")?.id || `homework-${index + 1}`;
 
     items.push({
       id,
       title,
-      contentHtml: clone.innerHTML.trim(),
+      contentHtml,
       links,
     });
   });

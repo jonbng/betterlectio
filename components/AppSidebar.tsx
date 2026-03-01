@@ -58,6 +58,7 @@ import { getSettings } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
+import { OpgaveDetailSheet } from './OpgaveDetailSheet';
 import { ScheduleCountdown } from './ScheduleCountdown';
 
 function getSchoolIdFromUrl(): string {
@@ -215,6 +216,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
+  const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
+  const [opgaveSheetEntry, setOpgaveSheetEntry] = useState<any>(null);
   const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData('books') ?? true);
   const [hasSps, setHasSps] = useState(() => getCachedPageHasData('sps') ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -289,6 +292,24 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       window.removeEventListener(
         "betterlectio:openActivityModal",
         handleOpenActivityModal as EventListener,
+      );
+  }, []);
+
+  // Listen for custom event to open opgave detail sheet (from forside/other pages)
+  useEffect(() => {
+    const handleOpenOpgave = (event: Event) => {
+      const customEvent = event as CustomEvent<{ entry?: any }>;
+      const entry = customEvent.detail?.entry;
+      if (!entry) return;
+      setOpgaveSheetEntry(entry);
+      setOpgaveSheetOpen(true);
+    };
+
+    window.addEventListener("betterlectio:openOpgaveDetail", handleOpenOpgave as EventListener);
+    return () =>
+      window.removeEventListener(
+        "betterlectio:openOpgaveDetail",
+        handleOpenOpgave as EventListener,
       );
   }, []);
 
@@ -594,6 +615,15 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             setActivityModalUrl(null);
           }
         }}
+      />
+      <OpgaveDetailSheet
+        open={opgaveSheetOpen}
+        onOpenChange={(next) => {
+          setOpgaveSheetOpen(next);
+          if (!next) setOpgaveSheetEntry(null);
+        }}
+        entry={opgaveSheetEntry}
+        schoolId={schoolId}
       />
     </Sidebar>
   );

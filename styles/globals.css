@@ -266,6 +266,28 @@
     overflow-y: auto;
   }
 
+  /* Design playground modal - same layout pattern as settings modal */
+  .design-playground-modal[data-slot="sidebar-wrapper"] {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .design-playground-modal [data-slot="sidebar"] {
+    height: 100%;
+  }
+
+  .design-playground-modal .design-playground-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .design-playground-modal .design-playground-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
   /* ── Hold Mapping Editor ─────────────────────────────────────────────── */
 
   .il-hold-mapping-row {
@@ -1383,6 +1405,305 @@
     display: none !important;
   }
 
+  /* ── Forside Opgaver Card (il-foc) ── */
+
+  .il-foc-island {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .il-foc {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+
+  .il-foc-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6875rem 0.875rem;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+
+  .il-foc-header:hover {
+    background: oklch(0.97 0.005 265);
+  }
+
+  .il-foc-header-title {
+    font-size: 1.0625rem;
+    font-weight: 650;
+    color: var(--foreground);
+    letter-spacing: -0.01em;
+  }
+
+  .il-foc-header-count {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--primary-foreground);
+    background: var(--primary);
+    min-width: 1.25rem;
+    height: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    padding: 0 0.375rem;
+    line-height: 1;
+  }
+
+  .il-foc-header-arrow {
+    margin-left: auto;
+    color: var(--muted-foreground);
+    opacity: 0.4;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  .il-foc-header:hover .il-foc-header-arrow {
+    opacity: 0.8;
+    transform: translate(1px, -1px);
+  }
+
+  /* ── List ── */
+
+  .il-foc-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Item ── */
+
+  .il-foc-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    text-decoration: none;
+    color: var(--foreground);
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    animation: il-foc-enter 0.3s ease both;
+    animation-delay: calc(var(--anim-i, 0) * 50ms);
+  }
+
+  .il-foc-item:last-child {
+    border-bottom: none;
+  }
+
+  .il-foc-item:hover {
+    background: oklch(0.97 0.005 265);
+  }
+
+  @keyframes il-foc-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ── Urgency progress bar ── */
+
+  .il-foc-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: calc(var(--progress, 0) * 100%);
+    border-radius: 0 1px 1px 0;
+    transition: width 0.4s ease;
+  }
+
+  .il-foc-item.is-overdue .il-foc-bar {
+    background: oklch(0.55 0.22 25);
+    width: 100%;
+  }
+
+  .il-foc-item.is-imminent .il-foc-bar {
+    background: oklch(0.6 0.18 50);
+  }
+
+  .il-foc-item.is-soon .il-foc-bar {
+    background: oklch(0.72 0.12 80);
+  }
+
+  .il-foc-item.is-later .il-foc-bar {
+    background: var(--border);
+  }
+
+  /* ── Urgency icon ── */
+
+  .il-foc-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.375rem;
+    flex-shrink: 0;
+  }
+
+  .il-foc-item.is-overdue .il-foc-icon {
+    background: oklch(0.92 0.05 25);
+    color: oklch(0.5 0.22 25);
+  }
+
+  .il-foc-item.is-imminent .il-foc-icon {
+    background: oklch(0.93 0.04 50);
+    color: oklch(0.52 0.18 50);
+  }
+
+  .il-foc-item.is-soon .il-foc-icon {
+    background: oklch(0.95 0.03 80);
+    color: oklch(0.55 0.12 80);
+  }
+
+  .il-foc-item.is-later .il-foc-icon {
+    background: var(--muted);
+    color: var(--muted-foreground);
+  }
+
+  /* ── Content ── */
+
+  .il-foc-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+  }
+
+  .il-foc-deadline-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3125rem;
+  }
+
+  .il-foc-deadline {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .il-foc-item.is-overdue .il-foc-deadline {
+    color: oklch(0.5 0.22 25);
+  }
+
+  .il-foc-item.is-imminent .il-foc-deadline {
+    color: oklch(0.52 0.18 50);
+  }
+
+  .il-foc-item.is-soon .il-foc-deadline {
+    color: oklch(0.55 0.12 80);
+  }
+
+  .il-foc-item.is-later .il-foc-deadline {
+    color: var(--foreground);
+    font-weight: 500;
+  }
+
+  /* Primary item (first) gets slightly larger deadline */
+  .il-foc-item.is-primary.is-overdue .il-foc-deadline,
+  .il-foc-item.is-primary.is-imminent .il-foc-deadline {
+    font-size: 0.875rem;
+  }
+
+  .il-foc-deadline-sub {
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    white-space: nowrap;
+  }
+
+  .il-foc-title {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+
+  /* ── Hold pill ── */
+
+  .il-foc-hold {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.4375rem;
+    border-radius: 9999px;
+    background: oklch(0.95 0.08 var(--hold-hue, 235));
+    color: oklch(0.5 0.16 var(--hold-hue, 235));
+    font-size: 0.625rem;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+
+  /* ══ Dark mode ══ */
+
+  .dark .il-foc-header:hover {
+    background: oklch(0.2 0.005 265);
+  }
+
+  .dark .il-foc-item:hover {
+    background: oklch(0.2 0.005 265);
+  }
+
+  .dark .il-foc-item.is-overdue .il-foc-bar {
+    background: oklch(0.6 0.18 25);
+  }
+
+  .dark .il-foc-item.is-imminent .il-foc-bar {
+    background: oklch(0.6 0.15 50);
+  }
+
+  .dark .il-foc-item.is-soon .il-foc-bar {
+    background: oklch(0.55 0.1 80);
+  }
+
+  .dark .il-foc-item.is-overdue .il-foc-icon {
+    background: oklch(0.25 0.06 25);
+    color: oklch(0.72 0.18 25);
+  }
+
+  .dark .il-foc-item.is-imminent .il-foc-icon {
+    background: oklch(0.25 0.05 50);
+    color: oklch(0.72 0.15 50);
+  }
+
+  .dark .il-foc-item.is-soon .il-foc-icon {
+    background: oklch(0.25 0.04 80);
+    color: oklch(0.72 0.1 80);
+  }
+
+  .dark .il-foc-item.is-overdue .il-foc-deadline {
+    color: oklch(0.72 0.18 25);
+  }
+
+  .dark .il-foc-item.is-imminent .il-foc-deadline {
+    color: oklch(0.72 0.15 50);
+  }
+
+  .dark .il-foc-item.is-soon .il-foc-deadline {
+    color: oklch(0.72 0.1 80);
+  }
+
+  .dark .il-foc-hold {
+    background: oklch(0.28 0.08 var(--hold-hue, 235));
+    color: oklch(0.78 0.14 var(--hold-hue, 235));
+  }
+
   /* ========================================
      Schedule Page (SkemaNy.aspx) Styles
      ======================================== */
@@ -1803,6 +2124,74 @@
     font-weight: 600;
     color: oklch(0.63 0.21 25);
     white-space: nowrap;
+  }
+
+  /* ── Weekend Column Collapse ────────────── */
+
+  /* Collapsed col width — narrow strip */
+  #il-original-content .s2skema col[data-il-weekend="collapsed"] {
+    width: 1.5em !important;
+  }
+
+  /* Hide brick containers in collapsed weekend columns */
+  #il-original-content .s2skema.il-weekend-collapsed td.il-weekend-col .s2skemabrikcontainer {
+    opacity: 0 !important;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  /* Hide info header children when collapsed */
+  #il-original-content .s2skema.il-weekend-collapsed td.il-weekend-col.s2infoHeader > div {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+
+  /* Day header in collapsed state: hide original text, show vertical abbreviation */
+  #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col {
+    font-size: 0 !important;
+    color: transparent !important;
+    line-height: 0 !important;
+    padding: 0 !important;
+    position: relative;
+    overflow: hidden !important;
+    background: oklch(0.96 0.008 265) !important;
+    border-radius: 0.375rem 0.375rem 0 0;
+    vertical-align: middle;
+  }
+
+  #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col::after {
+    content: attr(data-il-weekend-abbrev);
+    display: block;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    color: var(--muted-foreground);
+    font-size: 0.6875rem !important;
+    font-weight: 500;
+    line-height: 1.5em;
+    padding: 0.375rem 0;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Collapsed main content cells: subtle background strip */
+  #il-original-content .s2skema.il-weekend-collapsed td.il-weekend-col[data-date] {
+    background: oklch(0.975 0.006 265) !important;
+    overflow: hidden;
+  }
+
+  /* Weekend day headers are clickable toggles */
+  #il-original-content .s2skema .s2dayHeader td.il-weekend-col {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  #il-original-content .s2skema .s2dayHeader td.il-weekend-col:hover {
+    background: oklch(0.93 0.01 265) !important;
+  }
+
+  /* Collapsed strip hover */
+  #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col:hover {
+    background: oklch(0.92 0.015 265) !important;
   }
 
   /* ── Sidebar Schedule Countdown ── */
@@ -4629,6 +5018,11 @@
     border-bottom: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
   }
 
+  /* When title is the last child (no content or links), remove bottom border */
+  .il-act-sheet-hw-title:last-child {
+    border-bottom: none;
+  }
+
   .il-act-sheet-hw-content {
     padding: 0.7rem 0.85rem;
     font-size: 0.84rem;
@@ -4672,6 +5066,11 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
+  }
+
+  /* When links directly follow the title (no content), add more top padding */
+  .il-act-sheet-hw-title + .il-act-sheet-hw-links {
+    padding-top: 0.6rem;
   }
 
   .il-act-sheet-hw-link {
@@ -7047,6 +7446,27 @@
   .dark #il-original-content .s2weekHeader td {
     color: oklch(0.6 0.02 265) !important;
     background: transparent !important;
+  }
+
+  /* Dark mode weekend collapse overrides */
+  .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col {
+    background: oklch(0.18 0.01 265) !important;
+  }
+
+  .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col::after {
+    color: oklch(0.5 0.02 265);
+  }
+
+  .dark #il-original-content .s2skema.il-weekend-collapsed td.il-weekend-col[data-date] {
+    background: oklch(0.14 0.008 265) !important;
+  }
+
+  .dark #il-original-content .s2skema .s2dayHeader td.il-weekend-col:hover {
+    background: oklch(0.22 0.015 265) !important;
+  }
+
+  .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col:hover {
+    background: oklch(0.22 0.02 265) !important;
   }
 
   .dark .s2skemabrik {

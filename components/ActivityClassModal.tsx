@@ -389,18 +389,28 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
   return createPortal(sheet, portalTarget);
 }
 
+function isEmptyHtml(html: string): boolean {
+  // Check if HTML is effectively empty (whitespace, empty tags, &nbsp;)
+  const stripped = html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+  return stripped.length === 0;
+}
+
 function HomeworkCard({ item }: { item: ActivityHomeworkItem }) {
+  const hasContent = item.contentHtml && !isEmptyHtml(item.contentHtml);
+  const hasLinks = item.links.length > 0;
+
   return (
     <article className="il-act-sheet-hw-card">
       <h4 className="il-act-sheet-hw-title">{item.title}</h4>
 
-      {item.contentHtml ? (
+      {hasContent ? (
         <div className="il-act-sheet-hw-content" dangerouslySetInnerHTML={{ __html: item.contentHtml }} />
-      ) : (
-        <p className="il-act-sheet-hw-empty">Intet ekstra indhold.</p>
-      )}
+      ) : null}
 
-      {item.links.length > 0 ? (
+      {hasLinks ? (
         <div className="il-act-sheet-hw-links">
           {item.links.map((link, index) => (
             <a

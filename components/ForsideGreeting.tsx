@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getCachedSchedule } from '@/lib/schedule-cache';
+import { getHoldDisplayName } from '@/lib/hold-mapping';
 
 const weekendGreetings = [
   'God weekend',
@@ -65,10 +66,82 @@ function pickCancelledNudge(): (n: number) => string {
   return cancelledNudges[(window as any).__ilForsideCnIdx];
 }
 
+interface UrgentOpgave {
+  title: string;
+  hold: string;
+  deadline: Date;
+  url: string;
+}
+
+function getUrgentOpgaver(): UrgentOpgave[] {
+  const table = document.querySelector<HTMLTableElement>(
+    '#s_m_Content_Content_ElevOpgaveAfleveringerDBB',
+  );
+  if (!table) return [];
+
+  const now = new Date();
+  const urgent: UrgentOpgave[] = [];
+
+  table.querySelectorAll('tr').forEach((row) => {
+    const timeCell = row.querySelector<HTMLTableCellElement>('td.timeCol');
+    if (!timeCell) return;
+
+    const titleAttr = timeCell.getAttribute('title') || '';
+    const match = titleAttr.match(/^(\d{1,2})\/(\d{1,2})-(\d{4})\s+(\d{2}):(\d{2})$/);
+    if (!match) return;
+
+    const deadline = new Date(
+      parseInt(match[3]),
+      parseInt(match[2]) - 1,
+      parseInt(match[1]),
+      parseInt(match[4]),
+      parseInt(match[5]),
+    );
+
+    const diffMs = deadline.getTime() - now.getTime();
+    // Include overdue and imminent (< 24h)
+    if (diffMs < 24 * 3600000) {
+      const rowTitle = row.getAttribute('title') || '';
+      const holdMatch = rowTitle.match(/^Hold:\s*(.+?),\s*Titel:\s*(.+?),\s*frist:/);
+      const link = row.querySelector<HTMLAnchorElement>('td.infoCol a');
+
+      urgent.push({
+        title: holdMatch?.[2]?.trim() || link?.textContent?.trim() || 'Opgave',
+        hold: holdMatch?.[1]?.trim() || '',
+        deadline,
+        url: link?.getAttribute('href') || '',
+      });
+    }
+  });
+
+  // Sort by deadline (most urgent first)
+  urgent.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  return urgent;
+}
+
+function formatUrgentLabel(deadline: Date): string {
+  const now = new Date();
+  const diffMs = deadline.getTime() - now.getTime();
+
+  if (diffMs < 0) {
+    const absHours = Math.floor(Math.abs(diffMs) / 3600000);
+    const absMin = Math.floor(Math.abs(diffMs) / 60000);
+    if (absMin < 60) return 'Lige overskredet';
+    if (absHours < 24) return `${absHours} ${absHours === 1 ? 'time' : 'timer'} forsinket`;
+    return `${Math.floor(Math.abs(diffMs) / 86400000)} dage forsinket`;
+  }
+
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  if (diffMin < 60) return `om ${Math.max(1, diffMin)} min`;
+  return `om ${diffHours} ${diffHours === 1 ? 'time' : 'timer'}`;
+}
+
 export function ForsideGreeting() {
   const [time, setTime] = useState(new Date());
   const [firstName, setFirstName] = useState<string>('');
   const [cancelledCount, setCancelledCount] = useState(0);
+  const [urgentOpgaver, setUrgentOpgaver] = useState<UrgentOpgave[]>([]);
 
   useEffect(() => {
     // Get first name from cached profile
@@ -96,12 +169,24 @@ export function ForsideGreeting() {
       }, 1500);
     }
 
-    // Update time every second
+    // Check for urgent opgaver from forside DOM
+    setUrgentOpgaver(getUrgentOpgaver());
+
+    // Update time every second (also refreshes urgent labels)
     const interval = setInterval(() => {
+      setTime(new Date());
+      setUrgentOpgaver(getUrgentOpgaver());
+    }, 60000); // Check every minute
+
+    // Tick clock every second
+    const clockInterval = setInterval(() => {
       setTime(new Date());
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(clockInterval);
+    };
   }, []);
 
   const greeting = getGreeting();
@@ -122,6 +207,38 @@ export function ForsideGreeting() {
           <p className="text-sm font-medium mt-1" style={{ color: 'oklch(0.55 0.1 85)' }}>
             {pickCancelledNudge()(cancelledCount)}
           </p>
+        )}
+        {urgentOpgaver.length > 0 && (
+          <div className="flex flex-col gap-1.5 mt-2">
+            {urgentOpgaver.map((opgave, i) => {
+              const isOverdue = opgave.deadline.getTime() < Date.now();
+              const label = formatUrgentLabel(opgave.deadline);
+              const holdName = opgave.hold ? getHoldDisplayName(opgave.hold) : '';
+              return (
+                <a
+                  key={i}
+                  href={opgave.url || undefined}
+                  className="text-sm font-medium flex items-center gap-2 no-underline hover:underline"
+                  style={{ color: isOverdue ? 'oklch(0.55 0.15 25)' : 'oklch(0.55 0.15 55)' }}
+                >
+                  <span style={{
+                    display: 'inline-block',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: isOverdue ? 'oklch(0.55 0.2 25)' : 'oklch(0.65 0.2 55)',
+                    flexShrink: 0,
+                  }} />
+                  <span>
+                    {opgave.title}
+                    {holdName ? ` (${holdName})` : ''}
+                    {' — '}
+                    <span style={{ fontWeight: 600 }}>{label}</span>
+                  </span>
+                </a>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
