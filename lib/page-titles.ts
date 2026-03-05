@@ -3,6 +3,8 @@
  * Sets clean, modern titles instead of the verbose Lectio defaults.
  */
 
+import { getFullHoldDisplayName } from './hold-mapping';
+
 interface TitleConfig {
   /** Base title for the page */
   title: string;
@@ -60,16 +62,38 @@ function extractRoomInfo(): string | null {
 }
 
 /**
- * Extract class/hold name from viewing a class schedule.
+ * Extract class name from viewing a class schedule.
  */
 function extractClassInfo(): string | null {
   const titleEl = document.querySelector('#s_m_HeaderContent_MainTitle, #m_HeaderContent_MainTitle');
   const text = titleEl?.textContent || '';
-  // Match "Stamklassen 1x" or "Holdet 1x MA"
-  const match = text.match(/^(?:Stamklassen|Holdet)\s+(.+?)\s*-/);
+  const match = text.match(/^Stamklassen\s+(.+?)\s*-/);
   if (match) {
     return match[1].trim();
   }
+  const fallbackMatch = text.match(/^Klassen\s+(.+?)\s*-/);
+  if (fallbackMatch) {
+    return fallbackMatch[1].trim();
+  }
+  return null;
+}
+
+/**
+ * Extract hold name from viewing a hold/holdelement schedule.
+ */
+function extractHoldInfo(): string | null {
+  const titleEl = document.querySelector('#s_m_HeaderContent_MainTitle, #m_HeaderContent_MainTitle');
+  const text = titleEl?.textContent || '';
+  const match = text.match(/^Holdet\s+(.+?)\s*-/);
+  if (match) {
+    return getFullHoldDisplayName(match[1].trim());
+  }
+
+  const fallbackName = new URLSearchParams(window.location.search).get('name')?.trim();
+  if (fallbackName) {
+    return getFullHoldDisplayName(fallbackName);
+  }
+
   return null;
 }
 
@@ -88,8 +112,11 @@ function getScheduleSubject(): string | null {
   if (params.has('lokaleid')) {
     return extractRoomInfo();
   }
-  if (params.has('klasseid') || params.has('holdid')) {
+  if (params.has('klasseid')) {
     return extractClassInfo();
+  }
+  if (params.has('holdid') || params.has('holdelementid')) {
+    return extractHoldInfo();
   }
 
   return null;

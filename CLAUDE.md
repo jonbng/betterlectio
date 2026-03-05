@@ -41,7 +41,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx pages, submission API, localStorage cache
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx pages with rich lektie content + short-term cache
 - `lib/brick-tooltip.ts` - Custom schedule brick hover tooltip with async-enriched content (note, lektier, related items)
-- `lib/profile-cache.ts` - User profile and viewed entity caching with URL/localStorage name fallback for entity schedules
+- `lib/profile-cache.ts` - User profile and viewed entity caching with URL/localStorage name fallback for entity schedules, including mapped hold/holdelement header names
 - `lib/members-fetch.ts` - Fetch/parse utility for `members.aspx` (klasse/holdelement) returning typed member cards
 - `lib/hold-mapping.ts` - V2 hold mapping system with shared subject mappings, per-hold exceptions, ignored non-academic groups, and fresh-start storage resets for old data
 - `components/settings/HoldMappingEditor.tsx` - Settings UI for shared subject names/colors plus separate special-hold exceptions
@@ -107,7 +107,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Custom Sidebar** - Modern navigation with collapsible sections, settings modal access
 - **FindSkema Redesign** - Fuzzy search, single-select type filters, starred people, recent searches, person cards, auto-focus search on typing, and default browse cards per selected filter
 - **Schedule Enhancements** - Today highlight, current time indicator, optional time label, countdown bar, back navigation, enriched hover tooltips (async-fetched note, rich lektier with links, related items)
-- **Viewing Header** - Shows whose schedule with star toggle, type badge, back link, teacher full-name lookup, and expandable medlemmer panel for klasse/holdelement
+- **Viewing Header** - Shows whose schedule with star toggle, type badge, back link, teacher full-name lookup, mapped hold/holdelement names, and expandable medlemmer panel for klasse/holdelement
 - **Settings Modal** - Appearance, notifications, advanced settings, version info
 - **Experimental Dark Mode** - Manual toggle for dark color palette
 - **Clean Page Titles** - Modern titles with unread message badge count

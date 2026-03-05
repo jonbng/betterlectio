@@ -153,6 +153,15 @@ interface SubjectDistributionItem {
   share: number;
 }
 
+function hasHoldAbsence(hold: FravaerHoldEntry): boolean {
+  return (
+    parsePct(hold.almOpgjortPct) > 0 ||
+    parsePct(hold.almAarPct) > 0 ||
+    parsePct(hold.skrOpgjortPct) > 0 ||
+    parsePct(hold.skrAarPct) > 0
+  );
+}
+
 function sortHolds(holds: FravaerHoldEntry[], key: SortKey, dir: SortDir): FravaerHoldEntry[] {
   const sorted = [...holds];
   sorted.sort((a, b) => {
@@ -242,6 +251,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   // Table sort
   const [sortKey, setSortKey] = useState<SortKey>('almOpgjort');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [showZeroAbsenceHolds, setShowZeroAbsenceHolds] = useState(false);
 
   // Records filters
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
@@ -269,6 +279,10 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     setPeriodStart(data.period.start);
     setPeriodEnd(data.period.end);
   }, [data.period]);
+
+  useEffect(() => {
+    setShowZeroAbsenceHolds(false);
+  }, [data.holds]);
 
   const hasWrittenDistribution = data.holds.some((hold) => parseFraction(hold.skrOpgjortTid).amount > 0);
 
@@ -329,6 +343,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   // ── Sorted holds ──────────────────────────────────────────────────
 
   const sortedHolds = sortHolds(data.holds, sortKey, sortDir);
+  const nonZeroHolds = sortedHolds.filter(hasHoldAbsence);
+  const zeroAbsenceHolds = sortedHolds.filter((hold) => !hasHoldAbsence(hold));
+  const visibleHolds = showZeroAbsenceHolds ? sortedHolds : nonZeroHolds;
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -551,7 +568,15 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {sortedHolds.map((h, i) => {
+                {visibleHolds.length === 0 && (
+                  <tr className="il-fravaer-holds-empty-row">
+                    <td className="il-fravaer-holds-empty-cell" colSpan={5}>
+                      Ingen fag med registreret fravær i den valgte periode.
+                    </td>
+                  </tr>
+                )}
+
+                {visibleHolds.map((h, i) => {
                   const hue = getHoldHue(h.hold);
                   return (
                     <tr key={i} className="il-fravaer-hold-row" style={{ '--hold-hue': hue } as any}>
@@ -580,6 +605,18 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               </tbody>
             </table>
           </div>
+
+          {zeroAbsenceHolds.length > 0 && (
+            <button
+              className="il-fravaer-holds-toggle"
+              onClick={() => setShowZeroAbsenceHolds((value) => !value)}
+            >
+              {showZeroAbsenceHolds ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {showZeroAbsenceHolds
+                ? `Skjul ${zeroAbsenceHolds.length} fag uden fravær`
+                : `Vis ${zeroAbsenceHolds.length} fag uden fravær`}
+            </button>
+          )}
         </section>
       )}
 

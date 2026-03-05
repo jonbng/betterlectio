@@ -312,6 +312,7 @@ Features:
 - "Back to search" or "Back to your schedule" link
 - Preserves search query in back navigation
 - Teacher schedule headers upgrade to full names via teacher cache lookup (`byId[laererid].fullName`)
+- Hold/holdelement schedule headers resolve through `getFullHoldDisplayName()` so the top banner shows mapped names like `1a Engelsk`
 - Klasse/holdelement schedules show an expandable "Medlemmer" panel
 - Members panel fetches `members.aspx` on first open, caches members in component state, and renders `PersonCard` grid
 
@@ -437,7 +438,7 @@ Features:
 
 Functions:
 - `getHoldDisplayName(holdCode)` — subject name, hold override, or raw fallback
-- `getFullHoldDisplayName(holdCode)` — expanded class-prefixed label for FindSkema (`1x Matematik`)
+- `getFullHoldDisplayName(holdCode)` — expanded class-prefixed label for FindSkema, viewed hold headers, and clean schedule titles (`1x Matematik`)
 - `getHoldHue(holdCode)` — shared subject hue, hold override hue, or fallback hash
 - `registerHold(holdCode, holdelementId?)` — classify and register subject/override when eligible
 - `scanDOMForHolds(root?)` — discover holds from DOM
@@ -486,7 +487,7 @@ Features:
 - Profile picture URL cache (7-day TTL, max 1000 entries)
 - Fetch picture URLs from Lectio context cards
 - Canonical `getScheduleUrl()` mapping for AvanceretSkema IDs (`SC/RO/RE/HE/GE`) with `HE -> holdelementid` fix
-- Optional schedule query params for Lectio behavior parity (`type=stamklasse|holdelement`, `name=...`)
+- Optional schedule query params for Lectio behavior parity (`type=stamklasse|holdelement`, `name=...`), reused as a fallback label source on viewed hold/holdelement schedules
 
 ### 17. Fuzzy Search (`lib/fuzzy-search.ts`)
 

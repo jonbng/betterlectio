@@ -1,4 +1,5 @@
 import { getRecentPeople, getStarredPeople } from './findskema-storage';
+import { getFullHoldDisplayName } from './hold-mapping';
 
 const PROFILE_CACHE_KEY = 'il-user-profile';
 const LOGIN_STATE_KEY = 'il-login-state';
@@ -226,6 +227,7 @@ export function extractViewedEntity(): ViewedEntity | null {
 
   let name = '';
   let subtitle = '';
+  const isHoldSchedule = viewed.type === 'hold' || viewed.type === 'holdelement';
 
   const fallbackNameByUrl = new URLSearchParams(window.location.search).get('name')?.trim() || '';
 
@@ -253,6 +255,7 @@ export function extractViewedEntity(): ViewedEntity | null {
 
     return '';
   };
+  const storageFallbackName = lookupNameInStorage();
 
   // Title patterns for different entity types:
   // Student: "Eleven Carl Christian Meding(k), 1x - Skema"
@@ -333,7 +336,7 @@ export function extractViewedEntity(): ViewedEntity | null {
   // Entity titles for some types are inconsistent on Lectio pages.
   // Fallback chain: URL param -> localStorage recents/starred -> generic title parsing.
   if (!name && (viewed.type === 'hold' || viewed.type === 'holdelement' || viewed.type === 'group' || viewed.type === 'room' || viewed.type === 'resource')) {
-    name = fallbackNameByUrl || lookupNameInStorage();
+    name = fallbackNameByUrl || storageFallbackName;
   }
 
   // If we still couldn't parse the name, try a generic fallback
@@ -346,7 +349,22 @@ export function extractViewedEntity(): ViewedEntity | null {
   }
 
   if (!name) {
-    name = fallbackNameByUrl || lookupNameInStorage() || 'Ukendt';
+    name = fallbackNameByUrl || storageFallbackName || 'Ukendt';
+  }
+
+  if (isHoldSchedule) {
+    const mappedTitleName = name ? getFullHoldDisplayName(name) : '';
+    const mappedFallbackName = fallbackNameByUrl
+      ? getFullHoldDisplayName(fallbackNameByUrl)
+      : '';
+
+    if (mappedTitleName && mappedTitleName !== name) {
+      name = mappedTitleName;
+    } else if (mappedFallbackName) {
+      name = mappedFallbackName;
+    } else if (name) {
+      name = getFullHoldDisplayName(name);
+    }
   }
 
   return {
