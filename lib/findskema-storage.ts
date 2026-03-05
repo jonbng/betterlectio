@@ -117,11 +117,31 @@ export function parsePersonInfo(name: string): { displayName: string; classCode:
   return { displayName: name, classCode: '' };
 }
 
-export function getScheduleUrl(id: string, schoolId: string): string {
+interface ScheduleUrlOptions {
+  name?: string;
+  type?: 'stamklasse' | 'holdelement';
+}
+
+function appendScheduleParams(baseUrl: string, options?: ScheduleUrlOptions): string {
+  const url = new URL(baseUrl, window.location.origin);
+
+  if (options?.type) {
+    url.searchParams.set('type', options.type);
+  }
+
+  const trimmedName = options?.name?.trim();
+  if (trimmedName) {
+    url.searchParams.set('name', trimmedName);
+  }
+
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+export function getScheduleUrl(id: string, schoolId: string, options?: ScheduleUrlOptions): string {
   if (id.startsWith('URL:')) {
     const encoded = id.slice(4);
     try {
-      return decodeURIComponent(encoded);
+      return appendScheduleParams(decodeURIComponent(encoded), options);
     } catch {
       return `/lectio/${schoolId}/SkemaNy.aspx`;
     }
@@ -130,19 +150,19 @@ export function getScheduleUrl(id: string, schoolId: string): string {
   const prefix2 = id.substring(0, 2);
   const prefix1 = id.charAt(0);
 
-  const twoCharMap: Record<string, { param: string; start: number }> = {
-    SC: { param: 'klasseid', start: 2 },
+  const twoCharMap: Record<string, { param: string; start: number; type?: 'stamklasse' | 'holdelement' }> = {
+    SC: { param: 'klasseid', start: 2, type: 'stamklasse' },
     RO: { param: 'lokaleid', start: 2 },
     RE: { param: 'ressourceid', start: 2 },
-    HE: { param: 'holdid', start: 2 },
+    HE: { param: 'holdelementid', start: 2, type: 'holdelement' },
     GE: { param: 'gruppeid', start: 2 },
   };
 
-  const oneCharMap: Record<string, { param: string; start: number }> = {
+  const oneCharMap: Record<string, { param: string; start: number; type?: 'stamklasse' | 'holdelement' }> = {
     S: { param: 'elevid', start: 1 },
     T: { param: 'laererid', start: 1 },
     L: { param: 'lokaleid', start: 1 },
-    K: { param: 'klasseid', start: 1 },
+    K: { param: 'klasseid', start: 1, type: 'stamklasse' },
     H: { param: 'holdid', start: 1 },
     G: { param: 'gruppeid', start: 1 },
     R: { param: 'ressourceid', start: 1 },
@@ -150,7 +170,20 @@ export function getScheduleUrl(id: string, schoolId: string): string {
 
   const mapped = twoCharMap[prefix2] || oneCharMap[prefix1] || { param: 'elevid', start: 1 };
   const numericId = id.slice(mapped.start);
-  return `/lectio/${schoolId}/SkemaNy.aspx?${mapped.param}=${numericId}`;
+  const scheduleUrl = new URL(`/lectio/${schoolId}/SkemaNy.aspx`, window.location.origin);
+  scheduleUrl.searchParams.set(mapped.param, numericId);
+
+  const typeParam = options?.type || mapped.type;
+  if (typeParam) {
+    scheduleUrl.searchParams.set('type', typeParam);
+  }
+
+  const trimmedName = options?.name?.trim();
+  if (trimmedName) {
+    scheduleUrl.searchParams.set('name', trimmedName);
+  }
+
+  return `${scheduleUrl.pathname}${scheduleUrl.search}`;
 }
 
 // Picture cache types and functions

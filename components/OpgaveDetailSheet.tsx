@@ -227,7 +227,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
           onClick={() => onOpenChange(false)}
           aria-label="Luk"
         >
-          <X size={16} />
+          <X size={18} />
         </button>
 
         {/* Header */}
@@ -245,7 +245,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   {getHoldDisplayName(entry.hold)}
                 </span>
                 <span className="il-opgave-sheet-deadline">
-                  <Clock size={12} />
+                  <Clock size={14} />
                   {entry.deadlineText}
                 </span>
               </div>
@@ -259,7 +259,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
           {error && (
             <div className="il-opgave-sheet-error">
-              <AlertTriangle size={24} />
+              <AlertTriangle size={28} />
               <p>{error}</p>
               <div className="il-opgave-sheet-error-actions">
                 <button
@@ -273,7 +273,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                     href={entry.url}
                     className="il-opgave-sheet-btn il-opgave-sheet-btn-ghost"
                   >
-                    <ExternalLink size={14} />
+                    <ExternalLink size={15} />
                     Åbn i Lectio
                   </a>
                 )}
@@ -312,7 +312,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      <FileDown size={14} />
+                      <FileDown size={16} />
                       {file.name}
                     </a>
                   ))}
@@ -325,7 +325,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
               {detail.students.length > 0 && (
                 <div className="il-opgave-sheet-student-section">
                   <h3 className="il-opgave-sheet-section-label">
-                    <User size={13} />
+                    <User size={15} />
                     Status
                   </h3>
                   {detail.students.map((student, i) => (
@@ -368,7 +368,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   <Separator />
                   <div className="il-opgave-sheet-entries-section">
                     <h3 className="il-opgave-sheet-section-label">
-                      <FileText size={13} />
+                      <FileText size={15} />
                       Indlæg
                       <span className="il-opgave-sheet-entry-count">{detail.entries.length}</span>
                     </h3>
@@ -380,7 +380,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                         >
                           <div className="il-opgave-sheet-entry-header">
                             <span className="il-opgave-sheet-entry-user">
-                              {historyEntry.isTeacher ? <GraduationCap size={12} /> : <User size={12} />}
+                              {historyEntry.isTeacher ? <GraduationCap size={14} /> : <User size={14} />}
                               {historyEntry.user}
                             </span>
                             <span className="il-opgave-sheet-entry-time">{historyEntry.timestamp}</span>
@@ -395,7 +395,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <FileDown size={13} />
+                              <FileDown size={15} />
                               {historyEntry.documentName}
                             </a>
                           )}
@@ -436,19 +436,19 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 >
                   {selectedFile ? (
                     <div className="il-opgave-sheet-selected-file">
-                      <FileText size={14} />
+                      <FileText size={16} />
                       <span className="il-opgave-sheet-file-name">{selectedFile.name}</span>
                       <span className="il-opgave-sheet-file-size">{formatFileSize(selectedFile.size)}</span>
                       <button
                         className="il-opgave-sheet-file-remove"
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                       >
-                        <X size={14} />
+                        <X size={15} />
                       </button>
                     </div>
                   ) : (
                     <div className="il-opgave-sheet-dropzone-hint">
-                      <Upload size={14} />
+                      <Upload size={16} />
                       <span>Vælg fil eller træk hertil</span>
                     </div>
                   )}
@@ -468,9 +468,9 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   onClick={handleSubmit}
                 >
                   {submitting ? (
-                    <Loader2 size={14} className="il-opgave-sheet-spinner" />
+                    <Loader2 size={16} className="il-opgave-sheet-spinner" />
                   ) : (
-                    <Send size={14} />
+                    <Send size={16} />
                   )}
                   {submitting ? submitLabel : 'Send'}
                 </button>
@@ -483,7 +483,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 href={entry.url}
                 className="il-opgave-sheet-lectio-link"
               >
-                <ExternalLink size={14} />
+                <ExternalLink size={15} />
                 Åbn i Lectio
               </a>
             )}

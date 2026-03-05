@@ -23,6 +23,7 @@ import {
 import { resolveAvanceretSkemaCacheParams } from '../lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
 import { getMyTeacherIds } from '../lib/my-teachers';
+import { getFullHoldDisplayName } from '../lib/hold-mapping';
 
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
@@ -198,17 +199,16 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
             // Transform class prefix in hold names (e.g. "2025x HI" → "1x HI")
             if (type === 'H') {
-              const transformedHold = transformHoldName(rawName);
-              if (transformedHold) {
-                return {
-                  name: transformedHold,
-                  id,
-                  type,
-                  shortName,
-                  longName,
-                  searchText: createSearchText(transformedHold, shortName, longName) + ' ' + rawName,
-                };
-              }
+              const transformedHold = transformHoldName(rawName) ?? rawName;
+              const displayName = getFullHoldDisplayName(transformedHold);
+              return {
+                name: displayName,
+                id,
+                type,
+                shortName,
+                longName,
+                searchText: createSearchText(displayName, shortName, longName) + ' ' + transformedHold + ' ' + rawName,
+              };
             }
 
             return {

@@ -6,6 +6,9 @@ import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
 import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver } from "@/components/OpgaverPage";
+import { BeskederPage, parseBeskederFromDOM } from "@/components/BeskederPage";
+import { FravaerPage } from "@/components/FravaerPage";
+import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
 import { ForsideOpgaverCard, parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -21,7 +24,7 @@ import {
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
-import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName } from "@/lib/hold-mapping";
+import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import "@/styles/globals.css";
 
@@ -358,14 +361,22 @@ function initLayout() {
           injectOpgaverPage(schoolId);
         }
 
-        // Inject fravær summary and subnavigation (Oversigt/Fraværsårsager)
+        // Inject beskeder page UI
         if (
+          (settings.pages.beskederRedesign ?? true) &&
+          window.location.pathname.toLowerCase().includes("beskeder2.aspx")
+        ) {
+          injectBeskederPage(schoolId);
+        }
+
+        // Inject fravær page redesign
+        if (
+          (settings.pages.fravaerRedesign ?? true) &&
           /\/subnav\/fravaerelev(_fravaersaarsager)?\.aspx/i.test(
             window.location.pathname,
           )
         ) {
-          injectFravaerSummaryBar();
-          injectFravaerSubnav();
+          injectFravaerPage(schoolId);
         }
 
         // Inject "viewing schedule" header when looking at someone else's schedule
@@ -838,6 +849,9 @@ function enhanceScheduleBricks() {
     // Get hold code for coloring (title attr has original code)
     const holdCode =
       holdSpan?.getAttribute("title") || holdSpan?.textContent?.trim() || "";
+    const holdDisplayName = holdCode ? getHoldDisplayName(holdCode) : "";
+    const hasMappedHoldTitle = holdCode ? hasHoldMapping(holdCode) : false;
+    const topicText = topicSpan?.textContent?.trim() || "";
 
     // Extract room from content text: "\nHistorie • MR • 25\nMiddelalderen"
     // Content starts with a newline, so find the first non-empty line
@@ -869,15 +883,31 @@ function enhanceScheduleBricks() {
     header.className = "il-brick-header";
 
     let topicUsedAsSubject = false;
-    if (holdSpan) {
+    if (hasMappedHoldTitle) {
+      if (holdSpan) {
+        holdSpan.textContent = holdDisplayName || holdCode;
+        holdSpan.classList.add("il-brick-subject");
+        header.appendChild(holdSpan);
+      } else if (holdDisplayName) {
+        const subjectLabel = document.createElement("span");
+        subjectLabel.className = "il-brick-subject";
+        subjectLabel.textContent = holdDisplayName;
+        header.appendChild(subjectLabel);
+      }
+    } else if (topicText) {
+      const subjectLabel = document.createElement("span");
+      subjectLabel.className = "il-brick-subject";
+      subjectLabel.textContent = topicText;
+      header.appendChild(subjectLabel);
+      topicUsedAsSubject = true;
+    } else if (holdSpan) {
       holdSpan.classList.add("il-brick-subject");
       header.appendChild(holdSpan);
-    } else if (topicSpan) {
-      // Fallback: use topic as subject when no hold span exists
-      topicSpan.classList.add("il-brick-subject");
-      topicSpan.style.removeProperty("word-wrap");
-      header.appendChild(topicSpan);
-      topicUsedAsSubject = true;
+    } else if (holdCode) {
+      const subjectLabel = document.createElement("span");
+      subjectLabel.className = "il-brick-subject";
+      subjectLabel.textContent = holdCode;
+      header.appendChild(subjectLabel);
     }
 
     if (room) {
@@ -940,7 +970,6 @@ function enhanceScheduleBricks() {
 
     // ── Topic ──
     if (topicSpan && !topicUsedAsSubject) {
-      const topicText = topicSpan.textContent?.trim();
       if (topicText) {
         const topicDiv = document.createElement("div");
         topicDiv.className = "il-brick-topic";
@@ -1158,18 +1187,31 @@ function injectViewingScheduleHeader(schoolId: string) {
   // Insert at the beginning of the content container
   contentContainer.insertBefore(headerContainer, contentContainer.firstChild);
 
-  // Render the header component
-  render(
-    <ViewingScheduleHeader
-      name={viewedEntity.name}
-      subtitle={viewedEntity.subtitle}
-      pictureUrl={viewedEntity.pictureUrl}
-      type={viewedEntity.type}
-      schoolId={schoolId}
-      entityId={viewedEntity.id}
-    />,
-    headerContainer,
-  );
+  const renderHeader = (headerName: string) => {
+    render(
+      <ViewingScheduleHeader
+        name={headerName}
+        subtitle={viewedEntity.subtitle}
+        pictureUrl={viewedEntity.pictureUrl}
+        type={viewedEntity.type}
+        schoolId={schoolId}
+        entityId={viewedEntity.id}
+      />,
+      headerContainer,
+    );
+  };
+
+  // Render immediately with extracted name, then refine teacher names from cache.
+  renderHeader(viewedEntity.name);
+
+  if (viewedEntity.type === "teacher") {
+    loadTeacherNames(schoolId).then((cache) => {
+      const teacherName = cache?.byId[viewedEntity.id]?.fullName;
+      if (teacherName && teacherName !== viewedEntity.name) {
+        renderHeader(teacherName);
+      }
+    });
+  }
 
   console.log(
     "[BetterLectio] Viewing schedule header injected for",
@@ -1222,6 +1264,29 @@ function injectMembersPage(schoolId: string) {
   );
 }
 
+function injectBeskederPage(schoolId: string) {
+  const data = parseBeskederFromDOM();
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const beskederContainer = document.createElement("div");
+  beskederContainer.id = "il-beskeder-page";
+  contentContainer.appendChild(beskederContainer);
+
+  document.body.classList.add("il-beskeder-page-active");
+
+  render(<BeskederPage data={data} schoolId={schoolId} />, beskederContainer);
+
+  console.log(
+    "[BetterLectio] Beskeder page injected with",
+    data.threads.length,
+    "threads,",
+    data.folders.length,
+    "folders",
+  );
+}
+
 function injectLektierPage(_schoolId: string) {
   const entries = parseLektierFromDOM();
 
@@ -1268,194 +1333,24 @@ async function injectOpgaverPage(schoolId: string) {
   }
 }
 
-function injectFravaerSubnav() {
-  if (document.getElementById("il-fravaer-subnav")) return;
-
+async function injectFravaerPage(schoolId: string) {
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
-  const sourceNav = document.querySelector(
-    "#il-original-content .ls-subnav2",
-  ) as HTMLElement | null;
-  if (!sourceNav) return;
+  const fravaerContainer = document.createElement("div");
+  fravaerContainer.id = "il-fravaer-page";
+  contentContainer.appendChild(fravaerContainer);
 
-  const links = Array.from(sourceNav.querySelectorAll("a")).filter(
-    (link) => !!link.getAttribute("href") && link.textContent?.trim(),
-  );
-  if (links.length === 0) return;
+  document.body.classList.add("il-fravaer-page-active");
 
-  const nav = document.createElement("nav");
-  nav.id = "il-fravaer-subnav";
-  nav.className = "il-fravaer-subnav";
-  nav.setAttribute("aria-label", "Fravær");
+  // Show a loading state while we fetch both pages
+  fravaerContainer.innerHTML = '<div class="il-fravaer-initial-loading"><div class="il-fravaer-spinner"></div><span>Henter fraværsdata...</span></div>';
 
-  links.forEach((link) => {
-    const href = link.getAttribute("href");
-    if (!href) return;
-
-    const linkUrl = new URL(href, window.location.origin);
-    const navLink = document.createElement("a");
-    navLink.href = linkUrl.toString();
-    navLink.textContent = link.textContent?.trim() ?? "";
-    navLink.className = "il-fravaer-subnav-link";
-
-    if (linkUrl.pathname === window.location.pathname) {
-      navLink.classList.add("is-active");
-    }
-
-    nav.appendChild(navLink);
-  });
-
-  if (!nav.childElementCount) return;
-
-  document.body.classList.add("il-fravaer-page");
-
-  const summaryBar = document.getElementById("il-fravaer-summary");
-  const insertBeforeNode = summaryBar?.nextSibling ?? contentContainer.firstChild;
-  contentContainer.insertBefore(nav, insertBeforeNode);
-}
-
-function injectFravaerSummaryBar() {
-  if (document.getElementById("il-fravaer-summary")) return;
-
-  const contentContainer = document.getElementById("il-lectio-content");
-  if (!contentContainer) return;
-
-  const summary = document.createElement("section");
-  summary.id = "il-fravaer-summary";
-  summary.className = "il-fravaer-summary";
-  summary.setAttribute("role", "region");
-  summary.setAttribute("aria-label", "Fravær overblik");
-
-  const inner = document.createElement("div");
-  inner.className = "il-fravaer-summary-inner";
-
-  const header = document.createElement("div");
-  header.className = "il-fravaer-summary-header";
-
-  const title = document.createElement("div");
-  title.className = "il-fravaer-summary-title";
-  title.textContent =
-    document
-      .getElementById("s_m_HeaderContent_MainTitle")
-      ?.textContent?.trim() || "Fravær";
-
-  header.append(title);
-
-  const metrics = buildFravaerSummaryMetrics();
-  if (metrics.length > 0) {
-    const metricsContainer = document.createElement("div");
-    metricsContainer.className = "il-fravaer-summary-metrics";
-
-    metrics.forEach((metric) => {
-      const item = document.createElement("div");
-      item.className = "il-fravaer-summary-metric";
-
-      const label = document.createElement("span");
-      label.className = "il-fravaer-summary-label";
-      label.textContent = metric.label;
-
-      const value = document.createElement("span");
-      value.className = "il-fravaer-summary-value";
-      value.textContent = metric.value;
-
-      if (metric.subvalue) {
-        const subvalue = document.createElement("span");
-        subvalue.className = "il-fravaer-summary-subvalue";
-        subvalue.textContent = metric.subvalue;
-        item.append(label, value, subvalue);
-      } else {
-        item.append(label, value);
-      }
-
-      metricsContainer.appendChild(item);
-    });
-
-    inner.append(header, metricsContainer);
-  } else {
-    inner.appendChild(header);
+  try {
+    const data = await fetchCombinedFravaerData();
+    render(<FravaerPage data={data} schoolId={schoolId} />, fravaerContainer);
+  } catch (err) {
+    console.error("[BetterLectio] Failed to load fravær page:", err);
+    fravaerContainer.innerHTML = '<div class="il-fravaer-initial-loading"><span>Kunne ikke hente fraværsdata. Prøv at genindlæse siden.</span></div>';
   }
-
-  summary.appendChild(inner);
-
-  document.body.classList.add("il-fravaer-page");
-  contentContainer.insertBefore(summary, contentContainer.firstChild);
-}
-
-function buildFravaerSummaryMetrics() {
-  const metrics: Array<{ label: string; value: string; subvalue?: string }> =
-    [];
-  const table = document.getElementById(
-    "s_m_Content_Content_SFTabStudentAbsenceDataTable",
-  ) as HTMLTableElement | null;
-  if (table) {
-    const rows = Array.from(table.querySelectorAll("tr"));
-    const totalRow = rows.find((row) =>
-      row.textContent?.includes("Samlet"),
-    ) as HTMLTableRowElement | undefined;
-    if (!totalRow) return metrics;
-
-    const cells = Array.from(totalRow.querySelectorAll("td"));
-    if (cells.length < 9) return metrics;
-
-    const almindeligtOpgjort = formatMetric(cells[1], cells[2]);
-    const almindeligtAar = formatMetric(cells[3], cells[4]);
-    const skriftligtOpgjort = formatMetric(cells[5], cells[6]);
-    const skriftligtAar = formatMetric(cells[7], cells[8]);
-
-    if (almindeligtOpgjort || almindeligtAar) {
-      metrics.push({
-        label: "Almindeligt",
-        value: almindeligtOpgjort || almindeligtAar,
-        subvalue:
-          almindeligtOpgjort && almindeligtAar
-            ? `Året ${almindeligtAar}`
-            : undefined,
-      });
-    }
-
-    if (skriftligtOpgjort || skriftligtAar) {
-      metrics.push({
-        label: "Skriftligt",
-        value: skriftligtOpgjort || skriftligtAar,
-        subvalue:
-          skriftligtOpgjort && skriftligtAar
-            ? `Året ${skriftligtAar}`
-            : undefined,
-      });
-    }
-
-    return metrics;
-  }
-
-  const almindeligtSamlet = document.getElementById(
-    "s_m_Content_Content_FremmoedeFravaer",
-  ) as HTMLElement | null;
-  const skriftligtSamlet = document.getElementById(
-    "s_m_Content_Content_SkriftligFravaer",
-  ) as HTMLElement | null;
-
-  if (almindeligtSamlet?.textContent?.trim()) {
-    metrics.push({
-      label: "Almindeligt",
-      value: almindeligtSamlet.textContent.trim(),
-    });
-  }
-
-  if (skriftligtSamlet?.textContent?.trim()) {
-    metrics.push({
-      label: "Skriftligt",
-      value: skriftligtSamlet.textContent.trim(),
-    });
-  }
-
-  return metrics;
-}
-
-function formatMetric(primaryCell?: Element, secondaryCell?: Element) {
-  const primary = primaryCell?.textContent?.trim();
-  const secondary = secondaryCell?.textContent?.trim();
-  if (!primary && !secondary) return "";
-  if (primary && secondary) return `${primary} (${secondary})`;
-  return primary || secondary || "";
 }

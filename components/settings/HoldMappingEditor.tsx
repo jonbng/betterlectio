@@ -1,28 +1,27 @@
-import { useState, useRef } from 'preact/hooks';
-import { Sparkles, Pencil, RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useRef, useState } from 'react';
+import { Pencil, RotateCcw, Sparkles } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { cn } from '@/lib/utils';
 import {
-  getAllHolds,
-  setHoldDisplayName,
-  setHoldColorHue,
-  resetAllMappings,
-  getHoldHue,
   CURATED_HUES,
-  type HoldMapping,
+  getAllHolds,
+  resetAllMappings,
+  setHoldColorHue,
+  setHoldDisplayName,
+  type HoldMappingRow,
 } from '@/lib/hold-mapping';
 
-function HoldRow({ mapping, onUpdate }: { mapping: HoldMapping; onUpdate: () => void }) {
+function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () => void }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(mapping.displayName);
   const [showColors, setShowColors] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const effectiveHue = mapping.colorHue ?? getHoldHue(mapping.holdCode);
 
   const commitEdit = () => {
     const trimmed = editValue.trim();
     if (trimmed && trimmed !== mapping.displayName) {
-      setHoldDisplayName(mapping.holdCode, trimmed);
+      setHoldDisplayName(mapping.id, mapping.kind, trimmed);
       onUpdate();
     }
     setEditing(false);
@@ -36,10 +35,12 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMapping; onUpdate: () => 
 
   return (
     <div className="il-hold-mapping-row">
-      {/* Hold code */}
-      <span className="il-hold-mapping-code">{mapping.holdCode}</span>
+      <div className="il-hold-mapping-meta">
+        <div className="il-hold-mapping-meta-top">
+          <span className="il-hold-mapping-code">{mapping.codeLabel}</span>
+        </div>
+      </div>
 
-      {/* Display name (editable) */}
       <div className="il-hold-mapping-name-cell">
         {editing ? (
           <input
@@ -70,11 +71,10 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMapping; onUpdate: () => 
         )}
       </div>
 
-      {/* Color button */}
       <div className="il-hold-mapping-color-cell">
         <button
           className="il-hold-mapping-color-btn"
-          style={{ '--hold-hue': effectiveHue } as any}
+          style={{ '--hold-hue': mapping.effectiveHue } as any}
           onClick={() => setShowColors(!showColors)}
           title="Skift farve"
         />
@@ -82,15 +82,23 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMapping; onUpdate: () => 
           <div className="il-hold-color-picker">
             <button
               className={`il-hold-color-swatch is-default${mapping.colorHue === null ? ' is-active' : ''}`}
-              onClick={() => { setHoldColorHue(mapping.holdCode, null); setShowColors(false); onUpdate(); }}
+              onClick={() => {
+                setHoldColorHue(mapping.id, mapping.kind, null);
+                setShowColors(false);
+                onUpdate();
+              }}
               title="Standard"
             />
-            {CURATED_HUES.map(hue => (
+            {CURATED_HUES.map((hue) => (
               <button
                 key={hue}
                 className={`il-hold-color-swatch${mapping.colorHue === hue ? ' is-active' : ''}`}
                 style={{ '--swatch-hue': hue } as any}
-                onClick={() => { setHoldColorHue(mapping.holdCode, hue); setShowColors(false); onUpdate(); }}
+                onClick={() => {
+                  setHoldColorHue(mapping.id, mapping.kind, hue);
+                  setShowColors(false);
+                  onUpdate();
+                }}
               />
             ))}
           </div>
@@ -102,21 +110,21 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMapping; onUpdate: () => 
 
 export function HoldMappingEditor() {
   const [, setTick] = useState(0);
-  const forceUpdate = () => setTick(t => t + 1);
+  const forceUpdate = () => setTick((tick) => tick + 1);
 
-  const holds = getAllHolds();
+  const rows = getAllHolds();
 
   const handleResetAll = () => {
     resetAllMappings();
     forceUpdate();
   };
 
-  if (holds.length === 0) {
+  if (rows.length === 0) {
     return (
-      <SettingsSection title="Fag" description="Administrer dine holds visningsnavne og farver">
+      <SettingsSection title="Fag" description="Vælg hvad dine fag skal hedde og hvilken farve de skal have i BetterLectio.">
         <div className="py-6 px-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Ingen hold opdaget endnu. Besøg dit skema, opgaver eller lektier for at opdage hold automatisk.
+            Ingen fag fundet endnu. Besøg dit skema, opgaver eller lektier for at få dem vist her.
           </p>
         </div>
       </SettingsSection>
@@ -125,10 +133,13 @@ export function HoldMappingEditor() {
 
   return (
     <div className="space-y-6">
-      <SettingsSection title="Fag" description="Klik på et navn for at redigere det. Farver kan ændres med den farvede cirkel.">
-        {holds.map(mapping => (
+      <SettingsSection
+        title="Fag"
+        description="Klik på et navn for at ændre teksten. Klik på farvecirklen for at vælge en anden farve."
+      >
+        {rows.map((mapping) => (
           <HoldRow
-            key={mapping.holdCode}
+            key={`${mapping.kind}:${mapping.id}`}
             mapping={mapping}
             onUpdate={forceUpdate}
           />
@@ -136,15 +147,14 @@ export function HoldMappingEditor() {
       </SettingsSection>
 
       <div className="flex justify-end px-1">
-        <Button
-          variant="outline"
-          size="sm"
+        <button
+          type="button"
           onClick={handleResetAll}
-          className="cursor-pointer"
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer')}
         >
           <RotateCcw className="size-3.5 mr-1.5" />
-          Nulstil alle navne
-        </Button>
+          Nulstil alle navne og farver
+        </button>
       </div>
     </div>
   );

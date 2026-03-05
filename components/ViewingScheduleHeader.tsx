@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Star, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users } from 'lucide-react';
-import { isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
+import { ArrowLeft, Star, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users, ChevronDown, Loader2 } from 'lucide-react';
+import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
+import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
+import { PersonCard } from './PersonCard';
 
 interface ViewingScheduleHeaderProps {
   name: string;
@@ -89,11 +91,18 @@ export function ViewingScheduleHeader({
 }: ViewingScheduleHeaderProps) {
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [starred, setStarred] = useState(() => isPersonStarred(entityId));
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [, setMembersRerenderNonce] = useState(0);
   const firstName = name.split(' ')[0];
 
   const config = ENTITY_CONFIG[type];
   const TypeIcon = config.icon;
   const hasPicture = type === 'student' || type === 'teacher';
+  const membersFetchUrls = getMembersFetchUrlsFromDocument();
+  const supportsMembersPanel = membersFetchUrls.length > 0;
 
   // Parse navigation context from URL params (set by FindSkemaPage)
   const urlParams = new URLSearchParams(window.location.search);
@@ -115,6 +124,67 @@ export function ViewingScheduleHeader({
     });
     setStarred(newStarred);
   };
+
+  const handleToggleMembers = async () => {
+    const nextOpen = !membersOpen;
+    setMembersOpen(nextOpen);
+
+    if (!nextOpen || !supportsMembersPanel || members || membersLoading) {
+      return;
+    }
+
+    setMembersLoading(true);
+    setMembersError(null);
+
+    try {
+      const fetchedMembers = await fetchMembersFromUrls(membersFetchUrls);
+      setMembers(fetchedMembers);
+    } catch (error) {
+      console.error('[BetterLectio] Failed to fetch members', {
+        entityId,
+        type,
+        error,
+        membersFetchUrls,
+      });
+      setMembersError('Kunne ikke hente medlemmer lige nu.');
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  const handleMemberStarToggle = (memberId: string) => {
+    if (!members) return;
+    const member = members.find(entry => entry.id === memberId);
+    if (!member) return;
+
+    const fullName = `${member.firstName} ${member.lastName}`.trim();
+    toggleStarred({
+      id: member.id,
+      name: fullName,
+      classCode: member.classCode,
+      type: member.type,
+    });
+    setMembersRerenderNonce(prev => prev + 1);
+  };
+
+  const handleMemberClick = (member: Member) => {
+    const fullName = `${member.firstName} ${member.lastName}`.trim();
+    addRecentPerson({
+      id: member.id,
+      name: fullName,
+      classCode: member.classCode,
+      type: member.type,
+      url: getScheduleUrl(member.id, schoolId, { name: fullName }),
+    });
+  };
+
+  const sortedMembers = members
+    ? [...members].sort((a, b) => {
+        if (a.type === 'T' && b.type !== 'T') return -1;
+        if (a.type !== 'T' && b.type === 'T') return 1;
+        return 0;
+      })
+    : [];
 
   // Close enlarged image on Escape key
   useEffect(() => {
@@ -173,22 +243,81 @@ export function ViewingScheduleHeader({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleToggleStar}
-            className="ml-2 p-2 rounded-lg hover:bg-accent transition-colors"
-            title={starred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
-          >
-            <Star
-              className={`size-5 transition-colors ${
-                starred
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'text-muted-foreground hover:text-yellow-400'
-              }`}
-            />
-          </button>
+          <div className="ml-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleToggleStar}
+              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              title={starred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
+            >
+              <Star
+                className={`size-5 transition-colors ${
+                  starred
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-muted-foreground hover:text-yellow-400'
+                }`}
+              />
+            </button>
+
+            {supportsMembersPanel && (
+              <button
+                type="button"
+                onClick={handleToggleMembers}
+                className="il-viewing-members-toggle"
+                aria-expanded={membersOpen}
+                title="Vis medlemmer"
+              >
+                <Users className="size-4" />
+                <span>Medlemmer</span>
+                <ChevronDown className={`size-4 transition-transform ${membersOpen ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {supportsMembersPanel && membersOpen && (
+        <div className="il-viewing-members-panel">
+          {membersLoading && (
+            <div className="il-viewing-members-status">
+              <Loader2 className="size-4 animate-spin" />
+              <span>Henter medlemmer...</span>
+            </div>
+          )}
+
+          {!membersLoading && membersError && (
+            <div className="il-viewing-members-status il-viewing-members-error">
+              {membersError}
+            </div>
+          )}
+
+          {!membersLoading && !membersError && members && members.length === 0 && (
+            <div className="il-viewing-members-status">Ingen medlemmer fundet.</div>
+          )}
+
+          {!membersLoading && !membersError && members && members.length > 0 && (
+            <div className="findskema-card-grid il-viewing-members-grid">
+              {sortedMembers.map((member) => {
+                const fullName = `${member.firstName} ${member.lastName}`.trim();
+                return (
+                  <PersonCard
+                    key={member.id}
+                    id={member.id}
+                    name={fullName}
+                    classCode={member.classCode}
+                    type={member.type}
+                    href={getScheduleUrl(member.id, schoolId, { name: fullName })}
+                    isStarred={isPersonStarred(member.id)}
+                    onStarToggle={handleMemberStarToggle}
+                    onClick={() => handleMemberClick(member)}
+                    schoolId={schoolId}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Enlarged profile picture overlay */}
       {imageEnlarged && pictureUrl && (

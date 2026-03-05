@@ -22,8 +22,8 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/AppSidebar.tsx` - Custom sidebar navigation with collapsible sections
 - `components/FindSkemaPage.tsx` - Complete FindSkema redesign with fuzzy search, starred/recents
 - `components/LoginPage.tsx` - School selector with "continue to last school" feature
-- `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures
-- `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (with star/back)
+- `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, appends navigation context (`from`, `q`, `name`)
+- `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (with star/back + expandable "Medlemmer" panel for klasse/holdelement)
 - `components/LektierPage.tsx` - Lektier page redesign with day-grouped homework cards
 - `components/OpgaverPage.tsx` - Opgaver page redesign with urgency-first cards, relative deadlines in Danish, color-coded grades, missing assignment detection
 - `components/OpgaveDetailSheet.tsx` - Side sheet for assignment details, submission history, and comment/file upload
@@ -33,18 +33,24 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ForsideOpgaverCard.tsx` - Custom forside opgaver card replacing native Lectio table with urgency-driven design, fetches missing assignments from OpgaverElev.aspx
 - `components/ForsideGreeting.tsx` - Forside greeting with time-based salutation, live clock, missing assignment warnings
 - `lib/schedule-cache.ts` - Fetches and caches today's schedule via network (45min TTL)
-- `lib/findskema-storage.ts` - Starred people, recents, and picture cache persistence
+- `lib/findskema-storage.ts` - Starred people, recents, picture cache persistence, and canonical schedule URL generation (`SC/RO/RE/HE/GE/...`)
 - `lib/fuzzy-search.ts` - Fuzzy search algorithm for Danish text
 - `lib/findskema-cache.ts` - Resolves Lectio AvanceretSkema cache params (`afdeling` + `subcache`) from page scripts
 - `lib/findskema-types.ts` - Maps Lectio AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to BetterLectio filter types
 - `lib/school-storage.ts` - Last school persistence for auto-redirect
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx pages, submission API, localStorage cache
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx pages with rich lektie content + short-term cache
-- `lib/profile-cache.ts` - User profile and viewed entity caching
-- `lib/hold-mapping.ts` - Hold-to-subject mapping system with auto-guess dictionary and user overrides
-- `components/settings/HoldMappingEditor.tsx` - Settings UI for managing hold display names and colors
+- `lib/brick-tooltip.ts` - Custom schedule brick hover tooltip with async-enriched content (note, lektier, related items)
+- `lib/profile-cache.ts` - User profile and viewed entity caching with URL/localStorage name fallback for entity schedules
+- `lib/members-fetch.ts` - Fetch/parse utility for `members.aspx` (klasse/holdelement) returning typed member cards
+- `lib/hold-mapping.ts` - V2 hold mapping system with shared subject mappings, per-hold exceptions, ignored non-academic groups, and fresh-start storage resets for old data
+- `components/settings/HoldMappingEditor.tsx` - Settings UI for shared subject names/colors plus separate special-hold exceptions
 - `components/DesignPlayground.tsx` - Full-screen design system playground (colors, typography, components) opened from Settings
 - `styles/globals.css` - Main styles, hides original Lectio UI, page-specific styling
+- `tools/lectio-cli/src/lib/aspnet.ts` - ASP.NET WebForms extraction helpers (`__VIEWSTATE`, `__EVENTVALIDATION`, postback targets, form parsing)
+- `tools/lectio-cli/src/commands/asp.ts` - `lectio asp` command (`inspect`, `postback`, `field`)
+- `tools/lectio-cli/src/lib/keepalive.ts` - Session keepalive daemon loop (PID/log management, periodic `forside.aspx` ping)
+- `tools/lectio-cli/src/commands/keepalive.ts` - `lectio keepalive` command (`start`, `stop`, `status`, `ping`, `log`)
 
 ## Architecture
 Content scripts inject a custom Preact UI that wraps the original Lectio DOM. The original DOM is **moved** (not cloned) to preserve event handlers and functionality.
@@ -100,8 +106,8 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Session Popup Block** - Blocks "Din session udløber snart" popup
 - **Custom Sidebar** - Modern navigation with collapsible sections, settings modal access
 - **FindSkema Redesign** - Fuzzy search, single-select type filters, starred people, recent searches, person cards, auto-focus search on typing, and default browse cards per selected filter
-- **Schedule Enhancements** - Today highlight, current time indicator, optional time label, countdown bar, back navigation
-- **Viewing Header** - Shows whose schedule with star toggle, type badge, back link
+- **Schedule Enhancements** - Today highlight, current time indicator, optional time label, countdown bar, back navigation, enriched hover tooltips (async-fetched note, rich lektier with links, related items)
+- **Viewing Header** - Shows whose schedule with star toggle, type badge, back link, teacher full-name lookup, and expandable medlemmer panel for klasse/holdelement
 - **Settings Modal** - Appearance, notifications, advanced settings, version info
 - **Experimental Dark Mode** - Manual toggle for dark color palette
 - **Clean Page Titles** - Modern titles with unread message badge count
@@ -110,7 +116,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Opgaver Redesign** - Urgency-first cards with relative Danish deadlines ("Om 3 timer", "I morgen"), visual urgency gradient (overdue→imminent→soon→later), compact submitted rows with color-coded grade badges, hold filters
 - **Opgave Detail Sheet** - Side sheet opens on assignment click with full details, submission history, comment/file upload (fetches ElevAflevering.aspx via fetch-and-parse)
 - **Activity Class Modal** - Opens from aktivitetforside2 links in skema/forside, showing activity metadata, phase, note, rich lektier, and related links without leaving the page
-- **Hold/Subject Mapping** - Auto-guesses subject names from hold codes ("1x HI" → "Historie") via built-in Danish dictionary, user can override display names and colors in Settings → Fag
+- **Hold/Subject Mapping** - Shared subject mappings keep names/colors synced across classes ("1x MA", "2v MA", "3b MA" share Matematik), while only unknown academic holds stay as separate exceptions and non-academic groups are ignored
 - **Beskeder Navigation Redesign** - Horizontal pill-bar folder navigation (CSS-only, replaces vertical sidebar tree with wrapping chip row, expandable dropdown submenus for Hold/Grupper)
 - **Design System Playground** - Full-screen overlay (Settings → Design System) showcasing all colors, typography, components, cards, and patterns used in the extension
 
@@ -139,6 +145,21 @@ bun run lectio auth --school 94
 bun run lectio fetch skemany.aspx -o lectio-html/lectio/94/skemany.html
 bun run lectio fetch beskeder2.aspx -o lectio-html/lectio/94/beskeder2.html
 
+# Fetch + inspect ASP.NET fields and postback targets
+bun run lectio fetch beskeder2.aspx --asp
+
+# ASP.NET utilities
+bun run lectio asp inspect beskeder2.aspx --targets
+bun run lectio asp postback beskeder2.aspx -t 'm$Content$aktelvbtn2' --dump-body
+
+# Standard post command with auto ASP.NET extraction
+bun run lectio post beskeder2.aspx --asp-target 'm$Content$aktelvbtn2' --form __LASTFOCUS=
+
+# Keep session alive in background
+bun run lectio keepalive start
+bun run lectio keepalive status
+bun run lectio keepalive stop
+
 # Check session status
 bun run lectio status
 
@@ -146,7 +167,7 @@ bun run lectio status
 bun run lectio schools --search "sorø"
 ```
 
-All commands support `--json` for machine-readable output. Session cookies are stored in `~/.lectio-cli/` (outside repo).
+All commands support `--json` for machine-readable output. Session cookies are stored in `~/.lectio-cli/` (outside repo). Keepalive runtime files are `~/.lectio-cli/keepalive.pid` and `~/.lectio-cli/keepalive.log`.
 
 ## Reference Materials
 - `tools/lectio-cli/` - CLI tool for fetching authenticated Lectio pages

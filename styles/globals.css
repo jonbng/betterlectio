@@ -294,21 +294,115 @@
 
   /* ── Hold Mapping Editor ─────────────────────────────────────────────── */
 
+  .il-hold-mapping-overview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem;
+    background:
+      linear-gradient(135deg, color-mix(in oklch, var(--primary) 12%, transparent), transparent 58%),
+      color-mix(in oklch, var(--muted) 50%, transparent);
+  }
+
+  .il-hold-mapping-overview-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--border) 82%, transparent);
+    background: color-mix(in oklch, var(--card) 78%, transparent);
+    color: var(--foreground);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .il-hold-mapping-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    background: color-mix(in oklch, var(--muted) 36%, transparent);
+  }
+
+  .il-hold-mapping-group-copy {
+    min-width: 0;
+  }
+
+  .il-hold-mapping-group-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .il-hold-mapping-group-description {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-mapping-count {
+    flex-shrink: 0;
+  }
+
   .il-hold-mapping-row {
     display: grid;
-    grid-template-columns: minmax(80px, auto) 1fr 36px;
-    align-items: center;
-    gap: 0.75rem;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) 36px;
+    align-items: start;
+    gap: 1rem;
     padding: 0.625rem 1rem;
+  }
+
+  .il-hold-mapping-meta {
+    min-width: 0;
+  }
+
+  .il-hold-mapping-meta-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .il-hold-mapping-kind {
+    padding-inline: 0.5rem;
   }
 
   .il-hold-mapping-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.8rem;
     color: var(--muted-foreground);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .il-hold-mapping-description {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-mapping-empty {
+    padding: 1rem;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    background: color-mix(in oklch, var(--muted) 24%, transparent);
+  }
+
+  @media (max-width: 760px) {
+    .il-hold-mapping-row {
+      grid-template-columns: 1fr auto;
+    }
+
+    .il-hold-mapping-meta {
+      grid-column: 1 / -1;
+    }
   }
 
   .il-hold-mapping-name-cell {
@@ -316,29 +410,33 @@
   }
 
   .il-hold-mapping-name-btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.375rem;
-    max-width: 100%;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    background: transparent;
-    border: 1px solid transparent;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+    background: color-mix(in oklch, var(--card) 88%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 88%, transparent);
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
     font-size: 0.875rem;
     color: var(--foreground);
     line-height: 1.4;
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.03);
   }
 
   .il-hold-mapping-name-btn:hover {
-    background: var(--accent);
-    border-color: var(--border);
+    background: color-mix(in oklch, var(--accent) 72%, transparent);
+    border-color: color-mix(in oklch, var(--primary) 18%, var(--border));
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.05);
   }
 
   .il-hold-mapping-name-text {
     overflow: hidden;
     text-overflow: ellipsis;
+    overflow: hidden;
     white-space: nowrap;
   }
 
@@ -352,10 +450,10 @@
 
   .il-hold-mapping-input {
     width: 100%;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    border: 1px solid var(--border);
-    background: var(--background);
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in oklch, var(--border) 88%, transparent);
+    background: color-mix(in oklch, var(--card) 88%, transparent);
     font-size: 0.875rem;
     color: var(--foreground);
     outline: none;
@@ -496,6 +594,20 @@
     min-height: 100%;
   }
 
+  /* Redesign pages append Preact content after #il-original-content.
+     Disable flex growth so hidden native DOM doesn't reserve viewport height. */
+  body:is(
+      .il-fravaer-page-active,
+      .il-beskeder-page-active,
+      .il-lektier-page-active,
+      .il-opgaver-page-active,
+      .il-members-page-active
+    ) #il-original-content {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: auto;
+  }
+
   /* Apply Geist font everywhere except icon fonts */
   body.il-dashboard-active,
   body.il-dashboard-active *:not(.ls-fonticon) {
@@ -616,128 +728,1851 @@
     color: var(--accent-foreground) !important;
   }
 
-  body.il-fravaer-page #il-fravaer-subnav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: color-mix(in oklch, var(--muted) 30%, transparent);
+  /* ========================================
+     Fravær Page Redesign Styles
+     ======================================== */
+
+  /* Hide original content when fravær redesign is active */
+  body.il-fravaer-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-fravaer-page-active #il-original-content,
+  body.il-fravaer-page-active #il-original-content #masterContent,
+  body.il-fravaer-page-active #il-original-content #aspnetForm,
+  body.il-fravaer-page-active #il-original-content .ls-master-container1,
+  body.il-fravaer-page-active #il-original-content .ls-master-container2,
+  body.il-fravaer-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-fravaer-page-active #il-original-content .outerContentFrame,
+  body.il-fravaer-page-active #il-original-content .ls-content-container,
+  body.il-fravaer-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  /* ── Page container ──────────────────────── */
+
+  #il-fravaer-page {
+    padding: 0;
+  }
+
+  .il-fravaer-page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem 3rem;
+    position: relative;
+  }
+
+  .il-fravaer-page.is-loading {
+    pointer-events: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+
+  /* ── Header ──────────────────────────────── */
+
+  .il-fravaer-header {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.75rem;
     border-bottom: 1px solid var(--border);
   }
 
-  body.il-fravaer-page #il-fravaer-subnav .il-fravaer-subnav-link {
+  .il-fravaer-header-top {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .il-fravaer-title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  .il-fravaer-student {
+    font-size: 1rem;
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+
+  .il-fravaer-subtitle {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    margin: 0.375rem 0 0;
+  }
+
+  /* ── Warnings banner ─────────────────────── */
+
+  .il-fravaer-warnings {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.875rem 1.125rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.875rem;
+    background: oklch(0.97 0.02 50);
+    border: 1px solid oklch(0.90 0.06 50);
+    color: oklch(0.45 0.12 50);
+  }
+
+  .dark .il-fravaer-warnings {
+    background: oklch(0.25 0.03 50);
+    border-color: oklch(0.35 0.06 50);
+    color: oklch(0.80 0.10 50);
+  }
+
+  .il-fravaer-warnings svg {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .il-fravaer-warnings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .il-fravaer-warning-item strong {
+    font-weight: 600;
+  }
+
+  /* ── Top attention queue ─────────────────── */
+
+  .il-fravaer-attention-panel {
+    margin-bottom: 1.25rem;
+    padding: 1rem 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in oklch, oklch(0.82 0.12 50) 52%, var(--border));
+    background:
+      linear-gradient(135deg, oklch(0.985 0.012 50), oklch(0.972 0.018 50)),
+      var(--card);
+    box-shadow: 0 14px 34px oklch(0.78 0.06 50 / 0.08);
+  }
+
+  .dark .il-fravaer-attention-panel {
+    border-color: color-mix(in oklch, oklch(0.58 0.11 50) 48%, var(--border));
+    background:
+      linear-gradient(135deg, oklch(0.23 0.014 50), oklch(0.26 0.022 50)),
+      var(--card);
+    box-shadow: 0 16px 36px oklch(0 0 0 / 0.2);
+  }
+
+  .il-fravaer-attention-header {
+    min-width: 0;
+  }
+
+  .il-fravaer-attention-kicker {
     display: inline-flex;
     align-items: center;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 500;
+    gap: 0.35rem;
+    font-size: 0.71rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: oklch(0.5 0.14 50);
+  }
+
+  .dark .il-fravaer-attention-kicker {
+    color: oklch(0.8 0.11 50);
+  }
+
+  .il-fravaer-attention-title {
+    margin: 0.28rem 0 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.2;
+  }
+
+  .il-fravaer-attention-text {
+    margin: 0.24rem 0 0;
+    font-size: 0.83rem;
+    line-height: 1.45;
     color: var(--muted-foreground);
-    text-decoration: none;
-    border-radius: 0.375rem;
-    transition: all 0.15s;
   }
 
-  body.il-fravaer-page #il-fravaer-subnav .il-fravaer-subnav-link:hover {
-    background: var(--accent);
-    color: var(--accent-foreground);
+  .il-fravaer-attention-list {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.9rem;
   }
 
-  body.il-fravaer-page #il-fravaer-subnav .il-fravaer-subnav-link.is-active {
-    background: var(--primary);
-    color: var(--primary-foreground);
-  }
-
-  body.il-fravaer-page #il-fravaer-summary {
-    position: sticky;
-    top: 0;
-    z-index: 6;
-    padding: 0.75rem 1rem 0.5rem;
-    background: var(--background);
-    backdrop-filter: blur(6px);
-  }
-
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-inner {
+  .il-fravaer-attention-item {
     display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.9rem;
+    padding: 0.85rem 0.9rem;
+    border-radius: 0.9rem;
+    border: 1px solid color-mix(in oklch, var(--border) 75%, transparent);
+    background: color-mix(in oklch, var(--background) 82%, transparent);
+    box-shadow: inset 3px 0 0 oklch(0.65 0.16 var(--hold-hue, 50));
+  }
+
+  .dark .il-fravaer-attention-item {
+    background: color-mix(in oklch, var(--background) 60%, transparent);
+  }
+
+  .il-fravaer-attention-item-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .il-fravaer-attention-item-top,
+  .il-fravaer-attention-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
     flex-wrap: wrap;
-    gap: 0.75rem;
+  }
+
+  .il-fravaer-attention-item-date {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-attention-item-module {
+    font-size: 0.72rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.14rem 0.42rem;
+    border-radius: 9999px;
+  }
+
+  .il-fravaer-attention-item-pct {
+    font-size: 0.74rem;
+    font-weight: 800;
+  }
+
+  .il-fravaer-attention-item-meta {
+    margin-top: 0.32rem;
+    font-size: 0.78rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-attention-item-hold {
+    font-weight: 700;
+    color: oklch(0.5 0.1 var(--hold-hue, 265));
+  }
+
+  .dark .il-fravaer-attention-item-hold {
+    color: oklch(0.74 0.1 var(--hold-hue, 265));
+  }
+
+  .il-fravaer-attention-item-secondary {
+    opacity: 0.82;
+  }
+
+  .il-fravaer-attention-item-note {
+    margin: 0.38rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-attention-item-edit {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    max-width: 960px;
-    margin: 0 auto;
-    width: 100%;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    min-height: 2rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklch, oklch(0.72 0.12 50) 45%, var(--border));
+    background: oklch(0.99 0.006 50 / 0.9);
+    color: oklch(0.45 0.14 50);
+    font-size: 0.74rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .il-fravaer-attention-item-edit:hover {
+    transform: translateY(-1px);
+    border-color: oklch(0.65 0.12 50 / 0.85);
+    background: oklch(0.995 0.004 50);
+  }
+
+  .dark .il-fravaer-attention-item-edit {
+    background: oklch(0.3 0.018 50 / 0.9);
+    color: oklch(0.86 0.09 50);
+    border-color: oklch(0.58 0.11 50 / 0.42);
+  }
+
+  .il-fravaer-attention-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.85rem;
+    padding: 0.45rem 0.75rem;
+    border: none;
+    background: none;
+    color: oklch(0.45 0.14 50);
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .il-fravaer-attention-more:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.18rem;
+  }
+
+  /* ── Period picker ───────────────────────── */
+
+  .il-fravaer-period {
+    display: flex;
     flex-direction: column;
-    background: color-mix(in oklch, var(--muted) 35%, transparent);
+    gap: 0.75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .il-fravaer-period-presets {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+  }
+
+  .il-fravaer-period-icon {
+    color: var(--muted-foreground);
+    opacity: 0.5;
+    flex-shrink: 0;
+    margin-right: 0.125rem;
+  }
+
+  .il-fravaer-period-preset {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .il-fravaer-period-preset:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-fravaer-period-preset:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .il-fravaer-period-custom {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .il-fravaer-period-input {
+    width: 8rem;
+    height: 2.25rem;
+    padding: 0 0.625rem;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .il-fravaer-period-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  .il-fravaer-period-input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px oklch(0.54 0.2 265 / 0.1);
+  }
+
+  .il-fravaer-period-sep {
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  .il-fravaer-period-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+    padding: 0 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--primary-foreground);
+    background: var(--primary);
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .il-fravaer-period-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  .il-fravaer-period-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ── Summary donut cards ─────────────────── */
+
+  .il-fravaer-summary-row {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .il-fravaer-donut-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: 1rem;
-    padding: 0.85rem 1rem;
-    box-shadow: 0 6px 18px color-mix(in oklch, var(--foreground) 6%, transparent);
   }
 
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-header {
+  .il-fravaer-donut-chart {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
+  }
+
+  .il-fravaer-donut-center {
+    position: absolute;
+    inset: 0;
     display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
     align-items: center;
-    text-align: center;
-  }
-
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--foreground);
-  }
-
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-period {
-    font-size: 0.875rem;
-    color: var(--muted-foreground);
-  }
-
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-metrics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
     justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    pointer-events: none;
   }
 
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-metric {
+  .il-fravaer-donut-info {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.6rem 0.9rem;
-    border-radius: 0.75rem;
-    background: var(--background);
-    border: 1px solid var(--border);
-    min-width: 160px;
-    text-align: center;
+    gap: 0.25rem;
   }
 
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--muted-foreground);
-  }
-
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-value {
-    font-size: 1.05rem;
+  .il-fravaer-donut-label {
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--foreground);
   }
 
-  body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-subvalue {
+  .il-fravaer-donut-detail {
     font-size: 0.8rem;
     color: var(--muted-foreground);
   }
 
+  .il-fravaer-donut-sub {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  /* ── Holds section ───────────────────────── */
+
+  .il-fravaer-holds-section {
+    margin-bottom: 2.5rem;
+  }
+
+  .il-fravaer-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .il-fravaer-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--foreground);
+    margin: 0;
+  }
+
+  .il-fravaer-section-title svg {
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  .il-fravaer-section-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    margin-left: 0.25rem;
+  }
+
+  .il-fravaer-view-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .il-fravaer-view-btn {
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    border: none;
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-view-btn + .il-fravaer-view-btn {
+    border-left: 1px solid var(--border);
+  }
+
+  .il-fravaer-view-btn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-fravaer-view-btn.is-active {
+    background: oklch(0.94 0.06 265);
+    color: oklch(0.4 0.16 265);
+  }
+
+  .dark .il-fravaer-view-btn.is-active {
+    background: oklch(0.3 0.06 265);
+    color: oklch(0.8 0.1 265);
+  }
+
+  .il-fravaer-distribution-card {
+    margin-bottom: 1rem;
+    padding: 1.25rem;
+    background:
+      radial-gradient(circle at top left, oklch(0.97 0.035 265), transparent 42%),
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 92%, transparent), var(--card));
+    border: 1px solid color-mix(in oklch, var(--border) 88%, oklch(0.9 0.02 265));
+    border-radius: 1rem;
+  }
+
+  .dark .il-fravaer-distribution-card {
+    background:
+      radial-gradient(circle at top left, oklch(0.28 0.03 265 / 0.55), transparent 42%),
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 94%, transparent), var(--card));
+    border-color: color-mix(in oklch, var(--border) 82%, oklch(0.36 0.03 265));
+  }
+
+  .il-fravaer-distribution-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .il-fravaer-distribution-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .il-fravaer-distribution-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-distribution-subtitle {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-distribution-highlight {
+    margin: 0.15rem 0 0;
+    font-size: 0.8125rem;
+    color: oklch(0.44 0.12 265);
+  }
+
+  .dark .il-fravaer-distribution-highlight {
+    color: oklch(0.78 0.08 265);
+  }
+
+  .il-fravaer-distribution-body {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: center;
+  }
+
+  .il-fravaer-distribution-chart-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  .il-fravaer-distribution-chart {
+    position: relative;
+    width: 220px;
+    height: 220px;
+  }
+
+  .il-fravaer-distribution-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .il-fravaer-distribution-center-value {
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-distribution-center-unit {
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: oklch(0.45 0.12 265);
+  }
+
+  .dark .il-fravaer-distribution-center-unit {
+    color: oklch(0.78 0.08 265);
+  }
+
+  .il-fravaer-distribution-center-meta {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-distribution-list {
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .il-fravaer-distribution-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.875rem;
+    background: color-mix(in oklch, var(--background) 82%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    border-radius: 0.875rem;
+  }
+
+  .dark .il-fravaer-distribution-item {
+    background: color-mix(in oklch, var(--background) 58%, transparent);
+  }
+
+  .il-fravaer-distribution-dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    margin-top: 0.2rem;
+    border-radius: 9999px;
+    background: oklch(0.68 0.14 var(--hold-hue));
+    box-shadow: 0 0 0 0.25rem oklch(0.68 0.14 var(--hold-hue) / 0.14);
+    flex-shrink: 0;
+  }
+
+  .il-fravaer-distribution-item-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .il-fravaer-distribution-item-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .il-fravaer-distribution-item-label {
+    min-width: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-distribution-item-share {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: oklch(0.45 0.12 265);
+    flex-shrink: 0;
+  }
+
+  .dark .il-fravaer-distribution-item-share {
+    color: oklch(0.8 0.08 265);
+  }
+
+  .il-fravaer-distribution-item-detail {
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-distribution-empty {
+    padding: 0.875rem 1rem;
+    background: color-mix(in oklch, var(--muted) 55%, transparent);
+    border-radius: 0.875rem;
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+  }
+
+  /* ── Holds table ─────────────────────────── */
+
+  .il-fravaer-holds-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 0.875rem;
+  }
+
+  .il-fravaer-holds-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+
+  .il-fravaer-holds-table thead {
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  }
+
+  .il-fravaer-th {
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+
+  .il-fravaer-th:hover {
+    color: var(--foreground);
+  }
+
+  .il-fravaer-th.is-sorted {
+    color: var(--foreground);
+  }
+
+  .il-fravaer-th svg {
+    display: inline;
+    vertical-align: middle;
+    margin-left: 0.25rem;
+  }
+
+  .il-fravaer-hold-row {
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    transition: background 0.1s;
+  }
+
+  .il-fravaer-hold-row:hover {
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+  }
+
+  .il-fravaer-hold-row td {
+    padding: 0.625rem 0.875rem;
+  }
+
+  .il-fravaer-hold-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    color: var(--foreground);
+    white-space: nowrap;
+  }
+
+  .il-fravaer-hold-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: oklch(0.65 0.16 var(--hold-hue, 265));
+  }
+
+  .il-fravaer-hold-code {
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    margin-left: 0.25rem;
+  }
+
+  /* ── Percentage cell (in table) ──────────── */
+
+  .il-fravaer-pct-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 5rem;
+  }
+
+  .il-fravaer-pct-bar-bg {
+    display: block;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+    overflow: hidden;
+  }
+
+  .il-fravaer-pct-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .il-fravaer-pct-value {
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .il-fravaer-pct-detail {
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  /* ── Records section ─────────────────────── */
+
+  .il-fravaer-records-section {
+    margin-bottom: 2rem;
+  }
+
+  .il-fravaer-records-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .il-fravaer-records-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .il-fravaer-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    color: var(--muted-foreground);
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  .il-fravaer-search-input {
+    width: 100%;
+    height: 2.25rem;
+    padding: 0 2rem 0 2.25rem;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .il-fravaer-search-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  .il-fravaer-search-input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px oklch(0.54 0.2 265 / 0.1);
+  }
+
+  .il-fravaer-search-clear {
+    position: absolute;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 9999px;
+    border: none;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-search-clear:hover {
+    background: var(--accent);
+    color: var(--foreground);
+  }
+
+  .il-fravaer-missing-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .dark .il-fravaer-missing-btn {
+    border-color: var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-missing-btn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-fravaer-missing-btn.is-active {
+    background: oklch(0.50 0.14 50);
+    color: oklch(0.98 0.01 50);
+    border-color: oklch(0.50 0.14 50);
+  }
+
+  .dark .il-fravaer-missing-btn.is-active {
+    background: oklch(0.55 0.14 50);
+    color: oklch(0.98 0.01 50);
+    border-color: oklch(0.55 0.14 50);
+  }
+
+  /* ── Record filter pills ─────────────────── */
+
+  .il-fravaer-record-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .il-fravaer-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .il-fravaer-filter-pill:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-fravaer-filter-pill.is-active {
+    background: oklch(0.94 0.06 265);
+    color: oklch(0.4 0.16 265);
+    border-color: oklch(0.88 0.08 265);
+  }
+
+  .dark .il-fravaer-filter-pill.is-active {
+    background: oklch(0.3 0.06 265);
+    color: oklch(0.8 0.1 265);
+    border-color: oklch(0.4 0.08 265);
+  }
+
+  .il-fravaer-filter-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: oklch(0.65 0.16 var(--hold-hue, 265));
+  }
+
+  /* ── Records list ────────────────────────── */
+
+  .il-fravaer-records-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .il-fravaer-records-group-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    align-self: flex-start;
+    margin-top: 0.35rem;
+    padding: 0.28rem 0.65rem;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--muted) 55%, transparent);
+    color: var(--muted-foreground);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .il-fravaer-records-group-label.is-priority {
+    background: oklch(0.965 0.02 50);
+    color: oklch(0.5 0.14 50);
+  }
+
+  .dark .il-fravaer-records-group-label.is-priority {
+    background: oklch(0.27 0.024 50);
+    color: oklch(0.82 0.1 50);
+  }
+
+  .il-fravaer-records-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--background) 82%, transparent);
+    color: var(--foreground);
+    font-size: 0.68rem;
+    font-weight: 800;
+  }
+
+  .il-fravaer-record {
+    display: flex;
+    flex-direction: column;
+    padding: 0.875rem 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    border-left: 3px solid oklch(0.65 0.16 var(--hold-hue, 265));
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+
+  .il-fravaer-record:hover {
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.05);
+  }
+
+  .il-fravaer-record.is-missing {
+    border-left-color: oklch(0.65 0.18 50);
+    background:
+      linear-gradient(135deg, oklch(0.99 0.006 50), oklch(0.975 0.018 50)),
+      var(--card);
+    box-shadow: 0 10px 22px oklch(0.78 0.08 50 / 0.08);
+  }
+
+  .dark .il-fravaer-record.is-missing {
+    background:
+      linear-gradient(135deg, oklch(0.22 0.012 50), oklch(0.25 0.02 50)),
+      var(--card);
+    border-left-color: oklch(0.60 0.16 50);
+    box-shadow: 0 10px 22px oklch(0 0 0 / 0.2);
+  }
+
+  .il-fravaer-record.is-godskrevet {
+    border-left-color: oklch(0.65 0.14 145);
+    opacity: 0.7;
+  }
+
+  .il-fravaer-record-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .il-fravaer-record-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  .il-fravaer-record-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .il-fravaer-record-date {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-record-module {
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.25rem;
+  }
+
+  .il-fravaer-record-pct {
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .il-fravaer-record-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-record-hold {
+    font-weight: 500;
+    color: oklch(0.50 0.10 var(--hold-hue, 265));
+  }
+
+  .dark .il-fravaer-record-hold {
+    color: oklch(0.72 0.10 var(--hold-hue, 265));
+  }
+
+  .il-fravaer-record-teacher,
+  .il-fravaer-record-room {
+    color: var(--muted-foreground);
+    opacity: 0.8;
+  }
+
+  .il-fravaer-record-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .il-fravaer-record-godskrevet {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: oklch(0.55 0.14 145);
+    background: oklch(0.96 0.03 145);
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  .dark .il-fravaer-record-godskrevet {
+    background: oklch(0.25 0.03 145);
+    color: oklch(0.72 0.12 145);
+  }
+
+  .il-fravaer-record-aarsag {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-fravaer-record-no-aarsag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: oklch(0.55 0.14 50);
+    background: oklch(0.96 0.03 50);
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  .dark .il-fravaer-record-no-aarsag {
+    background: oklch(0.25 0.03 50);
+    color: oklch(0.75 0.12 50);
+  }
+
+  .il-fravaer-record-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-record-edit:hover {
+    color: var(--foreground);
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 120%, var(--foreground) 10%);
+  }
+
+  .il-fravaer-record-extra {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .il-fravaer-record-bemærkning,
+  .il-fravaer-record-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    line-height: 1.4;
+  }
+
+  .il-fravaer-record-bemærkning svg {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    opacity: 0.5;
+  }
+
+  /* ── Empty state ─────────────────────────── */
+
+  .il-fravaer-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 3rem 2rem;
+    text-align: center;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-empty-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    opacity: 0.3;
+    margin-bottom: 0.25rem;
+  }
+
+  .il-fravaer-empty-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
+  }
+
+  .il-fravaer-empty-sub {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    margin: 0;
+  }
+
+  .il-fravaer-empty-reset {
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .il-fravaer-empty-reset:hover {
+    opacity: 0.8;
+  }
+
+  /* ── Show more button ────────────────────── */
+
+  .il-fravaer-show-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    width: 100%;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--muted-foreground);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-show-more:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  /* ── Loading overlay ─────────────────────── */
+
+  .il-fravaer-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: oklch(1 0 0 / 0.5);
+    z-index: 50;
+    pointer-events: none;
+  }
+
+  .dark .il-fravaer-loading-overlay {
+    background: oklch(0.15 0 0 / 0.5);
+  }
+
+  .il-fravaer-spinner {
+    animation: il-fravaer-spin 1s linear infinite;
+    color: var(--primary);
+  }
+
+  @keyframes il-fravaer-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* ── Initial loading (skeleton) ──────────── */
+
+  .il-fravaer-initial-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 4rem 2rem;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  /* ── Responsive ──────────────────────────── */
+
   @media (max-width: 640px) {
-    body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-inner {
-      align-items: flex-start;
+    .il-fravaer-page {
+      padding: 1.5rem 1rem 2rem;
     }
 
-    body.il-fravaer-page #il-fravaer-summary .il-fravaer-summary-metric {
-      min-width: 140px;
+    .il-fravaer-title {
+      font-size: 1.5rem;
     }
+
+    .il-fravaer-summary-row {
+      flex-direction: column;
+    }
+
+    .il-fravaer-donut-card {
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    .il-fravaer-donut-chart {
+      width: 90px;
+      height: 90px;
+    }
+
+    .il-fravaer-donut-center {
+      font-size: 1rem;
+    }
+
+    .il-fravaer-period-custom {
+      flex-wrap: wrap;
+    }
+
+    .il-fravaer-period-input {
+      width: 6.5rem;
+    }
+
+    .il-fravaer-distribution-top {
+      flex-direction: column;
+    }
+
+    .il-fravaer-attention-item {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .il-fravaer-attention-item-edit {
+      width: 100%;
+    }
+
+    .il-fravaer-distribution-body {
+      grid-template-columns: 1fr;
+    }
+
+    .il-fravaer-distribution-chart {
+      width: 184px;
+      height: 184px;
+    }
+
+    .il-fravaer-distribution-center-value {
+      font-size: 1.4rem;
+    }
+
+    .il-fravaer-distribution-item-row {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .il-fravaer-holds-table-wrap {
+      font-size: 0.75rem;
+    }
+
+    .il-fravaer-record-main {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .il-fravaer-record-right {
+      flex-wrap: wrap;
+    }
+  }
+
+  /* ========================================
+     Fravær Edit Sheet Styles
+     ======================================== */
+
+  /* Wrapper — covers viewport */
+  .il-fravaer-sheet-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 100 !important;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+  }
+
+  /* Backdrop */
+  .il-fravaer-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top, oklch(0.78 0.06 265 / 0.16), transparent 36%),
+      oklch(0 0 0 / 0.42);
+    backdrop-filter: blur(4px);
+    animation: il-fravaer-fade-in 0.2s ease;
+  }
+
+  @keyframes il-fravaer-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes il-fravaer-slide-in {
+    from { transform: translateY(14px) scale(0.985); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  /* Panel — compact modal */
+  .il-fravaer-sheet-panel {
+    position: relative;
+    width: min(31rem, calc(100vw - 2rem));
+    max-height: min(38rem, calc(100vh - 2rem));
+    background:
+      radial-gradient(circle at top left, oklch(0.97 0.03 265), transparent 40%),
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 94%, transparent), var(--background));
+    border: 1px solid color-mix(in oklch, var(--border) 84%, oklch(0.9 0.02 265));
+    border-radius: 1.2rem;
+    box-shadow:
+      0 24px 60px oklch(0 0 0 / 0.22),
+      0 2px 10px oklch(0 0 0 / 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: il-fravaer-slide-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Close button */
+  .il-fravaer-sheet-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklch, var(--border) 86%, transparent);
+    background: color-mix(in oklch, var(--background) 84%, transparent);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: transform 0.15s ease, color 0.15s, background 0.15s, border-color 0.15s;
+  }
+
+  .il-fravaer-sheet-close:hover {
+    transform: scale(1.04);
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 75%, transparent);
+    border-color: color-mix(in oklch, var(--border) 120%, var(--foreground) 10%);
+  }
+
+  /* ── Sheet header ────────────────────────── */
+
+  .il-fravaer-sheet-header {
+    flex-shrink: 0;
+    padding: 1.3rem 1.3rem 1rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 74%, transparent);
+  }
+
+  .il-fravaer-sheet-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.05rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    color: var(--foreground);
+    margin: 0;
+    padding-right: 2.75rem;
+  }
+
+  .il-fravaer-sheet-title svg {
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  .il-fravaer-sheet-record-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.8rem;
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-sheet-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .il-fravaer-sheet-date svg {
+    opacity: 0.6;
+  }
+
+  .il-fravaer-sheet-hold {
+    font-weight: 500;
+    color: oklch(0.50 0.10 var(--hold-hue, 265));
+    background: oklch(0.96 0.02 var(--hold-hue, 265));
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+  }
+
+  .dark .il-fravaer-sheet-hold {
+    color: oklch(0.72 0.10 var(--hold-hue, 265));
+    background: oklch(0.25 0.03 var(--hold-hue, 265));
+  }
+
+  .il-fravaer-sheet-teacher {
+    font-size: 0.8125rem;
+    opacity: 0.7;
+  }
+
+  /* ── Sheet body ──────────────────────────── */
+
+  .il-fravaer-sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.05rem 1.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .il-fravaer-sheet-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 0;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
+
+  .il-fravaer-sheet-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+    color: oklch(0.55 0.14 25);
+  }
+
+  .dark .il-fravaer-sheet-error {
+    color: oklch(0.72 0.12 25);
+  }
+
+  .il-fravaer-sheet-error p {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  .il-fravaer-sheet-retry-btn {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--primary);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-sheet-retry-btn:hover {
+    background: var(--muted);
+  }
+
+  /* ── Sheet form ──────────────────────────── */
+
+  .il-fravaer-sheet-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.95rem;
+  }
+
+  .il-fravaer-sheet-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .il-fravaer-sheet-label {
+    font-size: 0.785rem;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-sheet-select {
+    width: 100%;
+    height: 2.65rem;
+    padding: 0 0.85rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--background) 88%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 84%, transparent);
+    border-radius: 0.85rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+  }
+
+  .il-fravaer-sheet-select:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px oklch(0.54 0.2 265 / 0.1);
+  }
+
+  .il-fravaer-sheet-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .il-fravaer-sheet-input {
+    width: 100%;
+    height: 2.65rem;
+    padding: 0 0.85rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--background) 88%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 84%, transparent);
+    border-radius: 0.85rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .il-fravaer-sheet-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  .il-fravaer-sheet-input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px oklch(0.54 0.2 265 / 0.1);
+  }
+
+  .il-fravaer-sheet-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Current reason display */
+  .il-fravaer-sheet-current {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    padding: 0.9rem 1rem;
+    background:
+      linear-gradient(135deg, color-mix(in oklch, var(--muted) 52%, transparent), transparent),
+      color-mix(in oklch, var(--card) 82%, transparent);
+    border-radius: 0.9rem;
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  }
+
+  .il-fravaer-sheet-current-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .il-fravaer-sheet-current-value {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--foreground);
+  }
+
+  .il-fravaer-sheet-current-note {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+
+  /* ── Sheet footer ────────────────────────── */
+
+  .il-fravaer-sheet-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.3rem 1.15rem;
+    border-top: 1px solid color-mix(in oklch, var(--border) 74%, transparent);
+    background: color-mix(in oklch, var(--background) 84%, transparent);
+  }
+
+  .il-fravaer-sheet-cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.35rem;
+    padding: 0 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--muted-foreground);
+    background: color-mix(in oklch, var(--background) 84%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 86%, transparent);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-sheet-cancel-btn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-fravaer-sheet-cancel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .il-fravaer-sheet-save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    height: 2.35rem;
+    padding: 0 1.25rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-family: inherit;
+    color: oklch(0.98 0.01 50);
+    background: linear-gradient(180deg, oklch(0.56 0.15 50), oklch(0.5 0.14 50));
+    border: 1px solid oklch(0.5 0.14 50);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-fravaer-sheet-save-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+
+  .il-fravaer-sheet-save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .dark .il-fravaer-sheet-panel {
+    background:
+      radial-gradient(circle at top left, oklch(0.28 0.02 265 / 0.5), transparent 40%),
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 92%, transparent), var(--background));
+    border-color: color-mix(in oklch, var(--border) 82%, oklch(0.36 0.03 265));
   }
 
   /* Hide footer */
@@ -1071,6 +2906,10 @@
     margin-top: 0.625rem;
   }
 
+  #il-original-content .lectiofilepicker-foldercontent-col {
+    padding-left: 0;
+  }
+
   /* ── Message folder header ── */
   #il-original-content .message-folder-header {
     padding: 1rem 1.25rem;
@@ -1253,6 +3092,721 @@
 
   #il-original-content input[type="checkbox"] {
     cursor: pointer;
+  }
+
+  /* ========================================
+     Beskeder Preact Redesign
+     — Full component styles for BeskederPage
+     ======================================== */
+
+  /* Hide original content when beskeder redesign is active */
+  body.il-beskeder-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-beskeder-page-active #il-original-content,
+  body.il-beskeder-page-active #il-original-content #masterContent,
+  body.il-beskeder-page-active #il-original-content #aspnetForm,
+  body.il-beskeder-page-active #il-original-content .ls-master-container1,
+  body.il-beskeder-page-active #il-original-content .ls-master-container2,
+  body.il-beskeder-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-beskeder-page-active #il-original-content .outerContentFrame,
+  body.il-beskeder-page-active #il-original-content .ls-content-container,
+  body.il-beskeder-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  /* Page container */
+  #il-beskeder-page {
+    padding: 0;
+  }
+
+  .il-beskeder-page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 2.5rem 4rem;
+  }
+
+  /* ── Header ─────────────────────────────── */
+
+  .il-beskeder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .il-beskeder-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .il-beskeder-title {
+    font-family: "Geist", sans-serif;
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--foreground);
+    line-height: 1.15;
+  }
+
+  .il-beskeder-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.375rem;
+    height: 1.375rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 0.6875rem;
+    font-weight: 650;
+    font-family: "Geist", sans-serif;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+
+  .il-beskeder-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.06);
+  }
+
+  .il-beskeder-new-btn:hover {
+    background: oklch(from var(--primary) calc(l - 0.04) c h);
+    box-shadow: 0 2px 6px oklch(0 0 0 / 0.1);
+  }
+
+  .il-beskeder-new-btn:active {
+    transform: scale(0.97);
+  }
+
+  /* ── Folder navigation ──────────────────── */
+
+  .il-beskeder-folders {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .il-beskeder-folder-group {
+    position: relative;
+  }
+
+  .il-beskeder-folder-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--background);
+    color: var(--muted-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    line-height: 1.25;
+  }
+
+  .il-beskeder-folder-pill:hover {
+    border-color: var(--muted-foreground);
+    color: var(--foreground);
+    background: var(--muted);
+  }
+
+  .il-beskeder-folder-pill.is-selected {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+    font-weight: 600;
+  }
+
+  .il-beskeder-folder-pill.is-child {
+    font-size: 0.6875rem;
+    padding: 0.25rem 0.625rem;
+  }
+
+  .il-beskeder-folder-pill.is-expandable {
+    padding-right: 0.5rem;
+  }
+
+  .il-beskeder-folder-chevron {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.65;
+    transition: opacity 0.15s;
+  }
+
+  .il-beskeder-folder-pill:hover .il-beskeder-folder-chevron {
+    opacity: 1;
+  }
+
+  .il-beskeder-folder-sublist {
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    left: 0;
+    z-index: 50;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    box-shadow:
+      0 4px 16px oklch(0 0 0 / 0.08),
+      0 1px 3px oklch(0 0 0 / 0.04);
+    min-width: 14rem;
+    max-width: 24rem;
+    max-height: 18rem;
+    overflow-y: auto;
+    animation: il-beskeder-dropdown-in 0.15s ease-out;
+  }
+
+  @keyframes il-beskeder-dropdown-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ── Toolbar ─────────────────────────────── */
+
+  .il-beskeder-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .il-beskeder-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Custom checkbox styling */
+  .il-beskeder-select-all,
+  .il-beskeder-row-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .il-beskeder-select-all input,
+  .il-beskeder-row-check input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .il-beskeder-select-checkmark,
+  .il-beskeder-row-checkmark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border: 1.5px solid var(--border);
+    border-radius: 0.25rem;
+    background: var(--background);
+    transition: all 0.15s;
+  }
+
+  .il-beskeder-select-all input:checked ~ .il-beskeder-select-checkmark,
+  .il-beskeder-row-check input:checked ~ .il-beskeder-row-checkmark {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+
+  .il-beskeder-select-all input:checked ~ .il-beskeder-select-checkmark::after,
+  .il-beskeder-row-check input:checked ~ .il-beskeder-row-checkmark::after {
+    content: "";
+    display: block;
+    width: 0.3rem;
+    height: 0.55rem;
+    border: solid var(--primary-foreground);
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg) translateY(-0.5px);
+  }
+
+  .il-beskeder-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .il-beskeder-toolbar-btn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--muted-foreground);
+  }
+
+  /* ── Bulk actions dropdown ───────────────── */
+
+  .il-beskeder-bulk-wrap {
+    position: relative;
+  }
+
+  .il-beskeder-bulk-menu {
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    left: 0;
+    z-index: 50;
+    min-width: 12rem;
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow:
+      0 4px 16px oklch(0 0 0 / 0.08),
+      0 1px 3px oklch(0 0 0 / 0.04);
+    padding: 0.25rem;
+    animation: il-beskeder-dropdown-in 0.12s ease-out;
+  }
+
+  .il-beskeder-bulk-item {
+    display: block;
+    width: 100%;
+    padding: 0.4rem 0.625rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: none;
+    color: var(--foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .il-beskeder-bulk-item:hover {
+    background: var(--muted);
+  }
+
+  /* ── Search ──────────────────────────────── */
+
+  .il-beskeder-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 0 1 17rem;
+  }
+
+  .il-beskeder-search-icon {
+    position: absolute;
+    left: 0.625rem;
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
+
+  .il-beskeder-search-input {
+    width: 100%;
+    padding: 0.4rem 2rem 0.4rem 2rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .il-beskeder-search-input::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .il-beskeder-search-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.15);
+  }
+
+  .il-beskeder-search-clear {
+    position: absolute;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+
+  .il-beskeder-search-clear:hover {
+    background: var(--border);
+    color: var(--foreground);
+  }
+
+  .il-beskeder-search-kbd {
+    position: absolute;
+    right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.25rem;
+    min-width: 1.25rem;
+    padding: 0 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.625rem;
+    font-weight: 500;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  .il-beskeder-search-input:focus ~ .il-beskeder-search-kbd {
+    opacity: 0;
+  }
+
+  /* ── Folder label ────────────────────────── */
+
+  .il-beskeder-folder-label {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+    padding: 0.5rem 0;
+  }
+
+  .il-beskeder-folder-label-text {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground);
+    letter-spacing: -0.01em;
+  }
+
+  .il-beskeder-folder-label-count {
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    font-weight: 400;
+  }
+
+  /* ── Message list ────────────────────────── */
+
+  .il-beskeder-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    overflow: hidden;
+    background: var(--card);
+  }
+
+  /* ── Thread row ──────────────────────────── */
+
+  .il-beskeder-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.5);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.12s;
+    animation: il-beskeder-row-in 0.25s ease-out both;
+  }
+
+  @keyframes il-beskeder-row-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .il-beskeder-row:last-child {
+    border-bottom: none;
+  }
+
+  .il-beskeder-row:hover {
+    background: var(--muted);
+  }
+
+  .il-beskeder-row.is-selected {
+    background: oklch(from var(--primary) l c h / 0.06);
+  }
+
+  .il-beskeder-row.is-selected:hover {
+    background: oklch(from var(--primary) l c h / 0.1);
+  }
+
+  /* Unread styling */
+  .il-beskeder-row.is-unread {
+    background: oklch(from var(--primary) l c h / 0.03);
+  }
+
+  .il-beskeder-row.is-unread .il-beskeder-row-sender,
+  .il-beskeder-row.is-unread .il-beskeder-row-subject {
+    font-weight: 650;
+    color: var(--foreground);
+  }
+
+  /* Unread dot */
+  .il-beskeder-row-dot {
+    position: absolute;
+    left: 0.25rem;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: var(--primary);
+    flex-shrink: 0;
+  }
+
+  /* ── Avatar ──────────────────────────────── */
+
+  .il-beskeder-avatar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: oklch(0.92 0.03 var(--avatar-hue));
+    color: oklch(0.35 0.08 var(--avatar-hue));
+    font-family: "Geist", sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
+
+  .dark .il-beskeder-avatar {
+    background: oklch(0.28 0.04 var(--avatar-hue));
+    color: oklch(0.76 0.08 var(--avatar-hue));
+  }
+
+  /* ── Row content ─────────────────────────── */
+
+  .il-beskeder-row-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding-right: 4.25rem;
+  }
+
+  .il-beskeder-row-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 0.75rem;
+  }
+
+  .il-beskeder-row-sender {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--foreground);
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .il-beskeder-row-date {
+    font-family: "Geist", sans-serif;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .il-beskeder-row-middle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .il-beskeder-row-subject {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--foreground);
+    opacity: 0.85;
+    line-height: 1.3;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .il-beskeder-row-attachment {
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+
+  .il-beskeder-row-flag-icon {
+    flex-shrink: 0;
+    color: oklch(0.65 0.18 50);
+  }
+
+  .il-beskeder-row-bottom {
+    display: flex;
+    align-items: center;
+  }
+
+  .il-beskeder-row-recipients {
+    font-family: "Geist", sans-serif;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  /* ── Hover actions ───────────────────────── */
+
+  .il-beskeder-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    position: absolute;
+    right: 0.625rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+    background: var(--card);
+    padding: 0.125rem;
+    border-radius: 0.375rem;
+    box-shadow: -8px 0 8px var(--card);
+  }
+
+  .il-beskeder-row:hover .il-beskeder-row-actions,
+  .il-beskeder-row-actions.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .il-beskeder-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.625rem;
+    height: 1.625rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: none;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+
+  .il-beskeder-action-btn:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .il-beskeder-action-danger:hover {
+    background: oklch(0.95 0.02 25);
+    color: oklch(0.55 0.2 25);
+  }
+
+  .dark .il-beskeder-action-danger:hover {
+    background: oklch(0.25 0.04 25);
+    color: oklch(0.7 0.16 25);
+  }
+
+  /* ── Empty state ─────────────────────────── */
+
+  .il-beskeder-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 0.625rem;
+    background: var(--card);
+  }
+
+  .il-beskeder-empty-icon {
+    width: 3rem;
+    height: 3rem;
+    color: var(--muted-foreground);
+    opacity: 0.4;
+    margin-bottom: 1rem;
+  }
+
+  .il-beskeder-empty-title {
+    font-family: "Geist", sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 0.25rem;
+  }
+
+  .il-beskeder-empty-subtitle {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
   }
 
   /* ========================================
@@ -4304,7 +6858,8 @@
   .il-opgave-sheet-backdrop {
     position: absolute;
     inset: 0;
-    background: oklch(0 0 0 / 0.5);
+    background: oklch(0 0 0 / 0.45);
+    backdrop-filter: blur(4px);
     animation: il-opgave-fade-in 0.2s ease;
   }
 
@@ -4324,75 +6879,77 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: 90%;
-    max-width: 32rem;
+    width: 92%;
+    max-width: 36rem;
     background: var(--background);
     border-left: 1px solid var(--border);
-    box-shadow: -8px 0 30px oklch(0.15 0.01 265 / 0.1);
+    box-shadow: -12px 0 48px oklch(0 0 0 / 0.12);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: il-opgave-slide-in 0.3s ease;
+    animation: il-opgave-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   /* Close button */
   .il-opgave-sheet-close {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
+    top: 1.25rem;
+    right: 1.25rem;
     z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 0.25rem;
-    border: none;
-    background: transparent;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--background);
     color: var(--muted-foreground);
     cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.15s, background 0.15s;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
   }
 
   .il-opgave-sheet-close:hover {
-    opacity: 1;
+    color: var(--foreground);
     background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 120%, var(--foreground) 10%);
   }
 
   /* ── Header ───────────────────────────────── */
 
   .il-opgave-sheet-header {
     flex-shrink: 0;
-    padding: 1.25rem 1.25rem 0;
+    padding: 1.75rem 1.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
   }
 
   .il-opgave-sheet-header-top {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
   .il-opgave-sheet-title {
-    font-size: 1.125rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--foreground);
-    line-height: 1.3;
-    padding-right: 2rem;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    padding-right: 3rem;
   }
 
   .il-opgave-sheet-header-meta {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
   }
 
   .il-opgave-sheet-deadline {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    font-size: 0.75rem;
+    gap: 0.35rem;
+    font-size: 0.9rem;
     color: var(--muted-foreground);
   }
 
@@ -4402,10 +6959,10 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 1.25rem;
+    padding: 1.5rem 1.75rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
   }
 
   /* ── Info grid ────────────────────────────── */
@@ -4413,47 +6970,52 @@
   .il-opgave-sheet-info-grid {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    padding: 1rem 1.15rem;
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   }
 
   .il-opgave-sheet-info-row {
     display: flex;
     align-items: baseline;
-    gap: 0.75rem;
+    gap: 1rem;
   }
 
   .il-opgave-sheet-info-label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: var(--muted-foreground);
-    min-width: 6.5rem;
+    min-width: 7.5rem;
     flex-shrink: 0;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
   }
 
   .il-opgave-sheet-info-value {
-    font-size: 0.8125rem;
+    font-size: 0.95rem;
     color: var(--foreground);
     word-break: break-word;
+    line-height: 1.45;
   }
 
   /* ── Assignment note ──────────────────────── */
 
   .il-opgave-sheet-note {
-    font-size: 0.8125rem;
+    font-size: 0.95rem;
     color: var(--foreground);
-    background: var(--muted);
-    padding: 0.75rem 0.875rem;
-    border-radius: 0.5rem;
-    line-height: 1.6;
-    border-left: 3px solid var(--border);
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+    padding: 1rem 1.15rem;
+    border-radius: 0.75rem;
+    line-height: 1.65;
+    border-left: 3px solid oklch(0.58 0.12 265);
   }
 
   .il-opgave-sheet-note br {
     display: block;
     content: "";
-    margin: 0.25rem 0;
+    margin: 0.3rem 0;
   }
 
   /* ── Description files ────────────────────── */
@@ -4461,20 +7023,20 @@
   .il-opgave-sheet-files {
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.5rem;
   }
 
   .il-opgave-sheet-file-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    font-size: 0.925rem;
     font-weight: 500;
     color: oklch(0.45 0.12 250);
     background: oklch(0.975 0.012 250);
     border: 1px solid oklch(0.93 0.02 250);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     text-decoration: none;
     transition: all 0.15s ease;
   }
@@ -4489,23 +7051,23 @@
   .il-opgave-sheet-section-label {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 650;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--muted-foreground);
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.75rem;
   }
 
   .il-opgave-sheet-entry-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.125rem;
-    height: 1.125rem;
-    padding: 0 0.3rem;
-    font-size: 0.5625rem;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    font-size: 0.7rem;
     font-weight: 700;
     border-radius: 9999px;
     background: var(--muted);
@@ -4522,28 +7084,32 @@
   .il-opgave-sheet-student {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.5rem 0;
+    gap: 0.4rem;
+    padding: 0.75rem 0;
+  }
+
+  .il-opgave-sheet-student + .il-opgave-sheet-student {
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
   }
 
   .il-opgave-sheet-student-name {
-    font-size: 0.8125rem;
-    font-weight: 600;
+    font-size: 1rem;
+    font-weight: 620;
     color: var(--foreground);
   }
 
   .il-opgave-sheet-student-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.625rem;
     flex-wrap: wrap;
   }
 
   .il-opgave-sheet-awaiting-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.125rem 0.5rem;
-    font-size: 0.6875rem;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.8rem;
     font-weight: 600;
     border-radius: 9999px;
   }
@@ -4559,27 +7125,28 @@
   }
 
   .il-opgave-sheet-status-text {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-student-grade {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.125rem;
+    gap: 0.625rem;
+    margin-top: 0.2rem;
   }
 
   .il-opgave-sheet-grade-note {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-style: italic;
     color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-student-note {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
     font-style: italic;
+    line-height: 1.5;
   }
 
   /* ── Submission entries ───────────────────── */
@@ -4592,17 +7159,17 @@
   .il-opgave-sheet-entries {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.625rem;
   }
 
   .il-opgave-sheet-entry {
-    padding: 0.625rem 0.75rem;
+    padding: 0.875rem 1rem;
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     background: var(--background);
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.5rem;
   }
 
   .il-opgave-sheet-entry.is-teacher {
@@ -4614,29 +7181,29 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
   .il-opgave-sheet-entry-user {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
+    gap: 0.45rem;
+    font-size: 0.95rem;
+    font-weight: 620;
     color: var(--foreground);
   }
 
   .il-opgave-sheet-entry-time {
-    font-size: 0.6875rem;
+    font-size: 0.8rem;
     color: var(--muted-foreground);
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
   }
 
   .il-opgave-sheet-entry-comment {
-    font-size: 0.8125rem;
+    font-size: 0.95rem;
     color: var(--foreground);
-    line-height: 1.5;
+    line-height: 1.55;
     margin: 0;
     white-space: pre-line;
   }
@@ -4644,8 +7211,8 @@
   .il-opgave-sheet-entry-doc {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
+    gap: 0.45rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: oklch(0.45 0.12 250);
     text-decoration: none;
@@ -4661,34 +7228,36 @@
 
   .il-opgave-sheet-footer {
     flex-shrink: 0;
-    padding: 0 1.25rem 1.25rem;
+    padding: 0 1.75rem 1.5rem;
   }
 
   .il-opgave-sheet-form {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding-top: 0.75rem;
+    gap: 0.625rem;
+    padding-top: 1rem;
   }
 
   .il-opgave-sheet-textarea {
     width: 100%;
-    min-height: 3rem;
-    max-height: 8rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
+    min-height: 3.5rem;
+    max-height: 9rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
     font-family: inherit;
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     background: var(--background);
     color: var(--foreground);
     resize: vertical;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    line-height: 1.5;
   }
 
   .il-opgave-sheet-textarea:focus {
     outline: none;
     border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 15%, transparent);
   }
 
   .il-opgave-sheet-textarea:disabled {
@@ -4700,9 +7269,9 @@
   .il-opgave-sheet-dropzone {
     display: flex;
     align-items: center;
-    padding: 0.5rem 0.75rem;
-    border: 1px dashed var(--border);
-    border-radius: 0.5rem;
+    padding: 0.7rem 1rem;
+    border: 1.5px dashed var(--border);
+    border-radius: 0.625rem;
     background: var(--background);
     cursor: pointer;
     transition: all 0.15s;
@@ -4728,17 +7297,17 @@
   .il-opgave-sheet-dropzone-hint {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
+    gap: 0.6rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-selected-file {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
     width: 100%;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--foreground);
   }
 
@@ -4748,11 +7317,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 500;
+    font-weight: 550;
   }
 
   .il-opgave-sheet-file-size {
-    font-size: 0.6875rem;
+    font-size: 0.8rem;
     color: var(--muted-foreground);
     flex-shrink: 0;
   }
@@ -4761,8 +7330,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
     border-radius: 9999px;
     border: none;
     background: var(--muted);
@@ -4790,21 +7359,25 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
+    gap: 0.45rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.925rem;
+    font-weight: 620;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     background: var(--primary);
     color: var(--primary-foreground);
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, transform 0.1s;
     align-self: flex-end;
   }
 
   .il-opgave-sheet-send-btn:hover:not(:disabled) {
     opacity: 0.9;
+  }
+
+  .il-opgave-sheet-send-btn:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   .il-opgave-sheet-send-btn:disabled {
@@ -4825,9 +7398,9 @@
   .il-opgave-sheet-lectio-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
+    gap: 0.45rem;
     padding: 0.5rem 0;
-    font-size: 0.8125rem;
+    font-size: 0.9rem;
     font-weight: 500;
     color: var(--muted-foreground);
     text-decoration: none;
@@ -4845,32 +7418,33 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding: 3rem 1rem;
+    gap: 1rem;
+    padding: 3.5rem 1.5rem;
     text-align: center;
     color: var(--muted-foreground);
   }
 
   .il-opgave-sheet-error p {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: 1rem;
+    line-height: 1.5;
   }
 
   .il-opgave-sheet-error-actions {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
+    gap: 0.75rem;
     margin-top: 0.5rem;
   }
 
   .il-opgave-sheet-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    border-radius: 0.375rem;
+    gap: 0.45rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.925rem;
+    font-weight: 550;
+    border-radius: 0.5rem;
     cursor: pointer;
     text-decoration: none;
     transition: all 0.15s;
@@ -4901,10 +7475,18 @@
   .il-opgave-sheet-skeleton {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
   }
 
   /* ── Dark mode ────────────────────────────── */
+
+  .dark .il-opgave-sheet-panel {
+    box-shadow: -12px 0 48px oklch(0 0 0 / 0.4);
+  }
+
+  .dark .il-opgave-sheet-note {
+    border-left-color: oklch(0.5 0.08 265);
+  }
 
   .dark .il-opgave-sheet-entry.is-teacher {
     background: oklch(0.18 0.004 285);
@@ -4962,8 +7544,8 @@
   .il-act-sheet-backdrop {
     position: absolute;
     inset: 0;
-    background: oklch(0 0 0 / 0.38);
-    backdrop-filter: blur(4px);
+    background: oklch(0 0 0 / 0.42);
+    backdrop-filter: blur(6px);
     animation: il-act-sheet-fade-in 0.2s ease;
   }
 
@@ -4979,14 +7561,14 @@
 
   .il-act-sheet {
     position: relative;
-    width: 520px;
+    width: 560px;
     max-width: 100vw;
     height: 100vh;
     display: flex;
     flex-direction: column;
     background: var(--background);
     border-left: 1px solid var(--border);
-    box-shadow: -12px 0 40px oklch(0 0 0 / 0.1);
+    box-shadow: -12px 0 48px oklch(0 0 0 / 0.12);
     animation: il-act-sheet-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
   }
@@ -5029,7 +7611,7 @@
 
   /* Header */
   .il-act-sheet-header {
-    padding: 1.15rem 1.4rem 1rem;
+    padding: 1.5rem 1.75rem 1.25rem;
     border-bottom: 1px solid var(--border);
   }
 
@@ -5037,12 +7619,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.85rem;
+    margin-bottom: 1rem;
   }
 
   .il-act-sheet-sched-nav {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.375rem;
   }
 
   .il-act-sheet-sched-nav button,
@@ -5050,8 +7632,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.9rem;
-    height: 1.9rem;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 0.5rem;
     border: 1px solid var(--border);
     background: var(--background);
@@ -5074,16 +7656,16 @@
 
   .il-act-sheet-title {
     margin: 0;
-    font-size: 1.3rem;
-    font-weight: 650;
+    font-size: 1.5rem;
+    font-weight: 700;
     letter-spacing: -0.025em;
-    line-height: 1.25;
+    line-height: 1.2;
     color: var(--foreground);
   }
 
   .il-act-sheet-datetime {
-    margin: 0.35rem 0 0;
-    font-size: 0.82rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.95rem;
     color: var(--muted-foreground);
     line-height: 1.4;
   }
@@ -5091,18 +7673,18 @@
   .il-act-sheet-pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-top: 0.8rem;
+    gap: 0.5rem;
+    margin-top: 1rem;
   }
 
   .il-act-sheet-hold-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.28rem;
-    padding: 0.22rem 0.6rem;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
     border-radius: 999px;
-    font-size: 0.74rem;
-    font-weight: 580;
+    font-size: 0.875rem;
+    font-weight: 600;
     color: oklch(0.4 0.14 var(--accent-hue, 265));
     background: oklch(0.95 0.055 var(--accent-hue, 265));
   }
@@ -5110,10 +7692,10 @@
   .il-act-sheet-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.28rem;
-    padding: 0.22rem 0.55rem;
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
     border-radius: 999px;
-    font-size: 0.74rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
     border: 1px solid var(--border);
     text-decoration: none;
@@ -5132,23 +7714,23 @@
 
   /* Nav error */
   .il-act-sheet-error {
-    margin: 0.65rem 1.4rem 0;
-    padding: 0.55rem 0.7rem;
+    margin: 0.75rem 1.75rem 0;
+    padding: 0.7rem 0.9rem;
     border: 1px solid oklch(0.83 0.07 65);
     background: oklch(0.97 0.03 65);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    font-size: 0.76rem;
+    gap: 0.625rem;
+    font-size: 0.9rem;
     color: oklch(0.38 0.08 65);
   }
 
   .il-act-sheet-error-actions {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.375rem;
     flex-shrink: 0;
   }
 
@@ -5156,10 +7738,10 @@
     border: 1px solid oklch(0.78 0.06 65);
     background: oklch(0.94 0.04 65);
     color: oklch(0.36 0.08 65);
-    border-radius: 0.38rem;
-    padding: 0.2rem 0.45rem;
+    border-radius: 0.5rem;
+    padding: 0.3rem 0.65rem;
     cursor: pointer;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     font-weight: 560;
     transition: background 0.15s ease;
   }
@@ -5184,11 +7766,11 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 1.25rem 1.4rem;
+    padding: 1.5rem 1.75rem;
   }
 
   .il-act-sheet-section {
-    margin-bottom: 1.6rem;
+    margin-bottom: 2rem;
   }
 
   .il-act-sheet-section:last-child {
@@ -5196,26 +7778,26 @@
   }
 
   .il-act-sheet-label {
-    margin: 0 0 0.6rem;
-    font-size: 0.64rem;
+    margin: 0 0 0.85rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     font-weight: 700;
     color: var(--muted-foreground);
     display: flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.5rem;
   }
 
   .il-act-sheet-label-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.15rem;
-    height: 1.15rem;
+    min-width: 1.35rem;
+    height: 1.35rem;
     border-radius: 999px;
     background: var(--muted);
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 650;
     letter-spacing: 0;
     text-transform: none;
@@ -5224,12 +7806,12 @@
 
   /* Note callout */
   .il-act-sheet-note {
-    padding: 0.7rem 0.9rem;
-    border-left: 2.5px solid oklch(0.58 0.12 var(--accent-hue, 265));
+    padding: 1rem 1.15rem;
+    border-left: 3px solid oklch(0.58 0.12 var(--accent-hue, 265));
     background: color-mix(in oklch, var(--muted) 45%, transparent);
-    border-radius: 0 0.5rem 0.5rem 0;
-    font-size: 0.85rem;
-    line-height: 1.6;
+    border-radius: 0 0.625rem 0.625rem 0;
+    font-size: 1rem;
+    line-height: 1.65;
     white-space: pre-wrap;
     color: var(--foreground);
   }
@@ -5238,20 +7820,20 @@
   .il-act-sheet-hw-list {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.75rem;
   }
 
   .il-act-sheet-hw-card {
     border: 1px solid var(--border);
-    border-radius: 0.6rem;
+    border-radius: 0.75rem;
     overflow: hidden;
   }
 
   .il-act-sheet-hw-title {
-    padding: 0.6rem 0.85rem;
+    padding: 0.85rem 1.1rem;
     margin: 0;
-    font-size: 0.86rem;
-    font-weight: 580;
+    font-size: 1.025rem;
+    font-weight: 600;
     line-height: 1.35;
     color: var(--foreground);
     background: color-mix(in oklch, var(--muted) 50%, transparent);
@@ -5264,15 +7846,15 @@
   }
 
   .il-act-sheet-hw-content {
-    padding: 0.7rem 0.85rem;
-    font-size: 0.84rem;
-    line-height: 1.55;
+    padding: 0.9rem 1.1rem;
+    font-size: 0.975rem;
+    line-height: 1.6;
     color: var(--foreground);
     overflow-wrap: anywhere;
   }
 
   .il-act-sheet-hw-content p {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.625rem;
   }
 
   .il-act-sheet-hw-content p:last-child {
@@ -5288,41 +7870,41 @@
   .il-act-sheet-hw-content img {
     max-width: 100%;
     height: auto;
-    border-radius: 0.4rem;
+    border-radius: 0.5rem;
     border: 1px solid var(--border);
-    margin-top: 0.4rem;
+    margin-top: 0.5rem;
   }
 
   .il-act-sheet-hw-empty {
     margin: 0;
-    padding: 0.6rem 0.85rem;
+    padding: 0.85rem 1.1rem;
     color: var(--muted-foreground);
-    font-size: 0.8rem;
+    font-size: 0.925rem;
     font-style: italic;
   }
 
   .il-act-sheet-hw-links {
-    padding: 0.4rem 0.85rem 0.65rem;
+    padding: 0.6rem 1.1rem 0.85rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.45rem;
   }
 
   /* When links directly follow the title (no content), add more top padding */
   .il-act-sheet-hw-title + .il-act-sheet-hw-links {
-    padding-top: 0.6rem;
+    padding-top: 0.85rem;
   }
 
   .il-act-sheet-hw-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.48rem;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
     border-radius: 999px;
     border: 1px solid var(--border);
     color: var(--muted-foreground);
     text-decoration: none;
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     transition: color 0.15s ease, background 0.15s ease;
   }
 
@@ -5335,28 +7917,28 @@
   .il-act-sheet-rel-list {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.45rem;
   }
 
   .il-act-sheet-rel-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem 0.65rem;
+    padding: 0.7rem 0.9rem;
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font-size: 0.82rem;
+    border-radius: 0.625rem;
+    font-size: 0.95rem;
     color: var(--foreground);
-    line-height: 1.3;
+    line-height: 1.35;
   }
 
   .il-act-sheet-rel-item a {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.3rem;
     color: oklch(0.5 0.13 255);
     text-decoration: none;
-    font-size: 0.74rem;
+    font-size: 0.875rem;
     font-weight: 550;
     white-space: nowrap;
     flex-shrink: 0;
@@ -5369,7 +7951,7 @@
 
   .il-act-sheet-rel-item .is-muted {
     color: var(--muted-foreground);
-    font-size: 0.72rem;
+    font-size: 0.85rem;
   }
 
   /* Empty state */
@@ -5378,21 +7960,21 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.65rem;
-    padding: 3.5rem 1rem;
+    gap: 0.85rem;
+    padding: 4rem 1.5rem;
     color: var(--muted-foreground);
     text-align: center;
   }
 
   .il-act-sheet-empty p {
     margin: 0;
-    font-size: 0.84rem;
-    line-height: 1.4;
+    font-size: 1rem;
+    line-height: 1.45;
   }
 
   /* Footer */
   .il-act-sheet-footer {
-    padding: 0.6rem 1.4rem;
+    padding: 0.75rem 1.75rem;
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -5403,12 +7985,12 @@
   .il-act-sheet-lectio-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.4rem;
     color: var(--muted-foreground);
     text-decoration: none;
-    font-size: 0.78rem;
-    padding: 0.28rem 0.5rem;
-    border-radius: 0.4rem;
+    font-size: 0.9rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 0.5rem;
     transition: color 0.15s ease, background 0.15s ease;
   }
 
@@ -5420,7 +8002,7 @@
   .il-act-sheet-hold-nav {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.3rem;
   }
 
   .il-act-sheet-hold-nav button,
@@ -5429,9 +8011,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.7rem;
-    height: 1.7rem;
-    border-radius: 0.4rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
     border: 1px solid var(--border);
     background: var(--background);
     color: var(--muted-foreground);
@@ -5455,14 +8037,14 @@
 
   /* Loading skeleton */
   .il-act-sheet-loading {
-    padding: 1.5rem 1.4rem;
+    padding: 1.75rem 1.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem;
   }
 
   .il-act-sheet-skeleton {
-    border-radius: 0.45rem;
+    border-radius: 0.5rem;
     background: linear-gradient(
       90deg,
       var(--muted),
@@ -5474,23 +8056,23 @@
   }
 
   .il-act-sheet-sk-title {
-    height: 1.5rem;
+    height: 1.75rem;
     width: 65%;
   }
 
   .il-act-sheet-sk-meta {
-    height: 0.9rem;
+    height: 1rem;
     width: 45%;
   }
 
   .il-act-sheet-sk-body {
-    height: 7rem;
+    height: 8rem;
     width: 100%;
     margin-top: 0.5rem;
   }
 
   .il-act-sheet-sk-body-sm {
-    height: 4rem;
+    height: 4.5rem;
     width: 100%;
   }
 
@@ -5501,7 +8083,7 @@
 
   /* Dark mode */
   .dark .il-act-sheet {
-    box-shadow: -12px 0 40px oklch(0 0 0 / 0.4);
+    box-shadow: -12px 0 48px oklch(0 0 0 / 0.45);
   }
 
   .dark .il-act-sheet::before {
@@ -5563,15 +8145,15 @@
     }
 
     .il-act-sheet-header {
-      padding: 1rem 1.15rem 0.85rem;
+      padding: 1.25rem 1.25rem 1rem;
     }
 
     .il-act-sheet-body {
-      padding: 1rem 1.15rem;
+      padding: 1.15rem 1.25rem;
     }
 
     .il-act-sheet-footer {
-      padding: 0.55rem 1.15rem;
+      padding: 0.65rem 1.25rem;
     }
   }
 
@@ -6030,6 +8612,70 @@
     to {
       transform: rotate(360deg);
     }
+  }
+
+  /* ========================================
+     Viewing Schedule Header: Members Panel
+     ======================================== */
+
+  .il-viewing-members-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklch, var(--card) 78%, transparent);
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+    transition: all 0.15s ease;
+  }
+
+  .il-viewing-members-toggle:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+    border-color: color-mix(in oklch, var(--ring) 35%, var(--border));
+  }
+
+  .il-viewing-members-toggle[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--primary) 12%, var(--card));
+    border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
+    color: var(--foreground);
+  }
+
+  .il-viewing-members-panel {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .il-viewing-members-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.6rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .il-viewing-members-error {
+    background: color-mix(in oklch, oklch(0.63 0.2 25) 10%, var(--card));
+    border-color: color-mix(in oklch, oklch(0.63 0.2 25) 40%, var(--border));
+    color: oklch(0.56 0.2 25);
+  }
+
+  .dark .il-viewing-members-error {
+    color: oklch(0.74 0.14 25);
+  }
+
+  .il-viewing-members-grid {
+    padding: 0;
   }
 
   /* ========================================
@@ -6818,8 +9464,12 @@
     position: fixed;
     z-index: 10000;
     display: none;
-    width: 19rem;
+    width: 21rem;
     max-width: calc(100vw - 1rem);
+    max-height: min(28rem, calc(100vh - 2rem));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     font-family: "Geist", sans-serif;
     font-size: 0.8125rem;
     line-height: 1.45;
@@ -6831,7 +9481,6 @@
       0 1px 2px oklch(0 0 0 / 0.04),
       0 4px 16px oklch(0 0 0 / 0.08),
       0 12px 40px oklch(0 0 0 / 0.06);
-    overflow: hidden;
     pointer-events: auto;
 
     /* Enter/exit animation */
@@ -6840,6 +9489,10 @@
     transition:
       opacity 0.15s ease,
       transform 0.15s ease;
+
+    /* Scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.8 0.01 265) transparent;
   }
 
   #il-brick-tooltip.il-tt-visible {
@@ -7033,12 +9686,167 @@
   /* ── Note section ── */
 
   .il-tt-note {
-    padding: 0.375rem 0.75rem 0.5rem;
+    padding: 0.4375rem 0.75rem 0.5rem;
     border-top: 1px solid oklch(0.93 0.008 265);
+  }
+
+  .il-tt-note-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.55 0.04 var(--tt-hue, 265));
+    margin-bottom: 0.25rem;
+  }
+
+  .il-tt-note-text {
     font-size: 0.75rem;
     font-style: italic;
     color: oklch(0.45 0.015 265);
     line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ── Homework link chips ── */
+
+  .il-tt-hw-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+  }
+
+  .il-tt-hw-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1875rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.25rem;
+    background: oklch(0.94 0.01 265);
+    color: oklch(0.4 0.04 265);
+    white-space: nowrap;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .il-tt-hw-link:hover,
+  .il-tt-hw-link:focus-visible {
+    background: oklch(0.9 0.02 265);
+    color: oklch(0.35 0.06 265);
+    outline: none;
+  }
+
+  .il-tt-hw-link--more {
+    background: oklch(0.92 0.015 265);
+    color: oklch(0.5 0.03 265);
+    font-weight: 600;
+  }
+
+  .il-tt-icon--sm {
+    width: 0.6875rem;
+    height: 0.6875rem;
+  }
+
+  /* ── Homework count badge ── */
+
+  .il-tt-count {
+    font-size: 0.625rem;
+    font-weight: 650;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background: oklch(0.55 0.1 var(--tt-hue, 265) / 0.12);
+    color: oklch(0.45 0.08 var(--tt-hue, 265));
+    padding: 0 0.25rem;
+    margin-left: 0.25rem;
+  }
+
+  /* ── Related items section ── */
+
+  .il-tt-related {
+    padding: 0.4375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+  }
+
+  .il-tt-related-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.55 0.04 var(--tt-hue, 265));
+    margin-bottom: 0.25rem;
+  }
+
+  .il-tt-related-item {
+    display: block;
+    font-size: 0.75rem;
+    color: oklch(0.4 0.015 265);
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-tt-related-link {
+    color: oklch(0.43 0.06 265);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .il-tt-related-link:hover,
+  .il-tt-related-link:focus-visible {
+    color: oklch(0.35 0.09 265);
+    text-decoration: underline;
+    text-underline-offset: 0.1em;
+    outline: none;
+  }
+
+  .il-tt-related-more {
+    color: oklch(0.55 0.03 265);
+    font-style: italic;
+  }
+
+  /* ── Loading indicator ── */
+
+  .il-tt-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+    font-size: 0.6875rem;
+    color: oklch(0.55 0.02 265);
+  }
+
+  @keyframes il-tt-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .il-tt-spinner {
+    animation: il-tt-spin 0.8s linear infinite;
+    color: oklch(0.55 0.1 var(--tt-hue, 265));
   }
 
   /* ── Suppress Lectio's native cluetip ── */
@@ -7514,7 +10322,74 @@
 
   .dark .il-tt-note {
     border-top-color: oklch(0.23 0.004 285) !important;
+  }
+
+  .dark .il-tt-note-label {
+    color: oklch(0.5 0.04 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-note-text {
     color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-hw-link {
+    background: oklch(0.22 0.004 285) !important;
+    color: oklch(0.65 0.003 90) !important;
+  }
+
+  .dark .il-tt-hw-link:hover,
+  .dark .il-tt-hw-link:focus-visible {
+    background: oklch(0.26 0.006 285) !important;
+    color: oklch(0.78 0.003 90) !important;
+  }
+
+  .dark .il-tt-hw-link--more {
+    background: oklch(0.24 0.005 285) !important;
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-count {
+    background: oklch(0.5 0.1 var(--tt-hue, 265) / 0.15) !important;
+    color: oklch(0.7 0.08 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-related {
+    border-top-color: oklch(0.23 0.004 285) !important;
+  }
+
+  .dark .il-tt-related-label {
+    color: oklch(0.5 0.04 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-related-item {
+    color: oklch(0.65 0.003 90) !important;
+  }
+
+  .dark .il-tt-related-link {
+    color: oklch(0.72 0.06 265) !important;
+  }
+
+  .dark .il-tt-related-link:hover,
+  .dark .il-tt-related-link:focus-visible {
+    color: oklch(0.8 0.08 265) !important;
+    text-decoration-color: oklch(0.8 0.08 265) !important;
+  }
+
+  .dark .il-tt-related-more {
+    color: oklch(0.48 0.005 285) !important;
+  }
+
+  .dark .il-tt-loading {
+    border-top-color: oklch(0.23 0.004 285) !important;
+    color: oklch(0.48 0.005 285) !important;
+  }
+
+  .dark .il-tt-spinner {
+    color: oklch(0.5 0.1 var(--tt-hue, 265)) !important;
+  }
+
+  .dark #il-brick-tooltip {
+    scrollbar-color: oklch(0.3 0.004 285) transparent !important;
   }
 
   /* ── Form elements ──────────────────────── */

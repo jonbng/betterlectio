@@ -75,6 +75,7 @@ export async function fetchLectio(
       "Accept-Language": "da,en-US;q=0.7,en;q=0.3",
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
+      Referer: "https://www.lectio.dk",
     };
 
     if (method === "POST") {

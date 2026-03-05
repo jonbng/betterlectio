@@ -203,7 +203,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     disabled={!detail.navigation.schedule.prevEventTarget || navigating}
                     aria-label="Forrige aktivitet"
                   >
-                    <ChevronLeft size={15} />
+                    <ChevronLeft size={17} />
                   </button>
                   <button
                     type="button"
@@ -211,7 +211,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     disabled={!detail.navigation.schedule.nextEventTarget || navigating}
                     aria-label="Næste aktivitet"
                   >
-                    <ChevronRight size={15} />
+                    <ChevronRight size={17} />
                   </button>
                 </div>
                 <button
@@ -220,7 +220,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   onClick={() => onOpenChange(false)}
                   aria-label="Luk"
                 >
-                  <X size={15} />
+                  <X size={17} />
                 </button>
               </div>
 
@@ -231,19 +231,19 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
               <div className="il-act-sheet-pills">
                 {detail.meta.hold ? (
                   <span className="il-act-sheet-hold-pill">
-                    <GraduationCap size={12} />
+                    <GraduationCap size={14} />
                     {holdDisplayName}
                   </span>
                 ) : null}
                 {teacherName ? (
                   <span className="il-act-sheet-pill">
-                    <User size={12} />
+                    <User size={14} />
                     {teacherName}
                   </span>
                 ) : null}
                 {detail.meta.room ? (
                   <span className="il-act-sheet-pill">
-                    <MapPin size={12} />
+                    <MapPin size={14} />
                     {detail.meta.room}
                   </span>
                 ) : null}
@@ -253,7 +253,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     data-no-activity-modal="true"
                     className="il-act-sheet-pill is-link"
                   >
-                    <BookOpen size={12} />
+                    <BookOpen size={14} />
                     {detail.phase.title}
                   </a>
                 ) : null}
@@ -266,7 +266,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                       data-no-activity-modal="true"
                       className="il-act-sheet-pill is-link"
                     >
-                      <Link2 size={12} />
+                      <Link2 size={14} />
                       {tab.label}
                     </a>
                   ))}
@@ -294,7 +294,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
             <div className="il-act-sheet-body">
               {!hasContent ? (
                 <div className="il-act-sheet-empty">
-                  <FileText size={28} strokeWidth={1.2} />
+                  <FileText size={32} strokeWidth={1.2} />
                   <p>Ingen yderligere information for denne aktivitet.</p>
                 </div>
               ) : null}
@@ -330,7 +330,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                         {item.url ? (
                           <a href={item.url} data-no-activity-modal="true">
                             Åbn
-                            <ExternalLink size={11} />
+                            <ExternalLink size={13} />
                           </a>
                         ) : (
                           <span className="is-muted">&mdash;</span>
@@ -344,7 +344,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
             <footer className="il-act-sheet-footer">
               <a href={detail.url} data-no-activity-modal="true" className="il-act-sheet-lectio-link">
-                <ExternalLink size={13} />
+                <ExternalLink size={15} />
                 Åbn i Lectio
               </a>
               <div className="il-act-sheet-hold-nav">
@@ -354,7 +354,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   disabled={!detail.navigation.hold.prevEventTarget || navigating}
                   title="Forrige holdaktivitet"
                 >
-                  <ChevronLeft size={13} />
+                  <ChevronLeft size={15} />
                 </button>
                 {detail.navigation.hold.listUrl ? (
                   <a
@@ -362,11 +362,11 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     data-no-activity-modal="true"
                     title="Holdaktivitetsliste"
                   >
-                    <List size={13} />
+                    <List size={15} />
                   </a>
                 ) : (
                   <span className="is-disabled">
-                    <List size={13} />
+                    <List size={15} />
                   </span>
                 )}
                 <button
@@ -375,7 +375,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   disabled={!detail.navigation.hold.nextEventTarget || navigating}
                   title="Næste holdaktivitet"
                 >
-                  <ChevronRight size={13} />
+                  <ChevronRight size={15} />
                 </button>
               </div>
             </footer>
@@ -419,7 +419,7 @@ function HomeworkCard({ item }: { item: ActivityHomeworkItem }) {
               data-no-activity-modal="true"
               className="il-act-sheet-hw-link"
             >
-              <FileText size={12} />
+              <FileText size={14} />
               {link.label}
             </a>
           ))}

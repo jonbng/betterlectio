@@ -57,10 +57,14 @@ export function PersonCard({
   const EntityIcon = TYPE_ICONS[type];
 
   // Build href with navigation context (for back button on schedule page)
-  const separator = href.includes('?') ? '&' : '?';
-  const fullHref = searchQuery
-    ? `${href}${separator}from=findskema&q=${encodeURIComponent(searchQuery)}`
-    : `${href}${separator}from=findskema`;
+  // and preserve entity name for robust header extraction on destination pages.
+  const targetUrl = new URL(href, window.location.origin);
+  targetUrl.searchParams.set('from', 'findskema');
+  targetUrl.searchParams.set('name', name);
+  if (searchQuery) {
+    targetUrl.searchParams.set('q', searchQuery);
+  }
+  const fullHref = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
   const initials = name
     .split(' ')
     .slice(0, 2)

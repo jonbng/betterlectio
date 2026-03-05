@@ -407,6 +407,11 @@ function parseRelated(doc: Document): ActivityRelatedItem[] {
     const label = toc.textContent?.replace(/\s+/g, " ").trim() || "";
     if (!label) return;
 
+    // Skip labels that are not actionable content in the hover tooltip.
+    if (/^Præsentation/i.test(label) || /^Elevfeedback/i.test(label)) {
+      return;
+    }
+
     if (anchor) {
       const href = anchor.getAttribute("href");
       if (!href || href.startsWith("#")) return;
@@ -414,10 +419,6 @@ function parseRelated(doc: Document): ActivityRelatedItem[] {
       const url = new URL(href, window.location.origin).href;
       items.push({ label, url, iconUrl });
       return;
-    }
-
-    if (/^Præsentation/i.test(label) || /^Elevfeedback/i.test(label)) {
-      items.push({ label, url: null, iconUrl });
     }
   });
 

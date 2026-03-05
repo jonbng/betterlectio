@@ -560,6 +560,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 onChange={(v) => handleSettingChange('pages', 'opgaverRedesign', v)}
               />
               <FeatureToggle
+                id="pages-fravaer"
+                label="Fravær redesign"
+                description="Samlet fraværsside med diagrammer, tabel og inline redigering"
+                enabled={settings.pages?.fravaerRedesign ?? true}
+                onChange={(v) => handleSettingChange('pages', 'fravaerRedesign', v)}
+              />
+              <FeatureToggle
+                id="pages-beskeder"
+                label="Beskeder redesign"
+                description="Moderne beskedliste med mappenavigation og handlinger"
+                enabled={settings.pages?.beskederRedesign ?? true}
+                onChange={(v) => handleSettingChange('pages', 'beskederRedesign', v)}
+              />
+              <FeatureToggle
                 id="pages-login"
                 label="Login side redesign"
                 description="Moderne skolevalg med søgning"

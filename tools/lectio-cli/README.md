@@ -7,6 +7,9 @@ A command-line tool for authenticated access to Lectio, the Danish school manage
 - **Browser-based authentication** - Opens Chrome for you to log in, captures cookies automatically
 - **School selection** - Search and select from 280+ Danish schools
 - **Authenticated GET & POST requests** - Fetch or submit to any Lectio page with your session
+- **ASP.NET WebForms helpers** - Inspect hidden fields, extract postback targets, and build valid postback bodies
+- **Built-in postback flow** - Run `GET -> extract ASP state -> POST` from `lectio asp postback` or `lectio post --asp-target`
+- **Session keepalive daemon** - Background pings to keep sessions alive between interactions
 - **Session management** - Tracks session validity, prompts for re-auth when expired
 - **JSON output mode** - All commands support `--json` for scripting and AI agents
 - **Cross-platform** - Works on macOS, Linux, and Windows
@@ -86,6 +89,9 @@ lectio fetch skemany.aspx --json
 
 # Don't follow redirects
 lectio fetch forside.aspx --no-follow
+
+# Inspect ASP.NET state on fetched page
+lectio fetch beskeder2.aspx --asp
 ```
 
 **Common pages:**
@@ -121,12 +127,69 @@ lectio post ElevAflevering.aspx -d "data=1" --json
 
 # Don't follow redirects
 lectio post forside.aspx -d "data=1" --no-follow
+
+# ASP.NET WebForms mode: auto GET + extract + POST
+lectio post beskeder2.aspx --asp-target 'm$Content$aktelvbtn2' --form __LASTFOCUS=
 ```
 
 **Body input options (one required):**
 - `--data` / `-d` — Raw body string (typically URL-encoded)
 - `--data-file` / `-f` — Read body from a file
 - `--form` — Key=value pairs, auto-encoded as `application/x-www-form-urlencoded`
+- `--asp-target` — Auto-extract ASP.NET state and send a valid postback body
+
+### `lectio asp` - ASP.NET WebForms utilities
+
+Utilities for inspecting and interacting with WebForms pages used by Lectio.
+
+```bash
+# Inspect ASP.NET fields + form fields + postback targets
+lectio asp inspect beskeder2.aspx
+
+# Only show postback targets
+lectio asp inspect beskeder2.aspx --targets
+
+# Trigger postback with full GET -> extract -> POST flow
+lectio asp postback beskeder2.aspx -t 'm$Content$aktelvbtn2' --form __LASTFOCUS=
+
+# Set __EVENTARGUMENT explicitly
+lectio asp postback beskeder2.aspx -t 'm$Content$aktelvbtn2' --argument "some-arg"
+
+# Dry-run: print POST body without sending
+lectio asp postback beskeder2.aspx -t 'm$Content$aktelvbtn2' --dump-body
+
+# Extract one field by ASP.NET ID
+lectio asp field ElevAflevering.aspx?elevid=123 s_m_Content_Content_ExerciseName
+```
+
+Subcommands:
+- `inspect <path>` — Fetch page and show parsed ASP.NET fields/form fields/postback targets
+- `postback <path> -t <target>` — Standard ASP.NET postback flow with optional `--form` and `--argument`
+- `field <path> <id>` — Extract a single field value by element ID
+
+### `lectio keepalive` - Keep session alive in background
+
+Runs a daemon that periodically pings `forside.aspx` and persists updated cookies.
+
+```bash
+# Start daemon (default interval: 600s = 10 min)
+lectio keepalive start
+
+# Custom interval (minimum 30s)
+lectio keepalive start --interval 300
+
+# Check daemon + session state
+lectio keepalive status
+
+# One foreground ping
+lectio keepalive ping
+
+# Show recent daemon log lines
+lectio keepalive log -n 50
+
+# Stop daemon
+lectio keepalive stop
+```
 
 ### `lectio schools` - List and search schools
 
@@ -203,7 +266,9 @@ All data is stored in `~/.lectio-cli/`:
 ~/.lectio-cli/
 ├── config.json          # Settings (last school, chrome path)
 ├── cookies.json         # Authentication cookies
-└── schools-cache.json   # Cached school list (refreshed weekly)
+├── schools-cache.json   # Cached school list (refreshed weekly)
+├── keepalive.pid        # Running keepalive daemon PID + interval
+└── keepalive.log        # Keepalive ping log
 ```
 
 **Note:** The storage directory is outside the repository to prevent accidental commits of sensitive data.
@@ -224,6 +289,10 @@ lectio fetch skemany.aspx --json
 # List schools
 lectio schools --json --search "gymnasium"
 # {"success":true,"count":45,"schools":[{"id":"51","name":"Allerød Gymnasium",...},...]}
+
+# Inspect ASP.NET targets as JSON
+lectio asp inspect beskeder2.aspx --json --targets
+# {"success":true,"url":"...","postbackTargets":[...]}
 ```
 
 ## Error Handling
@@ -242,6 +311,7 @@ Lectio sessions expire after approximately 60 minutes of inactivity. The CLI:
 1. Checks session validity before each request
 2. Warns when session is about to expire
 3. Prompts for re-authentication when expired
+4. Can keep sessions active via `lectio keepalive start`
 
 To check your current session:
 ```bash
@@ -325,7 +395,13 @@ Make sure you have Chrome or Chromium installed. The CLI requires a graphical en
 
 ### Session expires quickly
 
-Lectio sessions expire after ~60 minutes of inactivity. The CLI doesn't keep sessions alive automatically. Re-authenticate when needed:
+Lectio sessions expire after ~60 minutes of inactivity. Start the keepalive daemon to ping periodically:
+
+```bash
+lectio keepalive start
+```
+
+If your session is already expired:
 
 ```bash
 lectio auth --force
@@ -357,6 +433,7 @@ bun run build
 - **No passwords stored** - Authentication happens in the browser; the CLI only captures cookies
 - **Temporary browser profile** - Each auth session uses a fresh profile that's deleted after
 - **Secure storage location** - Cookies stored in user home directory, not in the repo
+- **Cookie capture scope** - Authentication captures all browser cookies, filtered to `lectio.dk`
 - **Session validation** - Sessions are checked before each request
 
 ## License

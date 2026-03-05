@@ -84,7 +84,8 @@ betterlectio/
 │   ├── fuzzy-search.ts       # Fuzzy search algorithm
 │   ├── findskema-cache.ts    # Resolves AvanceretSkema afdeling/subcache keys
 │   ├── findskema-types.ts    # Maps AvanceretSkema ids to BetterLectio entity types
-│   ├── hold-mapping.ts       # Hold-to-subject name mapping system
+│   ├── members-fetch.ts      # Fetch/parse members.aspx for klasse/holdelement
+│   ├── hold-mapping.ts       # Shared subject mappings + hold exception resolver
 │   ├── opgave-detail.ts      # Fetch/parse assignment detail pages
 │   ├── activity-detail.ts    # Fetch/parse activity detail pages (aktivitetforside2)
 │   ├── page-titles.ts        # Clean page title management
@@ -101,7 +102,17 @@ betterlectio/
 │   └── assets/               # Logo variants, favicon
 │
 ├── docs/                     # Additional documentation
-├── tools/lectio-cli/         # CLI for fetching Lectio pages
+├── tools/lectio-cli/         # Authenticated Lectio CLI + WebForms helpers
+│   ├── src/commands/
+│   │   ├── asp.ts            # ASP.NET inspect/postback/field commands
+│   │   ├── keepalive.ts      # Keepalive daemon control commands
+│   │   ├── fetch.ts          # GET command (+ --asp extraction mode)
+│   │   └── post.ts           # POST command (+ --asp-target postback mode)
+│   └── src/lib/
+│       ├── aspnet.ts         # ASP.NET hidden field/form/postback extraction
+│       ├── keepalive.ts      # Daemon loop + PID/log management
+│       ├── http.ts           # Shared HTTP client (includes Referer header)
+│       └── browser.ts        # Browser auth + full lectio.dk cookie capture
 ├── lectio-scripts/           # Reference: Decompiled Lectio JS
 ├── lectio-html/              # Reference: HTML snapshots
 │
@@ -213,6 +224,7 @@ Key responsibilities:
 - Initializes the preloading system
 - Injects page-specific components (FindSkema, Forside greeting, Members page)
 - Handles schedule enhancements (today highlight, time indicator, optional time label)
+- Enriched hover tooltips on schedule bricks (async-fetched note, rich lektier with links, related items via `lib/brick-tooltip.ts`)
 - Updates page titles to cleaner format
 - Listens for settings modal open events from background script
 
@@ -287,6 +299,7 @@ Features:
 - Type-specific badges with colors
 - Initials fallback when no picture available
 - Delete button for recent items
+- Appends `from`, optional `q`, and `name` URL params so schedule pages can preserve back-navigation context and robust entity naming
 
 ### 8. Viewing Schedule Header (`components/ViewingScheduleHeader.tsx`)
 
@@ -298,6 +311,9 @@ Features:
 - Type-specific badge and icon (Elev, Lærer, Klasse, Lokale, Hold, etc.)
 - "Back to search" or "Back to your schedule" link
 - Preserves search query in back navigation
+- Teacher schedule headers upgrade to full names via teacher cache lookup (`byId[laererid].fullName`)
+- Klasse/holdelement schedules show an expandable "Medlemmer" panel
+- Members panel fetches `members.aspx` on first open, caches members in component state, and renders `PersonCard` grid
 
 ### 9. Forside Greeting (`components/ForsideGreeting.tsx`)
 
@@ -317,7 +333,7 @@ Sections:
 - **Udseende (Appearance)** - Experimental dark mode toggle
 - **Adfærd** - Session management, messages redirect, preloading
 - **Sidebar** - Toggle sidebar menu items
-- **Fag** - Hold/subject name and color management (HoldMappingEditor)
+- **Fag** - Shared subject mappings, colors, and special-hold exceptions (HoldMappingEditor)
 - **Design System** - Opens full-screen design playground overlay
 - **Avanceret** - Advanced settings, clear cache option
 - **Om (About)** - Version info, install date, links to GitHub/bug reports
@@ -344,6 +360,7 @@ Features:
 - Displays as PersonCard grid
 - Supports starring members
 - Teachers sorted first, then students
+- Shares parsing logic with `lib/members-fetch.ts` (`parseMembersFromDocument`) for fetched and live-DOM consistency
 
 ### 12. Lektier Page (`components/LektierPage.tsx`)
 
@@ -406,36 +423,40 @@ Functions:
 
 ### 13d. Hold/Subject Mapping (`lib/hold-mapping.ts`)
 
-**Purpose:** Map Lectio hold codes to human-readable subject names
+**Purpose:** Resolve Lectio hold codes into shared subject names/colors, per-hold exceptions, and ignored non-academic groups
 
 Features:
 - Built-in Danish subject dictionary (~40 entries, case-insensitive)
-- Extracts abbreviation from hold code ("1x HI" → "HI" → "Historie")
-- School-scoped localStorage persistence (`il-hold-mappings`)
-- User overrides for display names and color hues
+- Subject-level persistence so classes like `1x MA`, `2v MA`, `3b MA` share one Matematik mapping and hue
+- Per-hold overrides only for academic exceptions that cannot be safely derived from the dictionary (`1g FRB`, `2g eø 1`, etc.)
+- Ignores non-academic groups such as `Læsekursus 2026`, `Kosttutor 2025/2026`, `Alle 1. G. elever`
+- School-scoped localStorage persistence (`il-hold-mappings`) that starts fresh whenever old/invalid mapping data is encountered
+- Shared default colors hash by subject key instead of raw hold code, so the same subject stays visually consistent across classes
 - DOM scanning for hold discovery (tooltips + context card spans)
 - In-memory cache for fast lookups
 
 Functions:
-- `getHoldDisplayName(holdCode)` — display name or fallback
-- `getHoldHue(holdCode)` — user override hue or hash default
-- `registerHold(holdCode, holdelementId?)` — add/update mapping
+- `getHoldDisplayName(holdCode)` — subject name, hold override, or raw fallback
+- `getFullHoldDisplayName(holdCode)` — expanded class-prefixed label for FindSkema (`1x Matematik`)
+- `getHoldHue(holdCode)` — shared subject hue, hold override hue, or fallback hash
+- `registerHold(holdCode, holdelementId?)` — classify and register subject/override when eligible
 - `scanDOMForHolds(root?)` — discover holds from DOM
-- `getAllHolds()` — all mappings sorted (for settings UI)
-- `setHoldDisplayName(holdCode, name)` / `setHoldColorHue(holdCode, hue)` — user overrides
+- `getAllHolds()` — subject rows plus override rows for settings UI
+- `setHoldDisplayName(id, kind, name)` / `setHoldColorHue(id, kind, hue)` — update subject or override rows
 - `resetAllMappings()` / `clearHoldMappings()` — reset/clear
 
 ### 13e. Hold Mapping Editor (`components/settings/HoldMappingEditor.tsx`)
 
-**Purpose:** Settings UI for managing hold display names and colors
+**Purpose:** Settings UI for managing shared subject mappings and separate special-hold exceptions
 
 Features:
-- Table-like list of discovered holds
+- Split sections for shared subjects vs special academic hold exceptions
+- Overview pills showing how many shared subjects and exceptions are currently stored
 - Inline-editable display names (click to edit)
 - Auto-guessed indicator (sparkle) vs user-edited (pencil)
 - Color circle picker with 12 preset hues + rainbow "Standard" reset
-- "Nulstil alle navne" button to reset all overrides
-- Empty state message when no holds discovered yet
+- "Nulstil alle navne og farver" button to reset shared subjects and overrides
+- Ignored non-academic groups never appear in the editor
 
 ### 14. Profile Cache (`lib/profile-cache.ts`)
 
@@ -446,6 +467,7 @@ Features:
 - Detects viewed entity from URL parameters (elevid, laererid, lokaleid, etc.)
 - Login state tracking to clear cache on logout
 - `isViewingOwnPage()` and `getViewedEntityId()` helpers
+- `extractViewedEntity()` fallback chain for unstable entity headers: URL `name` param → recents/starred lookup → `"Ukendt"`
 
 ### 15. School Storage (`lib/school-storage.ts`)
 
@@ -463,6 +485,8 @@ Features:
 - Starred people (max 50), recent searches (max 10)
 - Profile picture URL cache (7-day TTL, max 1000 entries)
 - Fetch picture URLs from Lectio context cards
+- Canonical `getScheduleUrl()` mapping for AvanceretSkema IDs (`SC/RO/RE/HE/GE`) with `HE -> holdelementid` fix
+- Optional schedule query params for Lectio behavior parity (`type=stamklasse|holdelement`, `name=...`)
 
 ### 17. Fuzzy Search (`lib/fuzzy-search.ts`)
 
@@ -592,6 +616,60 @@ The extension opens to `https://www.lectio.dk/lectio/94/SkemaNy.aspx` by default
 
 ---
 
+## Lectio CLI Architecture (`tools/lectio-cli`)
+
+The repository includes a standalone CLI used to fetch and post authenticated Lectio pages for debugging, snapshot capture, and automation.
+
+### Command Surface
+
+- `lectio fetch <path>` - Authenticated GET request
+- `lectio post <path>` - Authenticated POST request
+- `lectio asp inspect|postback|field` - ASP.NET WebForms state inspection and postback helpers
+- `lectio keepalive start|stop|status|ping|log` - Background session keepalive daemon management
+
+### ASP.NET WebForms Utilities
+
+`src/lib/aspnet.ts` centralizes WebForms parsing logic:
+
+- `extractASPData(html, target)` extracts hidden state fields and sets `__EVENTTARGET`
+- `extractAllFormFields(html)` extracts `input/select/textarea` form values
+- `extractForm(html)` returns ASP fields + non-ASP fields + form action
+- `extractPostbackTargets(html)` discovers `__doPostBack('target','arg')` calls with context text
+- `buildPostBody(aspData, extraFields)` creates `application/x-www-form-urlencoded` body
+- `extractFieldById(html, id)` reads value by ASP.NET-style element ID
+
+### Postback Patterns
+
+Two command paths now implement the standard WebForms postback flow:
+
+1. `lectio asp postback <path> -t <target>`
+2. `lectio post <path> --asp-target <target> [--asp-argument <arg>]`
+
+Both perform:
+
+1. GET page
+2. Extract ASP.NET hidden fields (`__VIEWSTATE`, `__EVENTVALIDATION`, etc.)
+3. Merge user-provided `--form` fields
+4. POST back with a URL-encoded body
+
+### Keepalive Daemon
+
+`src/lib/keepalive.ts` runs a long-lived loop that periodically pings `forside.aspx`:
+
+- PID file: `~/.lectio-cli/keepalive.pid`
+- Log file: `~/.lectio-cli/keepalive.log`
+- Default interval: 10 minutes (`600s`)
+- `stopKeepalive()` sends `SIGTERM` for graceful shutdown
+- `getKeepaliveStatus()` validates PID file + process liveness
+
+### HTTP/Auth Updates
+
+- `src/lib/http.ts` now sends `Referer: https://www.lectio.dk` on all requests
+- `src/lib/browser.ts` captures full browser cookie state via CDP `Network.getAllCookies`, filtered to `lectio.dk` (with fallback to `page.cookies()`)
+- `src/types.ts` includes shared ASP.NET types: `ASPFormData`, `ASPFormField`, `ExtractedForm`, `PostbackTarget`
+
+---
+
 ## Reference Materials
 
 ### `/lectio-scripts/`
@@ -605,6 +683,13 @@ HTML snapshots of Lectio pages before extension modification:
 - Original DOM structure reference
 - CSS class names and IDs
 - Server-rendered content patterns
+
+### `/tools/lectio-cli/`
+Authenticated CLI for fetching/posting Lectio pages and handling ASP.NET WebForms postbacks:
+- Browser login + cookie capture
+- Page fetch/post helpers with JSON output
+- ASP.NET extraction and postback tooling
+- Background session keepalive daemon
 
 ---
 
@@ -655,7 +740,7 @@ HTML snapshots of Lectio pages before extension modification:
 - Compact submitted rows with color-coded grade badges
 - Hold filter pills for subject filtering
 - **Detail sheet sidebar**: click assignment to open side sheet with full details, submission history, comment/file upload
-- **Hold/subject name mapping**: auto-guesses subject names from Danish dictionary, user can override in Settings → Fag
+- **Hold/subject name mapping**: shared subject mappings keep colors/names consistent across classes, while only unknown academic holds stay editable as separate exceptions in Settings → Fag
 
 ### Developer Tools
 - **Design System Playground**: full-screen overlay from Settings showing all colors, typography, spacing, real components (buttons, badges, cards, tables, forms), person cards, opgave cards, countdown widgets, and alert callouts

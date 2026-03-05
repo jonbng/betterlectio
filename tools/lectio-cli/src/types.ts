@@ -66,3 +66,40 @@ export interface SessionStatus {
 }
 
 export type OutputFormat = "text" | "json";
+
+// ASP.NET WebForms types
+
+/** Map of ASP.NET hidden field names to their values */
+export type ASPFormData = Record<string, string>;
+
+/** A single form field extracted from the page */
+export interface ASPFormField {
+  /** The name attribute (used in form submission) */
+  name: string;
+  /** The id attribute */
+  id: string;
+  /** Input type (text, hidden, checkbox, radio, submit, select, textarea) */
+  type: string;
+  /** Current value */
+  value: string;
+}
+
+/** Result of full form extraction from an HTML page */
+export interface ExtractedForm {
+  /** ASP.NET hidden fields (__VIEWSTATE, __EVENTVALIDATION, etc.) */
+  aspFields: ASPFormData;
+  /** All other form fields (inputs, selects, textareas) */
+  formFields: ASPFormField[];
+  /** The form action URL, if found */
+  formAction: string | null;
+}
+
+/** A postback target found in the page (__doPostBack calls) */
+export interface PostbackTarget {
+  /** The __EVENTTARGET value */
+  target: string;
+  /** The __EVENTARGUMENT value */
+  argument: string;
+  /** Contextual text near the postback (link text, title, etc.) */
+  context: string;
+}

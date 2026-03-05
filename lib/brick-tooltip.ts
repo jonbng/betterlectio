@@ -4,12 +4,20 @@
  *
  * Key improvements:
  * - Parsed structured content (title, time, hold, teacher, room, homework)
+ * - Async-fetched enriched content (note, rich lektier, related items)
  * - Smart positioning with viewport-aware flipping
  * - Hover bridge prevents flashing when cursor crosses brick/tooltip gap
  * - Smooth CSS-driven enter/exit animations
  */
 
 import { getHoldDisplayName, getHoldHue } from "./hold-mapping";
+import {
+  fetchActivityDetail,
+  getCachedActivityDetail,
+  type ActivityDetail,
+  type ActivityHomeworkItem,
+  type ActivityRelatedItem,
+} from "./activity-detail";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -38,6 +46,9 @@ let bridgeEl: HTMLElement | null = null;
 let activeBrick: HTMLElement | null = null;
 let hideTimeout: ReturnType<typeof setTimeout> | null = null;
 let showTimeout: ReturnType<typeof setTimeout> | null = null;
+let activeFetchController: AbortController | null = null;
+/** Tracks which brick we're currently fetching for, to avoid stale updates */
+let fetchingForBrick: HTMLElement | null = null;
 
 // ── Parsing ────────────────────────────────────────────
 
@@ -163,6 +174,25 @@ function parseTooltip(raw: string): TooltipData {
   return data;
 }
 
+// ── Activity URL extraction ────────────────────────────
+
+function getActivityUrl(brick: HTMLElement): string | null {
+  // Schedule bricks are <a> tags linking to aktivitetforside2.aspx
+  const anchor = brick.closest("a[href]") as HTMLAnchorElement | null;
+  if (!anchor) return null;
+  const href = anchor.getAttribute("href");
+  if (!href) return null;
+  try {
+    const url = new URL(href, window.location.origin);
+    if (/aktivitetforside2\.aspx/i.test(url.pathname)) {
+      return url.href;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 // ── DOM creation ───────────────────────────────────────
 
 function createTooltipElement(): HTMLElement {
@@ -179,6 +209,22 @@ function createBridgeElement(): HTMLElement {
   document.body.appendChild(el);
   return el;
 }
+
+// ── SVG icons (inline, no dependencies) ────────────────
+
+const ICON_CLOCK = `<svg class="il-tt-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+const ICON_HOMEWORK = `<svg class="il-tt-icon" viewBox="0 0 16 16" fill="none"><path d="M3 2.5h7l3 3V13a.5.5 0 01-.5.5h-9A.5.5 0 013 13V3a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2.5V5.5h3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+
+const ICON_NOTE = `<svg class="il-tt-icon" viewBox="0 0 16 16" fill="none"><path d="M13 10l-3 3H4a.5.5 0 01-.5-.5v-9A.5.5 0 014 3h8.5a.5.5 0 01.5.5V10z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13 10h-3v3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 6.5h4M6 9h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+
+const ICON_LINK = `<svg class="il-tt-icon" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5l3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9 10.5l1.5-1.5a2.121 2.121 0 000-3v0a2.121 2.121 0 00-3 0L6 7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M7 5.5L5.5 7a2.121 2.121 0 000 3v0a2.121 2.121 0 003 0L10 8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+
+const ICON_FILE = `<svg class="il-tt-icon il-tt-icon--sm" viewBox="0 0 16 16" fill="none"><path d="M4 2h5.5l3 3V13.5a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V2.5A.5.5 0 014 2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M9.5 2v3.5h3" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>`;
+
+const ICON_SPINNER = `<svg class="il-tt-icon il-tt-spinner" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 105.196 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+
+// ── Rendering ──────────────────────────────────────────
 
 function renderTooltip(data: TooltipData, hue: number): string {
   const parts: string[] = [];
@@ -197,7 +243,7 @@ function renderTooltip(data: TooltipData, hue: number): string {
   // Time row
   if (data.date || data.time) {
     parts.push('<div class="il-tt-time">');
-    parts.push(`<svg class="il-tt-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+    parts.push(ICON_CLOCK);
     if (data.date) {
       parts.push(`<span class="il-tt-date">${esc(formatDate(data.date))}</span>`);
     }
@@ -253,11 +299,11 @@ function renderTooltip(data: TooltipData, hue: number): string {
     parts.push("</div>");
   }
 
-  // Homework section
+  // Homework section (basic, from tooltip text)
   if (data.homework.length > 0) {
     parts.push('<div class="il-tt-homework">');
     parts.push(
-      `<div class="il-tt-homework-label"><svg class="il-tt-icon" viewBox="0 0 16 16" fill="none"><path d="M3 2.5h7l3 3V13a.5.5 0 01-.5.5h-9A.5.5 0 013 13V3a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2.5V5.5h3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>Lektier</div>`,
+      `<div class="il-tt-homework-label">${ICON_HOMEWORK}Lektier</div>`,
     );
     for (const item of data.homework) {
       parts.push('<div class="il-tt-hw-item">');
@@ -272,18 +318,141 @@ function renderTooltip(data: TooltipData, hue: number): string {
     parts.push("</div>");
   }
 
-  // Note section
+  // Note section (basic, from tooltip text)
   if (data.note) {
-    parts.push(`<div class="il-tt-note">${esc(data.note)}</div>`);
+    parts.push('<div class="il-tt-note">');
+    parts.push(`<div class="il-tt-note-label">${ICON_NOTE}Note</div>`);
+    parts.push(`<div class="il-tt-note-text">${esc(data.note)}</div>`);
+    parts.push("</div>");
+  }
+
+  // Loading indicator placeholder (hidden initially, shown during fetch)
+  parts.push('<div class="il-tt-loading" id="il-tt-loading" style="display:none">');
+  parts.push(`${ICON_SPINNER}<span>Henter detaljer…</span>`);
+  parts.push("</div>");
+
+  return parts.join("");
+}
+
+// ── Enriched rendering (from fetched activity detail) ──
+
+function renderEnrichedSections(detail: ActivityDetail, basicData: TooltipData): string {
+  const parts: string[] = [];
+
+  // ── Rich Note section ──
+  // Prefer the fetched note (from the textarea) over the tooltip-parsed note
+  const note = detail.note || basicData.note;
+  if (note) {
+    parts.push('<div class="il-tt-note">');
+    parts.push(`<div class="il-tt-note-label">${ICON_NOTE}Note</div>`);
+    parts.push(`<div class="il-tt-note-text">${esc(note)}</div>`);
+    parts.push("</div>");
+  }
+
+  // ── Rich Lektier section ──
+  if (detail.homework.length > 0) {
+    parts.push('<div class="il-tt-homework">');
+    parts.push(
+      `<div class="il-tt-homework-label">${ICON_HOMEWORK}Lektier <span class="il-tt-count">${detail.homework.length}</span></div>`,
+    );
+    for (const item of detail.homework) {
+      parts.push('<div class="il-tt-hw-item">');
+      parts.push(`<span class="il-tt-hw-label">${esc(item.title)}</span>`);
+
+      // Show content (sanitized HTML from the activity page, truncated for tooltip)
+      const contentText = stripHtml(item.contentHtml);
+      if (contentText) {
+        parts.push(
+          `<span class="il-tt-hw-desc">${esc(contentText)}</span>`,
+        );
+      }
+
+      // Show file/link chips
+      if (item.links.length > 0) {
+        parts.push('<div class="il-tt-hw-links">');
+        for (const link of item.links.slice(0, 3)) {
+          const icon = link.type === "file" ? ICON_FILE : ICON_LINK;
+          const label = truncate(link.label, 30);
+          parts.push(
+            `<a class="il-tt-hw-link" href="${escAttr(link.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(link.label)}">${icon}${esc(label)}</a>`,
+          );
+        }
+        if (item.links.length > 3) {
+          parts.push(`<span class="il-tt-hw-link il-tt-hw-link--more">+${item.links.length - 3}</span>`);
+        }
+        parts.push("</div>");
+      }
+
+      parts.push("</div>");
+    }
+    parts.push("</div>");
+  } else if (basicData.homework.length > 0) {
+    // Fall back to basic homework if fetch returned none (shouldn't happen, but safe)
+    parts.push('<div class="il-tt-homework">');
+    parts.push(
+      `<div class="il-tt-homework-label">${ICON_HOMEWORK}Lektier</div>`,
+    );
+    for (const item of basicData.homework) {
+      parts.push('<div class="il-tt-hw-item">');
+      parts.push(`<span class="il-tt-hw-label">${esc(item.label)}</span>`);
+      if (item.description) {
+        parts.push(`<span class="il-tt-hw-desc">${esc(item.description)}</span>`);
+      }
+      parts.push("</div>");
+    }
+    parts.push("</div>");
+  }
+
+  // ── Related items section ──
+  if (detail.related.length > 0) {
+    parts.push('<div class="il-tt-related">');
+    parts.push(
+      `<div class="il-tt-related-label">${ICON_LINK}Relateret</div>`,
+    );
+    for (const item of detail.related.slice(0, 4)) {
+      if (item.url) {
+        parts.push(
+          `<a class="il-tt-related-item il-tt-related-link" href="${escAttr(item.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(item.label)}">${esc(item.label)}</a>`,
+        );
+      } else {
+        parts.push(`<span class="il-tt-related-item">${esc(item.label)}</span>`);
+      }
+    }
+    if (detail.related.length > 4) {
+      parts.push(`<span class="il-tt-related-item il-tt-related-more">+${detail.related.length - 4} mere</span>`);
+    }
+    parts.push("</div>");
   }
 
   return parts.join("");
+}
+
+/** Strip HTML tags and collapse whitespace to get plain text preview */
+function stripHtml(html: string): string {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return (tmp.textContent || "").replace(/\s+/g, " ").trim();
+}
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
 }
 
 function esc(s: string): string {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
+}
+
+function escAttr(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 /** Format "23/2-2026" to a friendlier Danish date like "Søn. 23. feb" */
@@ -384,6 +553,94 @@ function positionTooltip(
   bridge.style.height = `${bridgeH}px`;
 }
 
+/** Reposition tooltip after content changes (e.g. enrichment loaded) */
+function repositionIfVisible(brick: HTMLElement) {
+  if (!tooltipEl || !bridgeEl) return;
+  if (!tooltipEl.classList.contains("il-tt-visible")) return;
+  requestAnimationFrame(() => {
+    if (!tooltipEl || !bridgeEl) return;
+    positionTooltip(brick, tooltipEl, bridgeEl);
+  });
+}
+
+// ── Enrichment fetch ───────────────────────────────────
+
+function enrichTooltip(brick: HTMLElement, basicData: TooltipData, hue: number) {
+  const activityUrl = getActivityUrl(brick);
+  if (!activityUrl) return;
+
+  // Check cache first — if we have it, render immediately
+  const cached = getCachedActivityDetail(activityUrl);
+  if (cached) {
+    applyEnrichedContent(brick, cached, basicData, hue);
+    return;
+  }
+
+  // Show loading indicator
+  const loadingEl = tooltipEl?.querySelector("#il-tt-loading") as HTMLElement | null;
+  if (loadingEl) {
+    loadingEl.style.display = "";
+  }
+
+  // Cancel any previous fetch
+  if (activeFetchController) {
+    activeFetchController.abort();
+  }
+  activeFetchController = new AbortController();
+  fetchingForBrick = brick;
+
+  fetchActivityDetail(activityUrl)
+    .then((detail) => {
+      // Only apply if we're still showing the same brick's tooltip
+      if (fetchingForBrick !== brick || activeBrick !== brick) return;
+      applyEnrichedContent(brick, detail, basicData, hue);
+    })
+    .catch(() => {
+      // Silently fail — basic tooltip content is still visible
+      // Just hide the loading indicator
+      if (fetchingForBrick === brick) {
+        const el = tooltipEl?.querySelector("#il-tt-loading") as HTMLElement | null;
+        if (el) el.style.display = "none";
+      }
+    })
+    .finally(() => {
+      if (fetchingForBrick === brick) {
+        fetchingForBrick = null;
+        activeFetchController = null;
+      }
+    });
+}
+
+function applyEnrichedContent(
+  brick: HTMLElement,
+  detail: ActivityDetail,
+  basicData: TooltipData,
+  hue: number,
+) {
+  if (!tooltipEl) return;
+
+  // Remove basic homework, note, and loading indicator
+  const basicHomework = tooltipEl.querySelector(".il-tt-homework");
+  const basicNote = tooltipEl.querySelector(".il-tt-note");
+  const loadingEl = tooltipEl.querySelector("#il-tt-loading");
+  basicHomework?.remove();
+  basicNote?.remove();
+  loadingEl?.remove();
+
+  // Render enriched sections
+  const enrichedHtml = renderEnrichedSections(detail, basicData);
+  if (enrichedHtml) {
+    const frag = document.createElement("div");
+    frag.innerHTML = enrichedHtml;
+    while (frag.firstChild) {
+      tooltipEl.appendChild(frag.firstChild);
+    }
+  }
+
+  // Reposition since content size changed
+  repositionIfVisible(brick);
+}
+
 // ── Show / Hide ────────────────────────────────────────
 
 function showTooltip(brick: HTMLElement) {
@@ -428,6 +685,9 @@ function showTooltip(brick: HTMLElement) {
     });
 
     activeBrick = brick;
+
+    // Fetch enriched content (from cache or network)
+    enrichTooltip(brick, data, hue);
   }, 120);
 }
 
@@ -441,6 +701,14 @@ function hideTooltip() {
 
   hideTimeout = setTimeout(() => {
     hideTimeout = null;
+
+    // Cancel any in-progress fetch
+    if (activeFetchController) {
+      activeFetchController.abort();
+      activeFetchController = null;
+      fetchingForBrick = null;
+    }
+
     if (tooltipEl) {
       tooltipEl.classList.remove("il-tt-visible");
       // Wait for exit animation

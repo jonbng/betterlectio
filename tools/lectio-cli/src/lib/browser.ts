@@ -63,9 +63,9 @@ export async function authenticateWithBrowser(
     onMessage?.("Please log in using the browser window...");
 
     // Poll for authentication cookie
-    const cookies = await pollForAuthentication(page, timeout);
+    const cookies = await pollForAuthentication(page, browser, timeout);
 
-    onMessage?.("Authentication successful!");
+    onMessage?.(`Authentication successful! (captured ${cookies.length} cookies)`);
 
     return { success: true, cookies };
   } catch (error) {
@@ -96,22 +96,27 @@ export async function authenticateWithBrowser(
 
 async function pollForAuthentication(
   page: Page,
+  browser: Browser,
   timeout: number
 ): Promise<Cookie[]> {
   const startTime = Date.now();
 
   while (Date.now() - startTime < timeout) {
     try {
-      const cookies = await page.cookies();
-      const authCookie = cookies.find(
+      // page.cookies() only returns cookies for the current page URL.
+      // Use the CDP session to get ALL cookies from the browser, including
+      // ones set on different subdomains or paths that we'd otherwise miss.
+      const allCookies = await getAllBrowserCookies(browser, page);
+
+      const authCookie = allCookies.find(
         (c) => c.name === "isloggedin3" && c.value === "Y"
       );
 
       if (authCookie) {
         // Also verify we have the school cookie
-        const schoolCookie = cookies.find((c) => c.name === "BaseSchoolUrl");
+        const schoolCookie = allCookies.find((c) => c.name === "BaseSchoolUrl");
         if (schoolCookie) {
-          return cookies;
+          return allCookies;
         }
       }
     } catch {
@@ -124,4 +129,54 @@ async function pollForAuthentication(
   throw new Error(
     "Authentication timeout. Please try again and complete the login within 5 minutes."
   );
+}
+
+/**
+ * Get ALL cookies from the browser via CDP (Chrome DevTools Protocol).
+ * This captures cookies across all domains/paths, not just the current page.
+ * We filter to lectio.dk domains to avoid capturing unrelated cookies.
+ */
+async function getAllBrowserCookies(
+  browser: Browser,
+  page: Page
+): Promise<Cookie[]> {
+  try {
+    // Use CDP to get all cookies from the browser
+    const client = await page.createCDPSession();
+    const { cookies } = await client.send("Network.getAllCookies") as {
+      cookies: Array<{
+        name: string;
+        value: string;
+        domain: string;
+        path: string;
+        expires: number;
+        size: number;
+        httpOnly: boolean;
+        secure: boolean;
+        session: boolean;
+        sameSite?: string;
+      }>;
+    };
+    await client.detach();
+
+    // Filter to lectio.dk cookies only and map to Puppeteer's Cookie format
+    return cookies
+      .filter((c) => c.domain.includes("lectio.dk"))
+      .map((c) => ({
+        name: c.name,
+        value: c.value,
+        domain: c.domain,
+        path: c.path,
+        expires: c.expires,
+        httpOnly: c.httpOnly,
+        secure: c.secure,
+        session: c.session,
+        sameSite: c.sameSite as Cookie["sameSite"],
+        // These fields exist on Puppeteer Cookie but aren't in CDP response
+        size: c.size,
+      })) as Cookie[];
+  } catch {
+    // Fallback to page.cookies() if CDP fails
+    return await page.cookies();
+  }
 }

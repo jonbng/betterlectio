@@ -8,15 +8,7 @@ import {
   addRecentPerson,
   type StarredPerson,
 } from '../lib/findskema-storage';
-
-interface Member {
-  id: string; // Full ID with prefix (e.g., "S72721771682")
-  firstName: string;
-  lastName: string;
-  classCode: string;
-  type: 'S' | 'T'; // Student or Teacher
-  pictureUrl: string | null;
-}
+import { parseMembersFromDocument, type Member } from '../lib/members-fetch';
 
 interface MembersPageProps {
   schoolId: string;
@@ -93,52 +85,5 @@ export function MembersPage({ schoolId, members }: MembersPageProps) {
  * Columns: Foto, Type, ID, Fornavn, Efternavn
  */
 export function parseMembersFromDOM(): Member[] {
-  const members: Member[] = [];
-  const table = document.querySelector<HTMLTableElement>(
-    '#s_m_Content_Content_laerereleverpanel_alm_gv'
-  );
-
-  if (!table) return members;
-
-  // Get all data rows (skip header)
-  const rows = table.querySelectorAll('tr:not(:first-child)');
-
-  for (const row of rows) {
-    const cells = row.querySelectorAll('td');
-    if (cells.length < 5) continue;
-
-    // Get ID from data-lectioContextCard attribute on photo cell
-    const contextCard = cells[0].getAttribute('data-lectioContextCard');
-    if (!contextCard) continue;
-
-    const id = contextCard; // e.g., "S72721771682"
-    const type = id.charAt(0) as 'S' | 'T';
-
-    // Get picture URL from img src
-    const img = cells[0].querySelector('img');
-    const pictureUrl = img?.src || null;
-
-    // Get class code (cell 2)
-    const classCodeSpan = cells[2].querySelector('.noWrap');
-    const classCode = classCodeSpan?.textContent?.trim() || '';
-
-    // Get first name (cell 3)
-    const firstNameLink = cells[3].querySelector('a');
-    const firstName = firstNameLink?.textContent?.trim() || '';
-
-    // Get last name (cell 4)
-    const lastNameSpan = cells[4].querySelector('.noWrap');
-    const lastName = lastNameSpan?.textContent?.trim() || '';
-
-    members.push({
-      id,
-      firstName,
-      lastName,
-      classCode,
-      type,
-      pictureUrl,
-    });
-  }
-
-  return members;
+  return parseMembersFromDocument(document);
 }

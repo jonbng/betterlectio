@@ -1,3 +1,5 @@
+import { getRecentPeople, getStarredPeople } from './findskema-storage';
+
 const PROFILE_CACHE_KEY = 'il-user-profile';
 const LOGIN_STATE_KEY = 'il-login-state';
 
@@ -225,6 +227,33 @@ export function extractViewedEntity(): ViewedEntity | null {
   let name = '';
   let subtitle = '';
 
+  const fallbackNameByUrl = new URLSearchParams(window.location.search).get('name')?.trim() || '';
+
+  const lookupNameInStorage = (): string => {
+    const prefixes: Record<ScheduleEntityType, string[]> = {
+      student: ['S'],
+      teacher: ['T'],
+      class: ['SC', 'K'],
+      room: ['RO', 'L'],
+      resource: ['RE', 'R'],
+      hold: ['H'],
+      group: ['GE', 'G'],
+      holdelement: ['HE', 'H'],
+    };
+
+    const candidates = (prefixes[viewed.type] || []).map(prefix => `${prefix}${viewed.id}`);
+
+    if (candidates.length === 0) return '';
+
+    const recentMatch = getRecentPeople().find(person => candidates.includes(person.id));
+    if (recentMatch?.name) return recentMatch.name;
+
+    const starredMatch = getStarredPeople().find(person => candidates.includes(person.id));
+    if (starredMatch?.name) return starredMatch.name;
+
+    return '';
+  };
+
   // Title patterns for different entity types:
   // Student: "Eleven Carl Christian Meding(k), 1x - Skema"
   // Teacher: "Læreren John Doe - Skema"
@@ -301,7 +330,13 @@ export function extractViewedEntity(): ViewedEntity | null {
     }
   }
 
-  // If we couldn't parse the name, try a generic fallback
+  // Entity titles for some types are inconsistent on Lectio pages.
+  // Fallback chain: URL param -> localStorage recents/starred -> generic title parsing.
+  if (!name && (viewed.type === 'hold' || viewed.type === 'holdelement' || viewed.type === 'group' || viewed.type === 'room' || viewed.type === 'resource')) {
+    name = fallbackNameByUrl || lookupNameInStorage();
+  }
+
+  // If we still couldn't parse the name, try a generic fallback
   if (!name) {
     // Generic pattern: "Something X - Page title" (e.g., "Gruppen Alle 1x-elever - Lærere og elever")
     const genericMatch = titleText.match(/^(.+?)\s*-\s*.+$/);
@@ -310,10 +345,12 @@ export function extractViewedEntity(): ViewedEntity | null {
     }
   }
 
-  if (!name && !pictureUrl) return null;
+  if (!name) {
+    name = fallbackNameByUrl || lookupNameInStorage() || 'Ukendt';
+  }
 
   return {
-    name: name || 'Ukendt',
+    name,
     subtitle,
     pictureUrl,
     id: viewed.id,
