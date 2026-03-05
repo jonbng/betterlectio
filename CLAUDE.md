@@ -25,12 +25,13 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (with star/back)
 - `components/LektierPage.tsx` - Lektier page redesign with day-grouped homework cards
-- `components/OpgaverPage.tsx` - Opgaver page redesign with urgency-first cards, relative deadlines in Danish, color-coded grades
+- `components/OpgaverPage.tsx` - Opgaver page redesign with urgency-first cards, relative deadlines in Danish, color-coded grades, missing assignment detection
 - `components/OpgaveDetailSheet.tsx` - Side sheet for assignment details, submission history, and comment/file upload
 - `components/SettingsModal.tsx` - Settings modal with appearance, notifications, about sections
 - `components/ActivityClassModal.tsx` - Class/activity modal for skema activities (metadata, lektier, related links)
 - `components/ScheduleCountdown.tsx` - Sidebar countdown widget showing time remaining in current class or until next class starts
-- `components/ForsideOpgaverCard.tsx` - Custom forside opgaver card replacing native Lectio table with urgency-driven design
+- `components/ForsideOpgaverCard.tsx` - Custom forside opgaver card replacing native Lectio table with urgency-driven design, fetches missing assignments from OpgaverElev.aspx
+- `components/ForsideGreeting.tsx` - Forside greeting with time-based salutation, live clock, missing assignment warnings
 - `lib/schedule-cache.ts` - Fetches and caches today's schedule via network (45min TTL)
 - `lib/findskema-storage.ts` - Starred people, recents, and picture cache persistence
 - `lib/fuzzy-search.ts` - Fuzzy search algorithm for Danish text
@@ -62,8 +63,11 @@ When adding new CSS overrides for Lectio elements, put them in `@layer component
 **All colors MUST use `oklch()`.** Never use `hsl()`, `rgb()`, `rgba()`, or hex (`#rrggbb`) anywhere in the codebase.
 
 - **CSS variables** in `:root` / `.dark` are all `oklch(L C H)` values
-- **Primary color**: Indigo-blue at hue 265 — `oklch(0.54 0.2 265)` (light) / `oklch(0.68 0.17 265)` (dark)
-- **Neutrals**: Subtly tinted with hue 265 for a cohesive blue undertone
+- **Primary color**: Indigo-blue at hue 265 — `oklch(0.54 0.2 265)` (light) / `oklch(0.65 0.16 265)` (dark)
+- **Light mode neutrals**: Subtly tinted with hue 265 for a cohesive blue undertone
+- **Dark mode neutrals**: Near-achromatic (chroma ≤ 0.006) with warm hue 285 (mauve-gray). NOT blue-tinted. Surfaces should read as true charcoal/ink, never navy.
+- **Dark mode text**: Warm off-white at `oklch(0.93 0.003 90)` (hue 90 = slight warm cast). Muted text uses `oklch(0.58 0.006 285)`.
+- **Dark mode semantic colors**: Red (hue 25), orange (hue 50), yellow-green (hue 80), green (hue 145) stay chromatic. Their background tints use the semantic hue, NOT hue 265.
 - **Alpha colors**: Use `oklch(L C H / alpha)` or `color-mix(in oklch, var(--token) N%, transparent)`
 - **Tailwind arbitrary values**: Use underscores for spaces — `bg-[oklch(0.54_0.2_265)]`
 - **Shadows**: Use `oklch(0 0 0 / alpha)` instead of `rgba(0,0,0,alpha)`
@@ -107,6 +111,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 - **Opgave Detail Sheet** - Side sheet opens on assignment click with full details, submission history, comment/file upload (fetches ElevAflevering.aspx via fetch-and-parse)
 - **Activity Class Modal** - Opens from aktivitetforside2 links in skema/forside, showing activity metadata, phase, note, rich lektier, and related links without leaving the page
 - **Hold/Subject Mapping** - Auto-guesses subject names from hold codes ("1x HI" → "Historie") via built-in Danish dictionary, user can override display names and colors in Settings → Fag
+- **Beskeder Navigation Redesign** - Horizontal pill-bar folder navigation (CSS-only, replaces vertical sidebar tree with wrapping chip row, expandable dropdown submenus for Hold/Grupper)
 - **Design System Playground** - Full-screen overlay (Settings → Design System) showcasing all colors, typography, components, cards, and patterns used in the extension
 
 ## Commands

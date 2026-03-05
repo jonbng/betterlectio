@@ -85,46 +85,50 @@
 }
 
 .dark {
-  --background: oklch(0.145 0.014 265);
-  --foreground: oklch(0.985 0.005 265);
-  --card: oklch(0.17 0.016 265);
-  --card-foreground: oklch(0.985 0.005 265);
-  --popover: oklch(0.17 0.016 265);
-  --popover-foreground: oklch(0.985 0.005 265);
-  --primary: oklch(0.68 0.17 265);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.24 0.016 265);
-  --secondary-foreground: oklch(0.985 0.005 265);
-  --muted: oklch(0.24 0.016 265);
-  --muted-foreground: oklch(0.65 0.02 265);
-  --accent: oklch(0.24 0.016 265);
-  --accent-foreground: oklch(0.985 0.005 265);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.985 0.005 265);
-  --border: oklch(0.28 0.016 265);
-  --input: oklch(0.28 0.016 265);
-  --ring: oklch(0.68 0.17 265);
-  --sidebar: oklch(0.17 0.02 265);
-  --sidebar-foreground: oklch(0.93 0.008 265);
-  --sidebar-primary: oklch(0.68 0.17 265);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.22 0.02 265);
-  --sidebar-accent-foreground: oklch(0.93 0.008 265);
-  --sidebar-border: oklch(0.24 0.016 265);
-  --sidebar-ring: oklch(0.68 0.17 265);
-  --lectio-dark-bg: oklch(0.21 0.01 265);
-  --lectio-dark-surface: oklch(0.28 0.012 265);
-  --lectio-dark-element: oklch(0.36 0.012 265);
-  --lectio-dark-border: oklch(0.5 0.012 265);
-  --lectio-dark-text: oklch(0.93 0.005 265);
-  --lectio-dark-link: oklch(0.75 0.12 270);
-  --lectio-dark-link-hover: oklch(0.6 0.2 270);
-  --lectio-dark-calendar: oklch(0.55 0.02 250);
-  --lectio-dark-info: oklch(0.58 0.08 240);
-  --lectio-dark-header: oklch(0.68 0.17 145);
-  --scrollbar-track: oklch(0.18 0.014 265);
-  --scrollbar-thumb: oklch(0.4 0.016 265);
-  --scrollbar-thumb-hover: oklch(0.5 0.02 265);
+  /* ── Warm-neutral dark mode ─────────────────────────────────
+     Near-achromatic grays with barely perceptible warm undertone.
+     Chroma kept ≤ 0.006 on neutrals so surfaces read as true
+     charcoal, not tinted blue. Primary indigo pops cleanly. ── */
+  --background: oklch(0.13 0.004 285);
+  --foreground: oklch(0.93 0.003 90);
+  --card: oklch(0.16 0.004 285);
+  --card-foreground: oklch(0.93 0.003 90);
+  --popover: oklch(0.18 0.004 285);
+  --popover-foreground: oklch(0.93 0.003 90);
+  --primary: oklch(0.65 0.16 265);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.21 0.005 285);
+  --secondary-foreground: oklch(0.88 0.003 90);
+  --muted: oklch(0.21 0.005 285);
+  --muted-foreground: oklch(0.58 0.006 285);
+  --accent: oklch(0.22 0.005 285);
+  --accent-foreground: oklch(0.88 0.003 90);
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.25 0.004 285);
+  --input: oklch(0.22 0.004 285);
+  --ring: oklch(0.65 0.16 265);
+  --sidebar: oklch(0.14 0.004 285);
+  --sidebar-foreground: oklch(0.85 0.003 90);
+  --sidebar-primary: oklch(0.65 0.16 265);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.2 0.005 285);
+  --sidebar-accent-foreground: oklch(0.85 0.003 90);
+  --sidebar-border: oklch(0.22 0.004 285);
+  --sidebar-ring: oklch(0.65 0.16 265);
+  --lectio-dark-bg: oklch(0.16 0.004 285);
+  --lectio-dark-surface: oklch(0.2 0.004 285);
+  --lectio-dark-element: oklch(0.25 0.004 285);
+  --lectio-dark-border: oklch(0.32 0.004 285);
+  --lectio-dark-text: oklch(0.88 0.003 90);
+  --lectio-dark-link: oklch(0.75 0.06 265);
+  --lectio-dark-link-hover: oklch(0.82 0.08 265);
+  --lectio-dark-calendar: oklch(0.35 0.006 285);
+  --lectio-dark-info: oklch(0.55 0.06 250);
+  --lectio-dark-header: oklch(0.88 0.003 90);
+  --scrollbar-track: oklch(0.15 0.004 285);
+  --scrollbar-thumb: oklch(0.32 0.004 285);
+  --scrollbar-thumb-hover: oklch(0.4 0.005 285);
 }
 
 @layer base {
@@ -585,6 +589,33 @@
     color: var(--primary-foreground);
   }
 
+  /* Dark mode: protect schedule nav buttons from the nuclear .dark a rule */
+  .dark .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a:hover {
+    color: var(--accent-foreground) !important;
+  }
+
+  .dark
+    .il-entity-schedule
+    #il-original-content
+    .ls-subnav1
+    .buttonlink.ls-subnav-active
+    a {
+    color: var(--primary-foreground) !important;
+  }
+
+  /* "I dag" button in schedule toolbar — match subnav button style */
+  .dark #il-original-content .il-today-btn a {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark #il-original-content .il-today-btn a:hover {
+    color: var(--accent-foreground) !important;
+  }
+
   body.il-fravaer-page #il-fravaer-subnav {
     display: flex;
     flex-wrap: wrap;
@@ -749,16 +780,17 @@
 
   /* ========================================
      Messages Page (beskeder2.aspx) Styles
+     — Horizontal navigation redesign
      ======================================== */
 
-  /* Messages page container - two column layout */
-  #il-original-content .ls-std-rowblock-selecteditem {
+  /* Container: switch from side-by-side to stacked vertical layout */
+  #il-original-content .ls-documentchooser-container {
     display: flex;
-    gap: 1rem;
-    padding: 1rem;
+    flex-direction: column;
+    gap: 0;
   }
 
-  /* Force mobile-page-drawer to show on our "desktop" view */
+  /* Force mobile-page-drawer to show in our layout */
   #il-original-content .mobile-page-drawer {
     display: block !important;
     position: relative;
@@ -770,23 +802,21 @@
     pointer-events: auto;
   }
 
-  /* Folder tree panel */
+  /* ── Folder tree panel → horizontal nav bar ── */
   #il-original-content .documentchooser-foldertree-col {
-    width: 250px;
-    min-width: 250px;
-    max-width: 250px;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
     flex-shrink: 0;
     background: var(--background);
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--border);
-    padding: 0.75rem;
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding: 0.5rem 0.625rem;
+    overflow: visible;
+    max-height: none;
     position: relative;
-    max-height: calc(100vh - 200px);
   }
 
-  /* Show folder tree on desktop */
   #il-original-content .ls-foldertree2 {
     display: block !important;
     position: relative;
@@ -798,155 +828,273 @@
     width: 100%;
   }
 
-  /* Reorder folder list - make Nyeste first */
+  /* Hide the splitter between sidebar and content */
+  #il-original-content .ls-documentchooser-splitter {
+    display: none !important;
+  }
+
+  /* ── Folder list → horizontal flex row of pills ── */
   #il-original-content #s_m_Content_Content_ListGridSelectionTree {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    align-items: flex-start;
   }
 
-  /* Nyeste (node -70) first */
-  #il-original-content [lec-node-id="-70"] {
-    order: 1;
-  }
-  /* Alle ulæste */
-  #il-original-content [lec-node-id="-40"] {
-    order: 2;
-  }
-  /* Alle med flag */
-  #il-original-content [lec-node-id="-50"] {
-    order: 3;
-  }
-  /* Egne beskeder */
-  #il-original-content [lec-node-id="-10"] {
-    order: 4;
-  }
-  /* Sendte beskeder */
-  #il-original-content [lec-node-id="-80"] {
-    order: 5;
-  }
-  /* Alle slettede */
-  #il-original-content [lec-node-id="-60"] {
-    order: 6;
-  }
-  /* Hold, groups etc */
-  #il-original-content [lec-node-id="-20"] {
-    order: 7;
-  }
-  #il-original-content [lec-node-id="-30"] {
-    order: 8;
-  }
-  #il-original-content [lec-node-id="-35"] {
-    order: 9;
+  /* Ordering: Nyeste first, then smart mailboxes, then groups */
+  #il-original-content [lec-node-id="-70"] { order: 1; }
+  #il-original-content [lec-node-id="-40"] { order: 2; }
+  #il-original-content [lec-node-id="-50"] { order: 3; }
+  #il-original-content [lec-node-id="-10"] { order: 4; }
+  #il-original-content [lec-node-id="-80"] { order: 5; }
+  #il-original-content [lec-node-id="-60"] { order: 6; }
+  #il-original-content [lec-node-id="-20"] { order: 7; }
+  #il-original-content [lec-node-id="-30"] { order: 8; }
+  #il-original-content [lec-node-id="-35"] { order: 9; }
+
+  /* ── Each top-level tree node container → pill chip ── */
+  #il-original-content
+    #s_m_Content_Content_ListGridSelectionTree
+    > [lec-role="treeviewnodecontainer"] {
+    margin: 0;
+    flex-shrink: 0;
+    position: relative;
   }
 
-  /* Tree node container */
-  #il-original-content [lec-role="treeviewnodecontainer"] {
-    margin: 0.125rem 0;
-  }
-
-  /* Tree node styling */
+  /* TreeNode-container becomes the pill shape */
   #il-original-content .TreeNode-container {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    padding: 0.375rem 0.5rem;
-    border-radius: 0.375rem;
+    padding: 0.3125rem 0.75rem;
+    border-radius: 999px;
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: all 0.15s ease;
+    background: var(--muted);
+    gap: 0.375rem;
+    white-space: nowrap;
+    border: 1px solid transparent;
   }
 
   #il-original-content .TreeNode-container:hover {
     background: var(--accent);
+    border-color: var(--border);
   }
 
-  /* Selected folder styling */
-  #il-original-content .TreeNode.selectedFolder {
-    background: var(--accent);
-    border-radius: 0.25rem;
+  /* Selected folder → filled primary pill */
+  #il-original-content .TreeNode.selectedFolder .TreeNode-container,
+  #il-original-content .TreeNode-container:has(.selectedFolder) {
+    /* Fallback for browsers without :has — handled by the next rule */
+  }
+  #il-original-content
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    > .TreeNode-container {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  #il-original-content
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    .TreeNode-title {
+    color: var(--primary-foreground);
+    font-weight: 600;
+  }
+  #il-original-content
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    .TreeNode-icon {
+    filter: brightness(0) invert(1);
+  }
+  #il-original-content
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    .TreeNode-chevron {
+    filter: brightness(0) invert(1);
+    opacity: 0.85;
   }
 
+  /* The <a class="TreeNode"> inside becomes inline-flex */
   #il-original-content .TreeNode {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.375rem;
     text-decoration: none;
     color: var(--foreground);
-    flex: 1;
-    padding: 0.25rem;
+    flex: none;
+    padding: 0;
     cursor: pointer;
   }
 
+  #il-original-content .TreeNode.selectedFolder {
+    background: none;
+    border-radius: 0;
+  }
+
+  /* Folder title: small label */
   #il-original-content .TreeNode-title {
     font-size: 0.8125rem;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.25;
+    color: var(--foreground);
   }
 
+  /* Folder icons: tighter */
   #il-original-content .TreeNode-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-  }
-
-  #il-original-content .TreeNode-chevron {
     width: 16px;
     height: 16px;
-    cursor: pointer;
-    opacity: 0.5;
     flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  /* Chevron: subtle, same line */
+  #il-original-content .TreeNode-chevron {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    opacity: 0.4;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
   }
 
   #il-original-content .TreeNode-chevron:hover {
     opacity: 1;
   }
 
+  /* Hide the indent spacer — not needed in horizontal layout */
+  #il-original-content .TreeNode-indent {
+    display: none;
+  }
+
+  /* Sublist toggle link */
   #il-original-content .TreeNode-sublist {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    padding: 0.25rem;
+    padding: 0;
     cursor: pointer;
   }
 
-  #il-original-content .TreeNode-indent {
+  /* ── Expandable sublists (Hold, Grupper) → inline expansion ── */
+  /* Parent containers for Hold/Grupper need full-width so the sublist
+     wraps below the pill row instead of sitting inline */
+  #il-original-content
+    #s_m_Content_Content_ListGridSelectionTree
+    > [lec-node-id="-20"],
+  #il-original-content
+    #s_m_Content_Content_ListGridSelectionTree
+    > [lec-node-id="-30"],
+  #il-original-content
+    #s_m_Content_Content_ListGridSelectionTree
+    > [lec-node-id="-35"] {
+    flex-basis: 100%;
+    position: relative;
+  }
+
+  #il-original-content [lec-role="ltv-sublist"] {
+    margin-left: 0;
+    border-left: none;
+    padding-left: 0;
+    /* Inline expansion: flows within the nav bar, pushing content down */
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+    padding: 0.375rem 0.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  /* When sublist is hidden by Lectio (display: none), respect it */
+  #il-original-content [lec-role="ltv-sublist"][style*="display: none"] {
+    display: none !important;
+  }
+
+  /* Child items inside sublists: small pills */
+  #il-original-content [lec-role="ltv-sublist"] [lec-role="treeviewnodecontainer"] {
     flex-shrink: 0;
   }
 
-  /* Nested tree items (sublists) */
-  #il-original-content [lec-role="ltv-sublist"] {
-    margin-left: 0.5rem;
-    border-left: 1px solid var(--border);
-    padding-left: 0.5rem;
+  #il-original-content [lec-role="ltv-sublist"] .TreeNode-container {
+    border-radius: 999px;
+    padding: 0.1875rem 0.5rem;
+    background: var(--muted);
+    gap: 0.25rem;
+    width: auto;
+    border: 1px solid transparent;
   }
 
-  /* Folder content panel */
+  #il-original-content [lec-role="ltv-sublist"] .TreeNode-container:hover {
+    background: var(--accent);
+    border-color: var(--border);
+  }
+
+  #il-original-content [lec-role="ltv-sublist"] .TreeNode-title {
+    font-size: 0.75rem;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  /* Selected item inside sublist */
+  #il-original-content
+    [lec-role="ltv-sublist"]
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    .TreeNode-container {
+    background: oklch(0.54 0.2 265 / 0.12);
+    border-color: oklch(0.54 0.2 265 / 0.2);
+  }
+  #il-original-content
+    [lec-role="ltv-sublist"]
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    .TreeNode-title {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  #il-original-content
+    [lec-role="ltv-sublist"]
+    [lec-role="treeviewnodecontainer"]:has(.selectedFolder)
+    .TreeNode-icon {
+    filter: none;
+  }
+
+  /* ── Folder content panel → full-width below nav ── */
   #il-original-content .documentchooser-foldercontent-col {
     flex: 1;
     min-width: 0;
     background: var(--background);
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--border);
     overflow: hidden;
     padding-left: 0;
     padding-right: 0;
+    margin-top: 0.625rem;
   }
 
-  /* Message folder header */
+  /* ── Message folder header ── */
   #il-original-content .message-folder-header {
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border);
     background: var(--background);
   }
 
   #il-original-content .message-folder-header h1 {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin: 0;
+    color: var(--foreground);
   }
 
-  /* Message table styling */
+  #il-original-content .message-folder-header h1 img {
+    width: 20px;
+    height: 20px;
+    opacity: 0.6;
+  }
+
+  /* ── Message table styling ── */
   #il-original-content .ls-table-layout5 {
     width: 100%;
     border-collapse: collapse;
@@ -954,30 +1102,37 @@
 
   #il-original-content .ls-table-layout5 th {
     text-align: left;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 1rem;
     font-weight: 500;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
     color: var(--muted-foreground);
     border-bottom: 1px solid var(--border);
     background: var(--muted);
   }
 
   #il-original-content .ls-table-layout5 td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.875rem;
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid oklch(0.91 0.008 265 / 0.6);
+    font-size: 0.8125rem;
+  }
+
+  #il-original-content .ls-table-layout5 tr {
+    transition: background-color 0.1s ease;
   }
 
   #il-original-content .ls-table-layout5 tr:hover td {
-    background: var(--accent);
+    background: oklch(0.94 0.012 265 / 0.5);
   }
 
   /* Unread message styling */
   #il-original-content .ls-table-layout5 tr.unread td {
-    font-weight: 700;
+    font-weight: 600;
+    color: var(--foreground);
   }
 
-  /* Blue dot indicator before message title for unread messages */
+  /* Blue dot indicator before unread message title */
   #il-original-content
     .ls-table-layout5
     tr.unread
@@ -986,17 +1141,18 @@
     a[id$="_ch"]::before {
     content: "";
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     background: oklch(0.6 0.19 265);
     border-radius: 50%;
-    margin-right: 8px;
+    margin-right: 6px;
     vertical-align: middle;
+    flex-shrink: 0;
   }
 
-  /* Message toolbar */
+  /* ── Message toolbar ── */
   #il-original-content .ls-std-rowblock-toolbarcontainer {
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 1rem;
     border-bottom: 1px solid var(--border);
     background: var(--background);
     display: flex;
@@ -1005,7 +1161,7 @@
     align-items: center;
   }
 
-  /* Hide mobile-only elements on messages page */
+  /* Hide mobile-only elements */
   #il-original-content .OnlyMobile {
     display: none !important;
   }
@@ -1026,7 +1182,7 @@
     text-decoration: underline;
   }
 
-  /* Hide search in folder checkbox area cleanup */
+  /* Search area */
   #il-original-content .ls-search-container {
     display: flex;
     gap: 0.5rem;
@@ -1041,7 +1197,7 @@
   /* Icon buttons in message list */
   #il-original-content .buttonIcon {
     cursor: pointer;
-    opacity: 0.7;
+    opacity: 0.6;
     transition: opacity 0.15s;
   }
 
@@ -1049,34 +1205,50 @@
     opacity: 1;
   }
 
-  /* New message button styling */
-  #il-original-content .button a[id*="NewMessage"],
+  /* ── New message button ── */
+  #il-original-content a.prepend-fonticon-add[id*="NewMessage"],
   #il-original-content a.LectioLinkButtonBig {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    gap: 0.375rem;
+    padding: 0.4375rem 0.875rem;
     background: var(--primary);
     color: var(--primary-foreground);
-    border-radius: 0.375rem;
+    border-radius: 999px;
     font-weight: 500;
+    font-size: 0.8125rem;
     text-decoration: none;
-    transition: opacity 0.15s;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
   }
 
-  #il-original-content .button a[id*="NewMessage"]:hover,
+  #il-original-content a.prepend-fonticon-add[id*="NewMessage"]:hover,
   #il-original-content a.LectioLinkButtonBig:hover {
-    opacity: 0.9;
+    opacity: 0.92;
+    box-shadow: 0 2px 6px oklch(0 0 0 / 0.1);
   }
 
-  /* Ensure form elements are visible */
+  /* ── Toolbar card styling ── */
+  #il-original-content .ls-card-filled.ls-std-rowblock {
+    padding: 0.625rem 1rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+    border-radius: 0;
+  }
+
+  /* ── Form elements ── */
   #il-original-content input[type="text"],
   #il-original-content input[type="search"] {
-    padding: 0.5rem 0.75rem;
+    padding: 0.375rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: 0.375rem;
     background: var(--background);
     color: var(--foreground);
+    font-size: 0.8125rem;
   }
 
   #il-original-content input[type="checkbox"] {
@@ -1500,6 +1672,14 @@
     background: oklch(0.97 0.005 265);
   }
 
+  .il-foc-item.is-missing {
+    background: oklch(0.97 0.02 25);
+  }
+
+  .il-foc-item.is-missing:hover {
+    background: oklch(0.95 0.03 25);
+  }
+
   @keyframes il-foc-enter {
     from {
       opacity: 0;
@@ -1526,6 +1706,12 @@
   .il-foc-item.is-overdue .il-foc-bar {
     background: oklch(0.55 0.22 25);
     width: 100%;
+  }
+
+  .il-foc-item.is-missing .il-foc-bar {
+    background: oklch(0.5 0.25 25);
+    width: 100%;
+    height: 3px;
   }
 
   .il-foc-item.is-imminent .il-foc-bar {
@@ -1555,6 +1741,11 @@
   .il-foc-item.is-overdue .il-foc-icon {
     background: oklch(0.92 0.05 25);
     color: oklch(0.5 0.22 25);
+  }
+
+  .il-foc-item.is-missing .il-foc-icon {
+    background: oklch(0.88 0.08 25);
+    color: oklch(0.45 0.25 25);
   }
 
   .il-foc-item.is-imminent .il-foc-icon {
@@ -1599,6 +1790,10 @@
     color: oklch(0.5 0.22 25);
   }
 
+  .il-foc-item.is-missing .il-foc-deadline {
+    color: oklch(0.45 0.25 25);
+  }
+
   .il-foc-item.is-imminent .il-foc-deadline {
     color: oklch(0.52 0.18 50);
   }
@@ -1614,6 +1809,7 @@
 
   /* Primary item (first) gets slightly larger deadline */
   .il-foc-item.is-primary.is-overdue .il-foc-deadline,
+  .il-foc-item.is-primary.is-missing .il-foc-deadline,
   .il-foc-item.is-primary.is-imminent .il-foc-deadline {
     font-size: 0.875rem;
   }
@@ -1653,19 +1849,32 @@
   /* ══ Dark mode ══ */
 
   .dark .il-foc-header:hover {
-    background: oklch(0.2 0.005 265);
+    background: oklch(0.19 0.004 285);
   }
 
   .dark .il-foc-item:hover {
-    background: oklch(0.2 0.005 265);
+    background: oklch(0.19 0.004 285);
+  }
+
+  .dark .il-foc-item.is-missing {
+    background: oklch(0.17 0.02 25);
+  }
+
+  .dark .il-foc-item.is-missing:hover {
+    background: oklch(0.2 0.025 25);
   }
 
   .dark .il-foc-item.is-overdue .il-foc-bar {
-    background: oklch(0.6 0.18 25);
+    background: oklch(0.58 0.18 25);
+  }
+
+  .dark .il-foc-item.is-missing .il-foc-bar {
+    background: oklch(0.55 0.2 25);
+    height: 3px;
   }
 
   .dark .il-foc-item.is-imminent .il-foc-bar {
-    background: oklch(0.6 0.15 50);
+    background: oklch(0.58 0.15 50);
   }
 
   .dark .il-foc-item.is-soon .il-foc-bar {
@@ -1673,22 +1882,31 @@
   }
 
   .dark .il-foc-item.is-overdue .il-foc-icon {
-    background: oklch(0.25 0.06 25);
+    background: oklch(0.22 0.05 25);
     color: oklch(0.72 0.18 25);
   }
 
+  .dark .il-foc-item.is-missing .il-foc-icon {
+    background: oklch(0.24 0.06 25);
+    color: oklch(0.75 0.18 25);
+  }
+
   .dark .il-foc-item.is-imminent .il-foc-icon {
-    background: oklch(0.25 0.05 50);
+    background: oklch(0.22 0.04 50);
     color: oklch(0.72 0.15 50);
   }
 
   .dark .il-foc-item.is-soon .il-foc-icon {
-    background: oklch(0.25 0.04 80);
+    background: oklch(0.22 0.03 80);
     color: oklch(0.72 0.1 80);
   }
 
   .dark .il-foc-item.is-overdue .il-foc-deadline {
     color: oklch(0.72 0.18 25);
+  }
+
+  .dark .il-foc-item.is-missing .il-foc-deadline {
+    color: oklch(0.75 0.18 25);
   }
 
   .dark .il-foc-item.is-imminent .il-foc-deadline {
@@ -1700,8 +1918,8 @@
   }
 
   .dark .il-foc-hold {
-    background: oklch(0.28 0.08 var(--hold-hue, 235));
-    color: oklch(0.78 0.14 var(--hold-hue, 235));
+    background: oklch(0.24 0.06 var(--hold-hue, 265));
+    color: oklch(0.75 0.12 var(--hold-hue, 265));
   }
 
   /* ========================================
@@ -2341,33 +2559,33 @@
 
   /* Dark mode */
   .dark .il-cd {
-    background: oklch(0.2 0.012 265);
-    border-color: oklch(0.28 0.02 265);
+    background: oklch(0.18 0.004 285);
+    border-color: oklch(0.25 0.004 285);
   }
 
   .dark .il-cd[data-state="done"] {
-    background: oklch(0.18 0.015 145);
-    border-color: oklch(0.25 0.025 145);
+    background: oklch(0.17 0.012 145);
+    border-color: oklch(0.24 0.02 145);
   }
 
   .dark .il-cd[data-state="break"] {
-    background: oklch(0.18 0.008 265);
+    background: oklch(0.16 0.004 285);
   }
 
   .dark .il-cd-pause {
-    color: oklch(0.7 0.02 265);
+    color: oklch(0.65 0.005 285);
   }
 
   .dark .il-cd-time {
-    color: oklch(0.9 0.01 265);
+    color: oklch(0.88 0.003 90);
   }
 
   .dark .il-cd-sub {
-    color: oklch(0.58 0.015 265);
+    color: oklch(0.55 0.005 285);
   }
 
   .dark .il-cd-bar {
-    background: oklch(0.28 0.015 265);
+    background: oklch(0.25 0.004 285);
   }
 
   .dark .il-cd-done-text {
@@ -2379,16 +2597,16 @@
   }
 
   .dark .il-cd[data-state="cancelled"] {
-    background: oklch(0.2 0.02 85);
-    border-color: oklch(0.28 0.03 85);
+    background: oklch(0.18 0.015 85);
+    border-color: oklch(0.25 0.02 85);
   }
 
   .dark .il-cd[data-state="cancelled"] .il-cd-done-text {
-    color: oklch(0.75 0.1 85);
+    color: oklch(0.72 0.1 85);
   }
 
   .dark .il-cd-cancelled-sub {
-    color: oklch(0.6 0.04 85);
+    color: oklch(0.58 0.03 85);
   }
 
   .dark .il-cd-cancelled-sub s {
@@ -2396,11 +2614,11 @@
   }
 
   .dark .il-cd-next {
-    border-top-color: oklch(0.3 0.02 85);
+    border-top-color: oklch(0.27 0.015 85);
   }
 
   .dark .il-cd-next-time {
-    color: oklch(0.6 0.015 265);
+    color: oklch(0.55 0.005 285);
   }
 
   /* Hide "hold og grupper" section at bottom of schedule page */
@@ -2969,85 +3187,85 @@
   /* ── Dark mode overrides ────────────────── */
 
   .dark .il-lektier-card:hover {
-    border-color: oklch(0.35 0 0);
-    box-shadow: 0 6px 24px oklch(0 0 0 / 0.3);
+    border-color: oklch(0.3 0.004 285);
+    box-shadow: 0 6px 24px oklch(0 0 0 / 0.35);
   }
 
   .dark .il-lektier-card-accent {
-    background: oklch(0.62 0.18 var(--hold-hue, 235));
+    background: oklch(0.55 0.15 var(--hold-hue, 265));
   }
 
   .dark .il-lektier-hold-pill {
-    background: oklch(0.28 0.08 var(--hold-hue, 235));
-    color: oklch(0.78 0.14 var(--hold-hue, 235));
+    background: oklch(0.24 0.06 var(--hold-hue, 265));
+    color: oklch(0.75 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-lektier-card-module:hover {
-    color: oklch(0.75 0.14 var(--hold-hue, 235));
+    color: oklch(0.72 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-lektier-date-relative.is-today {
-    color: oklch(0.85 0.12 85);
-    background: oklch(0.3 0.08 85);
+    color: oklch(0.82 0.1 85);
+    background: oklch(0.25 0.06 85);
   }
 
   .dark .il-lektier-date-relative.is-tomorrow {
-    color: oklch(0.8 0.1 260);
-    background: oklch(0.28 0.06 260);
+    color: oklch(0.75 0.1 260);
+    background: oklch(0.22 0.05 260);
   }
 
   .dark .il-lektier-date-relative.is-soon {
-    color: oklch(0.75 0.08 200);
-    background: oklch(0.28 0.04 200);
+    color: oklch(0.72 0.08 200);
+    background: oklch(0.22 0.03 200);
   }
 
   .dark .il-lektier-day.is-today .il-lektier-date-number {
-    color: oklch(0.82 0.12 85);
+    color: oklch(0.8 0.1 85);
   }
 
   .dark .il-lektier-day.is-today .il-lektier-date-weekday {
-    color: oklch(0.75 0.1 85);
+    color: oklch(0.72 0.08 85);
   }
 
   .dark .il-lektier-day.is-tomorrow .il-lektier-date-number {
-    color: oklch(0.78 0.1 260);
+    color: oklch(0.75 0.1 260);
   }
 
   .dark .il-lektier-day.is-tomorrow .il-lektier-date-weekday {
-    color: oklch(0.7 0.08 260);
+    color: oklch(0.68 0.08 260);
   }
 
   .dark .il-lektier-instruction {
-    background: oklch(0.22 0.04 var(--hold-hue, 235));
-    border-left-color: oklch(0.5 0.14 var(--hold-hue, 235));
+    background: oklch(0.19 0.03 var(--hold-hue, 265));
+    border-left-color: oklch(0.45 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-lektier-content-link:hover {
-    color: oklch(0.78 0.14 var(--hold-hue, 235));
+    color: oklch(0.72 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-lektier-item-annotation {
-    border-left-color: oklch(0.35 0.08 var(--hold-hue, 235));
+    border-left-color: oklch(0.32 0.06 var(--hold-hue, 265));
   }
 
   .dark .il-lektier-file {
-    background: oklch(0.22 0.02 250);
-    border-color: oklch(0.3 0.03 250);
+    background: oklch(0.19 0.004 285);
+    border-color: oklch(0.27 0.004 285);
   }
 
   .dark .il-lektier-file:hover {
-    background: oklch(0.25 0.03 250);
-    border-color: oklch(0.35 0.04 250);
-    box-shadow: 0 2px 12px oklch(0 0 0 / 0.2);
+    background: oklch(0.22 0.004 285);
+    border-color: oklch(0.3 0.005 285);
+    box-shadow: 0 2px 12px oklch(0 0 0 / 0.25);
   }
 
   .dark .il-lektier-file-icon-wrap {
-    background: oklch(0.3 0.05 250);
-    color: oklch(0.7 0.12 250);
+    background: oklch(0.25 0.04 265);
+    color: oklch(0.68 0.1 265);
   }
 
   .dark .il-lektier-file-dl {
-    color: oklch(0.7 0.1 250);
+    color: oklch(0.65 0.08 265);
   }
 
   /* ── Responsive ─────────────────────────── */
@@ -3585,6 +3803,22 @@
     flex-shrink: 0;
   }
 
+  /* ── Missing submission badge (overdue + awaiting student) ── */
+  .il-opgaver-missing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    width: fit-content;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    background: oklch(0.55 0.22 25 / 0.12);
+    color: oklch(0.48 0.22 25);
+    border: 1px solid oklch(0.55 0.22 25 / 0.2);
+  }
+
   /* ── Urgency: imminent (< 24h) ── */
   .il-opgaver-card.is-imminent {
     border-left: 4px solid oklch(0.6 0.18 50);
@@ -3874,20 +4108,20 @@
   /* ── Dark mode ───────────────────────────── */
 
   .dark .il-opgaver-card {
-    border-left-color: oklch(0.35 0 0);
+    border-left-color: oklch(0.3 0.004 285);
   }
 
   .dark .il-opgaver-card:hover {
-    border-color: oklch(0.38 0 0);
-    box-shadow: 0 4px 20px oklch(0 0 0 / 0.35);
+    border-color: oklch(0.32 0.004 285);
+    box-shadow: 0 4px 20px oklch(0 0 0 / 0.4);
   }
 
   .dark .il-opgaver-card.is-overdue {
-    border-left-color: oklch(0.6 0.18 25);
-    background: linear-gradient(135deg, oklch(0.18 0.025 25), oklch(0.16 0.01 25));
+    border-left-color: oklch(0.58 0.18 25);
+    background: linear-gradient(135deg, oklch(0.16 0.02 25), oklch(0.14 0.008 25));
   }
   .dark .il-opgaver-card.is-overdue:hover {
-    border-color: oklch(0.35 0.04 25);
+    border-color: oklch(0.3 0.03 25);
     box-shadow: 0 6px 24px oklch(0.5 0.1 25 / 0.15);
   }
   .dark .il-opgaver-card.is-overdue .il-opgaver-deadline-label {
@@ -3897,12 +4131,18 @@
     color: oklch(0.72 0.18 25);
   }
 
+  .dark .il-opgaver-missing-badge {
+    background: oklch(0.58 0.18 25 / 0.12);
+    color: oklch(0.72 0.18 25);
+    border-color: oklch(0.58 0.18 25 / 0.2);
+  }
+
   .dark .il-opgaver-card.is-imminent {
-    border-left-color: oklch(0.6 0.15 50);
-    background: linear-gradient(135deg, oklch(0.18 0.02 50), oklch(0.16 0.008 50));
+    border-left-color: oklch(0.58 0.15 50);
+    background: linear-gradient(135deg, oklch(0.16 0.015 50), oklch(0.14 0.006 50));
   }
   .dark .il-opgaver-card.is-imminent:hover {
-    border-color: oklch(0.35 0.03 50);
+    border-color: oklch(0.3 0.025 50);
   }
   .dark .il-opgaver-card.is-imminent .il-opgaver-deadline-label {
     color: oklch(0.72 0.15 50);
@@ -3916,69 +4156,69 @@
   }
 
   .dark .il-opgaver-hold-pill {
-    background: oklch(0.28 0.08 var(--hold-hue, 235));
-    color: oklch(0.78 0.14 var(--hold-hue, 235));
+    background: oklch(0.24 0.06 var(--hold-hue, 265));
+    color: oklch(0.75 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-opgaver-card:hover .il-opgaver-card-title {
-    color: oklch(0.75 0.14 var(--hold-hue, 235));
+    color: oklch(0.72 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-opgaver-submitted-card:hover .il-opgaver-submitted-title {
-    color: oklch(0.75 0.14 var(--hold-hue, 235));
+    color: oklch(0.72 0.12 var(--hold-hue, 265));
   }
 
   .dark .il-opgaver-submitted-grade-wrap {
-    background: oklch(0.28 0.08 var(--grade-hue, 145));
+    background: oklch(0.24 0.06 var(--grade-hue, 145));
   }
 
   .dark .il-opgaver-submitted-grade {
-    color: oklch(0.8 0.1 var(--grade-hue, 145));
+    color: oklch(0.78 0.1 var(--grade-hue, 145));
   }
 
   .dark .il-opgaver-submitted-check {
-    color: oklch(0.65 0.1 145);
+    color: oklch(0.62 0.1 145);
   }
 
   .dark .il-opgaver-submitted-card:hover {
-    border-color: oklch(0.38 0 0);
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.35);
+    border-color: oklch(0.32 0.004 285);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.4);
   }
 
   .dark .il-opgaver-grade {
-    background: oklch(0.28 0.08 var(--grade-hue, 145));
-    color: oklch(0.8 0.1 var(--grade-hue, 145));
+    background: oklch(0.24 0.06 var(--grade-hue, 145));
+    color: oklch(0.78 0.1 var(--grade-hue, 145));
   }
 
   .dark .il-opgaver-note {
-    background: oklch(0.2 0.01 265 / 0.6);
-    border-left-color: oklch(0.5 0.12 var(--hold-hue, 235));
+    background: oklch(0.18 0.004 285 / 0.6);
+    border-left-color: oklch(0.45 0.1 var(--hold-hue, 265));
   }
 
   .dark .il-opgaver-search-input {
-    background: oklch(0.2 0.01 265);
+    background: oklch(0.18 0.004 285);
   }
 
   .dark .il-opgaver-search-input:focus {
-    box-shadow: 0 0 0 3px oklch(0.68 0.17 265 / 0.15);
+    box-shadow: 0 0 0 3px oklch(0.65 0.16 265 / 0.15);
   }
 
   .dark .il-opgaver-date-pill.is-active {
-    background: oklch(0.28 0.08 265);
-    color: oklch(0.78 0.14 265);
-    border-color: oklch(0.38 0.08 265);
+    background: oklch(0.24 0.06 265);
+    color: oklch(0.75 0.12 265);
+    border-color: oklch(0.34 0.06 265);
   }
 
   .dark .il-opgaver-date-pill.is-active:hover {
-    background: oklch(0.32 0.1 265);
+    background: oklch(0.28 0.08 265);
   }
 
   .dark .il-opgaver-alert-banner.is-overdue {
-    background: linear-gradient(135deg, oklch(0.2 0.03 25), oklch(0.18 0.015 25));
-    box-shadow: inset 0 0 0 1px oklch(0.35 0.06 25);
+    background: linear-gradient(135deg, oklch(0.18 0.025 25), oklch(0.16 0.012 25));
+    box-shadow: inset 0 0 0 1px oklch(0.3 0.05 25);
   }
   .dark .il-opgaver-alert-banner.is-overdue .il-opgaver-alert-icon {
-    background: oklch(0.28 0.06 25);
+    background: oklch(0.24 0.05 25);
     color: oklch(0.72 0.18 25);
   }
   .dark .il-opgaver-alert-banner.is-overdue .il-opgaver-alert-time {
@@ -3986,11 +4226,11 @@
   }
 
   .dark .il-opgaver-alert-banner.is-imminent {
-    background: linear-gradient(135deg, oklch(0.2 0.02 50), oklch(0.18 0.01 50));
-    box-shadow: inset 0 0 0 1px oklch(0.35 0.04 50);
+    background: linear-gradient(135deg, oklch(0.18 0.015 50), oklch(0.16 0.008 50));
+    box-shadow: inset 0 0 0 1px oklch(0.3 0.03 50);
   }
   .dark .il-opgaver-alert-banner.is-imminent .il-opgaver-alert-icon {
-    background: oklch(0.28 0.05 50);
+    background: oklch(0.24 0.04 50);
     color: oklch(0.72 0.15 50);
   }
   .dark .il-opgaver-alert-banner.is-imminent .il-opgaver-alert-time {
@@ -3998,11 +4238,11 @@
   }
 
   .dark .il-opgaver-alert-banner:hover {
-    box-shadow: 0 6px 20px oklch(0 0 0 / 0.3);
+    box-shadow: 0 6px 20px oklch(0 0 0 / 0.35);
   }
 
   .dark .il-opgaver-filter-dot {
-    background: oklch(0.65 0.12 var(--hold-hue, 235));
+    background: oklch(0.62 0.1 var(--hold-hue, 265));
   }
 
   /* ── Responsive ──────────────────────────── */
@@ -4667,43 +4907,43 @@
   /* ── Dark mode ────────────────────────────── */
 
   .dark .il-opgave-sheet-entry.is-teacher {
-    background: oklch(0.2 0.015 250);
-    border-color: oklch(0.28 0.025 250);
+    background: oklch(0.18 0.004 285);
+    border-color: oklch(0.25 0.004 285);
   }
 
   .dark .il-opgave-sheet-file-link {
-    color: oklch(0.7 0.1 250);
-    background: oklch(0.22 0.02 250);
-    border-color: oklch(0.3 0.03 250);
+    color: oklch(0.68 0.08 265);
+    background: oklch(0.19 0.004 285);
+    border-color: oklch(0.27 0.004 285);
   }
 
   .dark .il-opgave-sheet-file-link:hover {
-    background: oklch(0.25 0.03 250);
-    border-color: oklch(0.35 0.04 250);
+    background: oklch(0.22 0.004 285);
+    border-color: oklch(0.3 0.004 285);
   }
 
   .dark .il-opgave-sheet-entry-doc {
-    color: oklch(0.7 0.1 250);
+    color: oklch(0.68 0.08 265);
   }
 
   .dark .il-opgave-sheet-dropzone.is-dragover {
-    border-color: oklch(0.6 0.12 250);
-    background: oklch(0.22 0.03 250);
+    border-color: oklch(0.55 0.1 265);
+    background: oklch(0.19 0.01 265);
   }
 
   .dark .il-opgave-sheet-awaiting-badge.is-student {
-    background: oklch(0.28 0.06 50);
-    color: oklch(0.78 0.1 50);
+    background: oklch(0.24 0.05 50);
+    color: oklch(0.75 0.1 50);
   }
 
   .dark .il-opgave-sheet-awaiting-badge.is-teacher {
-    background: oklch(0.28 0.06 250);
-    color: oklch(0.78 0.1 250);
+    background: oklch(0.24 0.05 265);
+    color: oklch(0.75 0.1 265);
   }
 
   .dark .il-opgave-sheet-file-remove:hover {
-    background: oklch(0.3 0.06 25);
-    color: oklch(0.7 0.16 25);
+    background: oklch(0.25 0.05 25);
+    color: oklch(0.7 0.15 25);
   }
 
   /* ========================================
@@ -5261,41 +5501,41 @@
 
   /* Dark mode */
   .dark .il-act-sheet {
-    box-shadow: -12px 0 40px oklch(0 0 0 / 0.35);
+    box-shadow: -12px 0 40px oklch(0 0 0 / 0.4);
   }
 
   .dark .il-act-sheet::before {
-    background: oklch(0.65 0.15 var(--accent-hue, 265));
+    background: oklch(0.6 0.13 var(--accent-hue, 265));
   }
 
   .dark .il-act-sheet-hold-pill {
-    color: oklch(0.78 0.14 var(--accent-hue, 265));
-    background: oklch(0.28 0.08 var(--accent-hue, 265));
+    color: oklch(0.75 0.12 var(--accent-hue, 265));
+    background: oklch(0.24 0.06 var(--accent-hue, 265));
   }
 
   .dark .il-act-sheet-note {
-    border-left-color: oklch(0.55 0.1 var(--accent-hue, 265));
+    border-left-color: oklch(0.5 0.08 var(--accent-hue, 265));
   }
 
   .dark .il-act-sheet-hw-content a,
   .dark .il-act-sheet-rel-item a {
-    color: oklch(0.73 0.11 255);
+    color: oklch(0.75 0.06 265);
   }
 
   .dark .il-act-sheet-error {
-    border-color: oklch(0.52 0.08 65);
-    background: oklch(0.27 0.04 65);
-    color: oklch(0.84 0.08 65);
+    border-color: oklch(0.45 0.06 65);
+    background: oklch(0.22 0.03 65);
+    color: oklch(0.82 0.07 65);
   }
 
   .dark .il-act-sheet-error-actions button {
-    border-color: oklch(0.5 0.07 65);
-    background: oklch(0.31 0.04 65);
-    color: oklch(0.86 0.07 65);
+    border-color: oklch(0.42 0.05 65);
+    background: oklch(0.26 0.03 65);
+    color: oklch(0.82 0.06 65);
   }
 
   .dark .il-act-sheet-error-actions button:hover:not(:disabled) {
-    background: oklch(0.35 0.05 65);
+    background: oklch(0.3 0.04 65);
   }
 
   /* Mobile: bottom sheet instead of side panel */
@@ -7035,68 +7275,74 @@
   /* ── Links ───────────────────────────────── */
 
   .dark #il-original-content a {
-    color: oklch(0.75 0.12 265);
+    color: oklch(0.75 0.06 265);
   }
 
   .dark #il-original-content a:hover {
-    color: oklch(0.82 0.14 265);
+    color: oklch(0.82 0.08 265);
   }
 
   .dark #il-original-content [data-lectiocontextcard] {
-    color: oklch(0.75 0.12 265);
+    color: oklch(0.75 0.06 265);
   }
 
   /* ── Tables ──────────────────────────────── */
 
   .dark #il-original-content .ls-table-wrapper {
-    border-color: oklch(0.28 0.015 265);
-    box-shadow: 0 1px 3px oklch(0 0 0 / 0.2), 0 0.5px 1px oklch(0 0 0 / 0.15);
+    border-color: oklch(0.25 0.004 285);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.25), 0 0.5px 1px oklch(0 0 0 / 0.2);
   }
 
   .dark #il-original-content table.lf-grid th {
-    background: oklch(0.2 0.015 265);
-    color: oklch(0.65 0.04 265);
-    border-bottom-color: oklch(0.28 0.015 265);
+    background: oklch(0.18 0.004 285);
+    color: oklch(0.58 0.005 285);
+    border-bottom-color: oklch(0.25 0.004 285);
   }
 
   .dark #il-original-content table.lf-grid td {
-    border-bottom-color: oklch(0.25 0.012 265);
+    border-bottom-color: oklch(0.22 0.004 285);
   }
 
   .dark #il-original-content table.lf-grid tbody tr:hover td {
-    background: oklch(0.22 0.025 265);
+    background: oklch(0.19 0.004 285);
   }
 
   .dark #il-original-content table.lf-grid tbody tr:hover td:first-child {
-    box-shadow: inset 2px 0 0 oklch(0.68 0.17 265);
+    box-shadow: inset 2px 0 0 oklch(0.65 0.16 265);
   }
 
   .dark #il-original-content table.lf-grid tr.separationCell td {
-    background: oklch(0.22 0.015 265);
-    color: oklch(0.65 0.04 265);
+    background: oklch(0.19 0.004 285);
+    color: oklch(0.58 0.005 285);
   }
 
   .dark #il-original-content .lf-island table.lf-grid th {
     background: transparent;
-    border-bottom-color: oklch(0.25 0.012 265);
+    border-bottom-color: oklch(0.22 0.004 285);
   }
 
   .dark #il-original-content table.ls-std-table-inputlist th {
-    color: oklch(0.65 0.04 265);
+    color: oklch(0.58 0.005 285);
   }
 
   .dark #il-original-content table.ls-std-table-inputlist th,
   .dark #il-original-content table.ls-std-table-inputlist td {
-    border-bottom-color: oklch(0.25 0.012 265);
+    border-bottom-color: oklch(0.22 0.004 285);
   }
 
   /* ── Schedule bricks ─────────────────────── */
 
   .dark #il-original-content .s2skemabrik:hover {
-    box-shadow: 0 4px 12px oklch(0 0 0 / 0.35);
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.4);
   }
 
   /* ── Enhanced schedule bricks (dark) ──────── */
+
+  .dark #il-original-content a.s2skemabrik:has(.il-enhanced),
+  .dark #il-original-content a.s2skemabrik:has(.il-enhanced):hover {
+    color: oklch(0.88 0.003 90) !important;
+    text-decoration: none !important;
+  }
 
   .dark #il-original-content .il-enhanced [data-lectiocontextcard],
   .dark #il-original-content .il-enhanced [data-lectiocontextcard]:hover {
@@ -7105,17 +7351,17 @@
   }
 
   .dark #il-original-content .s2skemabrik.s2bgbox:has(.il-enhanced) {
-    background: oklch(0.22 0.025 var(--brick-hue, 265)) !important;
-    border-left-color: oklch(0.55 0.15 var(--brick-hue, 265)) !important;
+    background: oklch(0.22 0.02 var(--brick-hue, 265)) !important;
+    border-left-color: oklch(0.52 0.14 var(--brick-hue, 265)) !important;
   }
 
   .dark #il-original-content .s2skemabrik.s2bgbox:has(.il-enhanced):hover {
-    background: oklch(0.26 0.03 var(--brick-hue, 265)) !important;
+    background: oklch(0.26 0.025 var(--brick-hue, 265)) !important;
   }
 
   .dark #il-original-content .il-brick-changed-badge {
-    background: oklch(0.35 0.08 80) !important;
-    color: oklch(0.82 0.1 80) !important;
+    background: oklch(0.3 0.06 80) !important;
+    color: oklch(0.8 0.1 80) !important;
   }
 
   .dark #il-original-content .s2skemabrik.s2cancelled:has(.il-enhanced) {
@@ -7135,146 +7381,146 @@
   }
 
   .dark #il-original-content .il-brick-subject {
-    color: oklch(0.9 0.04 var(--brick-hue, 265)) !important;
+    color: oklch(0.88 0.03 var(--brick-hue, 265)) !important;
   }
 
   .dark #il-original-content .il-brick-room {
-    background: oklch(0.55 0.15 var(--brick-hue, 265) / 0.2) !important;
-    color: oklch(0.8 0.1 var(--brick-hue, 265)) !important;
+    background: oklch(0.5 0.13 var(--brick-hue, 265) / 0.18) !important;
+    color: oklch(0.78 0.08 var(--brick-hue, 265)) !important;
   }
 
   .dark #il-original-content .il-brick-meta {
-    color: oklch(0.65 0.03 265) !important;
+    color: oklch(0.68 0.005 285) !important;
   }
 
   .dark #il-original-content .il-brick-topic {
-    color: oklch(0.6 0.02 265) !important;
+    color: oklch(0.65 0.005 285) !important;
   }
 
   .dark #il-original-content .il-brick-icons .ls-fonticon {
-    color: oklch(0.6 0.1 var(--brick-hue, 265)) !important;
-    opacity: 0.7 !important;
+    color: oklch(0.6 0.08 var(--brick-hue, 265)) !important;
+    opacity: 0.85 !important;
   }
 
   .dark #il-original-content .il-brick-replaces {
-    color: oklch(0.72 0.06 265) !important;
-    background: oklch(0.55 0.1 var(--brick-hue, 265) / 0.12) !important;
+    color: oklch(0.68 0.005 285) !important;
+    background: oklch(0.5 0.08 var(--brick-hue, 265) / 0.1) !important;
   }
 
   /* ── Info header pills (dark) ─────────────── */
 
   .dark #il-original-content .s2infoHeader .s2skemabrik {
-    background: oklch(0.22 0.015 265) !important;
-    color: oklch(0.75 0.02 265) !important;
+    background: oklch(0.2 0.004 285) !important;
+    color: oklch(0.7 0.005 285) !important;
   }
 
   .dark #il-original-content .s2infoHeader .s2skemabrik:hover {
-    background: oklch(0.26 0.02 265) !important;
+    background: oklch(0.24 0.004 285) !important;
   }
 
   .dark #il-original-content .s2infoHeader .separator-value:not(:empty) {
-    color: oklch(0.6 0.02 265) !important;
+    color: oklch(0.55 0.005 285) !important;
   }
 
   .dark #il-original-content .s2infoHeader .separator-undervalue {
-    color: oklch(0.8 0.02 265) !important;
+    color: oklch(0.75 0.003 285) !important;
   }
 
   .dark #il-original-content .s2infoHeader .s2skemabrikIcons .ls-fonticon {
-    color: oklch(0.6 0.06 265) !important;
+    color: oklch(0.55 0.005 285) !important;
   }
 
   /* ── Schedule brick tooltip (dark) ──────── */
 
   .dark #il-brick-tooltip {
-    background: oklch(0.19 0.018 265) !important;
-    border-color: oklch(0.28 0.018 265) !important;
-    color: oklch(0.88 0.01 265) !important;
+    background: oklch(0.16 0.004 285) !important;
+    border-color: oklch(0.25 0.004 285) !important;
+    color: oklch(0.85 0.003 90) !important;
     box-shadow:
-      0 1px 2px oklch(0 0 0 / 0.2),
-      0 4px 16px oklch(0 0 0 / 0.3),
-      0 12px 40px oklch(0 0 0 / 0.2) !important;
+      0 1px 2px oklch(0 0 0 / 0.25),
+      0 4px 16px oklch(0 0 0 / 0.35),
+      0 12px 40px oklch(0 0 0 / 0.25) !important;
   }
 
   .dark .il-tt-header {
-    border-bottom-color: oklch(0.26 0.015 265) !important;
+    border-bottom-color: oklch(0.23 0.004 285) !important;
   }
 
   .dark .il-tt-title {
-    color: oklch(0.94 0.005 265) !important;
+    color: oklch(0.9 0.003 90) !important;
   }
 
   .dark .il-tt-badge--changed {
-    background: oklch(0.35 0.08 80) !important;
-    color: oklch(0.85 0.1 80) !important;
+    background: oklch(0.3 0.06 80) !important;
+    color: oklch(0.82 0.1 80) !important;
   }
 
   .dark .il-tt-time {
-    color: oklch(0.6 0.02 265) !important;
+    color: oklch(0.55 0.005 285) !important;
   }
 
   .dark .il-tt-icon {
-    color: oklch(0.55 0.12 var(--tt-hue, 265)) !important;
+    color: oklch(0.5 0.1 var(--tt-hue, 265)) !important;
   }
 
   .dark .il-tt-date {
-    color: oklch(0.72 0.015 265) !important;
+    color: oklch(0.68 0.005 285) !important;
   }
 
   .dark .il-tt-timerange {
-    color: oklch(0.58 0.015 265) !important;
+    color: oklch(0.55 0.005 285) !important;
   }
 
   .dark .il-tt-date + .il-tt-timerange::before {
-    color: oklch(0.4 0.01 265) !important;
+    color: oklch(0.38 0.004 285) !important;
   }
 
   .dark .il-tt-label {
-    color: oklch(0.52 0.02 265) !important;
+    color: oklch(0.48 0.005 285) !important;
   }
 
   .dark .il-tt-value {
-    color: oklch(0.82 0.01 265) !important;
+    color: oklch(0.78 0.003 90) !important;
   }
 
   .dark .il-tt-students {
-    color: oklch(0.62 0.01 265) !important;
+    color: oklch(0.58 0.005 285) !important;
   }
 
   .dark .il-tt-hold {
-    background: oklch(0.55 0.15 var(--hold-hue, 265) / 0.18) !important;
-    color: oklch(0.78 0.1 var(--hold-hue, 265)) !important;
+    background: oklch(0.5 0.12 var(--hold-hue, 265) / 0.15) !important;
+    color: oklch(0.75 0.08 var(--hold-hue, 265)) !important;
   }
 
   .dark .il-tt-homework {
-    border-top-color: oklch(0.26 0.015 265) !important;
+    border-top-color: oklch(0.23 0.004 285) !important;
   }
 
   .dark .il-tt-homework-label {
-    color: oklch(0.55 0.08 var(--tt-hue, 265)) !important;
+    color: oklch(0.5 0.06 var(--tt-hue, 265)) !important;
   }
 
   .dark .il-tt-hw-item + .il-tt-hw-item {
-    border-top-color: oklch(0.25 0.01 265) !important;
+    border-top-color: oklch(0.22 0.004 285) !important;
   }
 
   .dark .il-tt-hw-label {
-    color: oklch(0.82 0.01 265) !important;
+    color: oklch(0.78 0.003 90) !important;
   }
 
   .dark .il-tt-hw-desc {
-    color: oklch(0.58 0.015 265) !important;
+    color: oklch(0.55 0.005 285) !important;
   }
 
   .dark .il-tt-note {
-    border-top-color: oklch(0.26 0.015 265) !important;
-    color: oklch(0.6 0.015 265) !important;
+    border-top-color: oklch(0.23 0.004 285) !important;
+    color: oklch(0.55 0.005 285) !important;
   }
 
   /* ── Form elements ──────────────────────── */
 
   .dark #il-original-content input[type="checkbox"] {
-    accent-color: oklch(0.68 0.17 265);
+    accent-color: oklch(0.65 0.16 265);
   }
 
   .dark #il-original-content select {
@@ -7284,12 +7530,12 @@
   /* ── Status badges ───────────────────────── */
 
   .dark #il-original-content .exercisewait {
-    background: oklch(0.28 0.06 50);
-    color: oklch(0.78 0.12 50);
+    background: oklch(0.24 0.05 50);
+    color: oklch(0.75 0.1 50);
   }
 
   .dark #il-original-content [class^="delivered_"] {
-    color: oklch(0.72 0.1 145);
+    color: oklch(0.7 0.1 145);
   }
 
   .dark #il-original-content .attention {
@@ -7299,60 +7545,60 @@
   /* ── Context cards popup ─────────────────── */
 
   .dark #il-original-content .lec-context-menu {
-    box-shadow: 0 8px 30px oklch(0 0 0 / 0.4);
+    box-shadow: 0 8px 30px oklch(0 0 0 / 0.45);
   }
 
   /* ── Horizontal link list ─────────────────── */
 
   .dark #il-original-content ul.linklist-horizontal li a {
-    color: oklch(0.75 0.1 265);
-    background: oklch(0.22 0.02 265);
-    border-color: oklch(0.3 0.03 265);
+    color: oklch(0.75 0.06 265);
+    background: oklch(0.19 0.004 285);
+    border-color: oklch(0.27 0.004 285);
   }
 
   .dark #il-original-content ul.linklist-horizontal li a:hover {
-    background: oklch(0.25 0.03 265);
-    border-color: oklch(0.35 0.04 265);
+    background: oklch(0.22 0.004 285);
+    border-color: oklch(0.3 0.004 285);
   }
 
   /* ── Homework note ───────────────────────── */
 
   .dark #il-original-content .ls-homework-note {
-    background: oklch(0.22 0.012 265);
-    border-left-color: oklch(0.35 0.02 265);
+    background: oklch(0.19 0.004 285);
+    border-left-color: oklch(0.3 0.004 285);
   }
 
   /* ── Info / warning / error messages ──────── */
 
   .dark #il-original-content .ls-info-message {
-    background: oklch(0.2 0.02 265);
-    border-color: oklch(0.3 0.03 265);
-    color: oklch(0.75 0.1 265);
+    background: oklch(0.18 0.004 285);
+    border-color: oklch(0.27 0.004 285);
+    color: oklch(0.75 0.06 265);
   }
 
   .dark #il-original-content .ls-warning-message {
-    background: oklch(0.2 0.02 70);
-    border-color: oklch(0.3 0.04 70);
-    color: oklch(0.75 0.12 70);
+    background: oklch(0.18 0.015 70);
+    border-color: oklch(0.27 0.03 70);
+    color: oklch(0.72 0.1 70);
   }
 
   .dark #il-original-content .ls-error-message {
-    background: oklch(0.2 0.02 25);
-    border-color: oklch(0.3 0.04 25);
-    color: oklch(0.75 0.14 25);
+    background: oklch(0.18 0.015 25);
+    border-color: oklch(0.27 0.03 25);
+    color: oklch(0.72 0.12 25);
   }
 
   /* ── Tabs ─────────────────────────────────── */
 
   .dark #il-original-content .lectioTabToolbar .lectioTabSelected a {
-    box-shadow: 0 1px 3px oklch(0 0 0 / 0.25);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
   }
 
   /* ── Tooltips ────────────────────────────── */
 
   .dark #il-original-content .ls-tooltip,
   .dark #il-original-content #s_m_Content_Content_tooltip {
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.35);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.4);
   }
 
   /* ========================================
@@ -7404,10 +7650,15 @@
     outline: var(--lectio-dark-border) !important;
   }
 
-  .dark .s2module-bg {
-    background-color: oklch(0.17 0.01 265) !important;
-    opacity: 0.4 !important;
+  .dark #il-original-content .s2module-bg {
+    background-color: oklch(0.12 0.003 285) !important;
+    opacity: 0.5 !important;
     border: none !important;
+  }
+
+  /* Today column: keep module stripes transparent so the highlight shows through */
+  .dark #il-original-content .s2skema td[data-date].is-today .s2module-bg {
+    background-color: transparent !important;
   }
 
   .dark .message-thread-container,
@@ -7421,7 +7672,7 @@
   /* Dark mode column separators */
   .dark #il-original-content .s2skema td,
   .dark #il-original-content .s2skema th {
-    border-right-color: oklch(0.25 0.01 265) !important;
+    border-right-color: oklch(0.22 0.004 285) !important;
   }
 
   .dark #il-original-content .s2skema td:first-child {
@@ -7430,43 +7681,43 @@
   }
 
   .dark #il-original-content .il-module-time {
-    color: oklch(0.55 0.015 265) !important;
+    color: oklch(0.5 0.005 285) !important;
   }
 
   .dark #il-original-content .il-module-time-end {
-    color: oklch(0.45 0.012 265) !important;
+    color: oklch(0.4 0.004 285) !important;
   }
 
   .dark #il-original-content .s2dayHeader td {
-    color: oklch(0.65 0.02 265) !important;
+    color: oklch(0.6 0.005 285) !important;
     background: transparent !important;
-    border-bottom-color: oklch(0.25 0.01 265) !important;
+    border-bottom-color: oklch(0.22 0.004 285) !important;
   }
 
   .dark #il-original-content .s2weekHeader td {
-    color: oklch(0.6 0.02 265) !important;
+    color: oklch(0.55 0.005 285) !important;
     background: transparent !important;
   }
 
   /* Dark mode weekend collapse overrides */
   .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col {
-    background: oklch(0.18 0.01 265) !important;
+    background: oklch(0.16 0.004 285) !important;
   }
 
   .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col::after {
-    color: oklch(0.5 0.02 265);
+    color: oklch(0.45 0.004 285);
   }
 
   .dark #il-original-content .s2skema.il-weekend-collapsed td.il-weekend-col[data-date] {
-    background: oklch(0.14 0.008 265) !important;
+    background: oklch(0.12 0.003 285) !important;
   }
 
   .dark #il-original-content .s2skema .s2dayHeader td.il-weekend-col:hover {
-    background: oklch(0.22 0.015 265) !important;
+    background: oklch(0.2 0.004 285) !important;
   }
 
   .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col:hover {
-    background: oklch(0.22 0.02 265) !important;
+    background: oklch(0.2 0.005 285) !important;
   }
 
   .dark .s2skemabrik {
@@ -7510,31 +7761,31 @@
     background-color: var(--lectio-dark-element) !important;
   }
 
-  .dark option {
+  .dark #il-original-content option {
     background-color: var(--lectio-dark-element) !important;
   }
 
-  .dark table,
-  .dark tr,
-  .dark td,
-  .dark th {
+  .dark #il-original-content table,
+  .dark #il-original-content tr,
+  .dark #il-original-content td,
+  .dark #il-original-content th {
     background-color: var(--lectio-dark-surface) !important;
     color: var(--lectio-dark-text) !important;
     border-color: var(--lectio-dark-element) !important;
   }
 
-  .dark a {
+  .dark #il-original-content a {
     color: var(--lectio-dark-link) !important;
   }
 
-  .dark a:hover {
+  .dark #il-original-content a:hover {
     color: var(--lectio-dark-link-hover) !important;
   }
 
-  .dark input,
-  .dark select,
-  .dark textarea,
-  .dark button {
+  .dark #il-original-content input,
+  .dark #il-original-content select,
+  .dark #il-original-content textarea,
+  .dark #il-original-content button {
     background-color: var(--lectio-dark-element) !important;
     color: var(--lectio-dark-text) !important;
   }
@@ -7549,12 +7800,12 @@
     background-color: var(--lectio-dark-surface) !important;
   }
 
-  .dark h1,
-  .dark h2,
-  .dark h3,
-  .dark h4,
-  .dark h5,
-  .dark h6,
+  .dark #il-original-content h1,
+  .dark #il-original-content h2,
+  .dark #il-original-content h3,
+  .dark #il-original-content h4,
+  .dark #il-original-content h5,
+  .dark #il-original-content h6,
   .dark .s2skemabrikcontent {
     color: var(--lectio-dark-text) !important;
   }
@@ -7567,11 +7818,11 @@
     border: 1px solid var(--lectio-dark-border) !important;
   }
 
-  .dark DIV.button A,
-  .dark DIV.button,
-  .dark A.button,
-  .dark a,
-  .dark a:hover,
+  .dark #il-original-content DIV.button A,
+  .dark #il-original-content DIV.button,
+  .dark #il-original-content A.button,
+  .dark #il-original-content a,
+  .dark #il-original-content a:hover,
   .dark .lectioToolbar,
   .dark .ls-master-header {
     background-image: url("") !important;
@@ -7590,10 +7841,10 @@
   }
 
   .dark .ls-master-container2 .ls-master-header-institution {
-    color: oklch(0.62 0.12 185) !important;
+    color: oklch(0.58 0.005 285) !important;
   }
 
   .dark .maintitle {
-    color: oklch(1 0 0) !important;
+    color: oklch(0.93 0.003 90) !important;
   }
 }

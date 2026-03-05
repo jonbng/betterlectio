@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
+import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 
 const weekendGreetings = [
   'God weekend',
@@ -71,8 +72,11 @@ interface UrgentOpgave {
   hold: string;
   deadline: Date;
   url: string;
+  /** True if this assignment has exercisemissing status (past due, never submitted) */
+  isMissing?: boolean;
 }
 
+/** Get urgent opgaver from the forside widget table (only has ~3 upcoming assignments) */
 function getUrgentOpgaver(): UrgentOpgave[] {
   const table = document.querySelector<HTMLTableElement>(
     '#s_m_Content_Content_ElevOpgaveAfleveringerDBB',
@@ -119,16 +123,45 @@ function getUrgentOpgaver(): UrgentOpgave[] {
   return urgent;
 }
 
-function formatUrgentLabel(deadline: Date): string {
-  const now = new Date();
-  const diffMs = deadline.getTime() - now.getTime();
+// fetchMissingOpgaver is imported from @/lib/missing-opgaver (shared, cached)
 
-  if (diffMs < 0) {
+/** Merge missing opgaver into urgent list, deduplicating by URL */
+function mergeUrgentOpgaver(local: UrgentOpgave[], missing: UrgentOpgave[]): UrgentOpgave[] {
+  const seen = new Set<string>();
+  const merged: UrgentOpgave[] = [];
+
+  // Missing assignments always come first
+  for (const m of missing) {
+    const key = m.url || `${m.title}|${m.hold}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(m);
+    }
+  }
+
+  // Then local urgent (imminent from forside widget)
+  for (const u of local) {
+    const key = u.url || `${u.title}|${u.hold}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(u);
+    }
+  }
+
+  return merged;
+}
+
+function formatUrgentLabel(opgave: UrgentOpgave): string {
+  const now = new Date();
+  const diffMs = opgave.deadline.getTime() - now.getTime();
+
+  if (opgave.isMissing || diffMs < 0) {
+    const absDays = Math.floor(Math.abs(diffMs) / 86400000);
     const absHours = Math.floor(Math.abs(diffMs) / 3600000);
     const absMin = Math.floor(Math.abs(diffMs) / 60000);
-    if (absMin < 60) return 'Lige overskredet';
-    if (absHours < 24) return `${absHours} ${absHours === 1 ? 'time' : 'timer'} forsinket`;
-    return `${Math.floor(Math.abs(diffMs) / 86400000)} dage forsinket`;
+    if (absMin < 60) return 'mangler — lige overskredet';
+    if (absHours < 24) return `mangler — ${absHours} ${absHours === 1 ? 'time' : 'timer'} forsinket`;
+    return `mangler — ${absDays} ${absDays === 1 ? 'dag' : 'dage'} forsinket`;
   }
 
   const diffMin = Math.floor(diffMs / 60000);
@@ -137,7 +170,7 @@ function formatUrgentLabel(deadline: Date): string {
   return `om ${diffHours} ${diffHours === 1 ? 'time' : 'timer'}`;
 }
 
-export function ForsideGreeting() {
+export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   const [time, setTime] = useState(new Date());
   const [firstName, setFirstName] = useState<string>('');
   const [cancelledCount, setCancelledCount] = useState(0);
@@ -169,14 +202,29 @@ export function ForsideGreeting() {
       }, 1500);
     }
 
-    // Check for urgent opgaver from forside DOM
-    setUrgentOpgaver(getUrgentOpgaver());
+    // Check for urgent opgaver from forside DOM (only ~3 upcoming visible in widget)
+    const localUrgent = getUrgentOpgaver();
+    setUrgentOpgaver(localUrgent);
+
+    // Background fetch: check for missing assignments from full opgaver page
+    // The forside widget omits overdue/missing assignments, so we need the full page
+    fetchMissingOpgaver(schoolId).then((missingRaw) => {
+      if (missingRaw.length > 0) {
+        const missing: UrgentOpgave[] = missingRaw.map(m => ({
+          title: m.title,
+          hold: m.hold,
+          deadline: m.deadline,
+          url: m.url,
+          isMissing: true,
+        }));
+        setUrgentOpgaver((prev) => mergeUrgentOpgaver(prev, missing));
+      }
+    });
 
     // Update time every second (also refreshes urgent labels)
     const interval = setInterval(() => {
       setTime(new Date());
-      setUrgentOpgaver(getUrgentOpgaver());
-    }, 60000); // Check every minute
+    }, 60000); // Refresh urgent labels every minute
 
     // Tick clock every second
     const clockInterval = setInterval(() => {
@@ -190,6 +238,7 @@ export function ForsideGreeting() {
   }, []);
 
   const greeting = getGreeting();
+  const hasMissing = urgentOpgaver.some(o => o.isMissing);
 
   return (
     <div className="px-8 pt-12 pb-8">
@@ -211,8 +260,8 @@ export function ForsideGreeting() {
         {urgentOpgaver.length > 0 && (
           <div className="flex flex-col gap-1.5 mt-2">
             {urgentOpgaver.map((opgave, i) => {
-              const isOverdue = opgave.deadline.getTime() < Date.now();
-              const label = formatUrgentLabel(opgave.deadline);
+              const isOverdue = opgave.isMissing || opgave.deadline.getTime() < Date.now();
+              const label = formatUrgentLabel(opgave);
               const holdName = opgave.hold ? getHoldDisplayName(opgave.hold) : '';
               return (
                 <a
@@ -223,11 +272,12 @@ export function ForsideGreeting() {
                 >
                   <span style={{
                     display: 'inline-block',
-                    width: '6px',
-                    height: '6px',
+                    width: opgave.isMissing ? '7px' : '6px',
+                    height: opgave.isMissing ? '7px' : '6px',
                     borderRadius: '50%',
                     backgroundColor: isOverdue ? 'oklch(0.55 0.2 25)' : 'oklch(0.65 0.2 55)',
                     flexShrink: 0,
+                    boxShadow: opgave.isMissing ? '0 0 0 2px oklch(0.55 0.2 25 / 0.3)' : 'none',
                   }} />
                   <span>
                     {opgave.title}

@@ -1,5 +1,7 @@
-import { ArrowUpRight, Clock, AlertTriangle, Flame } from 'lucide-react';
+import { useEffect, useState } from 'preact/hooks';
+import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -9,9 +11,11 @@ export interface ForsideOpgave {
   holdCode: string;
   deadline: Date;
   deadlineText: string;
+  /** True for exercisemissing assignments fetched from OpgaverElev.aspx */
+  isMissing?: boolean;
 }
 
-type Urgency = 'overdue' | 'imminent' | 'soon' | 'later';
+type Urgency = 'overdue' | 'imminent' | 'soon' | 'later' | 'missing';
 
 interface DeadlineInfo {
   label: string;
@@ -29,7 +33,7 @@ function fmt2(n: number) {
   return n.toString().padStart(2, '0');
 }
 
-function getDeadlineInfo(deadline: Date): DeadlineInfo {
+function getDeadlineInfo(deadline: Date, isMissing?: boolean): DeadlineInfo {
   const now = new Date();
   const diffMs = deadline.getTime() - now.getTime();
   const timeStr = `kl. ${fmt2(deadline.getHours())}:${fmt2(deadline.getMinutes())}`;
@@ -37,6 +41,17 @@ function getDeadlineInfo(deadline: Date): DeadlineInfo {
   // Progress: 1 at deadline, 0 at 7 days out. Clamp 0–1.
   const sevenDaysMs = 7 * 24 * 3600000;
   const progress = Math.max(0, Math.min(1, 1 - diffMs / sevenDaysMs));
+
+  // Missing assignments get their own urgency category
+  if (isMissing) {
+    const absD = Math.floor(Math.abs(diffMs) / 86400000);
+    const absH = Math.floor(Math.abs(diffMs) / 3600000);
+    let label: string;
+    if (absH < 1) label = 'Mangler';
+    else if (absH < 24) label = `${absH}t forsinket`;
+    else label = `${absD}d forsinket`;
+    return { label, sub: 'Mangler aflevering', urgency: 'missing', progress: 1 };
+  }
 
   if (diffMs < 0) {
     const absH = Math.floor(Math.abs(diffMs) / 3600000);
@@ -128,11 +143,49 @@ export function parseForsideOpgaver(island: Element): ForsideOpgave[] {
 // ── Component ────────────────────────────────────────────────────────
 
 interface Props {
-  entries: ForsideOpgave[];
+  initialEntries: ForsideOpgave[];
   opgaverPageUrl: string;
+  schoolId: string;
 }
 
-export function ForsideOpgaverCard({ entries, opgaverPageUrl }: Props) {
+export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }: Props) {
+  const [entries, setEntries] = useState<ForsideOpgave[]>(initialEntries);
+
+  // Background-fetch missing assignments and merge them in
+  useEffect(() => {
+    fetchMissingOpgaver(schoolId).then((missingRaw) => {
+      if (missingRaw.length === 0) return;
+
+      setEntries((prev) => {
+        // Build a set of existing URLs for deduplication
+        const existingUrls = new Set(prev.map(e => e.url).filter(Boolean));
+
+        const newMissing: ForsideOpgave[] = missingRaw
+          .filter(m => !existingUrls.has(m.url))
+          .map(m => ({
+            title: m.title,
+            url: m.url,
+            holdCode: m.hold,
+            deadline: m.deadline,
+            deadlineText: m.deadlineText,
+            isMissing: true,
+          }));
+
+        if (newMissing.length === 0) return prev;
+
+        // Missing assignments go first, then existing sorted by deadline
+        const merged = [...newMissing, ...prev];
+
+        // Trigger masonry relayout after render (card height changed)
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new CustomEvent('betterlectio:relayoutMasonry'));
+        });
+
+        return merged;
+      });
+    });
+  }, [schoolId]);
+
   const openDetail = (e: MouseEvent, opgave: ForsideOpgave) => {
     e.preventDefault();
     e.stopPropagation();
@@ -146,7 +199,7 @@ export function ForsideOpgaverCard({ entries, opgaverPageUrl }: Props) {
             deadline: opgave.deadline,
             deadlineText: opgave.deadlineText,
             studentTime: '',
-            status: 'venter' as const,
+            status: opgave.isMissing ? 'mangler' as const : 'venter' as const,
             absence: '',
             awaiting: '',
             note: '',
@@ -157,6 +210,8 @@ export function ForsideOpgaverCard({ entries, opgaverPageUrl }: Props) {
       }),
     );
   };
+
+  if (entries.length === 0) return null;
 
   return (
     <div className="il-foc">
@@ -170,13 +225,13 @@ export function ForsideOpgaverCard({ entries, opgaverPageUrl }: Props) {
       {/* Assignment list */}
       <div className="il-foc-list">
         {entries.map((opgave, i) => {
-          const info = getDeadlineInfo(opgave.deadline);
+          const info = getDeadlineInfo(opgave.deadline, opgave.isMissing);
           const hue = getHoldHue(opgave.holdCode);
           const isFirst = i === 0;
 
           return (
             <a
-              key={i}
+              key={opgave.url || i}
               href={opgave.url}
               className={`il-foc-item is-${info.urgency}${isFirst ? ' is-primary' : ''}`}
               style={{ '--hold-hue': hue, '--anim-i': i } as any}
@@ -187,7 +242,8 @@ export function ForsideOpgaverCard({ entries, opgaverPageUrl }: Props) {
 
               {/* Icon */}
               <div className="il-foc-icon">
-                {info.urgency === 'overdue' ? <AlertTriangle size={15} /> :
+                {info.urgency === 'missing' ? <Upload size={15} /> :
+                 info.urgency === 'overdue' ? <AlertTriangle size={15} /> :
                  info.urgency === 'imminent' ? <Flame size={15} /> :
                  <Clock size={15} />}
               </div>

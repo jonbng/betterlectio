@@ -11,6 +11,7 @@ import {
   Search,
   X,
   CalendarDays,
+  Upload,
 } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
@@ -24,7 +25,7 @@ export interface OpgaveEntry {
   deadline: Date;
   deadlineText: string;
   studentTime: string;
-  status: 'venter' | 'afleveret';
+  status: 'venter' | 'mangler' | 'afleveret';
   absence: string;
   awaiting: string;
   note: string;
@@ -226,10 +227,13 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
     const studentTime = cells[4].textContent?.trim() || '';
 
     const isWaiting = !!cells[5].querySelector('.exercisewait');
-    const status: 'venter' | 'afleveret' = isWaiting ? 'venter' : 'afleveret';
+    const isMissing = !!cells[5].querySelector('.exercisemissing');
 
     const absence = cells[6].textContent?.trim() || '';
     const awaiting = cells[7].textContent?.trim() || '';
+
+    const status: 'venter' | 'mangler' | 'afleveret' =
+      isMissing ? 'mangler' : isWaiting ? 'venter' : 'afleveret';
     const note = cells[8].textContent?.trim() || '';
 
     const gradeCell = cells[9];
@@ -407,8 +411,13 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   });
 
   const upcoming = filtered
-    .filter(e => e.status === 'venter')
-    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+    .filter(e => e.status === 'venter' || e.status === 'mangler')
+    .sort((a, b) => {
+      // Missing (mangler) assignments always sort first
+      if (a.status === 'mangler' && b.status !== 'mangler') return -1;
+      if (b.status === 'mangler' && a.status !== 'mangler') return 1;
+      return a.deadline.getTime() - b.deadline.getTime();
+    });
 
   const submitted = filtered
     .filter(e => e.status === 'afleveret')
@@ -426,13 +435,20 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   };
 
   // Next urgent deadline (from unfiltered upcoming for the banner)
+  // Missing (mangler) assignments are always treated as most urgent
   const allUpcoming = entries
-    .filter(e => e.status === 'venter')
-    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+    .filter(e => e.status === 'venter' || e.status === 'mangler')
+    .sort((a, b) => {
+      if (a.status === 'mangler' && b.status !== 'mangler') return -1;
+      if (b.status === 'mangler' && a.status !== 'mangler') return 1;
+      return a.deadline.getTime() - b.deadline.getTime();
+    });
   const nextUrgent = allUpcoming.length > 0 ? (() => {
-    const display = getDeadlineDisplay(allUpcoming[0].deadline);
-    return (display.urgency === 'overdue' || display.urgency === 'imminent')
-      ? { entry: allUpcoming[0], display }
+    const first = allUpcoming[0];
+    const display = getDeadlineDisplay(first.deadline);
+    // 'mangler' entries are always urgent (past deadline, never submitted)
+    return (first.status === 'mangler' || display.urgency === 'overdue' || display.urgency === 'imminent')
+      ? { entry: first, display }
       : null;
   })() : null;
 
@@ -462,7 +478,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
             )}
           </div>
           <div className="il-opgaver-alert-content">
-            <span className="il-opgaver-alert-time">{nextUrgent.display.label}</span>
+            <span className="il-opgaver-alert-time">
+              {nextUrgent.display.label}
+              {nextUrgent.entry.status === 'mangler' &&
+                ' — Mangler aflevering'}
+            </span>
             <span className="il-opgaver-alert-title">{nextUrgent.entry.title}</span>
           </div>
           <ArrowRight size={16} className="il-opgaver-alert-arrow" />
@@ -631,6 +651,14 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       <span className="il-opgaver-card-title">
                         {entry.title}
                       </span>
+
+                      {/* Missing submission badge */}
+                      {entry.status === 'mangler' && (
+                        <div className="il-opgaver-missing-badge">
+                          <Upload size={13} />
+                          Mangler aflevering
+                        </div>
+                      )}
 
                       {/* Meta */}
                       {hasMeta && (

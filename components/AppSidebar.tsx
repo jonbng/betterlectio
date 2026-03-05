@@ -231,7 +231,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const visibleNavSecondary = navSecondary.filter(item => sidebarSettings[item.settingKey] ?? true);
 
   // Get logo URL at render time when browser context is available
-  const logoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
+  const defaultLogoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
+  const soroeLogoUrl = browser.runtime.getURL('/assets/soroeakademi.png');
 
   const school = getSchoolInfo();
   const schoolId = school.id;
@@ -332,13 +333,23 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <img
-            src={logoUrl}
-            alt="BetterLectio"
-            width={32}
-            height={32}
-            className="size-8 shrink-0 dark:invert dark:brightness-110"
-          />
+          {schoolId === '94' ? (
+            <img
+              src={soroeLogoUrl}
+              alt="Sorø Akademi"
+              width={32}
+              height={32}
+              className="size-8 shrink-0"
+            />
+          ) : (
+            <img
+              src={defaultLogoUrl}
+              alt="BetterLectio"
+              width={32}
+              height={32}
+              className="size-8 shrink-0 dark:invert dark:brightness-110"
+            />
+          )}
           <span className="text-[1.35rem] font-semibold truncate text-sidebar-foreground group-data-[collapsible=icon]:hidden">
             {schoolName === 'Sorø Akademis Skole' ? 'Sorø Akademi' : schoolName}
           </span>

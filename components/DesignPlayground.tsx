@@ -191,12 +191,12 @@ function FarverSection() {
    ═══════════════════════════════════════════════════════════ */
 function TypografiSection() {
   const typeScale = [
-    { name: "Display", size: "2rem", weight: 800, tracking: "-0.03em", sample: "Opgaver" },
-    { name: "Title", size: "1.25rem", weight: 700, tracking: "-0.02em", sample: "Kommende afleveringer" },
-    { name: "Heading", size: "1rem", weight: 650, tracking: "-0.01em", sample: "Afleveret i dag" },
-    { name: "Body", size: "0.875rem", weight: 400, tracking: "0", sample: "Dansk stil om H.C. Andersen" },
-    { name: "Small", size: "0.8125rem", weight: 500, tracking: "0", sample: "1x DA · Jensen · 2 timer" },
-    { name: "Caption", size: "0.75rem", weight: 400, tracking: "0", sample: "Afleveret 24. feb 2026" },
+    { name: "Display", size: "2.5rem", weight: 800, tracking: "-0.03em", sample: "Opgaver" },
+    { name: "Title", size: "1.5rem", weight: 700, tracking: "-0.02em", sample: "Kommende afleveringer" },
+    { name: "Heading", size: "1.125rem", weight: 650, tracking: "-0.01em", sample: "Afleveret i dag" },
+    { name: "Body", size: "1rem", weight: 400, tracking: "0", sample: "Dansk stil om H.C. Andersen" },
+    { name: "Small", size: "0.9375rem", weight: 500, tracking: "0", sample: "1x DA · Jensen · 2 timer" },
+    { name: "Caption", size: "0.875rem", weight: 400, tracking: "0", sample: "Afleveret 24. feb 2026" },
   ];
 
   const weights = [

@@ -1015,7 +1015,7 @@ function injectForsideGreeting(schoolId: string) {
   contentContainer.insertBefore(greetingContainer, contentContainer.firstChild);
 
   // Render the greeting component
-  render(<ForsideGreeting />, greetingContainer);
+  render(<ForsideGreeting schoolId={schoolId} />, greetingContainer);
 
   // Replace native opgaver card with custom component
   enhanceForsideOpgaver(schoolId);
@@ -1045,7 +1045,7 @@ function enhanceForsideOpgaver(schoolId: string) {
   island.classList.add('il-foc-island');
   island.innerHTML = '';
   render(
-    <ForsideOpgaverCard entries={entries} opgaverPageUrl={opgaverPageUrl} />,
+    <ForsideOpgaverCard initialEntries={entries} opgaverPageUrl={opgaverPageUrl} schoolId={schoolId} />,
     island,
   );
 }
@@ -1136,6 +1136,10 @@ function applyMasonryLayout() {
       });
       resizeObserver.observe(scrollContainer);
     }
+
+    // Relayout when card content changes (e.g. async-fetched missing assignments)
+    const relayoutHandler = () => layoutMasonry();
+    window.addEventListener('betterlectio:relayoutMasonry', relayoutHandler);
   }, 50);
 }
 
@@ -1262,9 +1266,6 @@ async function injectOpgaverPage(schoolId: string) {
   if (allEntries && allEntries.length > 0) {
     render(<OpgaverPage entries={allEntries} schoolId={schoolId} />, opgaverContainer);
   }
-
-  const entries = allEntries && allEntries.length > 0 ? allEntries : initialEntries;
-  console.log("[BetterLectio] Opgaver page injected with", entries.length, "entries");
 }
 
 function injectFravaerSubnav() {
