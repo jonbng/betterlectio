@@ -86,6 +86,16 @@ export function getTeacherName(cache: TeacherCache, abbrev: string): string | nu
 }
 
 /**
+ * Look up a teacher's context card ID (e.g. "T12345") by their abbreviation.
+ */
+export function getTeacherContextCardId(cache: TeacherCache, abbrev: string): string | null {
+  for (const [id, info] of Object.entries(cache.byId)) {
+    if (info.abbrev === abbrev) return `T${id}`;
+  }
+  return null;
+}
+
+/**
  * Replace teacher initials with full names in the DOM.
  * Targets <span data-lectioContextCard="T..."> elements.
  */

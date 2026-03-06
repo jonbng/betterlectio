@@ -7,6 +7,14 @@ import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
 import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver } from "@/components/OpgaverPage";
 import { BeskederPage, parseBeskederFromDOM } from "@/components/BeskederPage";
+import { BeskederThreadView } from "@/components/BeskederThreadView";
+import { BeskederComposePage, enhanceComposeForm } from "@/components/BeskederCompose";
+import {
+  isThreadViewState,
+  isComposeState,
+  parseThreadFromDOM,
+  parseComposeFromDOM,
+} from "@/lib/beskeder-thread-parser";
 import { FravaerPage } from "@/components/FravaerPage";
 import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
 import { ForsideOpgaverCard, parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
@@ -83,7 +91,7 @@ function injectFont() {
 
 function DashboardLayout() {
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <div id="il-lectio-content" />
@@ -838,9 +846,10 @@ function enhanceScheduleBricks() {
     const teacherSpan = content.querySelector<HTMLElement>(
       'span[data-lectiocontextcard^="T"]',
     );
-    const topicSpan = content.querySelector<HTMLElement>(
-      'span[style*="word-wrap"]',
-    );
+    // Schedule page uses word-wrap, forside uses white-space:nowrap for topic
+    const topicSpan =
+      content.querySelector<HTMLElement>('span[style*="word-wrap"]') ||
+      content.querySelector<HTMLElement>('span[style*="white-space"]');
     const timeline = innerContainer.querySelector<HTMLElement>(".s2timeline");
     const icons = innerContainer.querySelector<HTMLElement>(
       ".s2skemabrikIcons",
@@ -853,8 +862,9 @@ function enhanceScheduleBricks() {
     const hasMappedHoldTitle = holdCode ? hasHoldMapping(holdCode) : false;
     const topicText = topicSpan?.textContent?.trim() || "";
 
-    // Extract room from content text: "\nHistorie • MR • 25\nMiddelalderen"
-    // Content starts with a newline, so find the first non-empty line
+    // Extract room from content text.
+    // Schedule: "\nHistorie • MR • 25\nMiddelalderen"
+    // Forside:  "1. modul - 1x HI • MR • 25 - Industrialiseringen"
     const contentText = content.textContent || "";
     const contentLines = contentText
       .split("\n")
@@ -867,7 +877,13 @@ function enhanceScheduleBricks() {
       .filter(Boolean);
     let room = "";
     if (dotParts.length >= 3) {
-      room = dotParts[dotParts.length - 1];
+      let lastPart = dotParts[dotParts.length - 1];
+      // On forside, topic text is appended after room with " - " separator
+      // e.g. "25 - Industrialiseringen" — strip the topic suffix
+      if (topicText && lastPart.endsWith(topicText)) {
+        lastPart = lastPart.slice(0, -topicText.length).replace(/\s*-\s*$/, "");
+      }
+      room = lastPart;
     }
 
     // Apply hold color as CSS custom property
@@ -1265,6 +1281,18 @@ function injectMembersPage(schoolId: string) {
 }
 
 function injectBeskederPage(schoolId: string) {
+  // Detect which beskeder state we're in
+  if (isThreadViewState()) {
+    injectBeskederThreadView(schoolId);
+    return;
+  }
+
+  if (isComposeState()) {
+    injectBeskederCompose(schoolId);
+    return;
+  }
+
+  // Default: thread list
   const data = parseBeskederFromDOM();
 
   const contentContainer = document.getElementById("il-lectio-content");
@@ -1285,6 +1313,55 @@ function injectBeskederPage(schoolId: string) {
     data.folders.length,
     "folders",
   );
+}
+
+function injectBeskederThreadView(schoolId: string) {
+  const data = parseThreadFromDOM();
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const threadContainer = document.createElement("div");
+  threadContainer.id = "il-beskeder-thread";
+  contentContainer.appendChild(threadContainer);
+
+  document.body.classList.add("il-beskeder-page-active");
+
+  render(
+    <BeskederThreadView data={data} schoolId={schoolId} />,
+    threadContainer,
+  );
+
+  console.log(
+    "[BetterLectio] Thread view injected with",
+    data.messages.length,
+    "messages",
+  );
+}
+
+function injectBeskederCompose(schoolId: string) {
+  document.body.classList.add("il-beskeder-page-active");
+  document.body.classList.add("il-beskeder-compose-active");
+
+  const data = parseComposeFromDOM();
+  if (!data) {
+    // Fallback: show native form
+    enhanceComposeForm();
+    console.warn("[BetterLectio] Compose parser failed, using fallback");
+    return;
+  }
+
+  const container = document.createElement("div");
+  container.id = "il-beskeder-compose";
+  // CRITICAL: Append inside the ASP.NET form so that moved native elements
+  // (autocomplete hidden inputs, attach fields, checkbox) remain form
+  // descendants and their values are included in __doPostBack submissions.
+  const form = document.getElementById("aspnetForm");
+  (form || document.getElementById("il-lectio-content"))?.appendChild(container);
+
+  render(<BeskederComposePage data={data} schoolId={schoolId} />, container);
+
+  console.log("[BetterLectio] Compose page rendered");
 }
 
 function injectLektierPage(_schoolId: string) {

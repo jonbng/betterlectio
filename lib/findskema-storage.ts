@@ -3,6 +3,7 @@ import { getSettings } from './settings-storage';
 const STARRED_KEY = 'il-starred-people';
 const RECENTS_KEY = 'il-recent-searches';
 const PICTURE_CACHE_KEY = 'il-picture-cache';
+const NAME_ID_CACHE_KEY = 'il-name-id-cache';
 const MAX_STARRED = 50;
 const MAX_RECENTS = 10;
 const MAX_CACHED_PICTURES = 1000;
@@ -336,4 +337,127 @@ export async function fetchPictureUrl(id: string, schoolId: string): Promise<str
       return null;
     }
   });
+}
+
+// ── Name → Context Card ID Cache ────────────────────────────────────────
+
+type NameIdCache = Record<string, string>; // normalized name → context card ID
+
+function getNameIdCache(): NameIdCache {
+  try {
+    const stored = localStorage.getItem(NAME_ID_CACHE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveNameIdCache(cache: NameIdCache): void {
+  try {
+    localStorage.setItem(NAME_ID_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Ignore
+  }
+}
+
+function normalizeNameForLookup(name: string): string {
+  // Strip class/code suffixes like "(k) (1x)" and normalize whitespace
+  return name.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+}
+
+/**
+ * Bulk-register name → context card ID mappings.
+ * Called from FindSkemaPage after fetching the dropdown data.
+ */
+export function registerNameIdMappings(entries: Array<{ name: string; id: string }>): void {
+  const cache = getNameIdCache();
+  for (const { name, id } of entries) {
+    const key = normalizeNameForLookup(name);
+    if (key && id) cache[key] = id;
+  }
+  saveNameIdCache(cache);
+}
+
+let _nameIdCacheLoading = false;
+let _nameIdCacheLoaded = false;
+const _nameIdCacheCallbacks: Array<() => void> = [];
+
+/**
+ * Ensure the name→ID cache is populated from the FindSkema dropdown.
+ * Fetches the AvanceretSkema dropdown data if not already cached.
+ * Calls `onReady` when done (immediately if already loaded).
+ */
+export async function ensureNameIdCache(schoolId: string, onReady?: () => void): Promise<void> {
+  // Already populated
+  const cache = getNameIdCache();
+  if (Object.keys(cache).length > 0 || _nameIdCacheLoaded) {
+    onReady?.();
+    return;
+  }
+
+  if (onReady) _nameIdCacheCallbacks.push(onReady);
+
+  // Already loading — just wait for callbacks
+  if (_nameIdCacheLoading) return;
+  _nameIdCacheLoading = true;
+
+  try {
+    // Resolve afdeling/subcache params
+    const { resolveAvanceretSkemaCacheParams } = await import('./findskema-cache');
+    const params = await resolveAvanceretSkemaCacheParams(schoolId);
+    if (!params) {
+      _nameIdCacheLoaded = true;
+      _nameIdCacheCallbacks.forEach(cb => cb());
+      _nameIdCacheCallbacks.length = 0;
+      return;
+    }
+
+    const response = await fetch(
+      `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${params.afdelingId}&subcache=${params.subcache}`
+    );
+    const data = await response.json();
+
+    const entries: Array<{ name: string; id: string }> = [];
+    for (const item of data.items) {
+      const id = item[1] as string;
+      if (!id || typeof id !== 'string') continue;
+      // Only students (S*) and teachers (T*) — skip classes/rooms/etc.
+      if (!id.startsWith('S') && !id.startsWith('T')) continue;
+      entries.push({ name: item[0] as string, id });
+    }
+
+    if (entries.length > 0) registerNameIdMappings(entries);
+  } catch {
+    // Silently fail
+  } finally {
+    _nameIdCacheLoaded = true;
+    _nameIdCacheLoading = false;
+    _nameIdCacheCallbacks.forEach(cb => cb());
+    _nameIdCacheCallbacks.length = 0;
+  }
+}
+
+/**
+ * Look up a context card ID by person name.
+ * Searches: name-ID cache, starred people, recent searches.
+ */
+export function lookupContextCardIdByName(name: string): string | null {
+  const normalized = normalizeNameForLookup(name);
+  if (!normalized) return null;
+
+  // 1. Check dedicated name-ID cache
+  const cache = getNameIdCache();
+  if (cache[normalized]) return cache[normalized];
+
+  // 2. Check starred people
+  for (const p of getStarredPeople()) {
+    if (normalizeNameForLookup(p.name) === normalized) return p.id;
+  }
+
+  // 3. Check recents
+  for (const r of getRecentPeople()) {
+    if (normalizeNameForLookup(r.name) === normalized) return r.id;
+  }
+
+  return null;
 }

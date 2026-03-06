@@ -1028,7 +1028,7 @@ export function DesignPlayground({ open, onOpenChange }: DesignPlaygroundProps) 
         </button>
 
         <SidebarProvider className="design-playground-modal items-stretch min-h-0 h-full w-full">
-          <Sidebar collapsible="none" className="flex border-r py-4 w-[180px]!">
+          <Sidebar className="flex border-r py-4 w-[180px]!">
             <SidebarContent className="overflow-y-auto">
               <SidebarGroup>
                 <SidebarGroupContent>

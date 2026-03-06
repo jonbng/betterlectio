@@ -14,6 +14,7 @@ import {
   getScheduleUrl,
   type StarredPerson,
   type RecentPerson,
+  registerNameIdMappings,
 } from '../lib/findskema-storage';
 import {
   searchItems,
@@ -223,6 +224,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
         setItems(parsed);
         setLoading(false);
+
+        // Cache name → context card ID mappings for profile picture lookups (e.g. in messages)
+        const nameMappings = parsed
+          .filter(p => p.type === 'S' || p.type === 'T')
+          .map(p => ({ name: p.name, id: p.id }));
+        if (nameMappings.length > 0) registerNameIdMappings(nameMappings);
       } catch (err) {
         console.error('[FindSkemaPage] Failed to load data:', err);
         setError('Kunne ikke indlæse søgedata');

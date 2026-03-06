@@ -257,6 +257,15 @@
     height: 100%;
   }
 
+  .settings-modal [data-slot="sidebar-gap"] {
+    display: none;
+  }
+
+  .settings-modal [data-slot="sidebar-container"] {
+    position: static;
+    height: 100%;
+  }
+
   /* Force modal main layout to flex to enable inner scrolling */
   .settings-modal .settings-modal-main {
     display: flex;
@@ -277,6 +286,15 @@
   }
 
   .design-playground-modal [data-slot="sidebar"] {
+    height: 100%;
+  }
+
+  .design-playground-modal [data-slot="sidebar-gap"] {
+    display: none;
+  }
+
+  .design-playground-modal [data-slot="sidebar-container"] {
+    position: static;
     height: 100%;
   }
 
@@ -3658,6 +3676,12 @@
     color: oklch(0.76 0.08 var(--avatar-hue));
   }
 
+  .il-beskeder-avatar-img {
+    object-fit: cover;
+    object-position: center top;
+    background: var(--muted);
+  }
+
   /* ── Row content ─────────────────────────── */
 
   .il-beskeder-row-content {
@@ -3839,6 +3863,1055 @@
     font-family: "Geist", sans-serif;
     font-size: 0.8125rem;
     color: var(--muted-foreground);
+  }
+
+  /* ========================================
+     Beskeder Thread View
+     ======================================== */
+
+  #il-beskeder-thread {
+    padding: 0;
+  }
+
+  .il-thread-view {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem 2.5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 4rem);
+  }
+
+  /* ── Thread Header ─────────────────────── */
+
+  .il-thread-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.25rem;
+  }
+
+  .il-thread-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--card);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .il-thread-back:hover {
+    background: var(--accent);
+    color: var(--foreground);
+    border-color: oklch(from var(--border) calc(l - 0.04) c h);
+  }
+
+  .il-thread-header-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .il-thread-subject {
+    font-family: "Geist", sans-serif;
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+    line-height: 1.2;
+    margin: 0 0 0.375rem;
+  }
+
+  .il-thread-recipients {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    line-height: 1.3;
+  }
+
+  .il-thread-recipients-icon {
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .il-thread-header-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .il-thread-message-count {
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+  }
+
+  /* ── Messages List ─────────────────────── */
+
+  .il-thread-messages {
+    flex: 1;
+    padding: 0.5rem 0 1rem;
+  }
+
+  .il-thread-message {
+    display: flex;
+    gap: 0.875rem;
+    padding: 1.125rem 0;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.5);
+    animation: il-thread-msg-in 0.3s ease both;
+  }
+
+  .il-thread-message:last-child {
+    border-bottom: none;
+  }
+
+  @keyframes il-thread-msg-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .il-thread-message.is-own {
+    background: oklch(from var(--primary) l c h / 0.04);
+    margin: 0 -1rem;
+    padding: 1.125rem 1rem;
+    border-radius: 0.625rem;
+    border-bottom-color: transparent;
+  }
+
+  .dark .il-thread-message.is-own {
+    background: oklch(from var(--primary) l c h / 0.06);
+  }
+
+  /* ── Avatar ────────────────────────────── */
+
+  .il-thread-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  .il-thread-avatar-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: oklch(0.92 0.03 var(--avatar-hue));
+    color: oklch(0.35 0.08 var(--avatar-hue));
+    font-family: "Geist", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    user-select: none;
+  }
+
+  .dark .il-thread-avatar-initials {
+    background: oklch(0.25 0.04 var(--avatar-hue));
+    color: oklch(0.75 0.08 var(--avatar-hue));
+  }
+
+  /* ── Message Body ──────────────────────── */
+
+  .il-thread-message-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .il-thread-message-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .il-thread-message-sender {
+    font-family: "Geist", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+    letter-spacing: -0.01em;
+  }
+
+  .il-thread-message-time {
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-thread-message-title {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    margin-bottom: 0.375rem;
+  }
+
+  .il-thread-message-content {
+    font-family: "Geist", sans-serif;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .il-thread-message-content a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .il-thread-message-content a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  /* ── Attachments ───────────────────────── */
+
+  .il-thread-message-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.625rem;
+  }
+
+  .il-thread-attachment {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.625rem;
+    border-radius: 0.375rem;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+
+  .il-thread-attachment:hover {
+    background: var(--accent);
+  }
+
+  /* ── Reply Area ────────────────────────── */
+
+  .il-thread-reply {
+    margin-top: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card);
+    overflow: hidden;
+  }
+
+  .il-thread-reply-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.5);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    color: var(--muted-foreground);
+  }
+
+  .il-thread-reply-icon {
+    opacity: 0.6;
+  }
+
+  .il-thread-reply-textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 0.875rem 1rem;
+    font-family: "Geist", sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--foreground);
+    background: transparent;
+    min-height: 80px;
+    box-sizing: border-box;
+  }
+
+  .il-thread-reply-textarea::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  /* WYSIWYG editor inside reply area: remove own border since parent has one */
+  .il-thread-reply .il-wysiwyg-editor {
+    border: none;
+    border-radius: 0;
+  }
+
+  .il-thread-reply .il-wysiwyg-editor:focus-within {
+    box-shadow: none;
+  }
+
+  .il-thread-reply-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 1rem;
+    border-top: 1px solid oklch(from var(--border) l c h / 0.5);
+    gap: 0.75rem;
+  }
+
+  .il-thread-reply-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .il-thread-reply-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+  }
+
+  .il-thread-reply-attach-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.3125rem 0.625rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .il-thread-reply-attach-btn:hover {
+    color: var(--foreground);
+    border-color: var(--foreground);
+  }
+
+  .il-thread-reply-uploading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .il-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .il-spin {
+    animation: il-spin 1s linear infinite;
+  }
+
+  @keyframes il-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .il-thread-reply-notify:empty {
+    display: none;
+  }
+
+  .il-thread-reply-notify select {
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+    padding: 0.3125rem 0.5rem;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+    outline: none;
+  }
+
+  .il-thread-reply-notify select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.15);
+  }
+
+  .il-thread-reply-hint {
+    font-family: "Geist", sans-serif;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  .il-thread-send-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.4375rem 0.875rem;
+    border: none;
+    border-radius: 0.4375rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s, opacity 0.15s;
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.06);
+  }
+
+  .il-thread-send-btn:hover:not(:disabled) {
+    background: oklch(from var(--primary) calc(l - 0.04) c h);
+    box-shadow: 0 2px 6px oklch(0 0 0 / 0.1);
+  }
+
+  .il-thread-send-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .il-thread-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .il-thread-reply-error {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--destructive);
+    background: oklch(from var(--destructive) l c h / 0.08);
+    border-radius: 0.375rem;
+    margin: 0 1rem;
+  }
+
+  .il-compose-error {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    color: var(--destructive);
+    background: oklch(from var(--destructive) l c h / 0.08);
+    border-radius: 0.375rem;
+    margin: 0 1.25rem;
+  }
+
+  .il-compose-pill.is-removing {
+    opacity: 0.5;
+  }
+
+  /* ========================================
+     BBCode Toolbar
+     ======================================== */
+
+  .il-bbcode-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.375rem 0.75rem;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.5);
+  }
+
+  .il-bbcode-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .il-bbcode-btn:hover {
+    background: var(--accent);
+    color: var(--foreground);
+  }
+
+  .il-bbcode-btn:active {
+    background: var(--secondary);
+  }
+
+  .il-bbcode-btn-active {
+    background: var(--accent);
+    color: var(--primary);
+  }
+
+  .il-bbcode-separator {
+    width: 1px;
+    height: 1.125rem;
+    background: var(--border);
+    margin: 0 0.25rem;
+  }
+
+  .il-bbcode-link-wrapper {
+    position: relative;
+  }
+
+  /* ── Link Popover ── */
+
+  .il-link-popover {
+    position: absolute;
+    top: calc(100% + 0.375rem);
+    left: 0;
+    z-index: 50;
+    width: 17rem;
+    padding: 0.625rem;
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .il-link-popover-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .il-link-popover-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+
+  .il-link-popover-input {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    background: var(--background);
+    color: var(--foreground);
+    outline: none;
+  }
+
+  .il-link-popover-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.15);
+  }
+
+  .il-link-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    margin-top: 0.125rem;
+  }
+
+  .il-link-popover-cancel,
+  .il-link-popover-submit {
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .il-link-popover-cancel {
+    background: transparent;
+    color: var(--muted-foreground);
+  }
+
+  .il-link-popover-cancel:hover {
+    background: var(--accent);
+    color: var(--foreground);
+  }
+
+  .il-link-popover-submit {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .il-link-popover-submit:hover {
+    opacity: 0.9;
+  }
+
+  /* ========================================
+     WYSIWYG Editor
+     ======================================== */
+
+  .il-wysiwyg-editor {
+    display: flex;
+    flex-direction: column;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    overflow: hidden;
+  }
+
+  .il-wysiwyg-content {
+    min-height: 5rem;
+    max-height: 15rem;
+    overflow-y: auto;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--foreground);
+    outline: none;
+    cursor: text;
+  }
+
+  .il-wysiwyg-content:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .il-wysiwyg-content a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: text;
+  }
+
+  .il-wysiwyg-content ul,
+  .il-wysiwyg-content ol {
+    padding-left: 1.5rem;
+    margin: 0.25rem 0;
+  }
+
+  .il-wysiwyg-content ul {
+    list-style: disc;
+  }
+
+  .il-wysiwyg-content ol {
+    list-style: decimal;
+  }
+
+  .il-wysiwyg-content li {
+    margin: 0.125rem 0;
+  }
+
+  .il-wysiwyg-content:focus {
+    box-shadow: none;
+  }
+
+  .il-wysiwyg-editor:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px oklch(from var(--primary) l c h / 0.15);
+  }
+
+  /* ========================================
+     Beskeder Compose — Full Page Redesign
+     ======================================== */
+
+  /* Override the generic beskeder page rule: don't use display:none for compose
+     because Lectio's autocomplete needs elements to have non-zero dimensions
+     during initialization. Use off-screen positioning instead. */
+  body.il-beskeder-compose-active #il-original-content #contenttable {
+    display: block !important;
+    position: fixed !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #il-beskeder-compose {
+    padding: 0;
+  }
+
+  /* ── Layout ─────────────────────────────── */
+
+  .il-compose-view {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem 2.5rem 2rem;
+    animation: il-compose-fadein 0.2s ease-out;
+  }
+
+  @keyframes il-compose-fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Header ─────────────────────────────── */
+
+  .il-compose-header {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .il-compose-page-title {
+    font-family: "Geist", sans-serif;
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--foreground);
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  /* ── Card ────────────────────────────────── */
+
+  .il-compose-card {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card);
+    overflow: hidden;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.04);
+  }
+
+  /* ── Fields ──────────────────────────────── */
+
+  .il-compose-field {
+    padding: 0.625rem 1.25rem;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.5);
+    display: flex;
+    align-items: baseline;
+    gap: 0.625rem;
+    min-height: 2.75rem;
+  }
+
+  .il-compose-field:last-child {
+    border-bottom: none;
+  }
+
+  .il-compose-label {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+    width: 3rem;
+    padding-top: 0.125rem;
+  }
+
+  /* ── Recipients ──────────────────────────── */
+
+  .il-compose-field-recipients {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .il-compose-recipients-area {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .il-compose-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .il-compose-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem 0.2rem 0.625rem;
+    background: oklch(from var(--primary) l c h / 0.1);
+    color: var(--primary);
+    border-radius: 9999px;
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .il-compose-pill-name {
+    max-width: 20rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .il-compose-pill-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 9999px;
+    border: none;
+    background: transparent;
+    color: oklch(from var(--primary) l c h / 0.5);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  .il-compose-pill-remove:hover {
+    background: oklch(from var(--primary) l c h / 0.15);
+    color: var(--primary);
+  }
+
+  /* ── Autocomplete wrapper (moved native element) ── */
+
+  .il-compose-autocomplete-wrapper {
+    flex: 1;
+    min-width: 10rem;
+    position: relative;
+  }
+
+  .il-compose-autocomplete-wrapper .ls-searchbox-container-outlined {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .il-compose-autocomplete-wrapper input.ls-control-textbox-xlarge {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0.125rem 0 !important;
+    font-family: "Geist", sans-serif !important;
+    font-size: 0.875rem !important;
+    color: var(--foreground) !important;
+    width: 100% !important;
+  }
+
+  .il-compose-autocomplete-wrapper input.ls-control-textbox-xlarge::placeholder {
+    color: var(--muted-foreground) !important;
+    opacity: 0.6 !important;
+  }
+
+  /* Autocomplete dropdown styling — Lectio appends the dropdown to <body>,
+     NOT inside our wrapper, so we need a global selector */
+  body.il-beskeder-compose-active .ac_results,
+  body.il-beskeder-compose-active .ui-autocomplete {
+    border: 1px solid var(--border) !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.1) !important;
+    background: var(--card) !important;
+    overflow: hidden !important;
+    z-index: 9999 !important;
+  }
+
+  /* Hide the native "Tilføj modtager" button — selection auto-triggers postback */
+  .il-compose-autocomplete-wrapper .button {
+    display: none !important;
+  }
+
+  /* ── No-reply toggle ─────────────────────── */
+
+  .il-compose-field-noreply {
+    padding: 0.375rem 1.25rem;
+    min-height: auto;
+  }
+
+  .il-compose-noreply-wrapper {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding-left: 3.625rem;
+  }
+
+  .il-compose-noreply-wrapper input[type="checkbox"] {
+    margin: 0 !important;
+  }
+
+  .il-compose-noreply-wrapper label {
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+
+  /* ── Subject input ───────────────────────── */
+
+  .il-compose-field-subject {
+    align-items: center;
+  }
+
+  .il-compose-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: "Geist", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    padding: 0.125rem 0;
+  }
+
+  .il-compose-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  /* ── Body / WYSIWYG editor ───────────────── */
+
+  .il-compose-field-body {
+    display: block;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .il-compose-field-body .il-wysiwyg-editor {
+    border: none;
+    border-radius: 0;
+  }
+
+  .il-compose-field-body .il-bbcode-toolbar {
+    padding: 0.375rem 1.25rem;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.5);
+    border-top: none;
+    margin: 0;
+  }
+
+  .il-compose-field-body .il-wysiwyg-content {
+    min-height: 12rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 0.75rem 1.25rem;
+    font-family: "Geist", sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--foreground);
+    outline: none;
+  }
+
+  .il-compose-field-body .il-wysiwyg-content:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* ── Footer ──────────────────────────────── */
+
+  .il-compose-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 1.25rem;
+    background: oklch(from var(--muted) l c h / 0.35);
+    border-top: 1px solid oklch(from var(--border) l c h / 0.5);
+    gap: 0.75rem;
+  }
+
+  .il-compose-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .il-compose-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Style the moved native attach button */
+  .il-compose-attach-wrapper .buttonoutlined {
+    border: 1px solid var(--border) !important;
+    border-radius: 0.5rem !important;
+    background: var(--card) !important;
+  }
+
+  .il-compose-attach-wrapper .buttonoutlined a {
+    font-family: "Geist", sans-serif !important;
+    font-size: 0.8125rem !important;
+    color: var(--muted-foreground) !important;
+    padding: 0.375rem 0.75rem !important;
+    text-decoration: none !important;
+  }
+
+  .il-compose-attach-wrapper .buttonoutlined:hover {
+    background: var(--accent) !important;
+    border-color: oklch(from var(--border) calc(l - 0.04) c h) !important;
+  }
+
+  .il-compose-cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--card);
+    color: var(--muted-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .il-compose-cancel-btn:hover {
+    background: var(--accent);
+    color: var(--foreground);
+    border-color: oklch(from var(--border) calc(l - 0.04) c h);
+  }
+
+  .il-compose-send-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1.125rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  .il-compose-send-btn:hover:not(:disabled) {
+    background: oklch(from var(--primary) calc(l - 0.04) c h);
+  }
+
+  .il-compose-send-btn:active:not(:disabled) {
+    background: oklch(from var(--primary) calc(l - 0.08) c h);
+  }
+
+  .il-compose-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /* ========================================

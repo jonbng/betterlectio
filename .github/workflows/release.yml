@@ -113,7 +113,7 @@ jobs:
             ## BetterLectio v${{ steps.version.outputs.version }}
 
             ### Installation
-            - **Chrome**: Install from [Chrome Web Store](https://chrome.google.com/webstore) or download the Chrome zip
+            - **Chrome**: Install from [Chrome Web Store](https://chromewebstore.google.com/detail/betterlectio/cbopfnaegoknpplkngoppmmomppimhkh) or download the Chrome zip
             - **Firefox**: Install from [Firefox Add-ons](https://addons.mozilla.org) or download the Firefox zip
 
             ### Manual Installation

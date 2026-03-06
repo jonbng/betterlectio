@@ -49,6 +49,8 @@ import {
   Zap,
   GraduationCap,
   FlaskConical,
+  Copy,
+  Check,
 } from "lucide-react";
 import { DesignPlayground } from "@/components/DesignPlayground";
 
@@ -162,12 +164,14 @@ function getOSInfo(): string {
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const manifest = browser.runtime.getManifest();
   const version = manifest.version;
+  const lectioVersion = (document.getElementById("s_m_VersionInfoLink") ?? document.getElementById("m_VersionInfoLink"))?.textContent?.replace(/^\s*Lectio\s+version\s*/i, "")?.trim() ?? null;
   const logoUrl = browser.runtime.getURL("/assets/logo-transparent.svg");
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState("appearance");
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Get version info on mount
   useEffect(() => {
@@ -311,6 +315,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </Badge>
               </div>
 
+              {lectioVersion && (
+                <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center size-8 rounded-md bg-primary/10">
+                      <Info className="size-4 text-primary" />
+                    </div>
+                    <span className="text-sm font-medium">Lectio version</span>
+                  </div>
+                  <Badge variant="outline" className="text-sm">
+                    {lectioVersion}
+                  </Badge>
+                </div>
+              )}
+
               {versionInfo && (
                 <>
                   <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-muted/50">
@@ -343,7 +361,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
             <div className="flex flex-wrap gap-2">
               <a
-                href="https://chromewebstore.google.com/detail/betterlectio/dkfapbjhgiepdijkpfabekbnepiomahj"
+                href="https://chromewebstore.google.com/detail/betterlectio/cbopfnaegoknpplkngoppmmomppimhkh"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-colors no-underline"
@@ -425,6 +443,33 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </span>
                 </div>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                onClick={() => {
+                  const lines = [
+                    `BetterLectio: v${version}`,
+                    lectioVersion ? `Lectio: ${lectioVersion}` : null,
+                    `Browser: ${browserInfo}`,
+                    `OS: ${osInfo}`,
+                    `Skærm: ${screenDimensions}`,
+                    `Viewport: ${window.innerWidth} × ${window.innerHeight}`,
+                    `Dark mode: ${document.documentElement.classList.contains("dark") ? "Ja" : "Nej"}`,
+                    versionInfo ? `Installeret: ${formatDate(versionInfo.firstInstalledAt)}` : null,
+                    versionInfo && versionInfo.firstInstalledAt !== versionInfo.lastUpdatedAt ? `Opdateret: ${formatDate(versionInfo.lastUpdatedAt)}` : null,
+                    `URL: ${window.location.href}`,
+                    `User-Agent: ${navigator.userAgent}`,
+                  ].filter(Boolean).join("\n");
+                  navigator.clipboard.writeText(lines).then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
+                }}
+              >
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {copied ? "Kopieret!" : "Kopiér debug info"}
+              </Button>
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -883,7 +928,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         </button>
 
         <SidebarProvider className="settings-modal items-stretch min-h-0 h-full w-full">
-          <Sidebar collapsible="none" className="flex border-r py-4">
+          <Sidebar className="flex border-r py-4">
             <SidebarContent className="overflow-hidden">
               <SidebarGroup>
                 <SidebarGroupContent>

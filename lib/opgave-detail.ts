@@ -1,3 +1,5 @@
+import { postFormViaHiddenIframe } from './iframe-post';
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface OpgaveDetail {
@@ -44,8 +46,6 @@ export interface OpgaveDetail {
 const CACHE_PREFIX = 'il-opgave-detail-';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_MAX_ENTRIES = 50;
-const SUBMISSION_TIMEOUT_MS = 45_000;
-
 interface CachedEntry {
   detail: OpgaveDetail;
   timestamp: number;
@@ -110,65 +110,6 @@ export function invalidateDetailCache(url: string): void {
   try {
     localStorage.removeItem(CACHE_PREFIX + id);
   } catch { /* ignore */ }
-}
-
-// Submit as a real page form POST (targeted at a hidden iframe) to mimic
-// Lectio's native ASP.NET postback flow and cookie/origin behavior.
-async function postFormViaHiddenIframe(action: string, fields: Record<string, string>): Promise<Document> {
-  return new Promise((resolve, reject) => {
-    const iframeName = `il-opgave-post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const iframe = document.createElement('iframe');
-    const form = document.createElement('form');
-    let didSubmit = false;
-
-    iframe.name = iframeName;
-    iframe.style.display = 'none';
-
-    form.method = 'POST';
-    form.action = action;
-    form.target = iframeName;
-    form.style.display = 'none';
-
-    for (const [name, value] of Object.entries(fields)) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = name;
-      input.value = value ?? '';
-      form.appendChild(input);
-    }
-
-    const cleanup = () => {
-      form.remove();
-      iframe.remove();
-    };
-
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('Submission timeout'));
-    }, SUBMISSION_TIMEOUT_MS);
-
-    iframe.addEventListener('load', () => {
-      if (!didSubmit) return;
-
-      try {
-        const html = iframe.contentDocument?.documentElement?.outerHTML;
-        if (!html) throw new Error('No response HTML');
-        clearTimeout(timeout);
-        cleanup();
-        const parser = new DOMParser();
-        resolve(parser.parseFromString(html, 'text/html'));
-      } catch (err) {
-        clearTimeout(timeout);
-        cleanup();
-        reject(err);
-      }
-    });
-
-    document.body.appendChild(iframe);
-    document.body.appendChild(form);
-    didSubmit = true;
-    form.submit();
-  });
 }
 
 // ── Parser ─────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ export interface PersonRef {
   name: string;
   fullName: string;
   type: 'student' | 'teacher' | 'hold' | 'unknown';
+  contextCardId?: string;
 }
 
 export interface BeskedThread {
@@ -71,10 +72,15 @@ function parsePersonRef(el: Element | null): PersonRef {
     el.querySelector('[title]')?.getAttribute('title') ||
     text;
 
+  // Try to extract context card ID from data attribute
+  const ctxEl = el.querySelector('[data-lectioContextCard]') || (el.hasAttribute?.('data-lectioContextCard') ? el : null);
+  const contextCardId = ctxEl?.getAttribute('data-lectioContextCard') || undefined;
+
   return {
     name: text,
     fullName,
     type: parsePersonType(span.className || ''),
+    contextCardId,
   };
 }
 
@@ -204,8 +210,8 @@ function parseFolderNode(node: Element): BeskedFolder | null {
   };
 }
 
-export function parseFoldersFromDOM(): BeskedFolder[] {
-  const tree = document.getElementById('s_m_Content_Content_ListGridSelectionTree');
+export function parseFoldersFromDOM(doc: Document = document): BeskedFolder[] {
+  const tree = doc.getElementById('s_m_Content_Content_ListGridSelectionTree');
   if (!tree) return [];
 
   const folders: BeskedFolder[] = [];
@@ -220,8 +226,8 @@ export function parseFoldersFromDOM(): BeskedFolder[] {
 
 // ── Thread Parser ──────────────────────────────────────────────────────
 
-export function parseThreadsFromDOM(): BeskedThread[] {
-  const table = document.getElementById('s_m_Content_Content_threadGV_ctl00') as HTMLTableElement | null;
+export function parseThreadsFromDOM(doc: Document = document): BeskedThread[] {
+  const table = doc.getElementById('s_m_Content_Content_threadGV_ctl00') as HTMLTableElement | null;
   if (!table) return [];
 
   const rows = table.querySelectorAll('tr');
@@ -285,15 +291,15 @@ export function parseThreadsFromDOM(): BeskedThread[] {
 
 // ── Toolbar Parser ─────────────────────────────────────────────────────
 
-export function parseToolbarFromDOM(): BeskederToolbar {
-  const newMessagePostback = document.getElementById('s_m_Content_Content_NewMessageLnk')
+export function parseToolbarFromDOM(doc: Document = document): BeskederToolbar {
+  const newMessagePostback = doc.getElementById('s_m_Content_Content_NewMessageLnk')
     ? 's$m$Content$Content$NewMessageLnk'
     : '';
 
   const markAllReadPostback = 's$m$Content$Content$MarkReadButton';
   const showDeletedPostback = 's$m$Content$Content$ctl02';
 
-  const bulkSelect = document.getElementById('s_m_Content_Content_MarkChkDD') as HTMLSelectElement | null;
+  const bulkSelect = doc.getElementById('s_m_Content_Content_MarkChkDD') as HTMLSelectElement | null;
   const bulkActions: Array<{ value: string; label: string }> = [];
   if (bulkSelect) {
     for (const option of bulkSelect.options) {
@@ -303,7 +309,7 @@ export function parseToolbarFromDOM(): BeskederToolbar {
     }
   }
 
-  const searchInput = document.getElementById('s_m_Content_Content_SPSearchText_tb') as HTMLInputElement | null;
+  const searchInput = doc.getElementById('s_m_Content_Content_SPSearchText_tb') as HTMLInputElement | null;
 
   return {
     newMessagePostback,
@@ -318,8 +324,8 @@ export function parseToolbarFromDOM(): BeskederToolbar {
 
 // ── Form Tokens ────────────────────────────────────────────────────────
 
-export function parseFormTokens(): { tokens: Record<string, string>; action: string } {
-  const form = document.getElementById('aspnetForm') as HTMLFormElement | null;
+export function parseFormTokens(doc: Document = document): { tokens: Record<string, string>; action: string } {
+  const form = doc.getElementById('aspnetForm') as HTMLFormElement | null;
   const actionRaw = form?.getAttribute('action') || '';
   const action = actionRaw
     ? new URL(actionRaw, window.location.href).href
@@ -339,9 +345,9 @@ export function parseFormTokens(): { tokens: Record<string, string>; action: str
 
 // ── Current Folder Info ────────────────────────────────────────────────
 
-function parseCurrentFolder(): { name: string; iconUrl: string } {
-  const label = document.getElementById('s_m_Content_Content_MessageFolderLabel');
-  const icon = document.getElementById('s_m_Content_Content_FolderIcon') as HTMLImageElement | null;
+function parseCurrentFolder(doc: Document = document): { name: string; iconUrl: string } {
+  const label = doc.getElementById('s_m_Content_Content_MessageFolderLabel');
+  const icon = doc.getElementById('s_m_Content_Content_FolderIcon') as HTMLImageElement | null;
   return {
     name: label?.textContent?.trim() || 'Beskeder',
     iconUrl: icon?.src || '',
@@ -350,12 +356,12 @@ function parseCurrentFolder(): { name: string; iconUrl: string } {
 
 // ── Main Parser ────────────────────────────────────────────────────────
 
-export function parseBeskederFromDOM(): BeskederPageData {
-  const folders = parseFoldersFromDOM();
-  const threads = parseThreadsFromDOM();
-  const toolbar = parseToolbarFromDOM();
-  const { name: currentFolderName, iconUrl: currentFolderIcon } = parseCurrentFolder();
-  const { tokens: formTokens, action: formAction } = parseFormTokens();
+export function parseBeskederFromDOM(doc: Document = document): BeskederPageData {
+  const folders = parseFoldersFromDOM(doc);
+  const threads = parseThreadsFromDOM(doc);
+  const toolbar = parseToolbarFromDOM(doc);
+  const { name: currentFolderName, iconUrl: currentFolderIcon } = parseCurrentFolder(doc);
+  const { tokens: formTokens, action: formAction } = parseFormTokens(doc);
 
   return {
     folders,
@@ -370,18 +376,15 @@ export function parseBeskederFromDOM(): BeskederPageData {
 
 // ── Postback Helpers ───────────────────────────────────────────────────
 
-/** Trigger a Lectio __doPostBack from our component. */
+/** Trigger a Lectio __doPostBack from our component.
+ *  Uses Lectio's native __doPostBack in the main world to ensure
+ *  PageRequestManager and other overrides are respected. */
 export function doPostBack(eventTarget: string, eventArgument: string): void {
-  const form = document.getElementById('aspnetForm') as HTMLFormElement | null;
-  if (!form) return;
-
-  const targetInput = form.querySelector<HTMLInputElement>('[name="__EVENTTARGET"]');
-  const argInput = form.querySelector<HTMLInputElement>('[name="__EVENTARGUMENT"]');
-
-  if (targetInput) targetInput.value = eventTarget;
-  if (argInput) argInput.value = eventArgument;
-
-  form.submit();
+  const escaped = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const script = document.createElement('script');
+  script.textContent = `__doPostBack('${escaped(eventTarget)}','${escaped(eventArgument)}');`;
+  document.documentElement.appendChild(script);
+  script.remove();
 }
 
 /** Open a message thread. */
@@ -389,8 +392,20 @@ export function openThread(threadId: string): void {
   doPostBack('__Page', `$LB2$_MC_$_${threadId}`);
 }
 
-/** Toggle flag on a thread. */
+/** Toggle flag on a thread by clicking the original Lectio flag image. */
 export function toggleFlag(threadId: string): void {
+  // Find the native flag img whose onclick contains this thread's FLAGMESSAGE
+  const imgs = document.querySelectorAll<HTMLImageElement>(
+    '#s_m_Content_Content_threadGV_ctl00 img[onclick]'
+  );
+  for (const img of imgs) {
+    const onclick = img.getAttribute('onclick') || '';
+    if (onclick.includes(`FLAGMESSAGE_${threadId}`)) {
+      img.click();
+      return;
+    }
+  }
+  // Fallback to postback
   doPostBack('__Page', `FLAGMESSAGE_${threadId}`);
 }
 

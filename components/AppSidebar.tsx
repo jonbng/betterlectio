@@ -330,7 +330,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   };
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar {...props}>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           {schoolId === '94' ? (
@@ -350,7 +350,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               className="size-8 shrink-0 dark:invert dark:brightness-110"
             />
           )}
-          <span className="text-[1.35rem] font-semibold truncate text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+          <span className="text-[1.35rem] font-semibold truncate text-sidebar-foreground">
             {schoolName === 'Sorø Akademis Skole' ? 'Sorø Akademi' : schoolName}
           </span>
         </div>
@@ -473,7 +473,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarFooter className="px-2 pb-3">
         {(settings.schedule.countdownBar ?? true) && (
-          <div className="px-1 pb-1 group-data-[collapsible=icon]:hidden">
+          <div className="px-1 pb-1">
             <ScheduleCountdown schoolId={schoolId} />
           </div>
         )}

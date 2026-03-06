@@ -7,22 +7,34 @@ import {
 } from 'lucide-react';
 import {
   parseBeskederFromDOM,
-  selectFolder,
+  selectFolder as selectFolderNative,
   openThread,
-  toggleFlag,
-  toggleRead,
-  deleteThread,
+  toggleFlag as toggleFlagNative,
+  toggleRead as toggleReadNative,
+  deleteThread as deleteThreadNative,
   newMessage,
-  markAllRead,
-  executeSearch,
-  executeBulkAction,
+  markAllRead as markAllReadNative,
+  executeSearch as executeSearchNative,
+  executeBulkAction as executeBulkActionNative,
   toggleThreadCheckbox,
+  parseFormTokens,
   type BeskederPageData,
   type BeskedThread,
   type BeskedFolder,
   type PersonRef,
 } from '@/lib/beskeder-parser';
-import { getTeacherName, loadTeacherNames, type TeacherCache } from '@/lib/teacher-cache';
+import {
+  toggleFlagViaIframe,
+  toggleReadViaIframe,
+  deleteThreadViaIframe,
+  selectFolderViaIframe,
+  executeSearchViaIframe,
+  executeBulkActionViaIframe,
+  markAllReadViaIframe,
+  type FormState,
+} from '@/lib/beskeder-submit';
+import { getTeacherName, getTeacherContextCardId, loadTeacherNames, type TeacherCache } from '@/lib/teacher-cache';
+import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -58,18 +70,20 @@ function getPersonLabel(person: PersonRef): string {
   return normalizePersonLabel(person.fullName || person.name || '');
 }
 
-/** Generate initials and a stable hue from a name. */
+/** Generate initials from a name, stripping parenthetical suffixes. */
 function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
+  const clean = name.replace(/\s*\([^)]*\)/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function nameToHue(name: string): number {
+  const clean = name.replace(/\s*\([^)]*\)/g, '').trim();
   let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < clean.length; i++) {
+    hash = clean.charCodeAt(i) + ((hash << 5) - hash);
   }
   return Math.abs(hash) % 360;
 }
@@ -95,16 +109,17 @@ function getFolderIcon(id: string) {
 interface FolderPillProps {
   folder: BeskedFolder;
   isChild?: boolean;
+  onSelectFolder: (commandArgument: string) => void;
 }
 
-function FolderPill({ folder, isChild }: FolderPillProps) {
+function FolderPill({ folder, isChild, onSelectFolder }: FolderPillProps) {
   const [expanded, setExpanded] = useState(false);
 
   const handleClick = () => {
     if (folder.isExpandable && folder.children.length > 0) {
       setExpanded(!expanded);
     } else {
-      selectFolder(folder.commandArgument);
+      onSelectFolder(folder.commandArgument);
     }
   };
 
@@ -130,7 +145,7 @@ function FolderPill({ folder, isChild }: FolderPillProps) {
       {folder.isExpandable && expanded && folder.children.length > 0 && (
         <div className="il-beskeder-folder-sublist">
           {folder.children.map(child => (
-            <FolderPill key={child.id} folder={child} isChild />
+            <FolderPill key={child.id} folder={child} isChild onSelectFolder={onSelectFolder} />
           ))}
         </div>
       )}
@@ -144,7 +159,7 @@ const FOLDER_ORDER: Record<string, number> = {
   '-20': 7, '-30': 8, '-35': 9,
 };
 
-function FolderNav({ folders }: { folders: BeskedFolder[] }) {
+function FolderNav({ folders, onSelectFolder }: { folders: BeskedFolder[]; onSelectFolder: (cmd: string) => void }) {
   const sorted = [...folders].sort((a, b) => {
     const oa = FOLDER_ORDER[a.id] ?? 100;
     const ob = FOLDER_ORDER[b.id] ?? 100;
@@ -154,7 +169,7 @@ function FolderNav({ folders }: { folders: BeskedFolder[] }) {
   return (
     <nav className="il-beskeder-folders">
       {sorted.map(folder => (
-        <FolderPill key={folder.id} folder={folder} />
+        <FolderPill key={folder.id} folder={folder} onSelectFolder={onSelectFolder} />
       ))}
     </nav>
   );
@@ -162,10 +177,46 @@ function FolderNav({ folders }: { folders: BeskedFolder[] }) {
 
 // ── Sender Avatar ──────────────────────────────────────────────────────
 
-function SenderAvatar({ person }: { person: PersonRef }) {
+function SenderAvatar({ person, schoolId, nameIdReady }: { person: PersonRef; schoolId: string; nameIdReady: boolean }) {
   const displayName = getPersonLabel(person) || person.name;
   const initials = getInitials(displayName);
   const hue = nameToHue(displayName);
+
+  const [pictureUrl, setPictureUrl] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+
+    // Resolve context card ID: direct from DOM, or by name lookup
+    const ctxId = person.contextCardId || lookupContextCardIdByName(displayName);
+    if (!ctxId) return;
+
+    fetchedRef.current = true;
+
+    const cached = getCachedPictureUrl(ctxId);
+    if (cached !== undefined) {
+      if (cached) setPictureUrl(cached);
+      return;
+    }
+
+    fetchPictureUrl(ctxId, schoolId).then((url) => {
+      if (url) setPictureUrl(url);
+    });
+  }, [person.contextCardId, displayName, schoolId, nameIdReady]);
+
+  if (pictureUrl && !imgError) {
+    return (
+      <img
+        src={pictureUrl}
+        alt={displayName}
+        className="il-beskeder-avatar il-beskeder-avatar-img"
+        title={displayName}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
 
   return (
     <div
@@ -184,10 +235,16 @@ interface ThreadRowProps {
   thread: BeskedThread;
   isSelected: boolean;
   onToggleSelect: (threadId: string) => void;
+  onFlag: (threadId: string) => void;
+  onRead: (threadId: string, isRead: boolean) => void;
+  onDelete: (threadId: string) => void;
   index: number;
+  schoolId: string;
+  nameIdReady: boolean;
+  actionLoading: string | null;
 }
 
-function ThreadRow({ thread, isSelected, onToggleSelect, index }: ThreadRowProps) {
+function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelete, index, schoolId, nameIdReady, actionLoading }: ThreadRowProps) {
   const [showActions, setShowActions] = useState(false);
 
   const rowClass = [
@@ -207,17 +264,17 @@ function ThreadRow({ thread, isSelected, onToggleSelect, index }: ThreadRowProps
 
   const handleFlag = (e: MouseEvent) => {
     e.stopPropagation();
-    toggleFlag(thread.threadId);
+    onFlag(thread.threadId);
   };
 
   const handleRead = (e: MouseEvent) => {
     e.stopPropagation();
-    toggleRead(thread.threadId, thread.isRead);
+    onRead(thread.threadId, thread.isRead);
   };
 
   const handleDelete = (e: MouseEvent) => {
     e.stopPropagation();
-    deleteThread(thread.threadId);
+    onDelete(thread.threadId);
   };
 
   const handleCheck = (e: Event) => {
@@ -250,7 +307,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, index }: ThreadRowProps
       {thread.isUnread && <div className="il-beskeder-row-dot" />}
 
       {/* Avatar */}
-      <SenderAvatar person={thread.latestSender} />
+      <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} />
 
       {/* Content */}
       <div className="il-beskeder-row-content">
@@ -321,20 +378,32 @@ function withResolvedTeacherName(person: PersonRef, teacherCache: TeacherCache |
   if (!abbrev) return person;
 
   const fullName = getTeacherName(teacherCache, abbrev);
-  if (!fullName || fullName === person.name) return person;
+  const contextCardId = person.contextCardId || getTeacherContextCardId(teacherCache, abbrev) || undefined;
+
+  if ((!fullName || fullName === person.name) && !contextCardId) return person;
 
   return {
     ...person,
-    name: fullName,
-    fullName,
+    name: fullName || person.name,
+    fullName: fullName || person.fullName,
+    contextCardId,
   };
 }
 
 export function BeskederPage({ data, schoolId }: BeskederPageProps) {
+  const [rawThreads, setRawThreads] = useState<BeskedThread[]>(data.threads);
+  const [folders, setFolders] = useState<BeskedFolder[]>(data.folders);
+  const [currentFolderName, setCurrentFolderName] = useState(data.currentFolderName);
   const [selectedThreads, setSelectedThreads] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState(data.toolbar.searchText);
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
   const [teacherCache, setTeacherCache] = useState<TeacherCache | null>(null);
+  const [nameIdReady, setNameIdReady] = useState(false);
+  const [formState, setFormState] = useState<FormState>(() => {
+    const { tokens, action } = parseFormTokens();
+    return { tokens, action };
+  });
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const bulkRef = useRef<HTMLDivElement>(null);
 
@@ -346,6 +415,11 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       setTeacherCache(cache);
     });
 
+    // Populate name→ID cache for profile picture resolution
+    ensureNameIdCache(schoolId, () => {
+      if (!isCancelled) setNameIdReady(true);
+    });
+
     return () => {
       isCancelled = true;
     };
@@ -353,13 +427,13 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
 
   const threads = useMemo(
     () =>
-      data.threads.map((thread) => ({
+      rawThreads.map((thread) => ({
         ...thread,
         latestSender: withResolvedTeacherName(thread.latestSender, teacherCache),
         firstSender: withResolvedTeacherName(thread.firstSender, teacherCache),
         recipients: withResolvedTeacherName(thread.recipients, teacherCache),
       })),
-    [data.threads, teacherCache],
+    [rawThreads, teacherCache],
   );
 
   const unreadCount = threads.filter(t => t.isUnread).length;
@@ -389,6 +463,39 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  const handleSelectFolder = useCallback((commandArgument: string) => {
+    setActionLoading('folder');
+
+    selectFolderViaIframe(formState, commandArgument).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+        setRawThreads(result.data.threads);
+        setFolders(result.data.folders);
+        setCurrentFolderName(result.data.currentFolderName);
+        setSelectedThreads(new Set());
+      } else {
+        console.warn('[BetterLectio] Folder switch iframe failed, falling back:', result.error);
+        selectFolderNative(commandArgument);
+      }
+    });
+  }, [formState]);
+
+  const handleMarkAllRead = useCallback(() => {
+    setActionLoading('markAllRead');
+
+    markAllReadViaIframe(formState).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+        setRawThreads(result.data.threads);
+      } else {
+        console.warn('[BetterLectio] Mark all read iframe failed, falling back:', result.error);
+        markAllReadNative();
+      }
+    });
+  }, [formState]);
+
   const handleToggleSelect = useCallback((threadId: string) => {
     setSelectedThreads(prev => {
       const next = new Set(prev);
@@ -416,14 +523,93 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
     }
   };
 
+  const handleFlag = useCallback((threadId: string) => {
+    // Optimistic update
+    setRawThreads(prev => prev.map(t =>
+      t.threadId === threadId ? { ...t, isFlagged: !t.isFlagged } : t,
+    ));
+    setActionLoading(`flag-${threadId}`);
+
+    toggleFlagViaIframe(formState, threadId).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+        // Confirm or correct optimistic update
+        setRawThreads(prev => prev.map(t =>
+          t.threadId === threadId ? { ...t, isFlagged: result.data.isFlagged } : t,
+        ));
+      } else {
+        console.warn('[BetterLectio] Flag iframe failed, falling back:', result.error);
+        toggleFlagNative(threadId);
+      }
+    });
+  }, [formState]);
+
+  const handleRead = useCallback((threadId: string, currentlyRead: boolean) => {
+    // Optimistic update
+    setRawThreads(prev => prev.map(t =>
+      t.threadId === threadId ? { ...t, isRead: !currentlyRead, isUnread: currentlyRead } : t,
+    ));
+    setActionLoading(`read-${threadId}`);
+
+    toggleReadViaIframe(formState, threadId, currentlyRead).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+      } else {
+        console.warn('[BetterLectio] Read/unread iframe failed, falling back:', result.error);
+        toggleReadNative(threadId, currentlyRead);
+      }
+    });
+  }, [formState]);
+
+  const handleDelete = useCallback((threadId: string) => {
+    // Optimistic removal
+    setRawThreads(prev => prev.filter(t => t.threadId !== threadId));
+    setActionLoading(`delete-${threadId}`);
+
+    deleteThreadViaIframe(formState, threadId).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+      } else {
+        console.warn('[BetterLectio] Delete iframe failed, falling back:', result.error);
+        deleteThreadNative(threadId);
+      }
+    });
+  }, [formState]);
+
   const handleSearch = (e: Event) => {
     e.preventDefault();
-    executeSearch(searchQuery);
+    setActionLoading('search');
+
+    executeSearchViaIframe(formState, searchQuery).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+        setRawThreads(result.data.threads);
+      } else {
+        console.warn('[BetterLectio] Search iframe failed, falling back:', result.error);
+        executeSearchNative(searchQuery);
+      }
+    });
   };
 
   const handleBulkAction = (action: string) => {
     setBulkMenuOpen(false);
-    executeBulkAction(action);
+    setActionLoading('bulk');
+
+    executeBulkActionViaIframe(formState, action).then((result) => {
+      setActionLoading(null);
+      if (result.success) {
+        setFormState(result.formState);
+        setRawThreads(result.data.threads);
+        setSelectedThreads(new Set());
+      } else {
+        console.warn('[BetterLectio] Bulk action iframe failed, falling back:', result.error);
+        executeBulkActionNative(action);
+      }
+    });
   };
 
   const allSelected = threads.length > 0 && selectedThreads.size === threads.length;
@@ -450,7 +636,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       </div>
 
       {/* ── Folder navigation ──────────────────── */}
-      <FolderNav folders={data.folders} />
+      <FolderNav folders={folders} onSelectFolder={handleSelectFolder} />
 
       {/* ── Toolbar ────────────────────────────── */}
       <div className="il-beskeder-toolbar">
@@ -472,7 +658,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
               <button
                 type="button"
                 className="il-beskeder-toolbar-btn"
-                onClick={() => markAllRead()}
+                onClick={handleMarkAllRead}
                 title="Alle læst"
               >
                 <CheckCheck size={15} />
@@ -533,7 +719,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
 
       {/* ── Folder name label ──────────────────── */}
       <div className="il-beskeder-folder-label">
-        <span className="il-beskeder-folder-label-text">{data.currentFolderName}</span>
+        <span className="il-beskeder-folder-label-text">{currentFolderName}</span>
         <span className="il-beskeder-folder-label-count">
           {threads.length} {threads.length === 1 ? 'besked' : 'beskeder'}
         </span>
@@ -556,7 +742,13 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
               thread={thread}
               isSelected={selectedThreads.has(thread.threadId)}
               onToggleSelect={handleToggleSelect}
+              onFlag={handleFlag}
+              onRead={handleRead}
+              onDelete={handleDelete}
               index={idx}
+              schoolId={schoolId}
+              nameIdReady={nameIdReady}
+              actionLoading={actionLoading}
             />
           ))}
         </div>
