@@ -106,6 +106,9 @@ function applyDarkMode(enabled: boolean) {
 }
 
 let activityModalInterceptorInstalled = false;
+let masonryResizeObserver: ResizeObserver | null = null;
+let masonryRelayoutHandler: (() => void) | null = null;
+let timeIndicatorIntervalId: number | null = null;
 
 function isActivityDetailUrl(url: URL): boolean {
   return /\/lectio\/\d+\/aktivitet\/aktivitetforside2\.aspx$/i.test(url.pathname);
@@ -516,6 +519,14 @@ function injectCurrentTimeIndicator(showTimeLabel: boolean) {
   const container = todayCell.querySelector(".s2skemabrikcontainer");
   if (!container) return;
 
+  // Reset previous indicator/interval before creating a new one
+  const existing = container.querySelector('#il-time-indicator');
+  if (existing) existing.remove();
+  if (timeIndicatorIntervalId !== null) {
+    window.clearInterval(timeIndicatorIntervalId);
+    timeIndicatorIntervalId = null;
+  }
+
   // Create the time indicator line
   const indicator = document.createElement("div");
   indicator.id = "il-time-indicator";
@@ -526,7 +537,7 @@ function injectCurrentTimeIndicator(showTimeLabel: boolean) {
 
   // Update position immediately and every minute
   updateTimeIndicatorPosition();
-  setInterval(updateTimeIndicatorPosition, 60000);
+  timeIndicatorIntervalId = window.setInterval(updateTimeIndicatorPosition, 60000);
 }
 
 function updateTimeIndicatorPosition() {
@@ -706,7 +717,10 @@ function setupWeekendCollapse() {
           // "Lørdag (7/3)" → "Lør" ; "Søndag (8/3)" → "Søn"
           const abbrev = text.slice(0, 3);
           cell.setAttribute("data-il-weekend-abbrev", abbrev);
-          cell.addEventListener("click", toggle);
+          if (!cell.hasAttribute("data-il-weekend-toggle")) {
+            cell.addEventListener("click", toggle);
+            cell.setAttribute("data-il-weekend-toggle", "1");
+          }
         }
       });
     });
@@ -1139,21 +1153,31 @@ function applyMasonryLayout() {
 
       // Track the height of each column
       const columnHeights = new Array(numColumns).fill(0);
+      const cardHeights: number[] = [];
 
+      // First pass: apply size styles and measure once to avoid layout thrash.
       cards.forEach((card) => {
+        card.style.position = "absolute";
+        card.style.width = `${cardWidth}px`;
+        card.style.left = "0px";
+        card.style.top = "0px";
+      });
+      cards.forEach((card) => {
+        cardHeights.push(card.offsetHeight);
+      });
+
+      cards.forEach((card, idx) => {
         // Find the shortest column
         const shortestColumn = columnHeights.indexOf(
           Math.min(...columnHeights),
         );
 
         // Position the card
-        card.style.position = "absolute";
-        card.style.width = `${cardWidth}px`;
         card.style.left = `${shortestColumn * (cardWidth + gap)}px`;
         card.style.top = `${columnHeights[shortestColumn]}px`;
 
         // Update the column height
-        columnHeights[shortestColumn] += card.offsetHeight + gap;
+        columnHeights[shortestColumn] += cardHeights[idx] + gap;
       });
 
       // Set container height to tallest column
@@ -1176,15 +1200,19 @@ function applyMasonryLayout() {
     // Relayout on resize - observe the scroll container for width changes
     const scrollContainer = document.getElementById("il-lectio-content");
     if (scrollContainer) {
-      const resizeObserver = new ResizeObserver(() => {
+      masonryResizeObserver?.disconnect();
+      masonryResizeObserver = new ResizeObserver(() => {
         layoutMasonry();
       });
-      resizeObserver.observe(scrollContainer);
+      masonryResizeObserver.observe(scrollContainer);
     }
 
     // Relayout when card content changes (e.g. async-fetched missing assignments)
-    const relayoutHandler = () => layoutMasonry();
-    window.addEventListener('betterlectio:relayoutMasonry', relayoutHandler);
+    if (masonryRelayoutHandler) {
+      window.removeEventListener('betterlectio:relayoutMasonry', masonryRelayoutHandler);
+    }
+    masonryRelayoutHandler = () => layoutMasonry();
+    window.addEventListener('betterlectio:relayoutMasonry', masonryRelayoutHandler);
   }, 50);
 }
 

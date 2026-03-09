@@ -37,6 +37,7 @@ interface OpgaveEntry {
   deadlineText: string;
   studentTime: string;
   status: 'venter' | 'mangler' | 'afleveret';
+  statusText: string;
   absence: string;
   awaiting: string;
   note: string;

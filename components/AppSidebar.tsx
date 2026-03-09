@@ -218,8 +218,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
   const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
   const [opgaveSheetEntry, setOpgaveSheetEntry] = useState<any>(null);
-  const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData('books') ?? true);
-  const [hasSps, setHasSps] = useState(() => getCachedPageHasData('sps') ?? true);
+  const schoolInfo = getSchoolInfo();
+  const schoolId = schoolInfo.id;
+  const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData(schoolId, 'books') ?? true);
+  const [hasSps, setHasSps] = useState(() => getCachedPageHasData(schoolId, 'sps') ?? true);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Get settings for sidebar visibility
@@ -234,9 +236,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const defaultLogoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
   const soroeLogoUrl = browser.runtime.getURL('/assets/soroeakademi.png');
 
-  const school = getSchoolInfo();
-  const schoolId = school.id;
-  const schoolName = school.name;
+  const schoolName = schoolInfo.name;
   const profilePic = getProfilePicture();
   const userName = getUserName();
   const userClass = getUserClass();
@@ -316,8 +316,26 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
   // Check if school has books/SPS data (async, cached 1 week)
   useEffect(() => {
-    getPageHasData(schoolId, 'bd/userreservations.aspx', 'books').then(setHasBooks);
-    getPageHasData(schoolId, 'Elev_SPS.aspx', 'sps').then(setHasSps);
+    let cancelled = false;
+
+    // Stagger non-critical probes slightly to reduce first-load request bursts.
+    const booksTimer = window.setTimeout(() => {
+      getPageHasData(schoolId, 'bd/userreservations.aspx', 'books').then((value) => {
+        if (!cancelled) setHasBooks(value);
+      });
+    }, 900);
+
+    const spsTimer = window.setTimeout(() => {
+      getPageHasData(schoolId, 'Elev_SPS.aspx', 'sps').then((value) => {
+        if (!cancelled) setHasSps(value);
+      });
+    }, 1600);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(booksTimer);
+      window.clearTimeout(spsTimer);
+    };
   }, [schoolId]);
 
   const isActive = (page: string) => {
@@ -558,9 +576,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     onClick={(e) => {
                       e.preventDefault();
                       clearLoginState();
-                      fetch(`${baseUrl}/logout.aspx`, { credentials: 'include' }).then(() => {
-                        window.location.href = "https://www.lectio.dk";
-                      });
+                      const logoutUrl = new URL(`${baseUrl}/logout.aspx`, window.location.origin).href;
+                      fetch(logoutUrl, { credentials: 'include' })
+                        .catch(() => {
+                          // Ignore fetch errors and still redirect to logged-out landing page.
+                        })
+                        .finally(() => {
+                          window.location.href = 'https://www.lectio.dk';
+                        });
                     }}
                     className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-destructive/10 transition-colors text-destructive"
                   >

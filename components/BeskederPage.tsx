@@ -28,10 +28,12 @@ import {
   toggleReadViaIframe,
   deleteThreadViaIframe,
   selectFolderViaIframe,
+  refreshThreadListViaIframe,
   executeSearchViaIframe,
   executeBulkActionViaIframe,
   markAllReadViaIframe,
   type FormState,
+  type SubmitError,
 } from '@/lib/beskeder-submit';
 import { getTeacherName, getTeacherContextCardId, loadTeacherNames, type TeacherCache } from '@/lib/teacher-cache';
 import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
@@ -184,16 +186,18 @@ function SenderAvatar({ person, schoolId, nameIdReady }: { person: PersonRef; sc
 
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
-  const fetchedRef = useRef(false);
+  const fetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-
     // Resolve context card ID: direct from DOM, or by name lookup
-    const ctxId = person.contextCardId || lookupContextCardIdByName(displayName);
+    const ctxId = person.contextCardId || lookupContextCardIdByName(displayName, schoolId);
     if (!ctxId) return;
 
-    fetchedRef.current = true;
+    const fetchKey = `${schoolId}:${ctxId}`;
+    if (fetchedRef.current === fetchKey) return;
+    fetchedRef.current = fetchKey;
+    setImgError(false);
+    setPictureUrl(null);
 
     const cached = getCachedPictureUrl(ctxId);
     if (cached !== undefined) {
@@ -244,8 +248,20 @@ interface ThreadRowProps {
   actionLoading: string | null;
 }
 
+function actionIsLoading(actionLoading: string | null, threadId: string): boolean {
+  if (!actionLoading) return false;
+  return actionLoading.endsWith(`-${threadId}`);
+}
+
+function formatActionError(error: SubmitError): string {
+  if (error.kind === 'session_expired') return 'Session udløbet. Log ind igen.';
+  if (error.kind === 'timeout') return 'Timeout. Opdatér siden for at bekræfte status, før du prøver igen.';
+  return 'Kunne ikke bekræfte handlingen. Opdatér siden for at undgå dubletter.';
+}
+
 function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelete, index, schoolId, nameIdReady, actionLoading }: ThreadRowProps) {
   const [showActions, setShowActions] = useState(false);
+  const isBusy = actionIsLoading(actionLoading, thread.threadId);
 
   const rowClass = [
     'il-beskeder-row',
@@ -262,18 +278,27 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
     openThread(thread.threadId);
   };
 
+  const handleOpenByKeyboard = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    openThread(thread.threadId);
+  };
+
   const handleFlag = (e: MouseEvent) => {
     e.stopPropagation();
+    if (isBusy) return;
     onFlag(thread.threadId);
   };
 
   const handleRead = (e: MouseEvent) => {
     e.stopPropagation();
+    if (isBusy) return;
     onRead(thread.threadId, thread.isRead);
   };
 
   const handleDelete = (e: MouseEvent) => {
     e.stopPropagation();
+    if (isBusy) return;
     onDelete(thread.threadId);
   };
 
@@ -289,8 +314,11 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
     <div
       className={rowClass}
       onClick={handleOpen}
+      onKeyDown={handleOpenByKeyboard}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
+      role="button"
+      tabIndex={0}
       style={{ animationDelay: `${index * 30}ms` } as any}
     >
       {/* Checkbox */}
@@ -339,6 +367,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
           type="button"
           className="il-beskeder-action-btn"
           onClick={handleFlag}
+          disabled={isBusy}
           title={thread.isFlagged ? 'Fjern flag' : 'Tilføj flag'}
         >
           {thread.isFlagged ? <FlagOff size={15} /> : <Flag size={15} />}
@@ -347,6 +376,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
           type="button"
           className="il-beskeder-action-btn"
           onClick={handleRead}
+          disabled={isBusy}
           title={thread.isRead ? 'Marker som ulæst' : 'Marker som læst'}
         >
           {thread.isRead ? <Mail size={15} /> : <MailOpen size={15} />}
@@ -355,6 +385,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
           type="button"
           className="il-beskeder-action-btn il-beskeder-action-danger"
           onClick={handleDelete}
+          disabled={isBusy}
           title="Slet besked"
         >
           <Trash2 size={15} />
@@ -404,8 +435,10 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
     return { tokens, action };
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const bulkRef = useRef<HTMLDivElement>(null);
+  const pollTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -463,8 +496,64 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const clearPollTimeout = () => {
+      if (pollTimeoutRef.current !== null) {
+        window.clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+    };
+
+    const scheduleNextPoll = () => {
+      if (cancelled) return;
+      const nextDelayMs = 30000 + Math.floor(Math.random() * 30000);
+      pollTimeoutRef.current = window.setTimeout(() => {
+        if (cancelled) return;
+        if (document.visibilityState !== 'visible') {
+          scheduleNextPoll();
+          return;
+        }
+        if (actionLoading) {
+          scheduleNextPoll();
+          return;
+        }
+
+        refreshThreadListViaIframe(formState).then((result) => {
+          if (cancelled) return;
+          if (result.success) {
+            setFormState(result.formState);
+            setRawThreads(result.data.threads);
+            setFolders(result.data.folders);
+            setCurrentFolderName(result.data.currentFolderName);
+            setSelectedThreads((prev) => {
+              const available = new Set(result.data.threads.map((t) => t.threadId));
+              const next = new Set<string>();
+              prev.forEach((id) => {
+                if (available.has(id)) next.add(id);
+              });
+              return next;
+            });
+          } else if (result.error.kind === 'session_expired') {
+            // Let native page/session flow handle expiration.
+            return;
+          }
+          scheduleNextPoll();
+        });
+      }, nextDelayMs);
+    };
+
+    scheduleNextPoll();
+    return () => {
+      cancelled = true;
+      clearPollTimeout();
+    };
+  }, [formState, actionLoading]);
+
   const handleSelectFolder = useCallback((commandArgument: string) => {
     setActionLoading('folder');
+    setError(null);
 
     selectFolderViaIframe(formState, commandArgument).then((result) => {
       setActionLoading(null);
@@ -476,13 +565,15 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         setSelectedThreads(new Set());
       } else {
         console.warn('[BetterLectio] Folder switch iframe failed, falling back:', result.error);
-        selectFolderNative(commandArgument);
+        if (result.error.kind === 'session_expired') selectFolderNative(commandArgument);
+        else setError(formatActionError(result.error));
       }
     });
   }, [formState]);
 
   const handleMarkAllRead = useCallback(() => {
     setActionLoading('markAllRead');
+    setError(null);
 
     markAllReadViaIframe(formState).then((result) => {
       setActionLoading(null);
@@ -490,8 +581,9 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         setFormState(result.formState);
         setRawThreads(result.data.threads);
       } else {
-        console.warn('[BetterLectio] Mark all read iframe failed, falling back:', result.error);
-        markAllReadNative();
+        console.warn('[BetterLectio] Mark all read iframe failed:', result.error);
+        if (result.error.kind === 'session_expired') markAllReadNative();
+        else setError(formatActionError(result.error));
       }
     });
   }, [formState]);
@@ -524,13 +616,16 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   };
 
   const handleFlag = useCallback((threadId: string) => {
+    const currentlyFlagged = rawThreads.find(t => t.threadId === threadId)?.isFlagged ?? false;
+
     // Optimistic update
     setRawThreads(prev => prev.map(t =>
       t.threadId === threadId ? { ...t, isFlagged: !t.isFlagged } : t,
     ));
     setActionLoading(`flag-${threadId}`);
+    setError(null);
 
-    toggleFlagViaIframe(formState, threadId).then((result) => {
+    toggleFlagViaIframe(formState, threadId, currentlyFlagged).then((result) => {
       setActionLoading(null);
       if (result.success) {
         setFormState(result.formState);
@@ -539,11 +634,15 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
           t.threadId === threadId ? { ...t, isFlagged: result.data.isFlagged } : t,
         ));
       } else {
-        console.warn('[BetterLectio] Flag iframe failed, falling back:', result.error);
-        toggleFlagNative(threadId);
+        console.warn('[BetterLectio] Flag iframe failed:', result.error);
+        if (result.error.kind === 'session_expired') toggleFlagNative(threadId, currentlyFlagged);
+        else setError(formatActionError(result.error));
+        setRawThreads(prev => prev.map(t =>
+          t.threadId === threadId ? { ...t, isFlagged: !t.isFlagged } : t,
+        ));
       }
     });
-  }, [formState]);
+  }, [formState, rawThreads]);
 
   const handleRead = useCallback((threadId: string, currentlyRead: boolean) => {
     // Optimistic update
@@ -551,30 +650,36 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       t.threadId === threadId ? { ...t, isRead: !currentlyRead, isUnread: currentlyRead } : t,
     ));
     setActionLoading(`read-${threadId}`);
+    setError(null);
 
     toggleReadViaIframe(formState, threadId, currentlyRead).then((result) => {
       setActionLoading(null);
       if (result.success) {
         setFormState(result.formState);
       } else {
-        console.warn('[BetterLectio] Read/unread iframe failed, falling back:', result.error);
-        toggleReadNative(threadId, currentlyRead);
+        console.warn('[BetterLectio] Read/unread iframe failed:', result.error);
+        if (result.error.kind === 'session_expired') toggleReadNative(threadId, currentlyRead);
+        else setError(formatActionError(result.error));
+        setRawThreads(prev => prev.map(t =>
+          t.threadId === threadId ? { ...t, isRead: currentlyRead, isUnread: !currentlyRead } : t,
+        ));
       }
     });
   }, [formState]);
 
   const handleDelete = useCallback((threadId: string) => {
-    // Optimistic removal
-    setRawThreads(prev => prev.filter(t => t.threadId !== threadId));
     setActionLoading(`delete-${threadId}`);
+    setError(null);
 
     deleteThreadViaIframe(formState, threadId).then((result) => {
       setActionLoading(null);
       if (result.success) {
         setFormState(result.formState);
+        setRawThreads(prev => prev.filter(t => t.threadId !== threadId));
       } else {
-        console.warn('[BetterLectio] Delete iframe failed, falling back:', result.error);
-        deleteThreadNative(threadId);
+        console.warn('[BetterLectio] Delete iframe failed:', result.error);
+        if (result.error.kind === 'session_expired') deleteThreadNative(threadId);
+        else setError(formatActionError(result.error));
       }
     });
   }, [formState]);
@@ -582,6 +687,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   const handleSearch = (e: Event) => {
     e.preventDefault();
     setActionLoading('search');
+    setError(null);
 
     executeSearchViaIframe(formState, searchQuery).then((result) => {
       setActionLoading(null);
@@ -590,7 +696,8 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         setRawThreads(result.data.threads);
       } else {
         console.warn('[BetterLectio] Search iframe failed, falling back:', result.error);
-        executeSearchNative(searchQuery);
+        if (result.error.kind === 'session_expired') executeSearchNative(searchQuery);
+        else setError(formatActionError(result.error));
       }
     });
   };
@@ -598,6 +705,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   const handleBulkAction = (action: string) => {
     setBulkMenuOpen(false);
     setActionLoading('bulk');
+    setError(null);
 
     executeBulkActionViaIframe(formState, action).then((result) => {
       setActionLoading(null);
@@ -606,8 +714,9 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         setRawThreads(result.data.threads);
         setSelectedThreads(new Set());
       } else {
-        console.warn('[BetterLectio] Bulk action iframe failed, falling back:', result.error);
-        executeBulkActionNative(action);
+        console.warn('[BetterLectio] Bulk action iframe failed:', result.error);
+        if (result.error.kind === 'session_expired') executeBulkActionNative(action);
+        else setError(formatActionError(result.error));
       }
     });
   };
@@ -716,6 +825,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
           <kbd className="il-beskeder-search-kbd">/</kbd>
         </form>
       </div>
+      {error && <div className="il-beskeder-reply-error">{error}</div>}
 
       {/* ── Folder name label ──────────────────── */}
       <div className="il-beskeder-folder-label">

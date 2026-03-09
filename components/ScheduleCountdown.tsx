@@ -164,7 +164,7 @@ function fmtTime(minutes: number): string {
 // ── Component ───────────────────────────────────────────────────────────
 
 export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>(() => getCachedSchedule() || []);
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>(() => getCachedSchedule(schoolId) || []);
   const [state, setState] = useState<CountdownState>({ type: 'loading' });
   const [loaded, setLoaded] = useState(false);
   const fetchedRef = useRef(false);
@@ -172,7 +172,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    const cached = getCachedSchedule();
+    const cached = getCachedSchedule(schoolId);
     if (cached) { setBlocks(cached); setLoaded(true); return; }
     getTodaySchedule(schoolId)
       .then((b) => { setBlocks(b); setLoaded(true); })

@@ -317,6 +317,9 @@ export function updatePageTitle(): void {
  * Useful for SPAs or pages that update content dynamically.
  */
 export function observeTitleChanges(): void {
+  if ((window as any).__IL_TITLE_OBSERVER_INSTALLED__) return;
+  (window as any).__IL_TITLE_OBSERVER_INSTALLED__ = true;
+
   // Initial update
   updatePageTitle();
 
@@ -333,10 +336,13 @@ export function observeTitleChanges(): void {
       characterData: true,
       subtree: true,
     });
+    (window as any).__IL_TITLE_OBSERVER__ = observer;
   }
 
   // Also update on navigation (for SPA-like behavior)
-  window.addEventListener('popstate', () => {
+  const onPopstate = () => {
     setTimeout(updatePageTitle, 100);
-  });
+  };
+  window.addEventListener('popstate', onPopstate);
+  (window as any).__IL_TITLE_POPSTATE_HANDLER__ = onPopstate;
 }

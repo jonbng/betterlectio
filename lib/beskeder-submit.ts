@@ -26,6 +26,13 @@ export interface FormState {
   action: string;
 }
 
+export interface AttachedFile {
+  name: string;
+  /** Postback target + argument for DEL, e.g. "s$m$...AttachmentsGV" and "DEL$0" */
+  deleteTarget: string;
+  deleteArgument: string;
+}
+
 export type SubmitError =
   | { kind: 'session_expired' }
   | { kind: 'parse_failure'; message: string }
@@ -71,7 +78,7 @@ function handleError(err: unknown): SubmitResult<never> {
 
 function parseNewFormState(doc: Document): FormState | null {
   const { tokens, action } = parseFormTokensFromDoc(doc);
-  if (!tokens.__VIEWSTATE && !tokens.__VIEWSTATEX) return null;
+  if (!('__VIEWSTATE' in tokens) && !('__VIEWSTATEX' in tokens)) return null;
   return { tokens, action };
 }
 
@@ -87,12 +94,14 @@ function checkSessionAndParse(doc: Document): { expired: boolean; formState: For
 export function toggleFlagViaIframe(
   formState: FormState,
   threadId: string,
+  currentlyFlagged: boolean,
 ): Promise<SubmitResult<{ isFlagged: boolean }>> {
   return withMutex(async () => {
     try {
+      const command = currentlyFlagged ? `UNFLAGMESSAGE_${threadId}` : `FLAGMESSAGE_${threadId}`;
       const fields = buildFields(formState, {
         __EVENTTARGET: '__Page',
-        __EVENTARGUMENT: `FLAGMESSAGE_${threadId}`,
+        __EVENTARGUMENT: command,
       });
 
       const doc = await postFormViaHiddenIframe(formState.action, fields);
@@ -103,7 +112,7 @@ export function toggleFlagViaIframe(
       // Determine new flag state from response
       const threads = parseThreadsFromDOM(doc);
       const thread = threads.find(t => t.threadId === threadId);
-      const isFlagged = thread?.isFlagged ?? true;
+      const isFlagged = thread?.isFlagged ?? !currentlyFlagged;
 
       return { success: true, formState: newState, data: { isFlagged } };
     } catch (err) {
@@ -286,10 +295,57 @@ export function markAllReadViaIframe(
   });
 }
 
+export function refreshThreadListViaIframe(
+  formState: FormState,
+): Promise<SubmitResult<{
+  threads: BeskedThread[];
+  folders: BeskedFolder[];
+  toolbar: BeskederToolbar;
+  currentFolderName: string;
+  currentFolderIcon: string;
+}>> {
+  return withMutex(async () => {
+    try {
+      // Send a no-op post to refresh server state while preserving current folder/search context.
+      const doc = await postFormViaHiddenIframe(formState.action, buildFields(formState, {}));
+      const { expired, formState: newState } = checkSessionAndParse(doc);
+      if (expired) return { success: false, error: { kind: 'session_expired' } };
+      if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
+
+      const threads = parseThreadsFromDOM(doc);
+      const folders = parseFoldersFromDOM(doc);
+      const toolbar = parseToolbarFromDOM(doc);
+
+      const label = doc.getElementById('s_m_Content_Content_MessageFolderLabel');
+      const icon = doc.getElementById('s_m_Content_Content_FolderIcon') as HTMLImageElement | null;
+      const currentFolderName = label?.textContent?.trim() || 'Beskeder';
+      const currentFolderIcon = icon?.src || '';
+
+      return {
+        success: true,
+        formState: newState,
+        data: { threads, folders, toolbar, currentFolderName, currentFolderIcon },
+      };
+    } catch (err) {
+      return handleError(err);
+    }
+  });
+}
+
 // ── Thread View Operations ─────────────────────────────────────────────
 
 const BETTERLECTIO_SIGNATURE =
   '\n\n[url=https://chromewebstore.google.com/detail/betterlectio/cbopfnaegoknpplkngoppmmomppimhkh]Sendt med BetterLectio[/url]';
+
+/** Serializable reply form fields that may change between postbacks (ctl index shifts). */
+export interface ReplyFormTargets {
+  sendPostbackTarget: string;
+  titleFieldName: string;
+  bodyFieldName: string;
+  attachPostbackTarget: string;
+  attachDocIdFieldName: string;
+  currentTitle: string;
+}
 
 export function sendReplyViaIframe(
   formState: FormState,
@@ -302,6 +358,7 @@ export function sendReplyViaIframe(
 ): Promise<SubmitResult<{
   messages: ThreadMessage[];
   recipients: ThreadRecipient[];
+  replyFormTargets: ReplyFormTargets | null;
 }>> {
   return withMutex(async () => {
     try {
@@ -319,9 +376,25 @@ export function sendReplyViaIframe(
       if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
 
       // Parse updated thread from response
-      // Use the doc-accepting parse functions from beskeder-thread-parser
       const { parseThreadFromDOM } = await import('./beskeder-thread-parser');
       const threadData = parseThreadFromDOM(doc);
+
+      // Extract updated reply form targets (ctl index may have shifted)
+      let replyFormTargets: ReplyFormTargets | null = null;
+      if (threadData.replyForm) {
+        const rf = threadData.replyForm;
+        const titleFN = rf.titleInputId?.replace(/_/g, '$') || '';
+        const bodyFN = rf.bodyTextareaId?.replace(/_/g, '$') || '';
+        const attachDocName = rf.attachDocumentIdInput?.getAttribute('name') || '';
+        replyFormTargets = {
+          sendPostbackTarget: rf.sendPostbackTarget,
+          titleFieldName: titleFN,
+          bodyFieldName: bodyFN,
+          attachPostbackTarget: rf.attachPostbackTarget,
+          attachDocIdFieldName: attachDocName,
+          currentTitle: rf.currentTitle,
+        };
+      }
 
       return {
         success: true,
@@ -329,6 +402,56 @@ export function sendReplyViaIframe(
         data: {
           messages: threadData.messages,
           recipients: threadData.recipients,
+          replyFormTargets,
+        },
+      };
+    } catch (err) {
+      return handleError(err);
+    }
+  });
+}
+
+export function refreshThreadViaIframe(
+  formState: FormState,
+): Promise<SubmitResult<{
+  messages: ThreadMessage[];
+  recipients: ThreadRecipient[];
+  replyFormTargets: ReplyFormTargets | null;
+}>> {
+  return withMutex(async () => {
+    try {
+      // No-op roundtrip to fetch latest messages/replies without navigating.
+      const doc = await postFormViaHiddenIframe(formState.action, buildFields(formState, {}));
+      const { expired, formState: newState } = checkSessionAndParse(doc);
+      if (expired) return { success: false, error: { kind: 'session_expired' } };
+      if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
+
+      const { parseThreadFromDOM } = await import('./beskeder-thread-parser');
+      const threadData = parseThreadFromDOM(doc);
+
+      let replyFormTargets: ReplyFormTargets | null = null;
+      if (threadData.replyForm) {
+        const rf = threadData.replyForm;
+        const titleFN = rf.titleInputId?.replace(/_/g, '$') || '';
+        const bodyFN = rf.bodyTextareaId?.replace(/_/g, '$') || '';
+        const attachDocName = rf.attachDocumentIdInput?.getAttribute('name') || '';
+        replyFormTargets = {
+          sendPostbackTarget: rf.sendPostbackTarget,
+          titleFieldName: titleFN,
+          bodyFieldName: bodyFN,
+          attachPostbackTarget: rf.attachPostbackTarget,
+          attachDocIdFieldName: attachDocName,
+          currentTitle: rf.currentTitle,
+        };
+      }
+
+      return {
+        success: true,
+        formState: newState,
+        data: {
+          messages: threadData.messages,
+          recipients: threadData.recipients,
+          replyFormTargets,
         },
       };
     } catch (err) {
@@ -344,6 +467,8 @@ export function addRecipientViaIframe(
   addBtnTarget: string,
   autocompleteInputName: string,
   autocompleteInputValue: string,
+  autocompleteHiddenInputName?: string,
+  autocompleteHiddenInputValue?: string,
 ): Promise<SubmitResult<{
   recipients: ComposeRecipient[];
 }>> {
@@ -353,6 +478,9 @@ export function addRecipientViaIframe(
         __EVENTTARGET: addBtnTarget,
         __EVENTARGUMENT: '',
         [autocompleteInputName]: autocompleteInputValue,
+        ...(autocompleteHiddenInputName
+          ? { [autocompleteHiddenInputName]: autocompleteHiddenInputValue || '' }
+          : {}),
       });
 
       const doc = await postFormViaHiddenIframe(formState.action, fields);
@@ -466,12 +594,49 @@ export async function uploadFileToLectio(
   return serializedId;
 }
 
+/**
+ * Parse the AttachmentsGV table from a response Document to get the list
+ * of currently attached files and their delete postback info.
+ */
+function parseAttachmentsFromDoc(doc: Document): AttachedFile[] {
+  const files: AttachedFile[] = [];
+  // Find all AttachmentsGV tables (there may be one per reply row)
+  const tables = doc.querySelectorAll<HTMLTableElement>('table[id*="AttachmentsGV"]');
+  for (const table of tables) {
+    const rows = table.querySelectorAll('tr');
+    for (const row of rows) {
+      // Each row has: file name link + delete button
+      const deleteLink = row.querySelector('a[href*="AttachmentsGV"]') as HTMLAnchorElement | null;
+      if (!deleteLink) continue;
+
+      const href = deleteLink.getAttribute('href') || '';
+      // href is like: javascript:__doPostBack('s$m$...AttachmentsGV','DEL$0')
+      const match = href.match(/__doPostBack\('([^']+)','([^']+)'\)/)
+        || href.match(/__doPostBack\(&#39;([^&]+)&#39;,&#39;([^&]+)&#39;\)/);
+      if (!match) continue;
+
+      // File name: first <a> that's not the delete button, or first <td> text
+      const nameLink = row.querySelector('a[href*="LectioFileHandler"]') as HTMLAnchorElement | null;
+      const name = nameLink?.textContent?.trim()
+        || row.querySelector('td')?.textContent?.trim()
+        || 'Ukendt fil';
+
+      files.push({
+        name,
+        deleteTarget: match[1],
+        deleteArgument: match[2],
+      });
+    }
+  }
+  return files;
+}
+
 export function attachFileViaIframe(
   formState: FormState,
   serializedId: string,
   attachPostbackTarget: string,
   attachDocIdFieldName: string,
-): Promise<SubmitResult<void>> {
+): Promise<SubmitResult<{ attachments: AttachedFile[] }>> {
   return withMutex(async () => {
     try {
       const fields = buildFields(formState, {
@@ -485,7 +650,33 @@ export function attachFileViaIframe(
       if (expired) return { success: false, error: { kind: 'session_expired' } };
       if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
 
-      return { success: true, formState: newState, data: undefined };
+      const attachments = parseAttachmentsFromDoc(doc);
+      return { success: true, formState: newState, data: { attachments } };
+    } catch (err) {
+      return handleError(err);
+    }
+  });
+}
+
+export function removeAttachmentViaIframe(
+  formState: FormState,
+  deleteTarget: string,
+  deleteArgument: string,
+): Promise<SubmitResult<{ attachments: AttachedFile[] }>> {
+  return withMutex(async () => {
+    try {
+      const fields = buildFields(formState, {
+        __EVENTTARGET: deleteTarget,
+        __EVENTARGUMENT: deleteArgument,
+      });
+
+      const doc = await postFormViaHiddenIframe(formState.action, fields);
+      const { expired, formState: newState } = checkSessionAndParse(doc);
+      if (expired) return { success: false, error: { kind: 'session_expired' } };
+      if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
+
+      const attachments = parseAttachmentsFromDoc(doc);
+      return { success: true, formState: newState, data: { attachments } };
     } catch (err) {
       return handleError(err);
     }

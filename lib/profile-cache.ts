@@ -21,6 +21,15 @@ export interface UserProfile {
   cachedAt: number;
 }
 
+function getCurrentSchoolId(): string | null {
+  const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  return match?.[1] || null;
+}
+
+function getProfileCacheKey(schoolId: string | null): string {
+  return schoolId ? `${PROFILE_CACHE_KEY}:${schoolId}` : PROFILE_CACHE_KEY;
+}
+
 export type ScheduleEntityType =
   | 'student'
   | 'teacher'
@@ -45,10 +54,17 @@ export interface ViewedPerson extends ViewedEntity {
 }
 
 export function getCachedProfile(): UserProfile | null {
+  const schoolId = getCurrentSchoolId();
   try {
-    const stored = localStorage.getItem(PROFILE_CACHE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
+    const scoped = localStorage.getItem(getProfileCacheKey(schoolId));
+    if (scoped) return JSON.parse(scoped);
+
+    // Backwards compatibility with legacy global cache.
+    const legacy = localStorage.getItem(PROFILE_CACHE_KEY);
+    if (!legacy) return null;
+    const parsed = JSON.parse(legacy) as UserProfile;
+    if (!schoolId || !parsed.schoolId || parsed.schoolId === schoolId) {
+      return parsed;
     }
   } catch {
     // Ignore errors
@@ -57,8 +73,9 @@ export function getCachedProfile(): UserProfile | null {
 }
 
 export function cacheProfile(profile: UserProfile): void {
+  const key = getProfileCacheKey(profile.schoolId || getCurrentSchoolId());
   try {
-    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    localStorage.setItem(key, JSON.stringify(profile));
   } catch {
     // Ignore errors
   }
@@ -113,6 +130,10 @@ export function clearLoginState(): void {
   try {
     localStorage.removeItem(LOGIN_STATE_KEY);
     localStorage.removeItem(PROFILE_CACHE_KEY);
+    const schoolId = getCurrentSchoolId();
+    if (schoolId) {
+      localStorage.removeItem(getProfileCacheKey(schoolId));
+    }
   } catch {
     // Ignore errors
   }
@@ -451,16 +472,18 @@ export function updateProfileCache(): void {
   if (!extracted) return;
 
   const existing = getCachedProfile();
+  const isSameSchool = !existing?.schoolId || !extracted.schoolId || existing.schoolId === extracted.schoolId;
+  const prior = isSameSchool ? existing : null;
 
   // Merge with existing cache, preferring new non-null values
   const updated: UserProfile = {
-    name: extracted.name || existing?.name || 'Bruger',
-    fullName: extracted.fullName || existing?.fullName || 'Bruger',
-    className: extracted.className || existing?.className || '',
-    pictureUrl: extracted.pictureUrl || existing?.pictureUrl || null,
-    studentId: extracted.studentId || existing?.studentId || null,
-    schoolId: extracted.schoolId || existing?.schoolId || null,
-    schoolName: extracted.schoolName || existing?.schoolName || null,
+    name: extracted.name || prior?.name || 'Bruger',
+    fullName: extracted.fullName || prior?.fullName || 'Bruger',
+    className: extracted.className || prior?.className || '',
+    pictureUrl: extracted.pictureUrl || prior?.pictureUrl || null,
+    studentId: extracted.studentId || prior?.studentId || null,
+    schoolId: extracted.schoolId || prior?.schoolId || null,
+    schoolName: extracted.schoolName || prior?.schoolName || null,
     cachedAt: Date.now(),
   };
 

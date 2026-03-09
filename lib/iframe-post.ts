@@ -5,6 +5,7 @@
 // parse back into a Document for further processing.
 
 const DEFAULT_TIMEOUT_MS = 45_000;
+const DEBUG_IFRAME_POST = false;
 
 /**
  * POST a form to Lectio via a hidden iframe, returning the response Document.
@@ -22,6 +23,7 @@ export async function postFormViaHiddenIframe(
     const iframe = document.createElement('iframe');
     const form = document.createElement('form');
     let didSubmit = false;
+    let sawNavigatedLoad = false;
 
     iframe.name = iframeName;
     iframe.style.display = 'none';
@@ -53,8 +55,24 @@ export async function postFormViaHiddenIframe(
       if (!didSubmit) return;
 
       try {
-        const html = iframe.contentDocument?.documentElement?.outerHTML;
-        if (!html) throw new Error('No response HTML');
+        const iframeDoc = iframe.contentDocument;
+        if (!iframeDoc?.documentElement) throw new Error('No response HTML');
+        const iframeHref = iframeDoc.location?.href || '';
+        if (!sawNavigatedLoad && iframeHref.startsWith('about:blank')) {
+          sawNavigatedLoad = true;
+          return;
+        }
+
+        // Sync JS-set .value to HTML attributes before serializing —
+        // outerHTML only captures attributes, not DOM properties set by scripts.
+        iframeDoc.querySelectorAll<HTMLInputElement>('input').forEach((el) => {
+          el.setAttribute('value', el.value);
+        });
+        iframeDoc.querySelectorAll<HTMLTextAreaElement>('textarea').forEach((el) => {
+          el.textContent = el.value;
+        });
+
+        const html = iframeDoc.documentElement.outerHTML;
         clearTimeout(timeout);
         cleanup();
         const parser = new DOMParser();
@@ -85,11 +103,28 @@ export function parseFormTokensFromDoc(doc: Document): { tokens: Record<string, 
     : window.location.href;
 
   const tokens: Record<string, string> = {};
-  if (form) {
-    form.querySelectorAll<HTMLInputElement>('input[type="hidden"][name]').forEach((input) => {
-      const name = input.name?.trim();
-      if (!name) return;
-      tokens[name] = input.value ?? '';
+  // Search entire document for hidden inputs — ASP.NET may render __VIEWSTATE
+  // outside the <form> in a sibling <div class="aspNetHidden">, and DOMParser
+  // may restructure the DOM differently than the live page.
+  doc.querySelectorAll<HTMLInputElement>('input[name]').forEach((input) => {
+    // Only collect hidden fields (check attribute OR property for DOMParser compat)
+    if (input.type !== 'hidden' && input.getAttribute('type') !== 'hidden') return;
+    const name = input.name?.trim();
+    if (!name) return;
+    tokens[name] = input.value ?? '';
+  });
+
+  // Debug: log if ViewState is still missing after scanning
+  if (DEBUG_IFRAME_POST && !('__VIEWSTATE' in tokens) && !('__VIEWSTATEX' in tokens)) {
+    const vsEl = doc.querySelector('input[name="__VIEWSTATE"]') as HTMLInputElement | null;
+    console.error('[BetterLectio] parseFormTokens: no ViewState found', {
+      formExists: !!form,
+      vsElementExists: !!vsEl,
+      vsType: vsEl?.getAttribute('type'),
+      vsTypeProperty: vsEl?.type,
+      totalInputs: doc.querySelectorAll('input').length,
+      hiddenInputs: doc.querySelectorAll('input[type="hidden"]').length,
+      namedInputs: doc.querySelectorAll('input[name]').length,
     });
   }
 
@@ -105,12 +140,11 @@ export function isSessionExpired(doc: Document): boolean {
   const action = form?.getAttribute('action') || '';
   if (action.includes('login.aspx')) return true;
 
-  // Also check for the login page's school selector
-  if (doc.querySelector('#m_Content_schoolkode')) return true;
-
-  // No main content area = likely login redirect
-  const mainContent = doc.querySelector('[id*="Content_Content"]');
-  if (!mainContent && !doc.querySelector('.ls-master-header')) return true;
+  // Also check for strong login page markers
+  if (doc.querySelector('#m_Content_schoolkode, #s_m_Content_schoolkode')) return true;
+  if (doc.querySelector('input[type="password"][name*="password"], input[type="password"][id*="password"]')) {
+    return true;
+  }
 
   return false;
 }

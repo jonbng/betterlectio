@@ -75,7 +75,7 @@ export function PersonCard({
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [pictureLoaded, setPictureLoaded] = useState(false);
   const [pictureError, setPictureError] = useState(false);
-  const cardRef = useRef<HTMLAnchorElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
 
   // Load picture - check cache first, then fetch if visible
@@ -173,16 +173,36 @@ export function PersonCard({
     setPictureError(true);
   };
 
+  const navigateToCard = () => {
+    onClick?.();
+    window.location.href = fullHref;
+  };
+
+  const handleCardClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.findskema-card-actions')) return;
+    navigateToCard();
+  };
+
+  const handleCardKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    navigateToCard();
+  };
+
   // Show fallback if: no URL yet, error loading, or image hasn't loaded
   const showFallback = !pictureUrl || pictureError || !pictureLoaded;
 
   // Entity card layout (classes, rooms, resources, hold, groups)
   if (isEntityCard) {
     return (
-      <a
+      <div
         ref={cardRef}
-        href={fullHref}
-        onClick={onClick}
+        role="link"
+        tabIndex={0}
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
+        aria-label={`Åbn skema for ${name}`}
         className={`findskema-person-card findskema-entity-card findskema-entity-${type} group`}
       >
         {/* Decorative background icon */}
@@ -219,16 +239,19 @@ export function PersonCard({
             {config.label}
           </span>
         </div>
-      </a>
+      </div>
     );
   }
 
   // Person card layout (students, teachers)
   return (
-    <a
+    <div
       ref={cardRef}
-      href={fullHref}
-      onClick={onClick}
+      role="link"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
+      aria-label={`Åbn skema for ${name}`}
       className="findskema-person-card group"
     >
       {/* Large image at top */}
@@ -283,6 +306,6 @@ export function PersonCard({
           </span>
         </div>
       </div>
-    </a>
+    </div>
   );
 }

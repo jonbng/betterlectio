@@ -15,7 +15,7 @@ export interface ThreadMessage {
   date: Date | null;
   title: string;
   content: string; // HTML content (BBCode already rendered by Lectio)
-  attachments: Array<{ name: string; url: string }>;
+  attachments: Array<{ name: string; url: string; sizeLabel?: string }>;
   isOwnMessage: boolean;
 }
 
@@ -44,8 +44,8 @@ export interface BeskederThreadData {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function parseDateTimestamp(text: string): Date | null {
-  // Format: "DD-MM-YYYY HH:MM:SS"
-  const match = text.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+  // Typical format: "DD-MM-YYYY HH:MM[:SS]" (be tolerant on day/month digits and optional seconds)
+  const match = text.match(/(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
 
   return new Date(
@@ -54,7 +54,7 @@ function parseDateTimestamp(text: string): Date | null {
     parseInt(match[1], 10),
     parseInt(match[4], 10),
     parseInt(match[5], 10),
-    parseInt(match[6], 10),
+    match[6] ? parseInt(match[6], 10) : 0,
   );
 }
 
@@ -125,34 +125,94 @@ function parseMessages(doc: Document = document): ThreadMessage[] {
     const senderContextCardId = senderSpan?.getAttribute('data-lectioContextCard') || '';
     const senderText = (senderEl.textContent || '').trim();
 
-    // Parse "Name, DD-MM-YYYY HH:MM:SS"
-    const senderParts = senderText.split(',');
-    const timestampRaw = senderParts.length > 1 ? senderParts.slice(-1)[0].trim() : '';
-    const senderName = senderSpan?.textContent?.trim() || senderParts[0].trim();
+    // Parse "Name, DD-MM-YYYY HH:MM[:SS]" with tolerant extraction
+    const timestampMatch = senderText.match(/(\d{1,2}-\d{1,2}-\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?)/);
+    const timestampRaw = timestampMatch?.[1] || '';
+    const senderName = senderSpan?.textContent?.trim() || senderText.split(',')[0].trim();
     const date = parseDateTimestamp(timestampRaw);
 
     // Title
     const headerEl = gridRowMessage.querySelector('.message-thread-message-header');
     const title = (headerEl?.textContent || '').trim();
 
-    // Content
+    // Content (clone so we can strip inline attachment blocks before rendering)
     const contentEl = gridRowMessage.querySelector('.message-thread-message-content');
-    const content = contentEl?.innerHTML?.trim() || '';
+    const contentClone = contentEl?.cloneNode(true) as HTMLElement | null;
+
+    const toAbsoluteUrl = (href: string): string =>
+      new URL(href, window.location.origin).href;
+
+    const parseSizeNearLink = (link: Element): string | undefined => {
+      const parentText = (link.parentElement?.textContent || '').replace(/\s+/g, ' ').trim();
+      const siblingText = (link.nextSibling?.textContent || '').replace(/\s+/g, ' ').trim();
+      const combined = `${parentText} ${siblingText}`.trim();
+      const sizeMatch = combined.match(/\((\d+(?:[.,]\d+)?\s*(?:B|KB|MB|GB|TB))\)/i);
+      return sizeMatch?.[1]?.trim();
+    };
 
     // Attachments
-    const attachments: Array<{ name: string; url: string }> = [];
+    const attachments: Array<{ name: string; url: string; sizeLabel?: string }> = [];
+    const seen = new Set<string>();
+    const pushAttachment = (name: string, href: string, sizeLabel?: string) => {
+      if (!name || !href || href.startsWith('#') || href.startsWith('javascript:')) return;
+      const absoluteUrl = toAbsoluteUrl(href);
+      const key = `${name}::${absoluteUrl}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      attachments.push({ name, url: absoluteUrl, sizeLabel });
+    };
+
+    // 1) Native attachment row/actions container
     const attachContainer = gridRowMessage.querySelector('.message-buttons-options-container');
     if (attachContainer) {
       const links = attachContainer.querySelectorAll('a[href]');
       for (const link of links) {
         const href = link.getAttribute('href');
         const name = (link.textContent || '').trim();
-        if (href && name && !href.startsWith('#') && !href.startsWith('javascript:')) {
-          const absoluteUrl = new URL(href, window.location.origin).href;
-          attachments.push({ name, url: absoluteUrl });
-        }
+        if (!href || !name) continue;
+        pushAttachment(name, href, parseSizeNearLink(link));
       }
     }
+
+    // 2) Inline message attachment blocks (Lectio variants: "attachements"/"attachments")
+    if (contentClone) {
+      const inlineAttachmentSelectors = [
+        '.message-attachements a[href]',
+        '.message-attachments a[href]',
+      ];
+      for (const selector of inlineAttachmentSelectors) {
+        const inlineLinks = contentClone.querySelectorAll(selector);
+        for (const link of inlineLinks) {
+          const href = link.getAttribute('href');
+          const name = (link.textContent || '').trim();
+          if (!href || !name) continue;
+          pushAttachment(name, href, parseSizeNearLink(link));
+        }
+      }
+
+      // 3) Fallback: detect message-doc download links directly in content
+      const docLinks = contentClone.querySelectorAll(
+        'a[href*="dokumenthent.aspx"][href*="doctype=messagedoc"]',
+      );
+      for (const link of docLinks) {
+        const href = link.getAttribute('href');
+        const name = (link.textContent || '').trim();
+        if (!href || !name) continue;
+        pushAttachment(name, href, parseSizeNearLink(link));
+      }
+
+      // Remove inline attachment blocks/links so they don't render as plain links in body
+      contentClone.querySelectorAll('.message-attachements, .message-attachments').forEach((el) => el.remove());
+      contentClone
+        .querySelectorAll('a[href*="dokumenthent.aspx"][href*="doctype=messagedoc"]')
+        .forEach((el) => {
+          const parent = el.parentElement;
+          if (parent && parent.childElementCount === 1) parent.remove();
+          else el.remove();
+        });
+    }
+
+    const content = contentClone?.innerHTML?.trim() || contentEl?.innerHTML?.trim() || '';
 
     messages.push({
       senderName,
@@ -315,13 +375,19 @@ export interface ComposeRecipient {
 
 export interface ComposeFormData {
   recipients: ComposeRecipient[];
-  autocompleteContainerEl: HTMLElement;
+  addRecipientPostbackTarget: string;
+  addRecipientInputName: string;
+  addRecipientHiddenInputName: string;
   noReplyCheckbox: HTMLInputElement | null;
   nativeTitleInput: HTMLInputElement;
   nativeBodyTextarea: HTMLTextAreaElement;
   sendPostbackTarget: string;
   cancelPostbackTarget: string;
   attachPanelEl: HTMLElement | null;
+  /** Hidden input that holds the uploaded file's serializedId JSON */
+  attachDocumentIdInput: HTMLInputElement | null;
+  /** Postback target for the attachment chooser */
+  attachPostbackTarget: string;
   currentTitle: string;
   currentBody: string;
 }
@@ -334,6 +400,20 @@ export function parseComposeFromDOM(doc: Document = document): ComposeFormData |
     '#s_m_Content_Content_MessageThreadCtrl_RecipientsEditMode .ls-searchbox-container-outlined',
   ) as HTMLElement | null;
   if (!autocompleteContainer) return null;
+
+  const addRecipientInput = autocompleteContainer.querySelector(
+    'input[id*="addRecipientDD_inp"]',
+  ) as HTMLInputElement | null;
+  const addRecipientHiddenInput = autocompleteContainer.querySelector(
+    'input[id*="addRecipientDD_inpid"]',
+  ) as HTMLInputElement | null;
+  const addRecipientBtn = autocompleteContainer.querySelector(
+    'a[id*="AddRecipientBtn"]',
+  ) as HTMLAnchorElement | null;
+  const addRecipientOnclick = addRecipientBtn?.getAttribute('onclick') || '';
+  const addRecipientMatch = addRecipientOnclick.match(/__doPostBack\('([^']+)'/);
+
+  if (!addRecipientInput || !addRecipientMatch) return null;
 
   // Title input
   const titleInput = doc.querySelector(
@@ -403,20 +483,34 @@ export function parseComposeFromDOM(doc: Document = document): ComposeFormData |
     's_m_Content_Content_MessageThreadCtrl_RepliesNotAllowedChkBox',
   ) as HTMLInputElement | null;
 
-  // Attachment panel
+  // Attachment panel + hidden input + postback target
   const attachPanel = doc.querySelector(
     '[id*="AttachmentDocChooser_panel"]',
   ) as HTMLElement | null;
 
+  const attachDocIdInput = doc.querySelector(
+    'input[id*="AttachmentDocChooser_selectedDocumentId"]',
+  ) as HTMLInputElement | null;
+
+  let attachPostbackTarget = '';
+  if (attachDocIdInput) {
+    const hiddenName = attachDocIdInput.getAttribute('name') || '';
+    attachPostbackTarget = hiddenName.replace(/\$selectedDocumentId$/, '');
+  }
+
   return {
     recipients,
-    autocompleteContainerEl: autocompleteContainer,
+    addRecipientPostbackTarget: addRecipientMatch[1],
+    addRecipientInputName: addRecipientInput.getAttribute('name') || '',
+    addRecipientHiddenInputName: addRecipientHiddenInput?.getAttribute('name') || '',
     noReplyCheckbox,
     nativeTitleInput: titleInput,
     nativeBodyTextarea: bodyTextarea,
     sendPostbackTarget: sendMatch[1],
     cancelPostbackTarget: cancelMatch ? cancelMatch[1] : '',
     attachPanelEl: attachPanel,
+    attachDocumentIdInput: attachDocIdInput,
+    attachPostbackTarget,
     currentTitle: titleInput.value || '',
     currentBody: bodyTextarea.value || '',
   };
@@ -432,13 +526,24 @@ const BETTERLECTIO_SIGNATURE =
  * is a single teacher (context card ID starts with "T").
  */
 export function shouldSkipSignature(doc: Document = document): boolean {
+  const profile = getCachedProfile();
+  const ownName = (profile?.fullName || profile?.name || '').trim().toLowerCase();
+
+  const isOwnRecipient = (name: string): boolean => {
+    if (!ownName) return false;
+    const normalized = name.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+    return normalized.startsWith(ownName);
+  };
+
   // Thread view (read-only recipients)
   const readMode = doc.getElementById(
     's_m_Content_Content_MessageThreadCtrl_RecipientsReadMode',
   );
   if (readMode) {
-    const spans = readMode.querySelectorAll('span[data-lectioContextCard]');
-    return spans.length === 1 && (spans[0].getAttribute('data-lectioContextCard') || '').startsWith('T');
+    const spans = Array.from(readMode.querySelectorAll('span[data-lectioContextCard]'));
+    const filtered = spans.filter((span) => !isOwnRecipient((span.textContent || '').trim()));
+    return filtered.length === 1
+      && (filtered[0].getAttribute('data-lectioContextCard') || '').startsWith('T');
   }
 
   // Compose view (editable recipients table)
@@ -485,27 +590,16 @@ export function cancelReply(replyForm: ThreadReplyForm): void {
 export function stripSignatures(html: string): string {
   let result = html;
 
-  // Strip BetterLectio signatures (rendered BBCode)
-  result = result.replace(
-    /<a[^>]*href=["']https?:\/\/chromewebstore\.google\.com\/detail\/betterlectio\/[^"']*["'][^>]*>Sendt med BetterLectio<\/a>/gi,
-    '',
-  );
+  // Strip BetterLectio/Lectio+ signatures — any <a> link with matching text
+  result = result.replace(/<a[^>]*>Sendt (?:med|via|fra) BetterLectio<\/a>/gi, '');
+  result = result.replace(/<a[^>]*>Sendt (?:med|via|fra) Lectio\+<\/a>/gi, '');
 
-  // Strip plain text BetterLectio signature
-  result = result.replace(/\[url=[^\]]*chromewebstore\.google\.com\/detail\/betterlectio\/[^\]]*\]Sendt med BetterLectio\[\/url\]/gi, '');
-  result = result.replace(/\[Sent med BetterLectio\]\([^)]*\)/gi, '');
-
-  // Strip Lectio+ signatures
-  result = result.replace(
-    /<a[^>]*href=["']https?:\/\/lectio\.plus\/[^"']*["'][^>]*>Sendt fra Lectio\+<\/a>/gi,
-    '',
-  );
-  result = result.replace(/&lt;a href=["']?https?:\/\/lectio\.plus\/[^"']*?["']?[^&]*&gt;Sendt fra Lectio\+&lt;\/a&gt;/gi, '');
-  result = result.replace(/Sendt fra Lectio\+/g, '');
-
-  // Strip plain text BetterLectio fallbacks
-  result = result.replace(/&lt;a href=["']?https?:\/\/[^"']*?jonathanb\.dk[^"']*?["']?[^&]*&gt;Sendt fra BetterLectio&lt;\/a&gt;/gi, '');
-  result = result.replace(/\[Sent med BetterLectio\]\([^)]*\)/gi, '');
+  // Strip BBCode/escaped variants
+  result = result.replace(/\[url=[^\]]*\]Sendt (?:med|via|fra) BetterLectio\[\/url\]/gi, '');
+  result = result.replace(/&lt;a[^&]*&gt;Sendt (?:med|via|fra) BetterLectio&lt;\/a&gt;/gi, '');
+  result = result.replace(/&lt;a[^&]*&gt;Sendt (?:med|via|fra) Lectio\+&lt;\/a&gt;/gi, '');
+  result = result.replace(/\[(?:Sent|Sendt)\s+med\s+BetterLectio\]\([^)]+\)/gi, '');
+  result = result.replace(/(?:^|<br\s*\/?>|\n)\s*Sendt (?:med|via|fra) (?:BetterLectio|Lectio\+)\s*(?=$|<br\s*\/?>|\n)/gi, '');
 
   // Clean up trailing whitespace/newlines left by stripping
   result = result.replace(/(\s*<br\s*\/?\s*>\s*)+$/i, '');

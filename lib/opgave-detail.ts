@@ -58,12 +58,29 @@ function getExerciseId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-export function getCachedDetail(url: string): OpgaveDetail | null {
+function getSchoolIdFromUrl(url: string): string {
+  try {
+    const absolute = new URL(url, window.location.origin);
+    const match = absolute.pathname.match(/\/lectio\/(\d+)\//i);
+    return match?.[1] || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function getDetailCacheKey(url: string): string | null {
   const id = getExerciseId(url);
   if (!id) return null;
+  const schoolId = getSchoolIdFromUrl(url);
+  return `${CACHE_PREFIX}${schoolId}:${id}`;
+}
+
+export function getCachedDetail(url: string): OpgaveDetail | null {
+  const key = getDetailCacheKey(url);
+  if (!key) return null;
 
   try {
-    const raw = localStorage.getItem(CACHE_PREFIX + id);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
 
     const cached: CachedEntry = JSON.parse(raw);
@@ -78,8 +95,8 @@ export function getCachedDetail(url: string): OpgaveDetail | null {
 }
 
 function setCachedDetail(url: string, detail: OpgaveDetail): void {
-  const id = getExerciseId(url);
-  if (!id) return;
+  const key = getDetailCacheKey(url);
+  if (!key) return;
 
   try {
     // LRU eviction: if at max, remove oldest
@@ -100,15 +117,15 @@ function setCachedDetail(url: string, detail: OpgaveDetail): void {
     }
 
     const entry: CachedEntry = { detail, timestamp: Date.now() };
-    localStorage.setItem(CACHE_PREFIX + id, JSON.stringify(entry));
+    localStorage.setItem(key, JSON.stringify(entry));
   } catch { /* ignore storage errors */ }
 }
 
 export function invalidateDetailCache(url: string): void {
-  const id = getExerciseId(url);
-  if (!id) return;
+  const key = getDetailCacheKey(url);
+  if (!key) return;
   try {
-    localStorage.removeItem(CACHE_PREFIX + id);
+    localStorage.removeItem(key);
   } catch { /* ignore */ }
 }
 

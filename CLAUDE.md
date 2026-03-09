@@ -31,7 +31,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/OpgaverPage.tsx` - Urgency-first assignment cards, relative Danish deadlines, color-coded grades
 - `components/OpgaveDetailSheet.tsx` - Assignment detail side sheet with submission history, comment/file upload
 - `components/BeskederThreadView.tsx` - Thread view with sender avatars, WYSIWYG reply, no-reload reply/attach
-- `components/BeskederCompose.tsx` - Card-based compose with moved native autocomplete, recipient pills, WYSIWYG editor
+- `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor
 - `components/WysiwygEditor.tsx` - contentEditable editor converting BBCode <-> rich HTML
 - `components/BBCodeToolbar.tsx` - Formatting toolbar (bold, italic, underline, link)
 - `components/ActivityClassModal.tsx` - Activity detail modal from skema/forside links
@@ -52,12 +52,13 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
 - `lib/hold-mapping.ts` - Shared subject mappings, per-hold exceptions, ignored non-academic groups, fresh-start resets
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
-- `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`)
+- `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
 - `lib/findskema-types.ts` - Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to filter types
 - `lib/fuzzy-search.ts` - Fuzzy search for Danish text
 - `lib/profile-cache.ts` - User profile + viewed entity caching with URL/localStorage name fallback
 - `lib/members-fetch.ts` - Fetch/parse `members.aspx` for klasse/holdelement
 - `lib/schedule-cache.ts` - Today's schedule cache (45min TTL)
+- `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
 - `lib/school-storage.ts` - Last school persistence
 - `styles/globals.css` - Main styles, Lectio modernizer, page-specific styling
 
@@ -111,6 +112,10 @@ fetch(`${window.location.origin}/lectio/${schoolId}/path.aspx`)
 Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine with relative URLs - this only applies to `fetch()` and similar APIs.
 
 **FindSkema dropdown cache key:** Do not assume `subcache` equals current calendar year. Read both `afdeling` and `subcache` from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key (from page scripts or `FindSkemaAdv.aspx`) before calling `cache/DropDown.aspx?type=AvanceretSkema...`.
+
+**Cross-school cache safety:** All caches that include identity/form state must be scoped by `schoolId` (and never reused globally across schools). This includes name-id lookup, schedule/page-data caches, activity detail cache, assignment detail cache, and profile cache.
+
+**Beskeder safety:** For non-idempotent iframe-post actions (send/reply/delete), do not auto-fallback to native postback on uncertain/parse errors — this can duplicate side effects. Show a refresh/retry prompt instead.
 
 **FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms. Real AvanceretSkema IDs use `SC*` for stamklasser, `RO*` for lokaler, `RE*` for ressourcer, `HE*` for hold, `GE*` for grupper. Always map by actual ID prefixes.
 

@@ -12,7 +12,7 @@ export interface MissingOpgave {
   url: string;
 }
 
-let _cachedPromise: Promise<MissingOpgave[]> | null = null;
+const _cachedPromiseBySchool = new Map<string, Promise<MissingOpgave[]>>();
 
 /**
  * Fetch missing (exercisemissing) assignments from the full OpgaverElev.aspx page.
@@ -22,9 +22,10 @@ let _cachedPromise: Promise<MissingOpgave[]> | null = null;
  * Results are cached per page load — safe to call from multiple components.
  */
 export function fetchMissingOpgaver(schoolId: string): Promise<MissingOpgave[]> {
-  if (_cachedPromise) return _cachedPromise;
+  const existing = _cachedPromiseBySchool.get(schoolId);
+  if (existing) return existing;
 
-  _cachedPromise = (async () => {
+  const request = (async () => {
     try {
       const url = `${window.location.origin}/lectio/${schoolId}/OpgaverElev.aspx`;
       const resp = await fetch(url, { credentials: 'include' });
@@ -73,5 +74,6 @@ export function fetchMissingOpgaver(schoolId: string): Promise<MissingOpgave[]> 
     }
   })();
 
-  return _cachedPromise;
+  _cachedPromiseBySchool.set(schoolId, request);
+  return request;
 }

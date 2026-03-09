@@ -13,8 +13,13 @@ export interface ScheduleBlock {
 
 interface CachedSchedule {
   date: string; // ISO date
+  schoolId: string;
   blocks: ScheduleBlock[];
   fetchedAt: number; // timestamp
+}
+
+function getCacheKey(schoolId: string): string {
+  return `${CACHE_KEY}:${schoolId}`;
 }
 
 /** Parse "8:10" → 490 */
@@ -30,11 +35,12 @@ function todayISO(): string {
 }
 
 /** Try to read a valid cached schedule for today */
-export function getCachedSchedule(): ScheduleBlock[] | null {
+export function getCachedSchedule(schoolId: string): ScheduleBlock[] | null {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(getCacheKey(schoolId));
     if (!raw) return null;
     const cached: CachedSchedule = JSON.parse(raw);
+    if (cached.schoolId !== schoolId) return null;
     if (cached.date !== todayISO()) return null;
     if (Date.now() - cached.fetchedAt > CACHE_TTL) return null;
     return cached.blocks;
@@ -43,14 +49,15 @@ export function getCachedSchedule(): ScheduleBlock[] | null {
   }
 }
 
-function saveCachedSchedule(blocks: ScheduleBlock[]): void {
+function saveCachedSchedule(schoolId: string, blocks: ScheduleBlock[]): void {
   const data: CachedSchedule = {
+    schoolId,
     date: todayISO(),
     blocks,
     fetchedAt: Date.now(),
   };
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    localStorage.setItem(getCacheKey(schoolId), JSON.stringify(data));
   } catch { /* ignore quota errors */ }
 }
 
@@ -116,13 +123,13 @@ export async function fetchTodaySchedule(schoolId: string): Promise<ScheduleBloc
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const blocks = parseScheduleFromDoc(doc);
 
-  saveCachedSchedule(blocks);
+  saveCachedSchedule(schoolId, blocks);
   return blocks;
 }
 
 /** Get schedule blocks: from cache if fresh, otherwise fetch */
 export async function getTodaySchedule(schoolId: string): Promise<ScheduleBlock[]> {
-  const cached = getCachedSchedule();
+  const cached = getCachedSchedule(schoolId);
   if (cached) return cached;
   return fetchTodaySchedule(schoolId);
 }

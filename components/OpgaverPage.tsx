@@ -8,6 +8,7 @@ import {
   Flame,
   ArrowRight,
   Check,
+  XCircle,
   Search,
   X,
   CalendarDays,
@@ -26,6 +27,7 @@ export interface OpgaveEntry {
   deadlineText: string;
   studentTime: string;
   status: 'venter' | 'mangler' | 'afleveret';
+  statusText: string;
   absence: string;
   awaiting: string;
   note: string;
@@ -196,6 +198,44 @@ function getGradeHue(grade: string): number {
   }
 }
 
+function classifyStatus(statusText: string, hasWaitingClass: boolean, hasMissingClass: boolean): 'venter' | 'mangler' | 'afleveret' {
+  if (hasMissingClass) return 'mangler';
+  if (hasWaitingClass) return 'venter';
+
+  const text = statusText.trim().toLowerCase();
+  if (!text) return 'afleveret';
+
+  if (
+    text.includes('ikke afleveret')
+    || text.includes('mangler')
+    || text.includes('ej afleveret')
+  ) {
+    return 'mangler';
+  }
+
+  if (
+    text.includes('venter')
+    || text.includes('afventer')
+    || text.includes('under behandling')
+    || text.includes('afventer rettelse')
+  ) {
+    return 'venter';
+  }
+
+  if (
+    text.includes('afleveret')
+    || text.includes('bedømt')
+    || text.includes('rettet')
+    || text.includes('godkendt')
+  ) {
+    return 'afleveret';
+  }
+
+  // Unknown non-empty statuses are treated as active to avoid
+  // showing potentially unresolved submissions as completed.
+  return 'venter';
+}
+
 // ── DOM parser (exported) ──────────────────────────────────────────────
 
 export function parseOpgaverFromDOM(root: Document | Element = document): OpgaveEntry[] {
@@ -226,14 +266,14 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
 
     const studentTime = cells[4].textContent?.trim() || '';
 
+    const statusText = cells[5].textContent?.trim() || '';
     const isWaiting = !!cells[5].querySelector('.exercisewait');
     const isMissing = !!cells[5].querySelector('.exercisemissing');
 
     const absence = cells[6].textContent?.trim() || '';
     const awaiting = cells[7].textContent?.trim() || '';
 
-    const status: 'venter' | 'mangler' | 'afleveret' =
-      isMissing ? 'mangler' : isWaiting ? 'venter' : 'afleveret';
+    const status = classifyStatus(statusText, isWaiting, isMissing);
     const note = cells[8].textContent?.trim() || '';
 
     const gradeCell = cells[9];
@@ -261,6 +301,7 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
       deadlineText,
       studentTime,
       status,
+      statusText,
       absence,
       awaiting,
       note,
@@ -353,15 +394,84 @@ interface OpgaverPageProps {
   schoolId: string;
 }
 
+const MISSING_IGNORED_PREFIX = 'il-opgaver-ignored-missing-';
+const MISSING_AGGRESSIVE_MAX_AGE_DAYS = 60;
+const MISSING_ZERO_TIME_MAX_AGE_DAYS = 7;
+
+function getExerciseIdFromUrl(url: string): string | null {
+  const match = url.match(/exerciseid=(\d+)/i);
+  return match?.[1] || null;
+}
+
+function getMissingIgnoreStorageKey(schoolId: string): string {
+  return `${MISSING_IGNORED_PREFIX}${schoolId}`;
+}
+
+function parseStudentTimeHours(studentTime: string): number {
+  const normalized = studentTime.trim().replace(',', '.');
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isAggressiveMissing(entry: OpgaveEntry, ignoredIds: Set<string>, now: Date): boolean {
+  if (entry.status !== 'mangler') return false;
+
+  const exerciseId = getExerciseIdFromUrl(entry.url);
+  if (exerciseId && ignoredIds.has(exerciseId)) return false;
+
+  const studentHours = parseStudentTimeHours(entry.studentTime);
+  if (studentHours <= 0) return false;
+
+  const ageMs = now.getTime() - entry.deadline.getTime();
+  const maxAgeMs = MISSING_AGGRESSIVE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+  if (ageMs > maxAgeMs) return false;
+
+  return true;
+}
+
+function isActiveMissingForUpcoming(entry: OpgaveEntry, ignoredIds: Set<string>, now: Date): boolean {
+  if (entry.status !== 'mangler') return false;
+
+  const exerciseId = getExerciseIdFromUrl(entry.url);
+  if (exerciseId && ignoredIds.has(exerciseId)) return false;
+
+  const studentHours = parseStudentTimeHours(entry.studentTime);
+  const maxAgeDays = studentHours <= 0 ? MISSING_ZERO_TIME_MAX_AGE_DAYS : MISSING_AGGRESSIVE_MAX_AGE_DAYS;
+  const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
+  const ageMs = now.getTime() - entry.deadline.getTime();
+  return ageMs <= maxAgeMs;
+}
+
 export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllSubmitted, setShowAllSubmitted] = useState(false);
+  const [isUpcomingCollapsed, setIsUpcomingCollapsed] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [ignoredMissingIds, setIgnoredMissingIds] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const key = getMissingIgnoreStorageKey(schoolId);
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        setIgnoredMissingIds(new Set());
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setIgnoredMissingIds(new Set(parsed.filter((id) => typeof id === 'string')));
+      } else {
+        setIgnoredMissingIds(new Set());
+      }
+    } catch {
+      setIgnoredMissingIds(new Set());
+    }
+  }, [schoolId]);
 
   // Focus search on Cmd/Ctrl+K
   useEffect(() => {
@@ -379,6 +489,26 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
     e.preventDefault();
     setSelectedEntry(entry);
     setSheetOpen(true);
+  };
+
+  const toggleIgnoreMissing = (entry: OpgaveEntry) => {
+    const exerciseId = getExerciseIdFromUrl(entry.url);
+    if (!exerciseId) return;
+
+    setIgnoredMissingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) next.delete(exerciseId);
+      else next.add(exerciseId);
+
+      try {
+        const key = getMissingIgnoreStorageKey(schoolId);
+        localStorage.setItem(key, JSON.stringify([...next]));
+      } catch {
+        // Ignore storage errors; UI state still updates for current session.
+      }
+
+      return next;
+    });
   };
 
   // Sort holds: active (has upcoming) first, then resolved names before raw codes, then alphabetical
@@ -411,16 +541,25 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   });
 
   const upcoming = filtered
-    .filter(e => e.status === 'venter' || e.status === 'mangler')
+    .filter((entry) => {
+      if (entry.status === 'venter') return true;
+      return isActiveMissingForUpcoming(entry, ignoredMissingIds, new Date());
+    })
     .sort((a, b) => {
-      // Missing (mangler) assignments always sort first
-      if (a.status === 'mangler' && b.status !== 'mangler') return -1;
-      if (b.status === 'mangler' && a.status !== 'mangler') return 1;
+      const now = new Date();
+      const aActiveMissing = isActiveMissingForUpcoming(a, ignoredMissingIds, now);
+      const bActiveMissing = isActiveMissingForUpcoming(b, ignoredMissingIds, now);
+      if (aActiveMissing && !bActiveMissing) return -1;
+      if (bActiveMissing && !aActiveMissing) return 1;
       return a.deadline.getTime() - b.deadline.getTime();
     });
 
   const submitted = filtered
-    .filter(e => e.status === 'afleveret')
+    .filter((entry) => {
+      if (entry.status === 'afleveret') return true;
+      return entry.status === 'mangler'
+        && !isActiveMissingForUpcoming(entry, ignoredMissingIds, new Date());
+    })
     .sort((a, b) => b.deadline.getTime() - a.deadline.getTime());
 
   const visibleSubmitted = showAllSubmitted ? submitted : submitted.slice(0, 6);
@@ -435,21 +574,33 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   };
 
   // Next urgent deadline (from unfiltered upcoming for the banner)
-  // Missing (mangler) assignments are always treated as most urgent
+  // Only aggressive missing assignments should trigger the urgent banner.
   const allUpcoming = entries
-    .filter(e => e.status === 'venter' || e.status === 'mangler')
+    .filter((entry) => {
+      if (entry.status === 'venter') return true;
+      return isActiveMissingForUpcoming(entry, ignoredMissingIds, new Date());
+    })
     .sort((a, b) => {
-      if (a.status === 'mangler' && b.status !== 'mangler') return -1;
-      if (b.status === 'mangler' && a.status !== 'mangler') return 1;
+      const now = new Date();
+      const aActiveMissing = isActiveMissingForUpcoming(a, ignoredMissingIds, now);
+      const bActiveMissing = isActiveMissingForUpcoming(b, ignoredMissingIds, now);
+      if (aActiveMissing && !bActiveMissing) return -1;
+      if (bActiveMissing && !aActiveMissing) return 1;
       return a.deadline.getTime() - b.deadline.getTime();
     });
   const nextUrgent = allUpcoming.length > 0 ? (() => {
-    const first = allUpcoming[0];
-    const display = getDeadlineDisplay(first.deadline);
-    // 'mangler' entries are always urgent (past deadline, never submitted)
-    return (first.status === 'mangler' || display.urgency === 'overdue' || display.urgency === 'imminent')
-      ? { entry: first, display }
-      : null;
+    const now = new Date();
+    for (const entry of allUpcoming) {
+      const display = getDeadlineDisplay(entry.deadline);
+      const activeMissing = isActiveMissingForUpcoming(entry, ignoredMissingIds, now);
+      const aggressiveMissing = isAggressiveMissing(entry, ignoredMissingIds, now);
+      const isUrgentWaiting = entry.status !== 'mangler'
+        && (display.urgency === 'overdue' || display.urgency === 'imminent');
+      if (activeMissing || aggressiveMissing || isUrgentWaiting) {
+        return { entry, display };
+      }
+    }
+    return null;
   })() : null;
 
   const hasActiveFilters = selectedHold !== null || datePreset !== 'all' || queryLower !== '';
@@ -589,110 +740,156 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           {/* ── Upcoming ───────────────────────── */}
           {upcoming.length > 0 && (
             <section className="il-opgaver-section">
-              <h2 className="il-opgaver-section-title">
-                <Clock size={14} />
-                Kommende
-                <span className="il-opgaver-section-count">
-                  {upcoming.length}
-                </span>
-              </h2>
-              <div className="il-opgaver-upcoming">
-                {upcoming.map((entry, idx) => {
-                  const display = getDeadlineDisplay(entry.deadline);
-                  const hue = getHoldHue(entry.hold);
-                  const globalIdx = entries.indexOf(entry);
-                  const hasMeta =
-                    (entry.studentTime && entry.studentTime !== '0,00') ||
-                    entry.awaiting;
+              <button
+                type="button"
+                className="il-opgaver-section-toggle"
+                onClick={() => setIsUpcomingCollapsed((prev) => !prev)}
+                aria-expanded={!isUpcomingCollapsed}
+              >
+                <h2 className="il-opgaver-section-title">
+                  <Clock size={14} />
+                  Kommende
+                  <span className="il-opgaver-section-count">
+                    {upcoming.length}
+                  </span>
+                </h2>
+                <ChevronDown
+                  size={16}
+                  className={`il-opgaver-section-chevron${isUpcomingCollapsed ? ' is-collapsed' : ''}`}
+                />
+              </button>
+              {!isUpcomingCollapsed && (
+                <div className="il-opgaver-upcoming">
+                  {upcoming.map((entry, idx) => {
+                    const display = getDeadlineDisplay(entry.deadline);
+                    const aggressiveMissing = isAggressiveMissing(entry, ignoredMissingIds, new Date());
+                    const effectiveUrgency =
+                      entry.status === 'mangler' && !aggressiveMissing && display.urgency === 'overdue'
+                        ? 'later'
+                        : display.urgency;
+                    const hue = getHoldHue(entry.hold);
+                    const globalIdx = entries.indexOf(entry);
+                    const hasMeta =
+                      (entry.studentTime && entry.studentTime !== '0,00') ||
+                      entry.awaiting ||
+                      (entry.statusText && entry.status !== 'mangler');
 
-                  return (
-                    <a
-                      key={idx}
-                      href={entry.url}
-                      className={`il-opgaver-card is-${display.urgency}`}
-                      style={
-                        {
-                          '--hold-hue': hue,
-                          animationDelay: `${idx * 50}ms`,
-                        } as any
-                      }
-                      onClick={(e) =>
-                        openDetail(e as unknown as MouseEvent, entry)
-                      }
-                    >
-                      {/* Deadline — the hero element */}
-                      <div className="il-opgaver-card-deadline">
-                        <div className="il-opgaver-deadline-info">
-                          {display.urgency === 'overdue' && (
-                            <AlertTriangle
-                              size={16}
-                              className="il-opgaver-deadline-icon"
-                            />
-                          )}
-                          <span className="il-opgaver-deadline-label">
-                            {display.label}
-                          </span>
-                          <span className="il-opgaver-deadline-sep">
-                            &middot;
-                          </span>
-                          <span className="il-opgaver-deadline-detail">
-                            {display.detail}
+                    return (
+                      <a
+                        key={idx}
+                        href={entry.url}
+                        className={`il-opgaver-card is-${effectiveUrgency}`}
+                        style={
+                          {
+                            '--hold-hue': hue,
+                            animationDelay: `${idx * 50}ms`,
+                          } as any
+                        }
+                        onClick={(e) =>
+                          openDetail(e as unknown as MouseEvent, entry)
+                        }
+                      >
+                        {/* Deadline — the hero element */}
+                        <div className="il-opgaver-card-deadline">
+                          <div className="il-opgaver-deadline-info">
+                            {effectiveUrgency === 'overdue' && (
+                              <AlertTriangle
+                                size={16}
+                                className="il-opgaver-deadline-icon"
+                              />
+                            )}
+                            <span className="il-opgaver-deadline-label">
+                              {display.label}
+                            </span>
+                            <span className="il-opgaver-deadline-sep">
+                              &middot;
+                            </span>
+                            <span className="il-opgaver-deadline-detail">
+                              {display.detail}
+                            </span>
+                          </div>
+                          <span
+                            className="il-opgaver-hold-pill"
+                            style={{ '--hold-hue': hue } as any}
+                          >
+                            {getHoldDisplayName(entry.hold)}
                           </span>
                         </div>
-                        <span
-                          className="il-opgaver-hold-pill"
-                          style={{ '--hold-hue': hue } as any}
-                        >
-                          {getHoldDisplayName(entry.hold)}
+
+                        {/* Title */}
+                        <span className="il-opgaver-card-title">
+                          {entry.title}
                         </span>
-                      </div>
 
-                      {/* Title */}
-                      <span className="il-opgaver-card-title">
-                        {entry.title}
-                      </span>
+                        {/* Missing submission badge */}
+                        {entry.status === 'mangler' && aggressiveMissing && (
+                          <div className="il-opgaver-missing-badge">
+                            <Upload size={13} />
+                            Mangler aflevering
+                          </div>
+                        )}
+                        {entry.status === 'mangler' && !aggressiveMissing && (
+                          <div className="il-opgaver-status-badge is-mangler">
+                            {entry.statusText || 'Ikke afleveret'}
+                          </div>
+                        )}
+                        {entry.status !== 'mangler' && entry.statusText && (
+                          <div className={`il-opgaver-status-badge is-${entry.status}`}>
+                            {entry.statusText}
+                          </div>
+                        )}
+                        {entry.status === 'mangler' && (
+                          <button
+                            type="button"
+                            className="il-opgaver-ignore-missing"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleIgnoreMissing(entry);
+                            }}
+                          >
+                            {(() => {
+                              const exerciseId = getExerciseIdFromUrl(entry.url);
+                              const isIgnored = exerciseId ? ignoredMissingIds.has(exerciseId) : false;
+                              return isIgnored ? 'Vis igen som manglende' : 'Ignorer manglende';
+                            })()}
+                          </button>
+                        )}
 
-                      {/* Missing submission badge */}
-                      {entry.status === 'mangler' && (
-                        <div className="il-opgaver-missing-badge">
-                          <Upload size={13} />
-                          Mangler aflevering
-                        </div>
-                      )}
+                        {/* Meta */}
+                        {hasMeta && (
+                          <div className="il-opgaver-card-meta">
+                            {entry.studentTime &&
+                              entry.studentTime !== '0,00' && (
+                                <span>{entry.studentTime} timer</span>
+                              )}
+                            {entry.studentTime &&
+                              entry.studentTime !== '0,00' &&
+                              entry.awaiting && (
+                                <span className="il-opgaver-meta-dot" />
+                              )}
+                            {entry.awaiting && <span>{entry.awaiting}</span>}
+                          </div>
+                        )}
 
-                      {/* Meta */}
-                      {hasMeta && (
-                        <div className="il-opgaver-card-meta">
-                          {entry.studentTime &&
-                            entry.studentTime !== '0,00' && (
-                              <span>{entry.studentTime} timer</span>
-                            )}
-                          {entry.studentTime &&
-                            entry.studentTime !== '0,00' &&
-                            entry.awaiting && (
-                              <span className="il-opgaver-meta-dot" />
-                            )}
-                          {entry.awaiting && <span>{entry.awaiting}</span>}
-                        </div>
-                      )}
-
-                      {/* Note */}
-                      {entry.note && (
-                        <div
-                          className={`il-opgaver-note${expandedNotes.has(globalIdx) ? ' is-expanded' : ''}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            toggleNote(globalIdx);
-                          }}
-                        >
-                          <span>{entry.note}</span>
-                        </div>
-                      )}
-                    </a>
-                  );
-                })}
-              </div>
+                        {/* Note */}
+                        {entry.note && (
+                          <div
+                            className={`il-opgaver-note${expandedNotes.has(globalIdx) ? ' is-expanded' : ''}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleNote(globalIdx);
+                            }}
+                          >
+                            <span>{entry.note}</span>
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           )}
 
@@ -731,6 +928,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                           <span className="il-opgaver-submitted-grade">
                             {entry.grade}
                           </span>
+                        ) : entry.status === 'mangler' ? (
+                          <XCircle
+                            size={18}
+                            className="il-opgaver-submitted-missing"
+                          />
                         ) : (
                           <Check
                             size={18}

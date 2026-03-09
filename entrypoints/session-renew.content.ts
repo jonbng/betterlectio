@@ -24,12 +24,40 @@ function getSchoolId(): string | null {
   return null;
 }
 
-function renewSession(): void {
-  const schoolId = getSchoolId();
-  if (!schoolId) return;
+let renewInFlight: Promise<boolean> | null = null;
 
-  const pingUrl = new URL(`/lectio/${schoolId}/ping.aspx`, window.location.origin).href;
-  fetch(pingUrl, { credentials: 'include' }).catch(() => {});
+async function renewSession(): Promise<boolean> {
+  if (renewInFlight) return renewInFlight;
+
+  const schoolId = getSchoolId();
+  if (!schoolId) return false;
+
+  renewInFlight = (async () => {
+    let timer: number | null = null;
+    try {
+      const pingUrl = new URL(`/lectio/${schoolId}/ping.aspx`, window.location.origin);
+      pingUrl.searchParams.set('_ilts', String(Date.now()));
+
+      const ctrl = new AbortController();
+      timer = window.setTimeout(() => ctrl.abort(), 8_000);
+
+      const response = await fetch(pingUrl.href, {
+        credentials: 'include',
+        cache: 'no-store',
+        signal: ctrl.signal,
+      });
+
+      // Treat redirects to login as renewal failure.
+      return response.ok && !response.url.includes('/login.aspx');
+    } catch {
+      return false;
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+      renewInFlight = null;
+    }
+  })();
+
+  return renewInFlight;
 }
 
 export default defineContentScript({
@@ -56,9 +84,19 @@ export default defineContentScript({
             const text = dialog.textContent || '';
 
             if (text.includes('Din session udløber snart')) {
-              dialog.remove();
-              renewSession();
-              console.log('[BetterLectio] Session warning suppressed, renewing');
+              // Keep the native warning visible until renewal is confirmed.
+              // This preserves a manual fallback if ping fails.
+              if (dialog.dataset.ilRenewHandled === '1') continue;
+              dialog.dataset.ilRenewHandled = '1';
+              renewSession().then((renewed) => {
+                if (renewed) {
+                  dialog.remove();
+                  console.log('[BetterLectio] Session warning suppressed after successful renewal');
+                } else {
+                  dialog.dataset.ilRenewHandled = '0';
+                  console.warn('[BetterLectio] Session renewal failed; keeping warning dialog');
+                }
+              });
             } else if (text.includes('Din session er udløbet')) {
               dialog.remove();
               console.log('[BetterLectio] Session timeout suppressed, reloading');
@@ -92,8 +130,13 @@ export default defineContentScript({
 
     const checkAndRenew = () => {
       if (shouldRenew()) {
-        renewSession();
-        console.log('[BetterLectio] Proactive session renewal triggered');
+        renewSession().then((renewed) => {
+          if (renewed) {
+            console.log('[BetterLectio] Proactive session renewal triggered');
+          } else {
+            console.warn('[BetterLectio] Proactive renewal attempted but not confirmed');
+          }
+        });
       }
     };
 

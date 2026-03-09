@@ -9,10 +9,14 @@ function cacheKey(page: string): string {
   return `il-has-${page}`;
 }
 
+function scopedCacheKey(schoolId: string, page: string): string {
+  return `${cacheKey(page)}:${schoolId}`;
+}
+
 /** Read cached result synchronously (returns null if expired/missing) */
-export function getCachedPageHasData(page: string): boolean | null {
+export function getCachedPageHasData(schoolId: string, page: string): boolean | null {
   try {
-    const raw = localStorage.getItem(cacheKey(page));
+    const raw = localStorage.getItem(scopedCacheKey(schoolId, page));
     if (!raw) return null;
     const cached: CachedResult = JSON.parse(raw);
     if (Date.now() - cached.fetchedAt > CACHE_TTL) return null;
@@ -38,7 +42,7 @@ async function fetchPageHasData(schoolId: string, path: string, page: string): P
 
     try {
       const data: CachedResult = { hasData, fetchedAt: Date.now() };
-      localStorage.setItem(cacheKey(page), JSON.stringify(data));
+      localStorage.setItem(scopedCacheKey(schoolId, page), JSON.stringify(data));
     } catch { /* ignore quota errors */ }
 
     return hasData;
@@ -49,7 +53,7 @@ async function fetchPageHasData(schoolId: string, path: string, page: string): P
 
 /** Get whether page has data: from cache if fresh, otherwise fetch */
 export async function getPageHasData(schoolId: string, path: string, page: string): Promise<boolean> {
-  const cached = getCachedPageHasData(page);
+  const cached = getCachedPageHasData(schoolId, page);
   if (cached !== null) return cached;
   return fetchPageHasData(schoolId, path, page);
 }

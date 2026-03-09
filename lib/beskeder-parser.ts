@@ -157,7 +157,7 @@ function parseDateText(text: string): Date | null {
   }
 
   // "dd/MM-yyyy"
-  const fullDate = trimmed.match(/^(\d{1,2})\/(\d{2})-(\d{4})$/);
+  const fullDate = trimmed.match(/^(\d{1,2})\/(\d{1,2})-(\d{4})$/);
   if (fullDate) {
     return new Date(
       parseInt(fullDate[3], 10),
@@ -332,13 +332,12 @@ export function parseFormTokens(doc: Document = document): { tokens: Record<stri
     : window.location.href;
 
   const tokens: Record<string, string> = {};
-  if (form) {
-    form.querySelectorAll<HTMLInputElement>('input[type="hidden"][name]').forEach((input) => {
-      const name = input.name?.trim();
-      if (!name) return;
-      tokens[name] = input.value ?? '';
-    });
-  }
+  doc.querySelectorAll<HTMLInputElement>('input[name]').forEach((input) => {
+    if (input.type !== 'hidden' && input.getAttribute('type') !== 'hidden') return;
+    const name = input.name?.trim();
+    if (!name) return;
+    tokens[name] = input.value ?? '';
+  });
 
   return { tokens, action };
 }
@@ -393,20 +392,24 @@ export function openThread(threadId: string): void {
 }
 
 /** Toggle flag on a thread by clicking the original Lectio flag image. */
-export function toggleFlag(threadId: string): void {
-  // Find the native flag img whose onclick contains this thread's FLAGMESSAGE
+export function toggleFlag(threadId: string, currentlyFlagged = false): void {
+  // Find the native flag img whose onclick contains this thread's flag command.
   const imgs = document.querySelectorAll<HTMLImageElement>(
     '#s_m_Content_Content_threadGV_ctl00 img[onclick]'
   );
   for (const img of imgs) {
     const onclick = img.getAttribute('onclick') || '';
-    if (onclick.includes(`FLAGMESSAGE_${threadId}`)) {
+    if (
+      onclick.includes(`FLAGMESSAGE_${threadId}`)
+      || onclick.includes(`UNFLAGMESSAGE_${threadId}`)
+    ) {
       img.click();
       return;
     }
   }
   // Fallback to postback
-  doPostBack('__Page', `FLAGMESSAGE_${threadId}`);
+  const command = currentlyFlagged ? `UNFLAGMESSAGE_${threadId}` : `FLAGMESSAGE_${threadId}`;
+  doPostBack('__Page', command);
 }
 
 /** Toggle read/unread on a thread. */

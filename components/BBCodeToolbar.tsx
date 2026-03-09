@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import type { RefObject } from 'preact';
-import { Bold, Italic, Underline, Link, List } from 'lucide-react';
+import { Bold, Italic, Underline, Link, List, ListOrdered } from 'lucide-react';
 import {
   toggleInlineFormat,
   insertLinkInEditor,
-  insertHtmlAtCursor,
+  insertUnorderedListAtCursor,
+  insertOrderedListAtCursor,
   isFormatActive,
 } from '@/components/WysiwygEditor';
 import { sanitizeUrl } from '@/lib/bbcode-convert';
@@ -69,29 +70,35 @@ function insertLinkTextarea(
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-function insertListTextarea(textarea: HTMLTextAreaElement) {
+function insertListTextarea(textarea: HTMLTextAreaElement, ordered: boolean) {
   const start = textarea.selectionStart;
   const end = textarea.selectionEnd;
   const text = textarea.value;
   const selected = text.substring(start, end);
 
-  let bbcode: string;
+  let listText: string;
   if (selected) {
-    const items = selected.split('\n').filter(Boolean).map((line) => `[*]${line}`).join('\n');
-    bbcode = `[list]\n${items}\n[/list]`;
+    const items = selected
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    listText = items
+      .map((line, index) => (ordered ? `${index + 1}. ${line}` : `• ${line}`))
+      .join('\n');
   } else {
-    bbcode = '[list]\n[*]\n[/list]';
+    listText = ordered ? '1. ' : '• ';
   }
 
-  const newText = text.substring(0, start) + bbcode + text.substring(end);
+  const newText = text.substring(0, start) + listText + text.substring(end);
   textarea.value = newText;
-  // Place cursor after [*] if no selection
+
+  // Place cursor at the first item text position for empty insertion
   if (!selected) {
-    const cursorPos = start + '[list]\n[*]'.length;
+    const cursorPos = start + listText.length;
     textarea.selectionStart = textarea.selectionEnd = cursorPos;
   } else {
     textarea.selectionStart = start;
-    textarea.selectionEnd = start + bbcode.length;
+    textarea.selectionEnd = start + listText.length;
   }
 
   textarea.focus();
@@ -206,17 +213,26 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       if (!props.editorRef.current.contains(sel.anchorNode)) return;
 
       const newActive = new Set<string>();
-      for (const tag of ['B', 'I', 'U']) {
-        if (isFormatActive(sel.anchorNode, tag, props.editorRef.current)) {
-          newActive.add(tag);
+      for (const tag of ['B', 'I', 'U'] as const) {
+        let isActive = isFormatActive(sel.anchorNode, tag, props.editorRef.current);
+        // Also check aliases in DOM
+        if (!isActive && tag === 'B') {
+          isActive = isFormatActive(sel.anchorNode, 'STRONG', props.editorRef.current);
         }
-        // Also check aliases
-        if (tag === 'B' && isFormatActive(sel.anchorNode, 'STRONG', props.editorRef.current)) {
-          newActive.add(tag);
+        if (!isActive && tag === 'I') {
+          isActive = isFormatActive(sel.anchorNode, 'EM', props.editorRef.current);
         }
-        if (tag === 'I' && isFormatActive(sel.anchorNode, 'EM', props.editorRef.current)) {
-          newActive.add(tag);
+        // When caret is collapsed, native command state reflects "future typing"
+        // even if there is no wrapping element at the exact caret node.
+        if (!isActive && sel.isCollapsed) {
+          const command = tag === 'B' ? 'bold' : tag === 'I' ? 'italic' : 'underline';
+          try {
+            isActive = !!document.queryCommandState?.(command);
+          } catch {
+            // Ignore command-state errors in unsupported environments
+          }
         }
+        if (isActive) newActive.add(tag);
       }
       if (isFormatActive(sel.anchorNode, 'A', props.editorRef.current)) {
         newActive.add('A');
@@ -225,7 +241,19 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
     };
 
     document.addEventListener('selectionchange', updateActive);
-    return () => document.removeEventListener('selectionchange', updateActive);
+    const editorEl = props.editorRef.current;
+    editorEl?.addEventListener('keyup', updateActive);
+    editorEl?.addEventListener('mouseup', updateActive);
+    editorEl?.addEventListener('input', updateActive);
+    editorEl?.addEventListener('focus', updateActive);
+
+    return () => {
+      document.removeEventListener('selectionchange', updateActive);
+      editorEl?.removeEventListener('keyup', updateActive);
+      editorEl?.removeEventListener('mouseup', updateActive);
+      editorEl?.removeEventListener('input', updateActive);
+      editorEl?.removeEventListener('focus', updateActive);
+    };
   }, [isEditorMode, props.editorRef]);
 
   // ── Editor mode handlers ──
@@ -283,17 +311,31 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
     }
   }, [isEditorMode, props.editorRef]);
 
-  const handleList = useCallback(() => {
+  const handleUnorderedList = useCallback(() => {
     if (isEditorMode) {
       if (!props.editorRef?.current) return;
       props.editorRef.current.focus();
-      insertHtmlAtCursor('<ul><li>\u200B</li></ul>');
+      insertUnorderedListAtCursor();
       props.onFormat?.();
     } else {
       const ta = props.textareaId
         ? (document.getElementById(props.textareaId) as HTMLTextAreaElement | null)
         : null;
-      if (ta) insertListTextarea(ta);
+      if (ta) insertListTextarea(ta, false);
+    }
+  }, [isEditorMode, props.editorRef, props.onFormat, props.textareaId]);
+
+  const handleOrderedList = useCallback(() => {
+    if (isEditorMode) {
+      if (!props.editorRef?.current) return;
+      props.editorRef.current.focus();
+      insertOrderedListAtCursor();
+      props.onFormat?.();
+    } else {
+      const ta = props.textareaId
+        ? (document.getElementById(props.textareaId) as HTMLTextAreaElement | null)
+        : null;
+      if (ta) insertListTextarea(ta, true);
     }
   }, [isEditorMode, props.editorRef, props.onFormat, props.textareaId]);
 
@@ -373,10 +415,19 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
         type="button"
         className="il-bbcode-btn"
         onMouseDown={(e) => e.preventDefault()}
-        onClick={handleList}
-        title="Liste"
+        onClick={handleUnorderedList}
+        title="Punktopstilling"
       >
         <List size={15} />
+      </button>
+      <button
+        type="button"
+        className="il-bbcode-btn"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={handleOrderedList}
+        title="Nummereret liste"
+      >
+        <ListOrdered size={15} />
       </button>
     </div>
   );

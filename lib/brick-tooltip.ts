@@ -589,7 +589,7 @@ function enrichTooltip(brick: HTMLElement, basicData: TooltipData, hue: number) 
   activeFetchController = new AbortController();
   fetchingForBrick = brick;
 
-  fetchActivityDetail(activityUrl)
+  fetchActivityDetail(activityUrl, activeFetchController.signal)
     .then((detail) => {
       // Only apply if we're still showing the same brick's tooltip
       if (fetchingForBrick !== brick || activeBrick !== brick) return;

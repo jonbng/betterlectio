@@ -94,6 +94,19 @@ export function htmlToBBCode(html: string): string {
   return walkNode(root).replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function listElementToText(listEl: HTMLElement, ordered: boolean): string {
+  const items = Array.from(listEl.children)
+    .filter((child): child is HTMLElement => child instanceof HTMLElement && child.tagName.toUpperCase() === 'LI')
+    .map((li) => walkNode(li).replace(/\n+/g, ' ').trim())
+    .filter(Boolean);
+
+  if (items.length === 0) return '';
+
+  return items
+    .map((item, index) => (ordered ? `${index + 1}. ${item}` : `• ${item}`))
+    .join('\n');
+}
+
 function walkNode(node: Node): string {
   let result = '';
 
@@ -136,13 +149,13 @@ function walkNode(node: Node): string {
         break;
       }
       case 'UL':
-        result += `[list]${inner}[/list]`;
+        result += listElementToText(el, false);
         break;
       case 'OL':
-        result += `[list=1]${inner}[/list]`;
+        result += listElementToText(el, true);
         break;
       case 'LI':
-        result += `[*]${inner}\n`;
+        result += inner;
         break;
       case 'BR':
         result += '\n';

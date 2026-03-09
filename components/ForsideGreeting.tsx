@@ -177,6 +177,9 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   const [urgentOpgaver, setUrgentOpgaver] = useState<UrgentOpgave[]>([]);
 
   useEffect(() => {
+    let isCancelled = false;
+    let retryId: ReturnType<typeof setInterval> | null = null;
+
     // Get first name from cached profile
     const profile = getCachedProfile();
     if (profile?.name) {
@@ -187,7 +190,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
     // Check for cancelled classes from schedule cache
     // The sidebar's ScheduleCountdown populates this — retry briefly if not yet ready
     function checkCancelled() {
-      const blocks = getCachedSchedule();
+      const blocks = getCachedSchedule(schoolId);
       if (blocks) {
         setCancelledCount(blocks.filter(b => b.cancelled).length);
         return true;
@@ -197,43 +200,44 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
     if (!checkCancelled()) {
       // Retry a few times as the sidebar may still be fetching
       let attempts = 0;
-      const retryId = setInterval(() => {
-        if (checkCancelled() || ++attempts >= 6) clearInterval(retryId);
+      const id = setInterval(() => {
+        if (checkCancelled() || ++attempts >= 6) clearInterval(id);
       }, 1500);
+      retryId = id;
     }
 
     // Check for urgent opgaver from forside DOM (only ~3 upcoming visible in widget)
     const localUrgent = getUrgentOpgaver();
     setUrgentOpgaver(localUrgent);
 
-    // Background fetch: check for missing assignments from full opgaver page
-    // The forside widget omits overdue/missing assignments, so we need the full page
-    fetchMissingOpgaver(schoolId).then((missingRaw) => {
-      if (missingRaw.length > 0) {
-        const missing: UrgentOpgave[] = missingRaw.map(m => ({
-          title: m.title,
-          hold: m.hold,
-          deadline: m.deadline,
-          url: m.url,
-          isMissing: true,
-        }));
-        setUrgentOpgaver((prev) => mergeUrgentOpgaver(prev, missing));
-      }
-    });
+    // Background fetch: check for missing assignments from full opgaver page.
+    // Delay slightly to avoid adding pressure during initial page boot.
+    const missingTimer = window.setTimeout(() => {
+      fetchMissingOpgaver(schoolId).then((missingRaw) => {
+        if (isCancelled) return;
+        if (missingRaw.length > 0) {
+          const missing: UrgentOpgave[] = missingRaw.map(m => ({
+            title: m.title,
+            hold: m.hold,
+            deadline: m.deadline,
+            url: m.url,
+            isMissing: true,
+          }));
+          setUrgentOpgaver((prev) => mergeUrgentOpgaver(prev, missing));
+        }
+      });
+    }, 1500);
 
-    // Update time every second (also refreshes urgent labels)
-    const interval = setInterval(() => {
-      setTime(new Date());
-    }, 60000); // Refresh urgent labels every minute
-
-    // Tick clock every second
+    // Tick clock every second (drives clock + urgent labels)
     const clockInterval = setInterval(() => {
       setTime(new Date());
     }, 1000);
 
     return () => {
-      clearInterval(interval);
+      isCancelled = true;
+      if (retryId) clearInterval(retryId);
       clearInterval(clockInterval);
+      window.clearTimeout(missingTimer);
     };
   }, []);
 

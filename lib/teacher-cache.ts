@@ -1,5 +1,6 @@
 const TEACHER_CACHE_KEY = 'il-teacher-names';
 const TEACHER_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const inflightTeacherLoads = new Map<string, Promise<TeacherCache | null>>();
 
 export interface TeacherInfo {
   fullName: string;
@@ -42,40 +43,51 @@ export async function loadTeacherNames(schoolId: string): Promise<TeacherCache |
   const cached = getCachedTeachers(schoolId);
   if (cached) return cached;
 
-  try {
-    const response = await fetch(
-      `${window.location.origin}/lectio/${schoolId}/FindSkema.aspx?type=laerer`
-    );
-    if (!response.ok) return null;
+  const inflight = inflightTeacherLoads.get(schoolId);
+  if (inflight) return inflight;
 
-    const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+  const request = (async () => {
+    try {
+      const response = await fetch(
+        `${window.location.origin}/lectio/${schoolId}/FindSkema.aspx?type=laerer`,
+        { credentials: 'include' },
+      );
+      if (!response.ok) return null;
 
-    const byId: Record<string, TeacherInfo> = {};
-    const byAbbrev: Record<string, string> = {};
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
 
-    // Parse: <a data-lectioContextCard='T123'>Full Name (AB)</a>
-    doc.querySelectorAll('a[data-lectioContextCard^="T"]').forEach(link => {
-      const id = link.getAttribute('data-lectioContextCard')!.slice(1);
-      const text = link.textContent?.trim() || '';
-      const match = text.match(/^(.+?)\s*\(([^)]+)\)$/);
-      if (match) {
-        const fullName = match[1].trim();
-        const abbrev = match[2].trim();
-        byId[id] = { fullName, abbrev };
-        byAbbrev[abbrev] = fullName;
-      }
-    });
+      const byId: Record<string, TeacherInfo> = {};
+      const byAbbrev: Record<string, string> = {};
 
-    if (Object.keys(byId).length === 0) return null;
+      // Parse: <a data-lectioContextCard='T123'>Full Name (AB)</a>
+      doc.querySelectorAll('a[data-lectioContextCard^="T"]').forEach(link => {
+        const id = link.getAttribute('data-lectioContextCard')!.slice(1);
+        const text = link.textContent?.trim() || '';
+        const match = text.match(/^(.+?)\s*\(([^)]+)\)$/);
+        if (match) {
+          const fullName = match[1].trim();
+          const abbrev = match[2].trim();
+          byId[id] = { fullName, abbrev };
+          byAbbrev[abbrev] = fullName;
+        }
+      });
 
-    const cache: TeacherCache = { byId, byAbbrev, schoolId, cachedAt: Date.now() };
-    saveTeacherCache(cache);
-    return cache;
-  } catch {
-    return null;
-  }
+      if (Object.keys(byId).length === 0) return null;
+
+      const cache: TeacherCache = { byId, byAbbrev, schoolId, cachedAt: Date.now() };
+      saveTeacherCache(cache);
+      return cache;
+    } catch {
+      return null;
+    } finally {
+      inflightTeacherLoads.delete(schoolId);
+    }
+  })();
+
+  inflightTeacherLoads.set(schoolId, request);
+  return request;
 }
 
 /**

@@ -21,7 +21,7 @@ import {
   createSearchText,
   type SearchableItem,
 } from '../lib/fuzzy-search';
-import { resolveAvanceretSkemaCacheParams } from '../lib/findskema-cache';
+import { fetchAvanceretSkemaDropdownItems } from '../lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
 import { getMyTeacherIds } from '../lib/my-teachers';
 import { getFullHoldDisplayName } from '../lib/hold-mapping';
@@ -155,22 +155,14 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   useEffect(() => {
     async function loadData() {
       try {
-        const cacheParams = await resolveAvanceretSkemaCacheParams(schoolId);
-        const afdelingId = cacheParams?.afdelingId;
-        const subcache = cacheParams?.subcache || String(new Date().getFullYear());
-
-        if (!cacheParams || !afdelingId) {
-          throw new Error('Could not find afdeling ID');
+        const items = await fetchAvanceretSkemaDropdownItems(schoolId);
+        if (items.length === 0) {
+          throw new Error('No AvanceretSkema items');
         }
-
-        const response = await fetch(
-          `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${afdelingId}&subcache=${subcache}`
-        );
-        const data = await response.json();
 
         // Load ALL items - filtering happens in the UI
         // API response format: [title, key, flags, group, cssClass, _que, isContextCard, shortName, longName]
-        const parsed: SearchableItem[] = data.items
+        const parsed: SearchableItem[] = items
           .filter((item: any[]) => {
             const id = item[1];
             return id && typeof id === 'string';
@@ -229,7 +221,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         const nameMappings = parsed
           .filter(p => p.type === 'S' || p.type === 'T')
           .map(p => ({ name: p.name, id: p.id }));
-        if (nameMappings.length > 0) registerNameIdMappings(nameMappings);
+        if (nameMappings.length > 0) registerNameIdMappings(schoolId, nameMappings);
       } catch (err) {
         console.error('[FindSkemaPage] Failed to load data:', err);
         setError('Kunne ikke indlæse søgedata');

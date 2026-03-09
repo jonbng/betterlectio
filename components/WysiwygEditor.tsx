@@ -35,6 +35,20 @@ export function WysiwygEditor({
   // Keep ref current
   syncBBCodeRef.current = syncBBCode;
 
+  const insertManualParagraph = useCallback(() => {
+    if (document.queryCommandSupported?.('insertParagraph')) {
+      const inserted = document.execCommand('insertParagraph');
+      if (!inserted) {
+        insertHtmlAtCursor('<br>');
+      }
+    } else {
+      insertHtmlAtCursor('<br>');
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => syncBBCodeRef.current(), 50);
+  }, []);
+
   // Set initial content — [] deps is intentional: editor owns content after mount, use key prop to reset
   useEffect(() => {
     if (editorRef.current && initialBBCode) {
@@ -80,6 +94,15 @@ export function WysiwygEditor({
       return;
     }
 
+    if (e.key === 'Enter' && !mod) {
+      // Fallback if the capture-phase handler did not intercept first.
+      e.preventDefault();
+      e.stopPropagation();
+      (e as any).stopImmediatePropagation?.();
+      insertManualParagraph();
+      return;
+    }
+
     if (mod && e.key === 'Enter') {
       e.preventDefault();
       onSubmit?.();
@@ -106,7 +129,26 @@ export function WysiwygEditor({
           break;
       }
     }
-  }, [onSubmit]);
+  }, [onSubmit, insertManualParagraph]);
+
+  // Intercept Enter in capture phase so host page key handlers cannot steal it.
+  useEffect(() => {
+    const onWindowKeyDownCapture = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (e.key !== 'Enter' || mod) return;
+      if (!editorRef.current) return;
+      const target = e.target as Node | null;
+      if (!target || !editorRef.current.contains(target)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      (e as any).stopImmediatePropagation?.();
+      insertManualParagraph();
+    };
+
+    window.addEventListener('keydown', onWindowKeyDownCapture, true);
+    return () => window.removeEventListener('keydown', onWindowKeyDownCapture, true);
+  }, [insertManualParagraph]);
 
   /** Force-sync and return current BBCode (for external callers) */
   const forceSyncAndGet = useCallback((): string => {
@@ -170,6 +212,58 @@ export function insertHtmlAtCursor(html: string): void {
 }
 
 /**
+ * Insert an unordered list and place caret inside the first list item.
+ */
+export function insertUnorderedListAtCursor(): void {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+
+  const ul = document.createElement('ul');
+  const li = document.createElement('li');
+  const text = document.createTextNode('\u200B');
+  li.appendChild(text);
+  ul.appendChild(li);
+
+  range.insertNode(ul);
+
+  // Keep caret inside the first bullet item so typing starts there.
+  const newRange = document.createRange();
+  newRange.setStart(text, 1);
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+}
+
+/**
+ * Insert an ordered list and place caret inside the first list item.
+ */
+export function insertOrderedListAtCursor(): void {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+
+  const ol = document.createElement('ol');
+  const li = document.createElement('li');
+  const text = document.createTextNode('\u200B');
+  li.appendChild(text);
+  ol.appendChild(li);
+
+  range.insertNode(ol);
+
+  // Keep caret inside the first numbered item so typing starts there.
+  const newRange = document.createRange();
+  newRange.setStart(text, 1);
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+}
+
+/**
  * Toggle an inline format (B/I/U) on the current selection.
  * If the selection is already wrapped in the tag, unwrap it.
  * Otherwise, wrap it in the tag.
@@ -180,43 +274,51 @@ export function toggleInlineFormat(editor: HTMLElement, tagName: string): void {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
 
+  // Prefer native editing commands for proper "typing state" behavior:
+  // toggling bold/italic/underline at a collapsed caret should only affect
+  // text typed from that point forward, not previously typed text.
+  const command =
+    tagName.toUpperCase() === 'B' ? 'bold' :
+    tagName.toUpperCase() === 'I' ? 'italic' :
+    tagName.toUpperCase() === 'U' ? 'underline' :
+    '';
+
+  if (command && document.queryCommandSupported?.(command)) {
+    editor.focus();
+    document.execCommand(command, false);
+    return;
+  }
+
+  // Fallback path for environments where execCommand is unavailable.
   const range = sel.getRangeAt(0);
-
-  // Check if we're inside this format already
   const existingEl = findAncestorTag(sel.anchorNode, tagName, editor);
-
   if (existingEl) {
-    // Unwrap: move children out of the element
     unwrapElement(existingEl);
-  } else if (range.collapsed) {
-    // No selection: create empty element and place cursor inside
+    return;
+  }
+  if (range.collapsed) {
     const el = document.createElement(tagName.toLowerCase());
-    el.appendChild(document.createTextNode('\u200B')); // zero-width space
+    el.appendChild(document.createTextNode('\u200B'));
     range.insertNode(el);
-    // Place cursor inside
     const newRange = document.createRange();
     newRange.setStart(el.firstChild!, 1);
     newRange.collapse(true);
     sel.removeAllRanges();
     sel.addRange(newRange);
-  } else {
-    // Wrap selection in the tag
-    const el = document.createElement(tagName.toLowerCase());
-    try {
-      range.surroundContents(el);
-    } catch {
-      // If surroundContents fails (partial selection across elements),
-      // extract and wrap
-      const contents = range.extractContents();
-      el.appendChild(contents);
-      range.insertNode(el);
-    }
-    // Select the wrapped content
-    const newRange = document.createRange();
-    newRange.selectNodeContents(el);
-    sel.removeAllRanges();
-    sel.addRange(newRange);
+    return;
   }
+  const el = document.createElement(tagName.toLowerCase());
+  try {
+    range.surroundContents(el);
+  } catch {
+    const contents = range.extractContents();
+    el.appendChild(contents);
+    range.insertNode(el);
+  }
+  const newRange = document.createRange();
+  newRange.selectNodeContents(el);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
 }
 
 /**

@@ -2,22 +2,25 @@ import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import {
   ArrowLeft, Paperclip, Send, Flag, Trash2,
   MoreHorizontal, Reply, Download, Users, X, Loader2,
+  File, FileText, FileImage, FileSpreadsheet, FileArchive, FileCode, FileAudio, FileVideo,
 } from 'lucide-react';
 import { WysiwygEditor } from '@/components/WysiwygEditor';
 import {
   type BeskederThreadData,
   type ThreadMessage,
-  sendReply as sendReplyNative,
   stripSignatures,
   shouldSkipSignature,
 } from '@/lib/beskeder-thread-parser';
-import { doPostBack, parseFormTokens } from '@/lib/beskeder-parser';
 import {
   sendReplyViaIframe,
+  refreshThreadViaIframe,
   uploadFileToLectio,
   attachFileViaIframe,
+  removeAttachmentViaIframe,
   type FormState,
   type SubmitError,
+  type AttachedFile,
+  type ReplyFormTargets,
 } from '@/lib/beskeder-submit';
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 
@@ -69,6 +72,146 @@ function shortName(fullName: string): string {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
+type AttachmentKind =
+  | 'image'
+  | 'document'
+  | 'spreadsheet'
+  | 'archive'
+  | 'code'
+  | 'audio'
+  | 'video'
+  | 'file';
+
+const ATTACHMENT_EXTENSION_KIND: Record<string, AttachmentKind> = {
+  // Images
+  png: 'image',
+  jpg: 'image',
+  jpeg: 'image',
+  gif: 'image',
+  webp: 'image',
+  avif: 'image',
+  heic: 'image',
+  heif: 'image',
+  bmp: 'image',
+  tif: 'image',
+  tiff: 'image',
+  svg: 'image',
+
+  // Documents
+  pdf: 'document',
+  doc: 'document',
+  docx: 'document',
+  odt: 'document',
+  rtf: 'document',
+  txt: 'document',
+  md: 'document',
+  pages: 'document',
+
+  // Spreadsheets
+  xls: 'spreadsheet',
+  xlsx: 'spreadsheet',
+  ods: 'spreadsheet',
+  csv: 'spreadsheet',
+  tsv: 'spreadsheet',
+  numbers: 'spreadsheet',
+
+  // Presentations as document-type visuals
+  ppt: 'document',
+  pptx: 'document',
+  odp: 'document',
+  key: 'document',
+
+  // Archives
+  zip: 'archive',
+  rar: 'archive',
+  '7z': 'archive',
+  tar: 'archive',
+  gz: 'archive',
+  tgz: 'archive',
+  bz2: 'archive',
+  xz: 'archive',
+  zst: 'archive',
+
+  // Audio
+  mp3: 'audio',
+  wav: 'audio',
+  ogg: 'audio',
+  m4a: 'audio',
+  aac: 'audio',
+  flac: 'audio',
+  opus: 'audio',
+  wma: 'audio',
+
+  // Video
+  mp4: 'video',
+  mov: 'video',
+  webm: 'video',
+  mkv: 'video',
+  avi: 'video',
+  m4v: 'video',
+  wmv: 'video',
+
+  // Code / data
+  js: 'code',
+  jsx: 'code',
+  ts: 'code',
+  tsx: 'code',
+  html: 'code',
+  css: 'code',
+  scss: 'code',
+  less: 'code',
+  json: 'code',
+  xml: 'code',
+  yml: 'code',
+  yaml: 'code',
+  py: 'code',
+  java: 'code',
+  c: 'code',
+  cc: 'code',
+  cpp: 'code',
+  cxx: 'code',
+  cs: 'code',
+  go: 'code',
+  rs: 'code',
+  php: 'code',
+  sh: 'code',
+  bash: 'code',
+  sql: 'code',
+};
+
+function getAttachmentExtension(name: string, url: string): string {
+  const source = name.trim() || url;
+  const cleanSource = source.split('?')[0].split('#')[0];
+  const extMatch = cleanSource.match(/\.([a-zA-Z0-9]{1,10})$/);
+  return extMatch ? extMatch[1].toLowerCase() : '';
+}
+
+function getAttachmentKind(name: string, url: string): AttachmentKind {
+  const ext = getAttachmentExtension(name, url);
+  return ATTACHMENT_EXTENSION_KIND[ext] || 'file';
+}
+
+function getAttachmentIcon(kind: AttachmentKind) {
+  switch (kind) {
+    case 'image':
+      return FileImage;
+    case 'document':
+      return FileText;
+    case 'spreadsheet':
+      return FileSpreadsheet;
+    case 'archive':
+      return FileArchive;
+    case 'code':
+      return FileCode;
+    case 'audio':
+      return FileAudio;
+    case 'video':
+      return FileVideo;
+    default:
+      return File;
+  }
+}
+
 // ── Avatar Component ────────────────────────────────────────────────────
 
 interface AvatarProps {
@@ -81,11 +224,15 @@ interface AvatarProps {
 function SenderAvatar({ name, contextCardId, schoolId, size = 36 }: AvatarProps) {
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  const fetchedRef = useRef(false);
+  const fetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!contextCardId || fetchedRef.current) return;
-    fetchedRef.current = true;
+    if (!contextCardId) return;
+    const fetchKey = `${schoolId}:${contextCardId}`;
+    if (fetchedRef.current === fetchKey) return;
+    fetchedRef.current = fetchKey;
+    setError(false);
+    setPictureUrl(null);
 
     // Try cache first
     const cached = getCachedPictureUrl(contextCardId);
@@ -185,16 +332,32 @@ function MessageItem({ message, schoolId, threadSubject, index }: MessageItemPro
         {message.attachments.length > 0 && (
           <div className="il-thread-message-attachments">
             {message.attachments.map((att, i) => (
-              <a
-                key={i}
-                href={att.url}
-                className="il-thread-attachment"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Download size={13} />
-                <span>{att.name}</span>
-              </a>
+              (() => {
+                const kind = getAttachmentKind(att.name, att.url);
+                const ext = getAttachmentExtension(att.name, att.url);
+                const Icon = getAttachmentIcon(kind);
+                return (
+                  <a
+                    key={i}
+                    href={att.url}
+                    className={`il-thread-attachment is-${kind}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={att.name}
+                  >
+                    <span className="il-thread-attachment-icon">
+                      <Icon size={16} />
+                    </span>
+                    <span className="il-thread-attachment-meta">
+                      <span className="il-thread-attachment-name">{att.name}</span>
+                      <span className="il-thread-attachment-detail">
+                        {att.sizeLabel || (ext ? ext.toUpperCase() : 'Fil')}
+                      </span>
+                    </span>
+                    <Download size={14} className="il-thread-attachment-download" />
+                  </a>
+                );
+              })()
             ))}
           </div>
         )}
@@ -210,22 +373,45 @@ interface BeskederThreadViewProps {
   schoolId: string;
 }
 
+function formatSubmitErrorForRetry(err: SubmitError): string {
+  if (err.kind === 'session_expired') return 'Session udløbet. Log ind igen.';
+  if (err.kind === 'timeout') return 'Kunne ikke bekræfte om svaret blev sendt (timeout). Opdatér tråden før du prøver igen.';
+  return 'Kunne ikke bekræfte om svaret blev sendt. Opdatér tråden før du prøver igen for at undgå dubletter.';
+}
+
 export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) {
   const [messages, setMessages] = useState<ThreadMessage[]>(data.messages);
+  const [recipients, setRecipients] = useState(data.recipients);
   const [replyBody, setReplyBody] = useState('');
   const [replyTitle, setReplyTitle] = useState(data.replyForm?.currentTitle || '');
   const [sending, setSending] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
+  const [removingIndex, setRemovingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [formState, setFormState] = useState<FormState>({
     tokens: data.formTokens,
     action: data.formAction,
   });
+  // Reply form postback targets — tracked in state because ASP.NET ctl indices
+  // shift after each send (new row added to the messages table).
+  const [replyTargets, setReplyTargets] = useState<ReplyFormTargets | null>(() => {
+    if (!data.replyForm) return null;
+    const rf = data.replyForm;
+    return {
+      sendPostbackTarget: rf.sendPostbackTarget,
+      titleFieldName: rf.titleInputId?.replace(/_/g, '$') || '',
+      bodyFieldName: rf.bodyTextareaId?.replace(/_/g, '$') || '',
+      attachPostbackTarget: rf.attachPostbackTarget,
+      attachDocIdFieldName: rf.attachDocumentIdInput?.getAttribute('name') || '',
+      currentTitle: rf.currentTitle,
+    };
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notifyRef = useRef<HTMLDivElement>(null);
+  const pollTimeoutRef = useRef<number | null>(null);
 
   // Scroll to bottom on mount
   useEffect(() => {
@@ -239,11 +425,54 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     }
   }, []);
 
-  // Derive input field names from the DOM IDs (convert _ to $ for ASP.NET field names)
-  const titleFieldName = data.replyForm?.titleInputId?.replace(/_/g, '$') || '';
-  const bodyFieldName = data.replyForm?.bodyTextareaId?.replace(/_/g, '$') || '';
-  // Also compute the hidden input name for the attachment doc chooser
-  const attachDocIdFieldName = data.replyForm?.attachDocumentIdInput?.getAttribute('name') || '';
+  useEffect(() => {
+    let cancelled = false;
+
+    const clearPollTimeout = () => {
+      if (pollTimeoutRef.current !== null) {
+        window.clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+    };
+
+    const scheduleNextPoll = () => {
+      if (cancelled) return;
+      const nextDelayMs = 30000 + Math.floor(Math.random() * 30000);
+      pollTimeoutRef.current = window.setTimeout(() => {
+        if (cancelled) return;
+        if (document.visibilityState !== 'visible') {
+          scheduleNextPoll();
+          return;
+        }
+        if (sending || uploadingFileName || removingIndex !== null || !!replyBody.trim() || attachedFiles.length > 0) {
+          scheduleNextPoll();
+          return;
+        }
+
+        refreshThreadViaIframe(formState).then((result) => {
+          if (cancelled) return;
+          if (result.success) {
+            setFormState(result.formState);
+            setMessages(result.data.messages);
+            setRecipients(result.data.recipients);
+            if (result.data.replyFormTargets) {
+              setReplyTargets(result.data.replyFormTargets);
+              setReplyTitle((current) =>
+                current.trim() ? current : result.data.replyFormTargets?.currentTitle || current,
+              );
+            }
+          }
+          scheduleNextPoll();
+        });
+      }, nextDelayMs);
+    };
+
+    scheduleNextPoll();
+    return () => {
+      cancelled = true;
+      clearPollTimeout();
+    };
+  }, [formState, sending, uploadingFileName, removingIndex, replyBody, attachedFiles.length]);
 
   const handleFileSelect = useCallback((e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -251,37 +480,51 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     if (!file) return;
     input.value = '';
 
-    const rf = data.replyForm;
-    if (!rf?.attachPostbackTarget || !attachDocIdFieldName) return;
+    if (!replyTargets?.attachPostbackTarget || !replyTargets?.attachDocIdFieldName) return;
 
-    setSelectedFile(file);
-    setUploading(true);
+    setUploadingFileName(file.name);
     setError(null);
 
     // Upload file, then attach via iframe (no reload)
     uploadFileToLectio(file, schoolId)
       .then((serializedId) =>
-        attachFileViaIframe(formState, serializedId, rf.attachPostbackTarget, attachDocIdFieldName),
+        attachFileViaIframe(formState, serializedId, replyTargets.attachPostbackTarget, replyTargets.attachDocIdFieldName),
       )
       .then((result) => {
         if (result.success) {
           setFormState(result.formState);
-          setUploading(false);
-          // File is now attached on the server side
+          setAttachedFiles(result.data.attachments);
+          setUploadingFileName(null);
         } else {
           throw new Error(result.error.kind);
         }
       })
       .catch((err) => {
         console.error('[BetterLectio] File upload failed:', err);
-        setUploading(false);
-        setSelectedFile(null);
+        setUploadingFileName(null);
         setError('Filupload fejlede. Prøv igen.');
       });
-  }, [data.replyForm, schoolId, formState, attachDocIdFieldName]);
+  }, [replyTargets, schoolId, formState]);
+
+  const handleRemoveFile = useCallback((file: AttachedFile, index: number) => {
+    if (removingIndex !== null) return;
+    setRemovingIndex(index);
+    setError(null);
+
+    removeAttachmentViaIframe(formState, file.deleteTarget, file.deleteArgument)
+      .then((result) => {
+        if (result.success) {
+          setFormState(result.formState);
+          setAttachedFiles(result.data.attachments);
+        } else {
+          setError('Kunne ikke fjerne vedhæftning.');
+        }
+        setRemovingIndex(null);
+      });
+  }, [formState, removingIndex]);
 
   const handleSend = useCallback(() => {
-    if (!data.replyForm || !replyBody.trim() || sending) return;
+    if (!replyTargets || !replyBody.trim() || sending) return;
     setSending(true);
     setError(null);
 
@@ -289,9 +532,9 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
     sendReplyViaIframe(
       formState,
-      data.replyForm.sendPostbackTarget,
-      titleFieldName,
-      bodyFieldName,
+      replyTargets.sendPostbackTarget,
+      replyTargets.titleFieldName,
+      replyTargets.bodyFieldName,
       replyTitle,
       replyBody,
       skipSig,
@@ -300,10 +543,15 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         setFormState(result.formState);
         setMessages(result.data.messages);
         setReplyBody('');
-        setReplyTitle(data.replyForm?.currentTitle || '');
-        setSelectedFile(null);
+        setAttachedFiles([]);
         setEditorKey(k => k + 1);
         setSending(false);
+
+        // Update reply form targets — ASP.NET ctl indices shift after adding a row
+        if (result.data.replyFormTargets) {
+          setReplyTargets(result.data.replyFormTargets);
+          setReplyTitle(result.data.replyFormTargets.currentTitle);
+        }
 
         // Scroll to new message
         setTimeout(() => {
@@ -311,18 +559,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         }, 100);
       } else {
         setSending(false);
-        if (result.error.kind === 'session_expired') {
-          setError('Session udløbet. Log ind igen.');
-        } else if (result.error.kind === 'timeout') {
-          setError('Timeout. Prøv igen.');
-        } else {
-          // Fallback: use native postback
-          console.warn('[BetterLectio] Reply iframe failed, falling back to native:', result.error);
-          sendReplyNative(data.replyForm!, replyTitle, replyBody);
-        }
+        setError(formatSubmitErrorForRetry(result.error));
       }
     });
-  }, [data.replyForm, replyBody, replyTitle, sending, formState, titleFieldName, bodyFieldName]);
+  }, [replyTargets, replyBody, replyTitle, sending, formState]);
 
   const handleBack = () => {
     // Navigate back to message list
@@ -331,7 +571,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     window.location.href = `${window.location.origin}/lectio/${sid}/beskeder2.aspx?mappeid=-70`;
   };
 
-  const recipientNames = data.recipients.map((r) => shortName(r.name));
+  const recipientNames = recipients.map((r) => shortName(r.name));
 
   return (
     <div className="il-thread-view">
@@ -365,7 +605,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       <div className="il-thread-messages">
         {messages.map((msg, idx) => (
           <MessageItem
-            key={idx}
+            key={`${msg.timestamp}-${msg.senderContextCardId}-${idx}`}
             message={msg}
             schoolId={schoolId}
             threadSubject={data.threadSubject}
@@ -376,7 +616,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       </div>
 
       {/* ── Reply Area ─────────────────────────── */}
-      {data.replyForm && (
+      {replyTargets && (
         <div className="il-thread-reply">
           <div className="il-thread-reply-header">
             <Reply size={14} className="il-thread-reply-icon" />
@@ -394,9 +634,34 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             <div className="il-thread-reply-error">{error}</div>
           )}
 
+          {/* Attached files list */}
+          {attachedFiles.length > 0 && (
+            <div className="il-thread-attached-files">
+              {attachedFiles.map((file, i) => (
+                <span key={`${file.deleteArgument}-${i}`} className={`il-thread-attached-file ${removingIndex === i ? 'is-removing' : ''}`}>
+                  {removingIndex === i ? (
+                    <Loader2 size={12} className="il-spin" />
+                  ) : (
+                    <Paperclip size={12} />
+                  )}
+                  <span className="il-thread-attached-file-name">{file.name}</span>
+                  <button
+                    type="button"
+                    className="il-thread-attached-file-remove"
+                    onClick={() => handleRemoveFile(file, i)}
+                    disabled={removingIndex !== null}
+                    title="Fjern vedhæftning"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="il-thread-reply-footer">
             <div className="il-thread-reply-footer-left">
-              {data.replyForm.attachDocumentIdInput && (
+              {replyTargets.attachPostbackTarget && (
                 <>
                   <input
                     ref={fileInputRef}
@@ -404,10 +669,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                     className="il-sr-only"
                     onChange={handleFileSelect}
                   />
-                  {uploading ? (
+                  {uploadingFileName ? (
                     <span className="il-thread-reply-uploading">
                       <Loader2 size={14} className="il-spin" />
-                      <span>Uploader {selectedFile?.name}...</span>
+                      <span>Uploader {uploadingFileName}...</span>
                     </span>
                   ) : (
                     <button
@@ -432,7 +697,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                 type="button"
                 className="il-thread-send-btn"
                 onClick={handleSend}
-                disabled={!replyBody.trim() || sending || uploading}
+                disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null}
               >
                 <Send size={15} />
                 <span>{sending ? 'Sender...' : 'Send'}</span>

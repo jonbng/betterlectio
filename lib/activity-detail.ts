@@ -78,6 +78,16 @@ interface CachedActivity {
   detail: ActivityDetail;
 }
 
+function getSchoolIdFromActivityUrl(url: string): string {
+  try {
+    const absolute = new URL(url, window.location.origin);
+    const match = absolute.pathname.match(/\/lectio\/(\d+)\//i);
+    return match?.[1] || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 function getActivityId(url: string): string {
   const absolute = new URL(url, window.location.origin);
   const absid = absolute.searchParams.get("absid");
@@ -85,8 +95,14 @@ function getActivityId(url: string): string {
   return absid || id || absolute.href;
 }
 
+function getActivityCacheKey(url: string): string {
+  const schoolId = getSchoolIdFromActivityUrl(url);
+  const activityId = getActivityId(url);
+  return `${CACHE_PREFIX}${schoolId}:${activityId}`;
+}
+
 export function getCachedActivityDetail(url: string): ActivityDetail | null {
-  const key = CACHE_PREFIX + getActivityId(url);
+  const key = getActivityCacheKey(url);
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
@@ -102,7 +118,7 @@ export function getCachedActivityDetail(url: string): ActivityDetail | null {
 }
 
 function setCachedActivityDetail(url: string, detail: ActivityDetail): void {
-  const key = CACHE_PREFIX + getActivityId(url);
+  const key = getActivityCacheKey(url);
   try {
     const keys = Object.keys(localStorage).filter((k) => k.startsWith(CACHE_PREFIX));
     if (keys.length >= CACHE_MAX_ENTRIES) {
@@ -546,9 +562,9 @@ async function fetchActivityDoc(url: string, init?: RequestInit): Promise<{ doc:
   return { doc, url: response.url || url };
 }
 
-export async function fetchActivityDetail(url: string): Promise<ActivityDetail> {
+export async function fetchActivityDetail(url: string, signal?: AbortSignal): Promise<ActivityDetail> {
   const absolute = new URL(url, window.location.origin).href;
-  const { doc, url: resolvedUrl } = await fetchActivityDoc(absolute);
+  const { doc, url: resolvedUrl } = await fetchActivityDoc(absolute, { signal });
   const detail = parseActivityDetail(doc, resolvedUrl);
   setCachedActivityDetail(resolvedUrl, detail);
   return detail;

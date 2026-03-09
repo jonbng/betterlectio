@@ -66,7 +66,7 @@ export function setupHoverPrefetching(): void {
     if (href === window.location.href) return;
     if (prefetchedUrls.has(href)) return;
 
-    // 65ms delay - filters accidental hovers but still fast
+    // 200ms delay to filter accidental hovers and reduce request noise
     hoverTimeout = setTimeout(() => {
       if (prefetchedUrls.has(href)) return;
       prefetchedUrls.add(href);
@@ -79,7 +79,7 @@ export function setupHoverPrefetching(): void {
       document.head.appendChild(link);
 
       console.log('[BetterLectio] Prefetching:', href);
-    }, 65);
+    }, 200);
   };
 
   const handleMouseLeave = () => {

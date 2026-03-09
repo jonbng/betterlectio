@@ -15,6 +15,7 @@ export interface StarredPerson {
   classCode: string;
   type: string;
   starredAt: number;
+  schoolId?: string;
 }
 
 export interface RecentPerson {
@@ -24,6 +25,12 @@ export interface RecentPerson {
   type: string;
   url: string;
   timestamp: number;
+  schoolId?: string;
+}
+
+function getCurrentSchoolId(): string | null {
+  const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  return match?.[1] || null;
 }
 
 export function getStarredPeople(): StarredPerson[] {
@@ -41,8 +48,9 @@ export function addStarredPerson(person: Omit<StarredPerson, 'starredAt'>): void
   if (!(settings.data?.starredPeople ?? true)) return;
 
   try {
+    const schoolId = getCurrentSchoolId() || undefined;
     const starred = getStarredPeople().filter(p => p.id !== person.id);
-    starred.unshift({ ...person, starredAt: Date.now() });
+    starred.unshift({ ...person, starredAt: Date.now(), schoolId });
     localStorage.setItem(STARRED_KEY, JSON.stringify(starred.slice(0, MAX_STARRED)));
   } catch {
     // Ignore errors
@@ -88,8 +96,9 @@ export function addRecentPerson(person: Omit<RecentPerson, 'timestamp'>): void {
   if (!(settings.data?.recentSearches ?? true)) return;
 
   try {
+    const schoolId = getCurrentSchoolId() || undefined;
     const recents = getRecentPeople().filter(p => p.id !== person.id);
-    recents.unshift({ ...person, timestamp: Date.now() });
+    recents.unshift({ ...person, timestamp: Date.now(), schoolId });
     localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
   } catch {
     // Ignore errors
@@ -197,6 +206,10 @@ interface PictureCache {
   [id: string]: PictureCacheEntry;
 }
 
+function getNameIdCacheKey(schoolId: string): string {
+  return `${NAME_ID_CACHE_KEY}:${schoolId}`;
+}
+
 function getPictureCache(): PictureCache {
   try {
     const stored = localStorage.getItem(PICTURE_CACHE_KEY);
@@ -221,10 +234,10 @@ function savePictureCache(cache: PictureCache): void {
   }
 }
 
-export function getCachedPictureUrl(id: string): string | undefined {
+export function getCachedPictureUrl(id: string): string | null | undefined {
   const cache = getPictureCache();
   const entry = cache[id];
-  if (!entry || !entry.url) return undefined; // Not in cache or no URL
+  if (!entry) return undefined; // Not in cache
 
   // Check if cache is still valid
   if (Date.now() - entry.cachedAt > PICTURE_CACHE_TTL) {
@@ -235,9 +248,6 @@ export function getCachedPictureUrl(id: string): string | undefined {
 }
 
 export function cachePictureUrl(id: string, url: string | null): void {
-  // Don't cache null values - we'll retry fetching next time
-  if (!url) return;
-
   const cache = getPictureCache();
   cache[id] = { url, cachedAt: Date.now() };
   savePictureCache(cache);
@@ -306,7 +316,8 @@ export async function fetchPictureUrl(id: string, schoolId: string): Promise<str
 
     try {
       const response = await fetch(
-        `${window.location.origin}/lectio/${schoolId}/contextcard/contextcard.aspx?searchtype=id&lectiocontextcard=${id}`
+        `${window.location.origin}/lectio/${schoolId}/contextcard/contextcard.aspx?searchtype=id&lectiocontextcard=${id}`,
+        { credentials: 'include' },
       );
 
       if (!response.ok) {
@@ -343,18 +354,18 @@ export async function fetchPictureUrl(id: string, schoolId: string): Promise<str
 
 type NameIdCache = Record<string, string>; // normalized name → context card ID
 
-function getNameIdCache(): NameIdCache {
+function getNameIdCache(schoolId: string): NameIdCache {
   try {
-    const stored = localStorage.getItem(NAME_ID_CACHE_KEY);
+    const stored = localStorage.getItem(getNameIdCacheKey(schoolId));
     return stored ? JSON.parse(stored) : {};
   } catch {
     return {};
   }
 }
 
-function saveNameIdCache(cache: NameIdCache): void {
+function saveNameIdCache(schoolId: string, cache: NameIdCache): void {
   try {
-    localStorage.setItem(NAME_ID_CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(getNameIdCacheKey(schoolId), JSON.stringify(cache));
   } catch {
     // Ignore
   }
@@ -369,18 +380,21 @@ function normalizeNameForLookup(name: string): string {
  * Bulk-register name → context card ID mappings.
  * Called from FindSkemaPage after fetching the dropdown data.
  */
-export function registerNameIdMappings(entries: Array<{ name: string; id: string }>): void {
-  const cache = getNameIdCache();
+export function registerNameIdMappings(
+  schoolId: string,
+  entries: Array<{ name: string; id: string }>,
+): void {
+  const cache = getNameIdCache(schoolId);
   for (const { name, id } of entries) {
     const key = normalizeNameForLookup(name);
     if (key && id) cache[key] = id;
   }
-  saveNameIdCache(cache);
+  saveNameIdCache(schoolId, cache);
 }
 
-let _nameIdCacheLoading = false;
-let _nameIdCacheLoaded = false;
-const _nameIdCacheCallbacks: Array<() => void> = [];
+const nameIdCacheLoading = new Set<string>();
+const nameIdCacheLoaded = new Set<string>();
+const nameIdCacheCallbacks = new Map<string, Array<() => void>>();
 
 /**
  * Ensure the name→ID cache is populated from the FindSkema dropdown.
@@ -389,36 +403,29 @@ const _nameIdCacheCallbacks: Array<() => void> = [];
  */
 export async function ensureNameIdCache(schoolId: string, onReady?: () => void): Promise<void> {
   // Already populated
-  const cache = getNameIdCache();
-  if (Object.keys(cache).length > 0 || _nameIdCacheLoaded) {
+  const cache = getNameIdCache(schoolId);
+  if (Object.keys(cache).length > 0 || nameIdCacheLoaded.has(schoolId)) {
     onReady?.();
     return;
   }
 
-  if (onReady) _nameIdCacheCallbacks.push(onReady);
+  if (onReady) {
+    const callbacks = nameIdCacheCallbacks.get(schoolId) || [];
+    callbacks.push(onReady);
+    nameIdCacheCallbacks.set(schoolId, callbacks);
+  }
 
   // Already loading — just wait for callbacks
-  if (_nameIdCacheLoading) return;
-  _nameIdCacheLoading = true;
+  if (nameIdCacheLoading.has(schoolId)) return;
+  nameIdCacheLoading.add(schoolId);
 
+  let loadSucceeded = false;
   try {
-    // Resolve afdeling/subcache params
-    const { resolveAvanceretSkemaCacheParams } = await import('./findskema-cache');
-    const params = await resolveAvanceretSkemaCacheParams(schoolId);
-    if (!params) {
-      _nameIdCacheLoaded = true;
-      _nameIdCacheCallbacks.forEach(cb => cb());
-      _nameIdCacheCallbacks.length = 0;
-      return;
-    }
-
-    const response = await fetch(
-      `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${params.afdelingId}&subcache=${params.subcache}`
-    );
-    const data = await response.json();
+    const { fetchAvanceretSkemaDropdownItems } = await import('./findskema-cache');
+    const items = await fetchAvanceretSkemaDropdownItems(schoolId);
 
     const entries: Array<{ name: string; id: string }> = [];
-    for (const item of data.items) {
+    for (const item of items) {
       const id = item[1] as string;
       if (!id || typeof id !== 'string') continue;
       // Only students (S*) and teachers (T*) — skip classes/rooms/etc.
@@ -426,14 +433,18 @@ export async function ensureNameIdCache(schoolId: string, onReady?: () => void):
       entries.push({ name: item[0] as string, id });
     }
 
-    if (entries.length > 0) registerNameIdMappings(entries);
+    if (entries.length > 0) registerNameIdMappings(schoolId, entries);
+    loadSucceeded = true;
   } catch {
     // Silently fail
   } finally {
-    _nameIdCacheLoaded = true;
-    _nameIdCacheLoading = false;
-    _nameIdCacheCallbacks.forEach(cb => cb());
-    _nameIdCacheCallbacks.length = 0;
+    if (loadSucceeded) {
+      nameIdCacheLoaded.add(schoolId);
+    }
+    nameIdCacheLoading.delete(schoolId);
+    const callbacks = nameIdCacheCallbacks.get(schoolId) || [];
+    callbacks.forEach((cb) => cb());
+    nameIdCacheCallbacks.delete(schoolId);
   }
 }
 
@@ -441,21 +452,23 @@ export async function ensureNameIdCache(schoolId: string, onReady?: () => void):
  * Look up a context card ID by person name.
  * Searches: name-ID cache, starred people, recent searches.
  */
-export function lookupContextCardIdByName(name: string): string | null {
+export function lookupContextCardIdByName(name: string, schoolId: string): string | null {
   const normalized = normalizeNameForLookup(name);
   if (!normalized) return null;
 
   // 1. Check dedicated name-ID cache
-  const cache = getNameIdCache();
+  const cache = getNameIdCache(schoolId);
   if (cache[normalized]) return cache[normalized];
 
   // 2. Check starred people
   for (const p of getStarredPeople()) {
+    if (p.schoolId !== schoolId) continue;
     if (normalizeNameForLookup(p.name) === normalized) return p.id;
   }
 
   // 3. Check recents
   for (const r of getRecentPeople()) {
+    if (r.schoolId !== schoolId) continue;
     if (normalizeNameForLookup(r.name) === normalized) return r.id;
   }
 

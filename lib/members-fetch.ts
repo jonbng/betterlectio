@@ -129,7 +129,7 @@ export async function fetchMembersFromUrls(urls: string[]): Promise<Member[]> {
 
   const responses = await Promise.all(
     urls.map(async (href) => {
-      const response = await fetch(href);
+      const response = await fetch(href, { credentials: 'include' });
       if (!response.ok) {
         throw new Error(`Kunne ikke hente medlemmer (${response.status})`);
       }

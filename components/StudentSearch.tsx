@@ -5,7 +5,7 @@ import {
   createSearchText,
   type SearchableItem,
 } from '../lib/fuzzy-search';
-import { resolveAvanceretSkemaCacheParams } from '../lib/findskema-cache';
+import { fetchAvanceretSkemaDropdownItems } from '../lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId, type FindSkemaTypeKey } from '../lib/findskema-types';
 
 interface RecentSearch {
@@ -164,24 +164,15 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
   useEffect(() => {
     async function loadData() {
       try {
-        const cacheParams = await resolveAvanceretSkemaCacheParams(schoolId);
-        const afdelingId = cacheParams?.afdelingId;
-        const subcache = cacheParams?.subcache || String(new Date().getFullYear());
-
-        if (!cacheParams || !afdelingId) {
-          throw new Error('Could not find afdeling ID');
+        const items = await fetchAvanceretSkemaDropdownItems(schoolId);
+        if (items.length === 0) {
+          throw new Error('No AvanceretSkema items');
         }
-
-        // Fetch the autocomplete data
-        const response = await fetch(
-          `${window.location.origin}/lectio/${schoolId}/cache/DropDown.aspx?type=AvanceretSkema&afdeling=${afdelingId}&subcache=${subcache}`
-        );
-        const data = await response.json();
 
         // Parse items - filter based on searchType prefixes
         // API response format: [title, key, flags, group, cssClass, _que, isContextCard, shortName, longName]
         const allowedTypeKeys = typeConfig.typeKeys;
-        const parsed: SearchableItem[] = data.items
+        const parsed: SearchableItem[] = items
           .filter((item: any[]) => {
             const id = item[1];
             if (!id) return false;
@@ -321,7 +312,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                             itemType: prefix,
                           });
                         }}
-                        className="w-full px-4 py-3 text-left hover:bg-accent transition-colors flex items-center gap-3 cursor-pointer block"
+                        className="w-full px-4 py-3 text-left hover:bg-accent transition-colors flex items-center gap-3 cursor-pointer"
                       >
                         <span className={`text-xs font-medium px-2 py-1 rounded-md ${itemConfig.badgeClass}`}>
                           {itemConfig.label}

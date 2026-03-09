@@ -109,20 +109,20 @@ Content Scripts (inject into lectio.dk pages)
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
-| `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params from page scripts |
+| `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params + shared in-flight/TTL-cached dropdown loader |
 | `lib/findskema-types.ts` | Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE`) to filter types |
 
-**Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper).
+**Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
 
 ### Schedule & Activities
 
 | File | Purpose |
 |------|---------|
 | `ActivityClassModal.tsx` | In-place modal for activity details from schedule/forside links |
-| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content + localStorage cache |
+| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content + school-scoped localStorage cache (cache key includes `schoolId`) |
 | `lib/brick-tooltip.ts` | Custom schedule brick hover tooltip with async-enriched content |
 | `ScheduleCountdown.tsx` | Sidebar countdown: time remaining in current class / until next class |
-| `lib/schedule-cache.ts` | Fetches and caches today's schedule (45min TTL) |
+| `lib/schedule-cache.ts` | School-scoped fetch + cache for today's schedule (45min TTL) |
 
 ### Homework & Assignments
 
@@ -131,7 +131,7 @@ Content Scripts (inject into lectio.dk pages)
 | `LektierPage.tsx` | Day-grouped homework cards with file/activity links, teacher notes |
 | `OpgaverPage.tsx` | Urgency-first cards with 4-tier visual urgency, relative Danish deadlines, color-coded grade badges, hold filters |
 | `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (posts via ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage caching with 5-min TTL, session expiry detection) |
-| `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)` fetch+parse, `submitComment(detail, comment)` POST with tokens, `uploadFileAndSubmit(detail, file, comment, schoolId)`, `getCachedDetail`/`invalidateDetailCache` localStorage cache |
+| `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)` fetch+parse, `submitComment(detail, comment)` POST with tokens, `uploadFileAndSubmit(detail, file, comment, schoolId)`, `getCachedDetail`/`invalidateDetailCache` school-scoped localStorage cache |
 
 ### Hold/Subject Mapping
 
@@ -142,13 +142,13 @@ Content Scripts (inject into lectio.dk pages)
 
 ### Beskeder (Messages) System
 
-**No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Falls back to native postback on error.
+**No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Non-idempotent operations (send/reply/delete) avoid automatic native fallback on uncertain parse errors to prevent duplicate side effects.
 
 | File | Purpose |
 |------|---------|
 | `BeskederPage.tsx` (in content.tsx) | Thread list with folder pills, sender avatars, optimistic flag/read/delete, search, bulk actions |
 | `BeskederThreadView.tsx` | Thread reader with sender pictures, signature stripping, no-reload reply + file attachment |
-| `BeskederCompose.tsx` | Card-based compose that **moves** native autocomplete input, attachment panel, and no-reply checkbox into custom UI (preserves Lectio's initialized event handlers). No-reload recipient removal with loading indicator, no-reload send, Ctrl+Enter. Falls back to showing native form if parser fails. |
+| `BeskederCompose.tsx` | Card-based compose with a fully custom recipient picker (students/teachers from AvanceretSkema, avatar thumbnails via context cards, keyboard navigation), recipient pills with avatars, no-reload add/remove recipient actions, no-reload send, and Ctrl+Enter. Falls back to showing native form if parser fails. |
 | `WysiwygEditor.tsx` | contentEditable editor converting between BBCode and rich HTML |
 | `BBCodeToolbar.tsx` | Formatting toolbar (bold, italic, underline, link) |
 | `lib/beskeder-thread-parser.ts` | Thread DOM parser, state detection, signature stripping |
@@ -162,13 +162,13 @@ Content Scripts (inject into lectio.dk pages)
 | `ForsideGreeting.tsx` | Time-based greeting, live clock, Danish date formatting |
 | `ForsideOpgaverCard.tsx` | Custom opgaver card with urgency-driven design, progress bars |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
-| `lib/members-fetch.ts` | Fetch/parse `members.aspx` |
+| `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |
 
 ### Shared Utilities
 
 | File | Purpose |
 |------|---------|
-| `lib/profile-cache.ts` | User profile + viewed entity caching. Helpers: `isViewingOwnPage()`, `getViewedEntityId()`, `extractViewedEntity()` (fallback chain: URL `name` param -> recents/starred lookup -> `"Ukendt"`) |
+| `lib/profile-cache.ts` | User profile + viewed entity caching (school-scoped profile keys with same-school merge guard). Helpers: `isViewingOwnPage()`, `getViewedEntityId()`, `extractViewedEntity()` (fallback chain: URL `name` param -> recents/starred lookup -> `"Ukendt"`) |
 | `lib/school-storage.ts` | Last school persistence for quick login |
 | `lib/page-titles.ts` | Clean page titles with unread message badge, MutationObserver |
 | `lib/preload.ts` | Speculation Rules API + hover-based prefetching |
