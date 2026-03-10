@@ -36,7 +36,6 @@ import { clearPictureCache, getStarredPeople, getRecentPeople } from "@/lib/find
 import {
   Info,
   Github,
-  Bug,
   Palette,
   Wrench,
   ExternalLink,
@@ -257,17 +256,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     `URL: ${window.location.href}`,
     `User-Agent: ${navigator.userAgent}`,
   ].filter((line): line is string => Boolean(line));
-  const reportIssueBody = [
-    "## Beskrivelse",
-    "<!-- Beskriv problemet og hvordan det kan genskabes -->",
-    "",
-    "## Debug info",
-    "```text",
-    ...debugInfoLines,
-    "```",
-  ].join("\n");
-  const reportIssueUrl =
-    `https://github.com/jonbng/betterlectio/issues/new?body=${encodeURIComponent(reportIssueBody)}`;
+  // const reportIssueBody = [
+  //   "## Beskrivelse",
+  //   "<!-- Beskriv problemet og hvordan det kan genskabes -->",
+  //   "",
+  //   "## Debug info",
+  //   "```text",
+  //   ...debugInfoLines,
+  //   "```",
+  // ].join("\n");
+  // const reportIssueUrl =
+  //   `https://github.com/jonbng/betterlectio/issues/new?body=${encodeURIComponent(reportIssueBody)}`;
 
   const handleSettingChange = <K extends keyof Omit<FeatureSettings, 'version'>>(
     category: K,
@@ -447,7 +446,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 GitHub
                 <ExternalLink className="size-3" />
               </a>
-              <a
+              {/* <a
                 href={reportIssueUrl}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -456,7 +455,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <Bug className="size-4" />
                 Rapporter problem
                 <ExternalLink className="size-3" />
-              </a>
+              </a> */}
             </div>
 
             <div className="space-y-3">

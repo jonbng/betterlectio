@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pencil, RotateCcw, Sparkles, Search, Palette } from 'lucide-react';
+import { Pencil, RotateCcw, Sparkles, Search, Palette, SlidersHorizontal } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -34,6 +34,12 @@ function getFilteredSuggestions(query: string, currentName: string): string[] {
   return SUBJECT_SUGGESTIONS
     .filter((s) => s !== currentName && normalizeForSearch(s).includes(normalizedQuery))
     .slice(0, 6);
+}
+
+function normalizeHue(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  const rounded = Math.round(value);
+  return ((rounded % 360) + 360) % 360;
 }
 
 // ── Autocomplete input ──────────────────────────────────────────────────
@@ -154,7 +160,17 @@ function AutocompleteInput({
 function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () => void }) {
   const [editing, setEditing] = useState(false);
   const [showColors, setShowColors] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customHue, setCustomHue] = useState<number>(() => normalizeHue(mapping.effectiveHue));
   const colorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showCustomModal) {
+      setCustomHue(normalizeHue(mapping.effectiveHue));
+    }
+  }, [mapping.effectiveHue, showCustomModal]);
+  const isCustomHueSelected =
+    mapping.colorHue !== null && !CURATED_HUES.includes(normalizeHue(mapping.colorHue));
 
   // Close color picker on outside click
   useEffect(() => {
@@ -177,7 +193,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
   };
 
   return (
-    <div className="il-hold-mapping-row">
+    <div className={cn('il-hold-mapping-row', showColors && 'is-color-open')}>
       {/* Color dot */}
       <div className="il-hold-mapping-color-cell" ref={colorRef}>
         <button
@@ -205,8 +221,11 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                   setShowColors(false);
                   onUpdate();
                 }}
-                title="Standard"
-              />
+                title="Standardfarve (nulstil)"
+              >
+                <RotateCcw className="size-3.5" />
+                <span className="sr-only">Standardfarve</span>
+              </button>
               {CURATED_HUES.map((hue) => (
                 <button
                   key={hue}
@@ -224,6 +243,22 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                   }}
                 />
               ))}
+              <button
+                type="button"
+                className={cn(
+                  'il-hold-color-swatch il-hold-color-swatch-custom',
+                  isCustomHueSelected && 'is-active',
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCustomHue(normalizeHue(mapping.effectiveHue));
+                  setShowCustomModal(true);
+                }}
+                title="Vælg brugerdefineret farve"
+              >
+                <SlidersHorizontal className="size-3.5" />
+                <span className="sr-only">Vælg brugerdefineret farve</span>
+              </button>
             </div>
           </div>
         )}
@@ -255,6 +290,95 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
         )}
         <span className="il-hold-mapping-code">{mapping.codeLabel}</span>
       </div>
+
+      {showCustomModal && (
+        <div
+          className="il-hold-custom-color-backdrop"
+          onClick={() => setShowCustomModal(false)}
+          role="presentation"
+        >
+          <div
+            className="il-hold-custom-color-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Vælg brugerdefineret farve"
+          >
+            <div className="il-hold-custom-color-header">
+              <h3 className="il-hold-custom-color-title">Brugerdefineret farve</h3>
+              <p className="il-hold-custom-color-subtitle">
+                Vælg præcis hue (0-359) til dette fag.
+              </p>
+            </div>
+
+            <div className="il-hold-custom-color-preview-wrap">
+              <div
+                className="il-hold-custom-color-preview"
+                style={{ '--custom-hue': customHue } as any}
+              />
+              <div className="il-hold-custom-color-value">{customHue}deg</div>
+            </div>
+
+            <label className="il-hold-custom-color-label" htmlFor={`custom-hue-${mapping.kind}-${mapping.id}`}>
+              Hue
+            </label>
+            <input
+              id={`custom-hue-${mapping.kind}-${mapping.id}`}
+              type="range"
+              min={0}
+              max={359}
+              step={1}
+              value={customHue}
+              onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
+              className="il-hold-custom-color-slider"
+            />
+
+            <input
+              type="number"
+              min={0}
+              max={359}
+              step={1}
+              value={customHue}
+              onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
+              className="il-hold-custom-color-number"
+            />
+
+            <div className="il-hold-custom-color-actions">
+              <button
+                type="button"
+                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer')}
+                onClick={() => setShowCustomModal(false)}
+              >
+                Annuller
+              </button>
+              <button
+                type="button"
+                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer')}
+                onClick={() => {
+                  setHoldColorHue(mapping.id, mapping.kind, null);
+                  onUpdate();
+                  setShowCustomModal(false);
+                  setShowColors(false);
+                }}
+              >
+                Standard
+              </button>
+              <button
+                type="button"
+                className={cn(buttonVariants({ size: 'sm' }), 'cursor-pointer')}
+                onClick={() => {
+                  setHoldColorHue(mapping.id, mapping.kind, normalizeHue(customHue));
+                  onUpdate();
+                  setShowCustomModal(false);
+                  setShowColors(false);
+                }}
+              >
+                Gem farve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

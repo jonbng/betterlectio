@@ -23,14 +23,12 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import {
-  Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
 } from "@/components/ui/sidebar";
 import {
   X,
@@ -1027,8 +1025,8 @@ export function DesignPlayground({ open, onOpenChange }: DesignPlaygroundProps) 
           <X className="size-5" />
         </button>
 
-        <SidebarProvider className="design-playground-modal items-stretch min-h-0 h-full w-full">
-          <Sidebar className="flex border-r py-4 w-[180px]!">
+        <div className="design-playground-modal flex items-stretch min-h-0 h-full w-full">
+          <aside className="w-[180px] shrink-0 border-r py-4 bg-sidebar text-sidebar-foreground">
             <SidebarContent className="overflow-y-auto">
               <SidebarGroup>
                 <SidebarGroupContent>
@@ -1049,7 +1047,7 @@ export function DesignPlayground({ open, onOpenChange }: DesignPlaygroundProps) 
                 </SidebarGroupContent>
               </SidebarGroup>
             </SidebarContent>
-          </Sidebar>
+          </aside>
 
           <main className="design-playground-main flex flex-1 min-h-0 flex-col overflow-hidden">
             <header className="flex h-12 shrink-0 items-center gap-2 border-b px-6">
@@ -1064,7 +1062,7 @@ export function DesignPlayground({ open, onOpenChange }: DesignPlaygroundProps) 
               <ActiveComponent />
             </div>
           </main>
-        </SidebarProvider>
+        </div>
       </div>
     </div>
   );

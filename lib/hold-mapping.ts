@@ -120,6 +120,51 @@ for (const displayName of Object.values(SUBJECT_DICTIONARY)) {
   SUBJECT_NAME_LOOKUP.set(normalizeKey(displayName), displayName);
 }
 
+// Semantic default hues for common subjects.
+// These are used when no user override is set, so "Standard" feels intentional.
+const SUBJECT_DEFAULT_HUES: Record<string, number> = {
+  [normalizeKey('Dansk')]: 8,
+  [normalizeKey('Engelsk')]: 218,
+  [normalizeKey('Tysk')]: 52,
+  [normalizeKey('Fransk')]: 330,
+  [normalizeKey('Spansk')]: 15,
+  [normalizeKey('Latin')]: 358,
+
+  [normalizeKey('Historie')]: 34,
+  [normalizeKey('Religion')]: 285,
+  [normalizeKey('Samfundsfag')]: 200,
+  [normalizeKey('Filosofi')]: 272,
+  [normalizeKey('Psykologi')]: 312,
+  [normalizeKey('Idéhistorie')]: 300,
+  [normalizeKey('Kultur- og samfundsfag')]: 186,
+  [normalizeKey('Oldtidskundskab')]: 40,
+
+  [normalizeKey('Matematik')]: 235,
+  [normalizeKey('Fysik')]: 248,
+  [normalizeKey('Kemi')]: 175,
+  [normalizeKey('Biologi')]: 132,
+  [normalizeKey('Geografi')]: 95,
+  [normalizeKey('Naturvidenskab')]: 145,
+  [normalizeKey('Naturgeografi')]: 88,
+  [normalizeKey('Bioteknologi')]: 160,
+  [normalizeKey('Astronomi')]: 260,
+
+  [normalizeKey('Informatik')]: 265,
+  [normalizeKey('Teknologi')]: 205,
+  [normalizeKey('Design')]: 342,
+  [normalizeKey('Mediefag')]: 318,
+  [normalizeKey('Billedkunst')]: 355,
+  [normalizeKey('Musik')]: 292,
+  [normalizeKey('Dramatik')]: 25,
+  [normalizeKey('Idræt')]: 118,
+  [normalizeKey('Erhvervsøkonomi')]: 65,
+
+  [normalizeKey('Almen sprogforståelse')]: 48,
+  [normalizeKey('Almen studieforberedelse')]: 188,
+  [normalizeKey('Studieretningsprojekt')]: 280,
+  [normalizeKey('Studieretningsopgave')]: 300,
+};
+
 const IGNORED_HOLD_PATTERNS = [
   /^alle\b/i,
   /\belever\b/i,
@@ -145,17 +190,30 @@ const IGNORED_HOLD_PATTERNS = [
 // Hand-picked hues that produce vibrant, distinct oklch colors.
 // Used for default hash assignment and the settings color picker.
 export const CURATED_HUES = [
+  0,    // Red
   15,   // Coral
+  28,   // Vermilion
   40,   // Orange
+  52,   // Apricot
   65,   // Amber
+  80,   // Yellow-green
   95,   // Lime
+  118,  // Leaf
+  132,  // Green
   145,  // Emerald
+  160,  // Mint
   175,  // Teal
+  188,  // Cyan
   200,  // Sky
+  218,  // Azure
   235,  // Blue
+  248,  // Cobalt
   265,  // Indigo
+  280,  // Violet
   295,  // Purple
+  312,  // Fuchsia
   330,  // Pink
+  342,  // Magenta rose
   355,  // Rose
 ];
 
@@ -259,6 +317,10 @@ function lookupSubjectName(value: string): string | null {
 
 function getSubjectKey(subjectName: string): string {
   return normalizeKey(subjectName);
+}
+
+function getDefaultSubjectHue(subjectKey: string): number {
+  return SUBJECT_DEFAULT_HUES[subjectKey] ?? hashToHue(subjectKey);
 }
 
 function analyzeHold(holdCode: string): HoldDescriptor {
@@ -468,7 +530,7 @@ function getSubjectHue(store: HoldMappingStore, descriptor: HoldDescriptor): num
   if (subject?.colorHue !== null && subject?.colorHue !== undefined) {
     return subject.colorHue;
   }
-  return hashToHue(descriptor.subjectKey);
+  return getDefaultSubjectHue(descriptor.subjectKey);
 }
 
 function expandHoldLabel(descriptor: HoldDescriptor, subjectName: string): string {
@@ -643,7 +705,7 @@ export function getAllHolds(): HoldMappingRow[] {
       displayName: mapping.displayName,
       autoGuessed: mapping.autoGuessed,
       colorHue: mapping.colorHue,
-      effectiveHue: mapping.colorHue ?? hashToHue(mapping.subjectKey),
+      effectiveHue: mapping.colorHue ?? getDefaultSubjectHue(mapping.subjectKey),
       description: mapping.sampleHoldCode
         ? `Gælder automatisk for fx ${mapping.sampleHoldCode}.`
         : 'Gælder automatisk på tværs af dine klasser.',

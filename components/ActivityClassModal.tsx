@@ -343,40 +343,42 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
             </div>
 
             <footer className="il-act-sheet-footer">
-              <a href={detail.url} data-no-activity-modal="true" className="il-act-sheet-lectio-link">
-                <ExternalLink size={15} />
-                Åbn i Lectio
-              </a>
-              <div className="il-act-sheet-hold-nav">
-                <button
-                  type="button"
-                  onClick={() => navigateByPostback(detail.navigation.hold.prevEventTarget)}
-                  disabled={!detail.navigation.hold.prevEventTarget || navigating}
-                  title="Forrige holdaktivitet"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-                {detail.navigation.hold.listUrl ? (
-                  <a
-                    href={detail.navigation.hold.listUrl}
-                    data-no-activity-modal="true"
-                    title="Holdaktivitetsliste"
+              <div className="il-act-sheet-footer-left">
+                <div className="il-act-sheet-hold-nav">
+                  <button
+                    type="button"
+                    onClick={() => navigateByPostback(detail.navigation.hold.prevEventTarget)}
+                    disabled={!detail.navigation.hold.prevEventTarget || navigating}
+                    title="Forrige holdaktivitet"
                   >
-                    <List size={15} />
-                  </a>
-                ) : (
-                  <span className="is-disabled">
-                    <List size={15} />
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => navigateByPostback(detail.navigation.hold.nextEventTarget)}
-                  disabled={!detail.navigation.hold.nextEventTarget || navigating}
-                  title="Næste holdaktivitet"
-                >
-                  <ChevronRight size={15} />
-                </button>
+                    <ChevronLeft size={15} />
+                  </button>
+                  {detail.navigation.hold.listUrl ? (
+                    <a
+                      href={detail.navigation.hold.listUrl}
+                      data-no-activity-modal="true"
+                      title="Holdaktivitetsliste"
+                    >
+                      <List size={15} />
+                    </a>
+                  ) : (
+                    <span className="is-disabled">
+                      <List size={15} />
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => navigateByPostback(detail.navigation.hold.nextEventTarget)}
+                    disabled={!detail.navigation.hold.nextEventTarget || navigating}
+                    title="Næste holdaktivitet"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+                <a href={detail.url} data-no-activity-modal="true" className="il-act-sheet-lectio-link">
+                  <ExternalLink size={15} />
+                  Åbn i Lectio
+                </a>
               </div>
             </footer>
           </>

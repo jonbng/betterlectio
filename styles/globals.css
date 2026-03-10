@@ -386,7 +386,7 @@
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: var(--card);
-    overflow: hidden;
+    overflow: visible;
   }
 
   .il-hold-editor-section-header {
@@ -437,6 +437,11 @@
     gap: 0.75rem;
     padding: 0.5rem 1rem;
     transition: background 0.1s;
+  }
+
+  .il-hold-mapping-row.is-color-open {
+    position: relative;
+    z-index: 2;
   }
 
   .il-hold-mapping-row:hover {
@@ -516,15 +521,141 @@
   }
 
   .il-hold-color-swatch.is-default {
-    background: conic-gradient(
-      oklch(0.7 0.2 0),
-      oklch(0.7 0.2 60),
-      oklch(0.7 0.2 120),
-      oklch(0.7 0.2 180),
-      oklch(0.7 0.2 240),
-      oklch(0.7 0.2 300),
-      oklch(0.7 0.2 360)
-    );
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in oklch, var(--muted) 75%, transparent);
+    border-color: var(--border);
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-color-swatch.is-default:hover {
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 35%, transparent);
+    color: var(--foreground);
+  }
+
+  .il-hold-color-swatch.is-default.is-active {
+    border-color: var(--foreground);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 30%, transparent);
+    color: var(--foreground);
+  }
+
+  .il-hold-color-swatch-custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 75%, transparent);
+    border-color: var(--border);
+  }
+
+  .il-hold-color-swatch-custom:hover {
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 35%, transparent);
+  }
+
+  .il-hold-custom-color-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: oklch(0 0 0 / 0.45);
+    backdrop-filter: blur(2px);
+    padding: 1rem;
+  }
+
+  .il-hold-custom-color-modal {
+    width: min(420px, 100%);
+    border-radius: 0.9rem;
+    border: 1px solid var(--border);
+    background: var(--popover);
+    box-shadow:
+      0 12px 38px oklch(0 0 0 / 0.2),
+      0 3px 10px oklch(0 0 0 / 0.12);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .il-hold-custom-color-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .il-hold-custom-color-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
+  }
+
+  .il-hold-custom-color-subtitle {
+    font-size: 0.78rem;
+    color: var(--muted-foreground);
+    margin: 0;
+  }
+
+  .il-hold-custom-color-preview-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 0.7rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklch, var(--muted) 45%, transparent);
+  }
+
+  .il-hold-custom-color-preview {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    border: 2px solid var(--border);
+    background: oklch(0.68 0.2 var(--custom-hue));
+    flex-shrink: 0;
+  }
+
+  .il-hold-custom-color-value {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    color: var(--foreground);
+  }
+
+  .il-hold-custom-color-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-custom-color-slider {
+    width: 100%;
+    cursor: pointer;
+    accent-color: oklch(0.6 0.16 265);
+  }
+
+  .il-hold-custom-color-number {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 0.85rem;
+    padding: 0.45rem 0.6rem;
+    outline: none;
+    transition: border-color 0.12s, box-shadow 0.12s;
+  }
+
+  .il-hold-custom-color-number:focus {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 22%, transparent);
+  }
+
+  .il-hold-custom-color-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
   }
 
   .il-hold-mapping-content {
@@ -866,10 +997,24 @@
   }
 
   .il-fravaer-page {
-    max-width: 920px;
+    max-width: 1080px;
     margin: 0 auto;
     padding: 2.5rem 2rem 3rem;
     position: relative;
+    isolation: isolate;
+  }
+
+  .il-fravaer-page::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 16rem;
+    border-radius: 1.25rem;
+    background:
+      radial-gradient(circle at 15% 10%, oklch(0.92 0.05 265 / 0.55), transparent 56%),
+      radial-gradient(circle at 85% 0%, oklch(0.89 0.04 220 / 0.35), transparent 44%);
+    pointer-events: none;
+    z-index: -1;
   }
 
   .il-fravaer-page.is-loading {
@@ -881,9 +1026,15 @@
   /* ── Header ──────────────────────────────── */
 
   .il-fravaer-header {
-    margin-bottom: 1.75rem;
-    padding-bottom: 1.75rem;
-    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.4rem;
+    padding: 1.25rem 1.3rem;
+    border: 1px solid color-mix(in oklch, var(--border) 88%, oklch(0.88 0.03 265));
+    border-radius: 1rem;
+    background:
+      linear-gradient(180deg, color-mix(in oklch, var(--card) 95%, transparent), var(--card));
+    box-shadow:
+      0 20px 40px oklch(0 0 0 / 0.06),
+      inset 0 1px 0 oklch(1 0 0 / 0.4);
   }
 
   .il-fravaer-header-top {
@@ -1141,7 +1292,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    margin-bottom: 1.75rem;
+    margin-bottom: 1.35rem;
+    padding: 1rem 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid color-mix(in oklch, var(--border) 86%, transparent);
+    background: color-mix(in oklch, var(--card) 96%, transparent);
   }
 
   .il-fravaer-period-presets {
@@ -1247,8 +1402,9 @@
   /* ── Summary donut cards ─────────────────── */
 
   .il-fravaer-summary-row {
-    display: flex;
-    gap: 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
     margin-bottom: 2rem;
   }
 
@@ -1261,6 +1417,7 @@
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 1rem;
+    box-shadow: 0 12px 28px oklch(0 0 0 / 0.05);
   }
 
   .il-fravaer-donut-chart {
@@ -1389,6 +1546,7 @@
       linear-gradient(180deg, color-mix(in oklch, var(--card) 92%, transparent), var(--card));
     border: 1px solid color-mix(in oklch, var(--border) 88%, oklch(0.9 0.02 265));
     border-radius: 1rem;
+    box-shadow: 0 14px 34px oklch(0 0 0 / 0.06);
   }
 
   .dark .il-fravaer-distribution-card {
@@ -1451,6 +1609,13 @@
     position: relative;
     width: 220px;
     height: 220px;
+  }
+
+  .il-fravaer-distribution-chart-container {
+    width: 100%;
+    height: 100%;
+    max-height: 220px;
+    margin: 0 auto;
   }
 
   .il-fravaer-distribution-center {
@@ -2255,7 +2420,7 @@
     }
 
     .il-fravaer-summary-row {
-      flex-direction: column;
+      grid-template-columns: 1fr;
     }
 
     .il-fravaer-donut-card {
@@ -2300,6 +2465,10 @@
     .il-fravaer-distribution-chart {
       width: 184px;
       height: 184px;
+    }
+
+    .il-fravaer-distribution-chart-container {
+      max-height: 184px;
     }
 
     .il-fravaer-distribution-center-value {
@@ -9754,8 +9923,14 @@
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     background: color-mix(in oklch, var(--muted) 30%, transparent);
+  }
+
+  .il-act-sheet-footer-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
   }
 
   .il-act-sheet-lectio-link {

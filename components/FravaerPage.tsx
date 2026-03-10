@@ -28,6 +28,16 @@ import {
   submitPeriodChange,
 } from '@/lib/fravaer-parse';
 import { FravaerEditSheet } from '@/components/FravaerEditSheet';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+
+const PieAny = Pie as any;
+const ChartContainerAny = ChartContainer as any;
+const ChartTooltipAny = ChartTooltip as any;
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -825,7 +835,7 @@ function DonutCard({
       <div className="il-fravaer-donut-chart">
         <ResponsiveContainer width={120} height={120}>
           <PieChart>
-            <Pie
+            <PieAny
               data={chartData}
               dataKey="value"
               innerRadius={38}
@@ -841,7 +851,7 @@ function DonutCard({
                   fill={donutSegmentColor(pct, entry.isAbsence)}
                 />
               ))}
-            </Pie>
+            </PieAny>
           </PieChart>
         </ResponsiveContainer>
         <div className="il-fravaer-donut-center" style={{ color }}>
@@ -875,6 +885,22 @@ function SubjectDistributionCard({
   const unitShort = metric === 'alm' ? 'mod.' : 'elevt.';
   const unitLong = metric === 'alm' ? 'moduler' : 'elevtimer';
   const topSubject = items[0];
+  const chartData = items.map((item, index) => ({
+    ...item,
+    configKey: `subject${index}`,
+    fill: `var(--color-subject${index})`,
+  }));
+  const chartConfig = chartData.reduce((acc, item) => {
+    acc[item.configKey] = {
+      label: item.label,
+      color: `oklch(0.68 0.14 ${item.hue})`,
+    };
+    return acc;
+  }, {
+    amount: {
+      label: unitLong,
+    },
+  } as ChartConfig);
 
   return (
     <div className="il-fravaer-distribution-card">
@@ -913,28 +939,35 @@ function SubjectDistributionCard({
         <div className="il-fravaer-distribution-body">
           <div className="il-fravaer-distribution-chart-wrap">
             <div className="il-fravaer-distribution-chart">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainerAny
+                config={chartConfig}
+                className="il-fravaer-distribution-chart-container"
+              >
                 <PieChart>
-                  <Pie
-                    data={items}
+                  <ChartTooltipAny
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <PieAny
+                    data={chartData}
                     dataKey="amount"
-                    nameKey="label"
+                    nameKey="configKey"
                     innerRadius={58}
                     outerRadius={88}
                     startAngle={90}
                     endAngle={-270}
-                    paddingAngle={items.length > 1 ? 2 : 0}
-                    stroke="none"
+                    paddingAngle={chartData.length > 1 ? 2 : 0}
+                    strokeWidth={0}
                   >
-                    {items.map((item) => (
+                    {chartData.map((item) => (
                       <Cell
                         key={item.label}
-                        fill={`oklch(0.68 0.14 ${item.hue})`}
+                        fill={item.fill}
                       />
                     ))}
-                  </Pie>
+                  </PieAny>
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartContainerAny>
 
               <div className="il-fravaer-distribution-center">
                 <span className="il-fravaer-distribution-center-value">{formatNumber(totalAmount)}</span>
