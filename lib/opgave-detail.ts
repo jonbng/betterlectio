@@ -85,7 +85,7 @@ export function getCachedDetail(url: string): OpgaveDetail | null {
 
     const cached: CachedEntry = JSON.parse(raw);
     if (Date.now() - cached.timestamp > CACHE_TTL) {
-      localStorage.removeItem(CACHE_PREFIX + id);
+      localStorage.removeItem(key);
       return null;
     }
     return cached.detail;
