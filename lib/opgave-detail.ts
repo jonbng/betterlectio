@@ -172,20 +172,28 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
   const noteHtml = findInfoHtml('Opgavenote:');
   const note = noteHtml && noteHtml.length > 0 ? noteHtml : null;
 
-  // Description files
+  // Description files — find via "Opgavebeskrivelse:" header row.
+  // Note: #m_Content_ExerciseFilePnl is a <div> placed invalidly between <tr>
+  // elements, so browser DOMParser foster-parents it outside the table (empty).
   const descriptionFiles: OpgaveDetail['descriptionFiles'] = [];
-  const filePanel = doc.querySelector('#m_Content_ExerciseFilePnl');
-  if (filePanel) {
-    const fileLinks = filePanel.querySelectorAll('a[href*="ExerciseFileGet.aspx"]');
-    for (const link of fileLinks) {
-      const href = link.getAttribute('href');
-      if (href) {
-        const name = link.textContent?.trim() || 'Download';
-        descriptionFiles.push({
-          name,
-          url: new URL(href, origin).href,
-        });
+  const ths = doc.querySelectorAll('th');
+  for (const th of ths) {
+    if (th.textContent?.trim().startsWith('Opgavebeskrivelse')) {
+      const td = th.nextElementSibling;
+      if (td) {
+        const fileLinks = td.querySelectorAll('a[href*="ExerciseFileGet.aspx"]');
+        for (const link of fileLinks) {
+          const href = link.getAttribute('href');
+          if (href) {
+            const name = link.textContent?.trim() || 'Download';
+            descriptionFiles.push({
+              name,
+              url: new URL(href, origin).href,
+            });
+          }
+        }
       }
+      break;
     }
   }
 
