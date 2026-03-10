@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Calendar,
   FileText,
@@ -209,11 +210,13 @@ const calendarItems = [
 ];
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const WELCOME_STORAGE_KEY = "il-welcome-popup-seen-v1";
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [findSkemaOpen, setFindSkemaOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
   const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
@@ -243,6 +246,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const currentPage = getCurrentPage();
 
   const baseUrl = `/lectio/${schoolId}`;
+  const portalTarget = document.getElementById("il-root") || document.body;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -278,6 +282,28 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     window.addEventListener('betterlectio:openSettings', handleOpenSettings);
     return () => window.removeEventListener('betterlectio:openSettings', handleOpenSettings);
   }, []);
+
+  // Show a one-time welcome message after first install/use.
+  useEffect(() => {
+    try {
+      const hasSeenWelcome = localStorage.getItem(WELCOME_STORAGE_KEY) === "true";
+      if (!hasSeenWelcome) {
+        setWelcomeOpen(true);
+      }
+    } catch {
+      // If localStorage fails, fail open without blocking the app.
+      setWelcomeOpen(true);
+    }
+  }, [WELCOME_STORAGE_KEY]);
+
+  const closeWelcome = () => {
+    setWelcomeOpen(false);
+    try {
+      localStorage.setItem(WELCOME_STORAGE_KEY, "true");
+    } catch {
+      // Ignore storage errors.
+    }
+  };
 
   useEffect(() => {
     const handleOpenActivityModal = (event: Event) => {
@@ -640,6 +666,116 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
       {/* Settings modal */}
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* First-run welcome modal */}
+      {welcomeOpen && createPortal(
+        <div
+          className="fixed inset-0 z-200 flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="il-welcome-title"
+        >
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
+            onClick={closeWelcome}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 mx-4 w-full max-w-3xl rounded-2xl border bg-background shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="space-y-5 p-8 md:p-10">
+              <h2 id="il-welcome-title" className="text-3xl font-bold tracking-tight md:text-4xl">
+                Velkommen til BetterLectio
+              </h2>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                Hej!
+                <br />
+                Tak fordi du har installeret BetterLectio.
+              </p>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                Jeg har lavet BetterLectio for at gøre Lectio lidt rarere at bruge
+                i hverdagen. Målet er ikke at ændre hvordan Lectio fungerer, men
+                bare at gøre det{" "}
+                <span className="font-semibold text-foreground">
+                  pænere, hurtigere og lettere at navigere rundt i
+                </span>.
+              </p>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                BetterLectio giver blandt andet:
+              </p>
+              <ul className="ml-6 list-disc space-y-2 text-base leading-relaxed text-muted-foreground md:text-lg">
+                <li>
+                  Et{" "}
+                  <span className="font-semibold text-foreground">
+                    mere moderne og overskueligt design
+                  </span>
+                </li>
+                <li>
+                  En <span className="font-semibold text-foreground">sidebar</span>,
+                  så du hurtigt kan hoppe mellem skema, lektier, beskeder osv.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">
+                    Bedre overblik over skema, opgaver og beskeder
+                  </span>
+                </li>
+                <li>Mindre ventetid og færre irriterende reloads</li>
+              </ul>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                BetterLectio er stadig i{" "}
+                <span className="font-semibold text-foreground">beta</span>, så der
+                kan være bugs, og nogle ting kommer til at ændre sig løbende.
+              </p>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                Du kan altid åbne{" "}
+                <span className="font-semibold text-foreground">Settings</span> fra{" "}
+                <span className="font-semibold text-foreground">
+                  profilmenuen nederst til venstre
+                </span>.
+              </p>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                Hvis du oplever fejl eller har idéer til forbedringer, må du meget
+                gerne sende feedback via knappen{" "}
+                <span className="font-semibold text-foreground">
+                  "Give Feedback" nederst til højre
+                </span>
+                . Det hjælper virkelig meget.
+              </p>
+              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
+                - Jonathan Bangert
+              </p>
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">
+                <p className="text-sm leading-relaxed text-foreground md:text-base">
+                  <span className="font-semibold">⚠️ Lille note:</span>
+                  <br />
+                  Første gang BetterLectio kører, kan Lectio finde på at{" "}
+                  <span className="font-semibold">logge dig ud én gang</span>. Det
+                  er helt normalt. Log bare ind igen, så virker det bagefter.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t px-8 py-5 md:px-10">
+              <button
+                type="button"
+                onClick={closeWelcome}
+                className="inline-flex h-11 items-center rounded-md border border-input bg-background px-5 text-base font-medium transition-colors hover:bg-accent"
+              >
+                Luk
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  closeWelcome();
+                  setSettingsOpen(true);
+                  setMenuOpen(false);
+                }}
+                className="inline-flex h-11 items-center rounded-md bg-primary px-5 text-base font-medium text-primary-foreground transition-colors hover:opacity-90"
+              >
+                Åbn indstillinger
+              </button>
+            </div>
+          </div>
+        </div>,
+        portalTarget,
+      )}
       <ActivityClassModal
         open={activityModalOpen}
         url={activityModalUrl}

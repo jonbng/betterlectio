@@ -34,6 +34,7 @@ import { getSettings } from "@/lib/settings-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
+import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -103,6 +104,37 @@ function DashboardLayout() {
 
 function applyDarkMode(enabled: boolean) {
   document.documentElement.classList.toggle("dark", enabled);
+  setUserJotTheme(enabled ? "dark" : "light");
+}
+
+function getBrowserInfoForUserJot(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes("Firefox")) {
+    const match = ua.match(/Firefox\/(\d+)/);
+    return `Firefox ${match?.[1] ?? ""}`.trim();
+  }
+  if (ua.includes("Edg/")) {
+    const match = ua.match(/Edg\/(\d+)/);
+    return `Edge ${match?.[1] ?? ""}`.trim();
+  }
+  if (ua.includes("Chrome")) {
+    const match = ua.match(/Chrome\/(\d+)/);
+    return `Chrome ${match?.[1] ?? ""}`.trim();
+  }
+  if (ua.includes("Safari")) {
+    const match = ua.match(/Version\/(\d+)/);
+    return `Safari ${match?.[1] ?? ""}`.trim();
+  }
+  return "Ukendt browser";
+}
+
+function getLectioVersionForUserJot(): string {
+  return (
+    (document.getElementById("s_m_VersionInfoLink") ??
+      document.getElementById("m_VersionInfoLink"))
+      ?.textContent?.replace(/^\s*Lectio\s+version\s*/i, "")
+      ?.trim() || "Ukendt Lectio-version"
+  );
 }
 
 let activityModalInterceptorInstalled = false;
@@ -230,8 +262,30 @@ function initLayout() {
 
   // Set cached profile data on window for AppSidebar to use
   const cachedProfile = getCachedProfile();
+  let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
   if (cachedProfile) {
     (window as any).__IL_CACHED_PROFILE__ = cachedProfile;
+    if (cachedProfile.studentId) {
+      const version = browser.runtime.getManifest().version;
+      const lectioVersion = getLectioVersionForUserJot();
+      const browserInfo = getBrowserInfoForUserJot();
+      const profileFirstName = cachedProfile.fullName?.split(" ").filter(Boolean)[0];
+      const profileLastName = cachedProfile.fullName
+        ?.split(" ")
+        .filter(Boolean)
+        .slice(1)
+        .join(" ");
+      userJotIdentifyPayload = {
+        id: `${cachedProfile.schoolId ?? "lectio"}:${cachedProfile.studentId}`,
+        firstName: profileFirstName
+          ? `${profileFirstName} | BetterLectio ${version}`
+          : `BetterLectio ${version}`,
+        lastName: [profileLastName, `Lectio ${lectioVersion}`, browserInfo]
+          .filter(Boolean)
+          .join(" | "),
+        avatar: cachedProfile.pictureUrl || undefined,
+      };
+    }
   }
 
   // Extract profile picture URL before modifying DOM (for immediate use)
@@ -441,6 +495,12 @@ function initLayout() {
 
       // Remove redundant tooltip on activity page title
       removeActivityTitleTooltip();
+
+      // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
+      initUserJotWidget();
+      if (userJotIdentifyPayload) {
+        identifyUserJot(userJotIdentifyPayload);
+      }
 
       console.log("[BetterLectio] Dashboard layout injected");
     }

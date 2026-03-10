@@ -3,6 +3,7 @@ import { LoginPage, type School } from "@/components/LoginPage";
 import { getCachedLoginState, clearLoginState } from "@/lib/profile-cache";
 import { getLastSchool } from "@/lib/school-storage";
 import { getSettings } from "@/lib/settings-storage";
+import { initUserJotWidget } from "@/lib/userjot";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -88,6 +89,7 @@ async function initLoginPage() {
 
   // Get settings
   const settings = getSettings();
+  document.documentElement.classList.toggle("dark", settings.visual?.darkMode ?? false);
 
   // Check if login page redesign is disabled
   if (!(settings.pages?.loginPageRedesign ?? true)) {
@@ -185,6 +187,9 @@ function replacePageWithLoginUI(schools: School[]) {
 
   // Render the login page
   render(<LoginPage schools={schools} />, root);
+
+  // Initialize UserJot after we've replaced the page DOM.
+  initUserJotWidget();
 
   // Mark page as ready (in case FOUC prevention is active)
   document.documentElement.classList.add("il-ready");

@@ -281,14 +281,22 @@ function SenderAvatar({ name, contextCardId, schoolId, size = 36 }: AvatarProps)
 
 // ── Message Component ────────────────────────────────────────────────────
 
+interface LightboxImage {
+  url: string;
+  name: string;
+  sizeLabel?: string;
+  ext: string;
+}
+
 interface MessageItemProps {
   message: ThreadMessage;
   schoolId: string;
   threadSubject: string;
   index: number;
+  onImageClick: (img: LightboxImage) => void;
 }
 
-function MessageItem({ message, schoolId, threadSubject, index }: MessageItemProps) {
+function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: MessageItemProps) {
   const strippedContent = stripSignatures(message.content);
 
   // Check if message title adds info beyond "Re: <subject>"
@@ -331,34 +339,68 @@ function MessageItem({ message, schoolId, threadSubject, index }: MessageItemPro
 
         {message.attachments.length > 0 && (
           <div className="il-thread-message-attachments">
-            {message.attachments.map((att, i) => (
-              (() => {
-                const kind = getAttachmentKind(att.name, att.url);
-                const ext = getAttachmentExtension(att.name, att.url);
-                const Icon = getAttachmentIcon(kind);
+            {message.attachments.map((att, i) => {
+              const kind = getAttachmentKind(att.name, att.url);
+              const ext = getAttachmentExtension(att.name, att.url);
+              const Icon = getAttachmentIcon(kind);
+
+              if (kind === 'image') {
                 return (
-                  <a
-                    key={i}
-                    href={att.url}
-                    className={`il-thread-attachment is-${kind}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={att.name}
-                  >
-                    <span className="il-thread-attachment-icon">
-                      <Icon size={16} />
-                    </span>
-                    <span className="il-thread-attachment-meta">
-                      <span className="il-thread-attachment-name">{att.name}</span>
-                      <span className="il-thread-attachment-detail">
-                        {att.sizeLabel || (ext ? ext.toUpperCase() : 'Fil')}
+                  <div key={i} className="il-thread-image-attachment">
+                    <button
+                      type="button"
+                      className="il-thread-image-preview-link"
+                      onClick={() => onImageClick({ url: att.url, name: att.name, sizeLabel: att.sizeLabel, ext })}
+                    >
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="il-thread-image-preview"
+                        loading="lazy"
+                      />
+                    </button>
+                    <div className="il-thread-image-info">
+                      <FileImage size={14} className="il-thread-image-info-icon" />
+                      <span className="il-thread-image-info-name">{att.name}</span>
+                      <span className="il-thread-image-info-size">
+                        {att.sizeLabel || (ext ? ext.toUpperCase() : '')}
                       </span>
-                    </span>
-                    <Download size={14} className="il-thread-attachment-download" />
-                  </a>
+                      <a
+                        href={att.url}
+                        download={att.name}
+                        className="il-thread-image-info-download"
+                        title="Download"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Download size={13} />
+                      </a>
+                    </div>
+                  </div>
                 );
-              })()
-            ))}
+              }
+
+              return (
+                <a
+                  key={i}
+                  href={att.url}
+                  className={`il-thread-attachment is-${kind}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={att.name}
+                >
+                  <span className="il-thread-attachment-icon">
+                    <Icon size={16} />
+                  </span>
+                  <span className="il-thread-attachment-meta">
+                    <span className="il-thread-attachment-name">{att.name}</span>
+                    <span className="il-thread-attachment-detail">
+                      {att.sizeLabel || (ext ? ext.toUpperCase() : 'Fil')}
+                    </span>
+                  </span>
+                  <Download size={14} className="il-thread-attachment-download" />
+                </a>
+              );
+            })}
           </div>
         )}
       </div>
@@ -390,6 +432,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const [removingIndex, setRemovingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [lightboxImage, setLightboxImage] = useState<LightboxImage | null>(null);
   const [formState, setFormState] = useState<FormState>({
     tokens: data.formTokens,
     action: data.formAction,
@@ -473,6 +516,16 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       clearPollTimeout();
     };
   }, [formState, sending, uploadingFileName, removingIndex, replyBody, attachedFiles.length]);
+
+  // Close lightbox on Escape
+  useEffect(() => {
+    if (!lightboxImage) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxImage(null);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [lightboxImage]);
 
   const handleFileSelect = useCallback((e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -610,6 +663,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             schoolId={schoolId}
             threadSubject={data.threadSubject}
             index={idx}
+            onImageClick={setLightboxImage}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -701,6 +755,52 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
               >
                 <Send size={15} />
                 <span>{sending ? 'Sender...' : 'Send'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Image Lightbox ───────────────────────── */}
+      {lightboxImage && (
+        <div
+          className="il-image-lightbox"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="il-image-lightbox-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImage.url}
+              alt={lightboxImage.name}
+              className="il-image-lightbox-img"
+            />
+            <div className="il-image-lightbox-bar">
+              <FileImage size={15} className="il-image-lightbox-bar-icon" />
+              <div className="il-image-lightbox-bar-meta">
+                <span className="il-image-lightbox-bar-name">{lightboxImage.name}</span>
+                {(lightboxImage.sizeLabel || lightboxImage.ext) && (
+                  <span className="il-image-lightbox-bar-size">
+                    {lightboxImage.sizeLabel || lightboxImage.ext.toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <a
+                href={lightboxImage.url}
+                download={lightboxImage.name}
+                className="il-image-lightbox-download"
+                title="Download"
+              >
+                <Download size={15} />
+              </a>
+              <button
+                type="button"
+                className="il-image-lightbox-close"
+                onClick={() => setLightboxImage(null)}
+                title="Luk"
+              >
+                <X size={16} />
               </button>
             </div>
           </div>

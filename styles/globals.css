@@ -312,207 +312,164 @@
 
   /* ── Hold Mapping Editor ─────────────────────────────────────────────── */
 
-  .il-hold-mapping-overview {
+  .il-hold-editor {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .il-hold-editor-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  .il-hold-editor-empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+    margin-bottom: 1rem;
+  }
+
+  .il-hold-editor-header {
+    display: flex;
+    flex-direction: column;
     gap: 0.75rem;
-    padding: 1rem;
-    background:
-      linear-gradient(135deg, color-mix(in oklch, var(--primary) 12%, transparent), transparent 58%),
-      color-mix(in oklch, var(--muted) 50%, transparent);
   }
 
-  .il-hold-mapping-overview-card {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in oklch, var(--border) 82%, transparent);
-    background: color-mix(in oklch, var(--card) 78%, transparent);
-    color: var(--foreground);
-    font-size: 0.8rem;
-    font-weight: 600;
+  .il-hold-editor-search {
+    position: relative;
   }
 
-  .il-hold-mapping-group {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem;
-    background: color-mix(in oklch, var(--muted) 36%, transparent);
-  }
-
-  .il-hold-mapping-group-copy {
-    min-width: 0;
-  }
-
-  .il-hold-mapping-group-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--foreground);
-  }
-
-  .il-hold-mapping-group-description {
-    margin-top: 0.25rem;
-    font-size: 0.8125rem;
-    line-height: 1.45;
+  .il-hold-editor-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
     color: var(--muted-foreground);
+    pointer-events: none;
   }
 
-  .il-hold-mapping-count {
-    flex-shrink: 0;
-  }
-
-  .il-hold-mapping-row {
-    display: grid;
-    grid-template-columns: minmax(0, 240px) minmax(0, 1fr) 36px;
-    align-items: start;
-    gap: 1rem;
-    padding: 0.625rem 1rem;
-  }
-
-  .il-hold-mapping-meta {
-    min-width: 0;
-  }
-
-  .il-hold-mapping-meta-top {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.375rem;
-  }
-
-  .il-hold-mapping-kind {
-    padding-inline: 0.5rem;
-  }
-
-  .il-hold-mapping-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 0.8rem;
-    color: var(--muted-foreground);
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .il-hold-mapping-description {
-    font-size: 0.8125rem;
-    line-height: 1.45;
-    color: var(--muted-foreground);
-  }
-
-  .il-hold-mapping-empty {
-    padding: 1rem;
-    font-size: 0.875rem;
-    color: var(--muted-foreground);
-    background: color-mix(in oklch, var(--muted) 24%, transparent);
-  }
-
-  @media (max-width: 760px) {
-    .il-hold-mapping-row {
-      grid-template-columns: 1fr auto;
-    }
-
-    .il-hold-mapping-meta {
-      grid-column: 1 / -1;
-    }
-  }
-
-  .il-hold-mapping-name-cell {
-    min-width: 0;
-  }
-
-  .il-hold-mapping-name-btn {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
+  .il-hold-editor-search-input {
     width: 100%;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.75rem;
-    background: color-mix(in oklch, var(--card) 88%, transparent);
-    border: 1px solid color-mix(in oklch, var(--border) 88%, transparent);
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
-    font-size: 0.875rem;
-    color: var(--foreground);
-    line-height: 1.4;
-    box-shadow: 0 1px 2px oklch(0 0 0 / 0.03);
-  }
-
-  .il-hold-mapping-name-btn:hover {
-    background: color-mix(in oklch, var(--accent) 72%, transparent);
-    border-color: color-mix(in oklch, var(--primary) 18%, var(--border));
-    box-shadow: 0 8px 24px oklch(0 0 0 / 0.05);
-  }
-
-  .il-hold-mapping-name-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-
-  .il-hold-mapping-indicator {
-    flex-shrink: 0;
-    width: 12px;
-    height: 12px;
-    color: var(--muted-foreground);
-    opacity: 0.6;
-  }
-
-  .il-hold-mapping-input {
-    width: 100%;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.75rem;
-    border: 1px solid color-mix(in oklch, var(--border) 88%, transparent);
-    background: color-mix(in oklch, var(--card) 88%, transparent);
-    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    font-size: 0.8125rem;
     color: var(--foreground);
     outline: none;
-    line-height: 1.4;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
 
-  .il-hold-mapping-input:focus {
+  .il-hold-editor-search-input::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-editor-search-input:focus {
     border-color: var(--ring);
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 25%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 20%, transparent);
+  }
+
+  .il-hold-editor-section {
+    display: flex;
+    flex-direction: column;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    overflow: hidden;
+  }
+
+  .il-hold-editor-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 1rem;
+    background: color-mix(in oklch, var(--muted) 40%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .il-hold-editor-section-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-editor-section-count {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--muted) 70%, transparent);
+    color: var(--muted-foreground);
+  }
+
+  .il-hold-editor-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .il-hold-editor-list > * + * {
+    border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  }
+
+  .il-hold-editor-footer {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  /* ── Hold row ──────────────────────────────────────────────────────── */
+
+  .il-hold-mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    transition: background 0.1s;
+  }
+
+  .il-hold-mapping-row:hover {
+    background: color-mix(in oklch, var(--muted) 24%, transparent);
   }
 
   .il-hold-mapping-color-cell {
     position: relative;
+    flex-shrink: 0;
   }
 
   .il-hold-mapping-color-btn {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
-    border: 2px solid oklch(0.92 0.005 265);
+    border: 2px solid var(--border);
     background: oklch(0.68 0.2 var(--hold-hue));
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
   }
 
   .il-hold-mapping-color-btn:hover {
-    transform: scale(1.15);
-    box-shadow: 0 0 0 3px oklch(0.68 0.2 var(--hold-hue) / 0.3);
+    transform: scale(1.18);
+    box-shadow: 0 0 0 3px oklch(0.68 0.2 var(--hold-hue) / 0.25);
   }
 
   .il-hold-color-picker {
     position: absolute;
-    right: calc(100% + 8px);
+    left: calc(100% + 8px);
     top: 50%;
     transform: translateY(-50%);
     z-index: 50;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 10px;
-    width: 196px;
+    padding: 0.625rem;
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: var(--popover);
@@ -521,9 +478,26 @@
       0 1px 4px oklch(0 0 0 / 0.04);
   }
 
+  .il-hold-color-picker-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    margin-bottom: 0.5rem;
+    padding-left: 0.125rem;
+  }
+
+  .il-hold-color-picker-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    width: 182px;
+  }
+
   .il-hold-color-swatch {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     border: 2.5px solid transparent;
     background: oklch(0.68 0.2 var(--swatch-hue));
@@ -551,6 +525,123 @@
       oklch(0.7 0.2 300),
       oklch(0.7 0.2 360)
     );
+  }
+
+  .il-hold-mapping-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .il-hold-mapping-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 0.0625rem;
+  }
+
+  .il-hold-mapping-name-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.125rem 0.375rem;
+    margin: -0.125rem -0.375rem;
+    border-radius: 0.375rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    line-height: 1.4;
+  }
+
+  .il-hold-mapping-name-btn:hover {
+    background: color-mix(in oklch, var(--accent) 80%, transparent);
+  }
+
+  .il-hold-mapping-name-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .il-hold-mapping-indicator {
+    flex-shrink: 0;
+    width: 11px;
+    height: 11px;
+    color: var(--muted-foreground);
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+
+  .il-hold-mapping-name-btn:hover .il-hold-mapping-indicator {
+    opacity: 0.7;
+  }
+
+  /* ── Inline edit input ─────────────────────────────────────────────── */
+
+  .il-hold-autocomplete-wrapper {
+    position: relative;
+  }
+
+  .il-hold-mapping-input {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    margin: -0.25rem -0.5rem;
+    border-radius: 0.375rem;
+    border: 1.5px solid var(--ring);
+    background: var(--background);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    outline: none;
+    line-height: 1.4;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 18%, transparent);
+  }
+
+  .il-hold-autocomplete-list {
+    position: absolute;
+    left: -0.5rem;
+    top: calc(100% + 4px);
+    z-index: 60;
+    min-width: 200px;
+    max-width: 280px;
+    border-radius: 0.625rem;
+    border: 1px solid var(--border);
+    background: var(--popover);
+    box-shadow:
+      0 6px 20px oklch(0 0 0 / 0.08),
+      0 2px 6px oklch(0 0 0 / 0.04);
+    padding: 0.25rem;
+    overflow: hidden;
+  }
+
+  .il-hold-autocomplete-item {
+    display: block;
+    width: 100%;
+    padding: 0.4375rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--foreground);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.08s;
+    background: transparent;
+    border: none;
+  }
+
+  .il-hold-autocomplete-item:hover,
+  .il-hold-autocomplete-item.is-selected {
+    background: var(--accent);
   }
 
   /* Sidebar inner container - fixed left panel */
@@ -4199,6 +4290,196 @@
     background: oklch(0.93 0.028 20 / 0.75);
   }
 
+  /* ── Image Attachment Inline Preview ──── */
+
+  .il-thread-image-attachment {
+    grid-column: 1 / -1;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid oklch(from var(--border) l c h / 0.9);
+    background: oklch(from var(--card) l c h / 0.7);
+    max-width: 420px;
+  }
+
+  .il-thread-image-preview-link {
+    display: block;
+    width: 100%;
+    background: oklch(from var(--muted) l c h / 0.3);
+    cursor: zoom-in;
+    border: none;
+    padding: 0;
+    font: inherit;
+  }
+
+  .il-thread-image-preview {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+  }
+
+  .il-thread-image-info {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.4rem 0.625rem;
+    border-top: 1px solid oklch(from var(--border) l c h / 0.6);
+    font-family: "Geist", sans-serif;
+    font-size: 0.75rem;
+  }
+
+  .il-thread-image-info-icon {
+    color: oklch(0.59 0.11 215);
+    flex-shrink: 0;
+  }
+
+  .il-thread-image-info-name {
+    color: var(--foreground);
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .il-thread-image-info-size {
+    color: var(--muted-foreground);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .il-thread-image-info-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.375rem;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .il-thread-image-info-download:hover {
+    color: var(--foreground);
+    background: oklch(from var(--accent) l c h / 0.6);
+  }
+
+  /* ── Image Lightbox ─────────────────────── */
+
+  .il-image-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: oklch(0 0 0 / 0.6);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    animation: il-lightbox-fade-in 0.15s ease-out;
+  }
+
+  @keyframes il-lightbox-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes il-lightbox-scale-in {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .il-image-lightbox-content {
+    display: flex;
+    flex-direction: column;
+    max-width: min(85vw, 900px);
+    max-height: 85vh;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: var(--card);
+    box-shadow:
+      0 24px 80px -12px oklch(0 0 0 / 0.5),
+      0 0 0 1px oklch(1 0 0 / 0.08);
+    cursor: default;
+    animation: il-lightbox-scale-in 0.2s ease-out;
+  }
+
+  .il-image-lightbox-img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(85vh - 3rem);
+    object-fit: contain;
+    background: oklch(0.12 0 0);
+  }
+
+  .il-image-lightbox-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid oklch(from var(--border) l c h / 0.5);
+    font-family: "Geist", sans-serif;
+    min-height: 2.75rem;
+  }
+
+  .il-image-lightbox-bar-icon {
+    color: oklch(0.59 0.11 215);
+    flex-shrink: 0;
+  }
+
+  .il-image-lightbox-bar-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .il-image-lightbox-bar-name {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-image-lightbox-bar-size {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+
+  .il-image-lightbox-download,
+  .il-image-lightbox-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+  }
+
+  .il-image-lightbox-download:hover,
+  .il-image-lightbox-close:hover {
+    color: var(--foreground);
+    background: oklch(from var(--accent) l c h / 0.6);
+  }
+
   /* ── Reply Area ────────────────────────── */
 
   .il-thread-reply {
@@ -5268,9 +5549,21 @@
     padding: 0;
   }
 
+  /* Fallback horizontal scrolling for pages that render lf-grid directly (no wrapper) */
+  #il-original-content .islandContent:has(table.lf-grid):not(:has(.ls-table-wrapper)) {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
   /* Restore padding for filter controls above tables in islands */
   #il-original-content .lf-island .islandContent .ls-std-rowblock {
     padding: 0.5rem 1rem;
+  }
+
+  /* Karakterer-style native views can render very wide tables/wrappers.
+     Keep overflow local to the content pane instead of widening the full layout. */
+  #il-original-content:has([id*="karakterView"]) {
+    overflow-x: auto;
   }
 
   /* Hide the disabled tab button */
@@ -6353,7 +6646,7 @@
   }
 
   .il-cd-subject {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 650;
     line-height: 1.2;
     white-space: nowrap;
@@ -6363,7 +6656,7 @@
   }
 
   .il-cd-pause {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: oklch(0.4 0.02 265);
     line-height: 1.2;
@@ -6393,7 +6686,7 @@
   }
 
   .il-cd-sub {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     color: oklch(0.52 0.02 265);
     line-height: 1.2;
     white-space: nowrap;
@@ -6402,7 +6695,7 @@
   }
 
   .il-cd-done-text {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: oklch(0.42 0.1 145);
     font-weight: 550;
     line-height: 1.2;
@@ -6438,7 +6731,7 @@
   }
 
   .il-cd-cancelled-sub {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: oklch(0.5 0.04 85);
   }
 
@@ -6453,7 +6746,7 @@
     margin-top: 0.25rem;
     padding-top: 0.3rem;
     border-top: 1px dashed oklch(0.88 0.025 85);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 
   .il-cd-next-dot {
@@ -7879,7 +8172,7 @@
   }
 
   .il-opgaver-deadline-detail {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--muted-foreground);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -7915,7 +8208,7 @@
     display: inline-flex;
     align-items: center;
     padding: 0.125rem 0.5rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 600;
     border-radius: 9999px;
     background: oklch(0.94 0.06 var(--hold-hue, 235));
@@ -7948,7 +8241,7 @@
     display: flex;
     align-items: center;
     gap: 0.375rem;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--muted-foreground);
     flex-wrap: wrap;
   }
@@ -7964,7 +8257,7 @@
   /* ── Note (shared) ───────────────────────── */
 
   .il-opgaver-note {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--muted-foreground);
     background: oklch(0.96 0.005 265 / 0.6);
     padding: 0.5rem 0.625rem;
@@ -8067,7 +8360,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     color: var(--muted-foreground);
   }
 
@@ -8076,7 +8369,7 @@
   }
 
   .il-opgaver-submitted-extra {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-style: italic;
     color: var(--muted-foreground);
     opacity: 0.7;
@@ -10011,8 +10304,8 @@
   }
 
   .findskema-card-badge {
-    font-size: 0.6875rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     padding: 0.125rem 0.5rem;
     border-radius: 9999px;
   }
@@ -10203,9 +10496,11 @@
   #il-original-content .ls-master-container1,
   #il-original-content .ls-master-container2,
   #il-original-content .outerContentFrame,
-  #il-original-content .ls-content-container {
+  #il-original-content .ls-content-container,
+  #il-original-content .ls-content {
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     padding: 0;
   }
 
@@ -10763,7 +11058,7 @@
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-room {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     padding: 0.03125rem 0.21875rem;
   }
 
@@ -10772,7 +11067,7 @@
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-topic {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     -webkit-line-clamp: 1;
   }
 
@@ -10782,7 +11077,7 @@
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-cancelled-badge,
   #il-original-content .s2skemabrik.il-narrow .il-brick-changed-badge {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     padding: 0.03125rem 0.21875rem;
   }
 
@@ -10842,7 +11137,7 @@
 
   /* Time prefix */
   #il-original-content .s2infoHeader .separator-value:not(:empty) {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 500;
     color: oklch(0.5 0.02 265);
     font-variant-numeric: tabular-nums;
@@ -10884,15 +11179,9 @@
     border-bottom: 1px solid oklch(0.92 0.006 265) !important;
   }
 
-  /* Week header */
-  #il-original-content .s2weekHeader td {
-    padding: 0.625rem 0.875rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: oklch(0.5 0.02 265);
-    background: transparent;
-    border-bottom: none !important;
-    letter-spacing: 0.01em;
+  /* Week header (e.g. "Uge 11 - 2026") */
+  #il-original-content .s2weekHeader {
+    display: none !important;
   }
 
   /* Module info (time labels on left) — do NOT override font-size on .s2module-info,
@@ -12051,11 +12340,6 @@
     color: oklch(0.6 0.005 285) !important;
     background: transparent !important;
     border-bottom-color: oklch(0.22 0.004 285) !important;
-  }
-
-  .dark #il-original-content .s2weekHeader td {
-    color: oklch(0.55 0.005 285) !important;
-    background: transparent !important;
   }
 
   /* Dark mode weekend collapse overrides */

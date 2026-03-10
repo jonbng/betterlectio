@@ -66,6 +66,20 @@ function buildFields(
   return { ...formState.tokens, ...overrides };
 }
 
+function collectSelectedThreadFields(doc: Document = document): Record<string, string> {
+  const selected: Record<string, string> = {};
+  const checkboxes = doc.querySelectorAll<HTMLInputElement>(
+    '#s_m_Content_Content_threadGV_ctl00 input[type="checkbox"][id$="_threadCB"][name]',
+  );
+
+  for (const checkbox of checkboxes) {
+    if (!checkbox.checked) continue;
+    selected[checkbox.name] = checkbox.value || 'on';
+  }
+
+  return selected;
+}
+
 function handleError(err: unknown): SubmitResult<never> {
   if (err instanceof Error) {
     if (err.message === 'Submission timeout') {
@@ -249,7 +263,9 @@ export function executeBulkActionViaIframe(
 }>> {
   return withMutex(async () => {
     try {
+      const selectedFields = collectSelectedThreadFields();
       const fields = buildFields(formState, {
+        ...selectedFields,
         __EVENTTARGET: 's$m$Content$Content$MarkChkDD',
         __EVENTARGUMENT: '',
         's$m$Content$Content$MarkChkDD': value,
@@ -276,7 +292,9 @@ export function markAllReadViaIframe(
 }>> {
   return withMutex(async () => {
     try {
+      const selectedFields = collectSelectedThreadFields();
       const fields = buildFields(formState, {
+        ...selectedFields,
         __EVENTTARGET: 's$m$Content$Content$MarkReadButton',
         __EVENTARGUMENT: '',
       });

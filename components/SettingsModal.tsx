@@ -6,14 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
-  Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
 } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -33,6 +31,7 @@ import {
   requiresReload,
   type FeatureSettings,
 } from "@/lib/settings-storage";
+import { setUserJotTheme } from "@/lib/userjot";
 import { clearPictureCache, getStarredPeople, getRecentPeople } from "@/lib/findskema-storage";
 import {
   Info,
@@ -161,6 +160,25 @@ function getOSInfo(): string {
   return "Ukendt";
 }
 
+function getSchoolIdFromUrl(): string | null {
+  return window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1] ?? null;
+}
+
+function getSchoolNameFromPage(): string | null {
+  const meta = document.querySelector('meta[name="application-name"]');
+  if (meta) {
+    const content = meta.getAttribute("content") || "";
+    const match = content.match(/^Lectio-\s*(.+)$/);
+    if (match) return match[1];
+  }
+
+  const titleMatch = document.title.match(/ - Lectio - (.+)$/);
+  if (titleMatch) return titleMatch[1];
+
+  const el = document.querySelector(".ls-master-header-institution-name");
+  return el?.textContent?.trim() || null;
+}
+
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const manifest = browser.runtime.getManifest();
   const version = manifest.version;
@@ -219,7 +237,37 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const browserInfo = getBrowserInfo();
   const osInfo = getOSInfo();
+  const schoolId = getSchoolIdFromUrl();
+  const schoolName = getSchoolNameFromPage();
   const screenDimensions = `${window.screen.width} × ${window.screen.height}`;
+  const debugInfoLines = [
+    `BetterLectio: v${version}`,
+    lectioVersion ? `Lectio: ${lectioVersion}` : null,
+    `Browser: ${browserInfo}`,
+    `OS: ${osInfo}`,
+    `Skærm: ${screenDimensions}`,
+    `Skole navn: ${schoolName ?? "Ukendt"}`,
+    `Skole ID: ${schoolId ?? "Ukendt"}`,
+    `Viewport: ${window.innerWidth} × ${window.innerHeight}`,
+    `Dark mode: ${document.documentElement.classList.contains("dark") ? "Ja" : "Nej"}`,
+    versionInfo ? `Installeret: ${formatDate(versionInfo.firstInstalledAt)}` : null,
+    versionInfo && versionInfo.firstInstalledAt !== versionInfo.lastUpdatedAt
+      ? `Opdateret: ${formatDate(versionInfo.lastUpdatedAt)}`
+      : null,
+    `URL: ${window.location.href}`,
+    `User-Agent: ${navigator.userAgent}`,
+  ].filter((line): line is string => Boolean(line));
+  const reportIssueBody = [
+    "## Beskrivelse",
+    "<!-- Beskriv problemet og hvordan det kan genskabes -->",
+    "",
+    "## Debug info",
+    "```text",
+    ...debugInfoLines,
+    "```",
+  ].join("\n");
+  const reportIssueUrl =
+    `https://github.com/jonbng/betterlectio/issues/new?body=${encodeURIComponent(reportIssueBody)}`;
 
   const handleSettingChange = <K extends keyof Omit<FeatureSettings, 'version'>>(
     category: K,
@@ -239,6 +287,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
     if (category === "visual" && key === "darkMode") {
       document.documentElement.classList.toggle("dark", value);
+      setUserJotTheme(value ? "dark" : "light");
     }
 
     // Show reload toast if this setting requires it
@@ -399,7 +448,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <ExternalLink className="size-3" />
               </a>
               <a
-                href="https://github.com/jonbng/betterlectio/issues"
+                href={reportIssueUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-colors no-underline"
@@ -442,25 +491,31 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     {screenDimensions}
                   </span>
                 </div>
+                <div className="flex items-center justify-between py-2.5 px-4">
+                  <div className="flex items-center gap-2">
+                    <Info className="size-4 text-muted-foreground" />
+                    <span className="text-sm">Skole navn</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {schoolName ?? "Ukendt"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2.5 px-4">
+                  <div className="flex items-center gap-2">
+                    <Info className="size-4 text-muted-foreground" />
+                    <span className="text-sm">Skole ID</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {schoolId ?? "Ukendt"}
+                  </span>
+                </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full gap-2"
                 onClick={() => {
-                  const lines = [
-                    `BetterLectio: v${version}`,
-                    lectioVersion ? `Lectio: ${lectioVersion}` : null,
-                    `Browser: ${browserInfo}`,
-                    `OS: ${osInfo}`,
-                    `Skærm: ${screenDimensions}`,
-                    `Viewport: ${window.innerWidth} × ${window.innerHeight}`,
-                    `Dark mode: ${document.documentElement.classList.contains("dark") ? "Ja" : "Nej"}`,
-                    versionInfo ? `Installeret: ${formatDate(versionInfo.firstInstalledAt)}` : null,
-                    versionInfo && versionInfo.firstInstalledAt !== versionInfo.lastUpdatedAt ? `Opdateret: ${formatDate(versionInfo.lastUpdatedAt)}` : null,
-                    `URL: ${window.location.href}`,
-                    `User-Agent: ${navigator.userAgent}`,
-                  ].filter(Boolean).join("\n");
+                  const lines = debugInfoLines.join("\n");
                   navigator.clipboard.writeText(lines).then(() => {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
@@ -927,8 +982,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <X className="size-5" />
         </button>
 
-        <SidebarProvider className="settings-modal items-stretch min-h-0 h-full w-full">
-          <Sidebar className="flex border-r py-4">
+        <div className="settings-modal flex items-stretch min-h-0 h-full w-full">
+          <aside className="w-64 shrink-0 border-r py-4 bg-sidebar text-sidebar-foreground">
             <SidebarContent className="overflow-hidden">
               <SidebarGroup>
                 <SidebarGroupContent>
@@ -949,7 +1004,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </SidebarGroupContent>
               </SidebarGroup>
             </SidebarContent>
-          </Sidebar>
+          </aside>
 
           <main className="settings-modal-main flex flex-1 min-h-0 flex-col overflow-hidden">
             <header className="flex h-12 shrink-0 items-center gap-2 border-b mt-4">
@@ -974,7 +1029,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               {renderContent()}
             </div>
           </main>
-        </SidebarProvider>
+        </div>
       </div>
     </div>
   );

@@ -906,7 +906,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               <div className="il-opgaver-submitted-grid">
                 {visibleSubmitted.map((entry, idx) => {
                   const hue = getHoldHue(entry.hold);
-                  const gradeHue = entry.grade ? getGradeHue(entry.grade) : 145;
+                  const gradeHue = entry.grade
+                    ? getGradeHue(entry.grade)
+                    : entry.status === 'mangler'
+                      ? 25
+                      : 145;
                   return (
                     <a
                       key={idx}

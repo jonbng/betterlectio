@@ -42,9 +42,12 @@ betterlectio/
 ├── components/               # UI components (AppSidebar, FindSkemaPage, etc.)
 │   └── ui/                   # shadcn/ui components (20+)
 ├── lib/                      # Utility libraries (parsers, caches, storage)
+│   └── userjot.ts            # UserJot widget bootstrap + identify bridge
 ├── hooks/                    # React/Preact hooks
 ├── styles/globals.css        # Main stylesheet
 ├── public/                   # Icons, logos, assets
+│   └── vendor/userjot/       # Vendored UserJot SDK + chunks (MV3-compliant)
+├── tools/vendor-userjot.mjs  # Fetches UserJot SDK/chunks before release builds
 ├── tools/lectio-cli/         # Authenticated Lectio CLI + WebForms helpers
 ├── lectio-scripts/           # Reference: Decompiled Lectio JS
 ├── lectio-html/              # Reference: HTML snapshots
@@ -78,6 +81,12 @@ Content Scripts (inject into lectio.dk pages)
    - Moves (not clones) original DOM into `#il-lectio-content`
    - Fades out skeleton, initializes preloading
 4. User interaction: sidebar nav, activity modals, hover prefetch, original forms work normally
+
+### Third-Party SDK Policy (MV3)
+
+- BetterLectio does not execute remote third-party JS at runtime for Chrome MV3 compatibility.
+- UserJot SDK files are vendored into `public/vendor/userjot/` via `npm run vendor:userjot`.
+- Build/zip scripts run this vendoring step automatically before packaging.
 
 ---
 
