@@ -214,16 +214,19 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
   if (entries.length === 0) return null;
 
   return (
-    <div className="il-foc">
+    <div className="il-foc rounded-xl border border-border bg-card">
       {/* Header */}
-      <a href={opgaverPageUrl} className="il-foc-header">
-        <span className="il-foc-header-title">Opgaver</span>
-        <span className="il-foc-header-count">{entries.length}</span>
-        <ArrowUpRight size={14} className="il-foc-header-arrow" />
+      <a
+        href={opgaverPageUrl}
+        className="il-foc-header flex items-center gap-2 border-b border-border px-4 py-3 no-underline transition-colors hover:bg-accent/45"
+      >
+        <span className="il-foc-header-title text-sm font-semibold text-foreground">Opgaver</span>
+        <span className="il-foc-header-count inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{entries.length}</span>
+        <ArrowUpRight size={14} className="il-foc-header-arrow ml-auto text-muted-foreground" />
       </a>
 
       {/* Assignment list */}
-      <div className="il-foc-list">
+      <div className="il-foc-list flex flex-col p-2">
         {entries.map((opgave, i) => {
           const info = getDeadlineInfo(opgave.deadline, opgave.isMissing);
           const hue = getHoldHue(opgave.holdCode);
@@ -233,15 +236,15 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
             <a
               key={opgave.url || i}
               href={opgave.url}
-              className={`il-foc-item is-${info.urgency}${isFirst ? ' is-primary' : ''}`}
+              className={`il-foc-item is-${info.urgency}${isFirst ? ' is-primary' : ''} relative flex items-center gap-3 overflow-hidden rounded-lg border border-border/60 bg-card px-3 py-2.5 no-underline transition-colors hover:bg-accent/35`}
               style={{ '--hold-hue': hue, '--anim-i': i } as any}
               onClick={(e) => openDetail(e as unknown as MouseEvent, opgave)}
             >
               {/* Urgency bar */}
-              <div className="il-foc-bar" style={{ '--progress': info.progress } as any} />
+              <div className="il-foc-bar absolute left-0 top-0 h-full w-0.5 opacity-80" style={{ '--progress': info.progress } as any} />
 
               {/* Icon */}
-              <div className="il-foc-icon">
+              <div className="il-foc-icon inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 {info.urgency === 'missing' ? <Upload size={15} /> :
                  info.urgency === 'overdue' ? <AlertTriangle size={15} /> :
                  info.urgency === 'imminent' ? <Flame size={15} /> :
@@ -249,16 +252,16 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               </div>
 
               {/* Content */}
-              <div className="il-foc-content">
-                <div className="il-foc-deadline-row">
-                  <span className="il-foc-deadline">{info.label}</span>
-                  <span className="il-foc-deadline-sub">{info.sub}</span>
+              <div className="il-foc-content min-w-0 flex-1">
+                <div className="il-foc-deadline-row flex flex-wrap items-center gap-x-2">
+                  <span className="il-foc-deadline text-xs font-semibold uppercase tracking-wide text-muted-foreground">{info.label}</span>
+                  <span className="il-foc-deadline-sub text-xs text-muted-foreground">{info.sub}</span>
                 </div>
-                <span className="il-foc-title">{opgave.title}</span>
+                <span className="il-foc-title line-clamp-2 text-sm font-medium text-foreground">{opgave.title}</span>
               </div>
 
               {/* Hold pill */}
-              <span className="il-foc-hold" style={{ '--hold-hue': hue } as any}>
+              <span className="il-foc-hold shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground" style={{ '--hold-hue': hue } as any}>
                 {getHoldDisplayName(opgave.holdCode)}
               </span>
             </a>

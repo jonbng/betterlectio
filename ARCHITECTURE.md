@@ -202,6 +202,17 @@ Layer order (lowest -> highest priority):
 
 Extension CSS automatically beats Lectio CSS without `!important`. Only ~99 `!important` declarations remain (for inline style overrides, display toggling, critical layout).
 
+### Tailwind-First Rule For Custom UI
+
+All custom/injected Preact UI should be styled with Tailwind utility classes directly in `.tsx` components.
+
+- Do not add new component-specific plain CSS blocks for custom UI.
+- Prefer semantic token utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`) so theme switching propagates automatically.
+- Keep `globals.css` for platform-level concerns only:
+  - token definitions/overrides (`:root`, `.dark`, `data-il-theme`)
+  - layer/base plumbing
+  - native Lectio overrides and isolation (`#il-original-content`, `.ls-*`, `.s2*`)
+
 ### Content Isolation
 
 ```

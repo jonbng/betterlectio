@@ -112,11 +112,11 @@ function AutocompleteInput({
   }, [selectedIndex]);
 
   return (
-    <div className="il-hold-autocomplete-wrapper">
+    <div className="il-hold-autocomplete-wrapper relative">
       <input
         ref={inputRef}
         type="text"
-        className="il-hold-mapping-input"
+        className="il-hold-mapping-input w-full rounded-md border border-ring bg-background px-2 py-1 text-sm font-medium text-foreground outline-none ring-2 ring-ring/20"
         value={editValue}
         onInput={(e) => setEditValue((e.target as HTMLInputElement).value)}
         onBlur={() => {
@@ -131,14 +131,14 @@ function AutocompleteInput({
         placeholder="Skriv et fagnavn..."
       />
       {showSuggestions && (
-        <div ref={listRef} className="il-hold-autocomplete-list">
+        <div ref={listRef} className="il-hold-autocomplete-list absolute -left-2 top-[calc(100%+4px)] z-60 min-w-[200px] max-w-[280px] overflow-hidden rounded-md border border-border bg-popover p-1 shadow-lg">
           {suggestions.map((suggestion, i) => (
             <button
               key={suggestion}
               data-suggestion
               type="button"
               className={cn(
-                'il-hold-autocomplete-item',
+                'il-hold-autocomplete-item block w-full rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-sm text-foreground',
                 i === selectedIndex && 'is-selected',
               )}
               onMouseDown={(e) => {
@@ -193,12 +193,12 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
   };
 
   return (
-    <div className={cn('il-hold-mapping-row', showColors && 'is-color-open')}>
+    <div className={cn('il-hold-mapping-row flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/30', showColors && 'is-color-open')}>
       {/* Color dot */}
-      <div className="il-hold-mapping-color-cell" ref={colorRef}>
+      <div className="il-hold-mapping-color-cell relative shrink-0" ref={colorRef}>
         <button
           type="button"
-          className="il-hold-mapping-color-btn"
+          className="il-hold-mapping-color-btn size-[22px] cursor-pointer rounded-full border-2 border-border transition-transform hover:scale-115"
           style={{ '--hold-hue': mapping.effectiveHue } as any}
           onClick={() => setShowColors(!showColors)}
           title="Skift farve"
@@ -206,9 +206,9 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
           <span className="sr-only">Skift farve</span>
         </button>
         {showColors && (
-          <div className="il-hold-color-picker">
+          <div className="il-hold-color-picker absolute left-[calc(100%+8px)] top-1/2 z-50 -translate-y-1/2 rounded-xl border border-border bg-popover p-2 shadow-lg">
             <div className="il-hold-color-picker-label">Vælg farve</div>
-            <div className="il-hold-color-picker-grid">
+            <div className="il-hold-color-picker-grid flex w-[182px] flex-wrap gap-1">
               <button
                 type="button"
                 className={cn(
@@ -265,7 +265,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
       </div>
 
       {/* Name + code */}
-      <div className="il-hold-mapping-content">
+      <div className="il-hold-mapping-content flex min-w-0 flex-1 flex-col gap-0.5">
         {editing ? (
           <AutocompleteInput
             value={mapping.displayName}
@@ -276,7 +276,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
         ) : (
           <button
             type="button"
-            className="il-hold-mapping-name-btn"
+            className="il-hold-mapping-name-btn -m-0.5 flex w-fit max-w-full items-center gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-sm text-foreground transition-colors hover:bg-accent/70"
             onClick={() => setEditing(true)}
             title="Klik for at redigere"
           >
@@ -288,35 +288,35 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
             )}
           </button>
         )}
-        <span className="il-hold-mapping-code">{mapping.codeLabel}</span>
+        <span className="il-hold-mapping-code truncate pl-px font-mono text-[11px] text-muted-foreground">{mapping.codeLabel}</span>
       </div>
 
       {showCustomModal && (
         <div
-          className="il-hold-custom-color-backdrop"
+          className="il-hold-custom-color-backdrop fixed inset-0 z-220 flex items-center justify-center bg-[oklch(0_0_0/0.45)] p-4 backdrop-blur-[2px]"
           onClick={() => setShowCustomModal(false)}
           role="presentation"
         >
           <div
-            className="il-hold-custom-color-modal"
+            className="il-hold-custom-color-modal flex w-full max-w-[420px] flex-col gap-3 rounded-xl border border-border bg-popover p-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-label="Vælg brugerdefineret farve"
           >
-            <div className="il-hold-custom-color-header">
+            <div className="il-hold-custom-color-header flex flex-col gap-1">
               <h3 className="il-hold-custom-color-title">Brugerdefineret farve</h3>
               <p className="il-hold-custom-color-subtitle">
                 Vælg præcis hue (0-359) til dette fag.
               </p>
             </div>
 
-            <div className="il-hold-custom-color-preview-wrap">
+            <div className="il-hold-custom-color-preview-wrap flex items-center gap-2.5 rounded-lg border border-border bg-muted/45 px-3 py-2.5">
               <div
                 className="il-hold-custom-color-preview"
                 style={{ '--custom-hue': customHue } as any}
               />
-              <div className="il-hold-custom-color-value">{customHue}deg</div>
+              <div className="il-hold-custom-color-value font-mono text-sm text-foreground">{customHue}deg</div>
             </div>
 
             <label className="il-hold-custom-color-label" htmlFor={`custom-hue-${mapping.kind}-${mapping.id}`}>
@@ -330,7 +330,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
               step={1}
               value={customHue}
               onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
-              className="il-hold-custom-color-slider"
+              className="il-hold-custom-color-slider w-full cursor-pointer accent-primary"
             />
 
             <input
@@ -340,10 +340,10 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
               step={1}
               value={customHue}
               onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
-              className="il-hold-custom-color-number"
+              className="il-hold-custom-color-number w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none"
             />
 
-            <div className="il-hold-custom-color-actions">
+            <div className="il-hold-custom-color-actions flex justify-end gap-2">
               <button
                 type="button"
                 className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer')}
@@ -411,7 +411,7 @@ export function HoldMappingEditor() {
 
   if (allRows.length === 0) {
     return (
-      <div className="il-hold-editor-empty">
+      <div className="il-hold-editor-empty flex flex-col items-center justify-center px-4 py-12 text-center">
         <div className="il-hold-editor-empty-icon">
           <Palette className="size-8 text-muted-foreground" />
         </div>
@@ -424,9 +424,9 @@ export function HoldMappingEditor() {
   }
 
   return (
-    <div className="il-hold-editor">
+    <div className="il-hold-editor flex flex-col gap-5">
       {/* Header */}
-      <div className="il-hold-editor-header">
+      <div className="il-hold-editor-header flex flex-col gap-3">
         <div>
           <p className="text-sm text-muted-foreground">
             Klik på et fagnavn for at omdøbe det. Klik på farvecirklen for at vælge farve.
@@ -435,11 +435,11 @@ export function HoldMappingEditor() {
         </div>
 
         {/* Search */}
-        <div className="il-hold-editor-search">
+        <div className="il-hold-editor-search relative">
           <Search className="il-hold-editor-search-icon" />
           <input
             type="text"
-            className="il-hold-editor-search-input"
+            className="il-hold-editor-search-input w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             placeholder="Filtrer fag..."
             value={filter}
             onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
@@ -449,12 +449,12 @@ export function HoldMappingEditor() {
 
       {/* Subjects section */}
       {subjects.length > 0 && (
-        <div className="il-hold-editor-section">
-          <div className="il-hold-editor-section-header">
+        <div className="il-hold-editor-section flex flex-col overflow-visible rounded-xl border border-border bg-card">
+          <div className="il-hold-editor-section-header flex items-center justify-between border-b border-border bg-muted/35 px-4 py-2.5">
             <span className="il-hold-editor-section-title">Fag</span>
             <span className="il-hold-editor-section-count">{subjects.length}</span>
           </div>
-          <div className="il-hold-editor-list">
+          <div className="il-hold-editor-list flex flex-col">
             {subjects.map((mapping) => (
               <HoldRow
                 key={`${mapping.kind}:${mapping.id}`}
@@ -468,12 +468,12 @@ export function HoldMappingEditor() {
 
       {/* Overrides section */}
       {overrides.length > 0 && (
-        <div className="il-hold-editor-section">
-          <div className="il-hold-editor-section-header">
+        <div className="il-hold-editor-section flex flex-col overflow-visible rounded-xl border border-border bg-card">
+          <div className="il-hold-editor-section-header flex items-center justify-between border-b border-border bg-muted/35 px-4 py-2.5">
             <span className="il-hold-editor-section-title">Særlige hold</span>
             <span className="il-hold-editor-section-count">{overrides.length}</span>
           </div>
-          <div className="il-hold-editor-list">
+          <div className="il-hold-editor-list flex flex-col">
             {overrides.map((mapping) => (
               <HoldRow
                 key={`${mapping.kind}:${mapping.id}`}
@@ -493,7 +493,7 @@ export function HoldMappingEditor() {
       )}
 
       {/* Reset */}
-      <div className="il-hold-editor-footer">
+      <div className="il-hold-editor-footer flex justify-end">
         <button
           type="button"
           onClick={handleResetAll}

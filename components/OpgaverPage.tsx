@@ -606,11 +606,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const hasActiveFilters = selectedHold !== null || datePreset !== 'all' || queryLower !== '';
 
   return (
-    <div className="il-opgaver-page">
+    <div className="il-opgaver-page space-y-4">
       {/* ── Header ─────────────────────────────── */}
-      <div className="il-opgaver-header">
-        <h1 className="il-opgaver-title">Opgaver</h1>
-        <p className="il-opgaver-subtitle">
+      <div className="il-opgaver-header rounded-xl border border-border bg-card px-5 py-4">
+        <h1 className="il-opgaver-title text-2xl font-bold tracking-tight text-foreground">Opgaver</h1>
+        <p className="il-opgaver-subtitle text-sm text-muted-foreground">
           {upcoming.length} kommende &middot; {submitted.length} afleveret
         </p>
       </div>
@@ -618,59 +618,59 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
       {/* ── Urgent banner ──────────────────────── */}
       {nextUrgent && (
         <button
-          className={`il-opgaver-alert-banner is-${nextUrgent.display.urgency}`}
+          className={`il-opgaver-alert-banner is-${nextUrgent.display.urgency} flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/40`}
           onClick={(e) => openDetail(e as unknown as MouseEvent, nextUrgent.entry)}
         >
-          <div className="il-opgaver-alert-icon">
+          <div className="il-opgaver-alert-icon inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
             {nextUrgent.display.urgency === 'overdue' ? (
               <AlertTriangle size={20} />
             ) : (
               <Flame size={20} />
             )}
           </div>
-          <div className="il-opgaver-alert-content">
-            <span className="il-opgaver-alert-time">
+          <div className="il-opgaver-alert-content min-w-0 flex-1">
+            <span className="il-opgaver-alert-time block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {nextUrgent.display.label}
               {nextUrgent.entry.status === 'mangler' &&
                 ' — Mangler aflevering'}
             </span>
-            <span className="il-opgaver-alert-title">{nextUrgent.entry.title}</span>
+            <span className="il-opgaver-alert-title block truncate text-sm font-medium text-foreground">{nextUrgent.entry.title}</span>
           </div>
-          <ArrowRight size={16} className="il-opgaver-alert-arrow" />
+          <ArrowRight size={16} className="il-opgaver-alert-arrow shrink-0 text-muted-foreground" />
         </button>
       )}
 
       {/* ── Search + filters toolbar ───────────── */}
-      <div className="il-opgaver-toolbar">
+      <div className="il-opgaver-toolbar flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
         {/* Search */}
-        <div className="il-opgaver-search">
+        <div className="il-opgaver-search relative min-w-[240px] flex-1">
           <Search size={15} className="il-opgaver-search-icon" />
           <input
             ref={searchRef}
             type="text"
-            className="il-opgaver-search-input"
+            className="il-opgaver-search-input h-10 w-full rounded-lg border border-border bg-background pl-9 pr-20 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             placeholder="Søg opgaver..."
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
           />
           {searchQuery && (
             <button
-              className="il-opgaver-search-clear"
+              className="il-opgaver-search-clear absolute right-12 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               onClick={() => setSearchQuery('')}
             >
               <X size={14} />
             </button>
           )}
-          <kbd className="il-opgaver-search-kbd">⌘K</kbd>
+          <kbd className="il-opgaver-search-kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
         </div>
 
         {/* Date presets */}
-        <div className="il-opgaver-date-filters">
-          <CalendarDays size={14} className="il-opgaver-date-icon" />
+        <div className="il-opgaver-date-filters flex flex-wrap items-center gap-1.5">
+          <CalendarDays size={14} className="il-opgaver-date-icon text-muted-foreground" />
           {DATE_PRESETS.map(preset => (
             <button
               key={preset.key}
-              className={`il-opgaver-date-pill${datePreset === preset.key ? ' is-active' : ''}`}
+              className={`il-opgaver-date-pill${datePreset === preset.key ? ' is-active' : ''} rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent`}
               onClick={() => setDatePreset(datePreset === preset.key ? 'all' : preset.key)}
             >
               {preset.label}
@@ -681,9 +681,9 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
       {/* ── Hold filter pills ──────────────────── */}
       {holds.length > 1 && (
-        <div className="il-opgaver-filters">
+        <div className="il-opgaver-filters flex flex-wrap gap-2">
           <button
-            className={`il-opgaver-filter-pill${selectedHold === null ? ' is-active' : ''}`}
+            className={`il-opgaver-filter-pill${selectedHold === null ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
             onClick={() => setSelectedHold(null)}
           >
             Alle fag
@@ -691,13 +691,13 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           {holds.map(hold => (
             <button
               key={hold}
-              className={`il-opgaver-filter-pill${selectedHold === hold ? ' is-active' : ''}`}
+              className={`il-opgaver-filter-pill${selectedHold === hold ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
               onClick={() =>
                 setSelectedHold(selectedHold === hold ? null : hold)
               }
               style={{ '--hold-hue': getHoldHue(hold) } as any}
             >
-              <span className="il-opgaver-filter-dot" />
+              <span className="il-opgaver-filter-dot inline-block size-2 rounded-full bg-primary/70" />
               {getHoldDisplayName(hold)}
             </button>
           ))}
@@ -706,16 +706,16 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
       {/* ── Empty state ────────────────────────── */}
       {filtered.length === 0 ? (
-        <div className="il-opgaver-empty">
+        <div className="il-opgaver-empty flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
           {hasActiveFilters ? (
             <>
-              <Search className="il-opgaver-empty-icon" />
-              <p className="il-opgaver-empty-title">Ingen resultater</p>
-              <p className="il-opgaver-empty-subtitle">
+              <Search className="il-opgaver-empty-icon mb-3 size-6 text-muted-foreground" />
+              <p className="il-opgaver-empty-title text-base font-semibold text-foreground">Ingen resultater</p>
+              <p className="il-opgaver-empty-subtitle text-sm text-muted-foreground">
                 Prøv at ændre dine filtre eller søgning
               </p>
               <button
-                className="il-opgaver-empty-reset"
+                className="il-opgaver-empty-reset mt-4 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedHold(null);
@@ -727,9 +727,9 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
             </>
           ) : (
             <>
-              <ClipboardList className="il-opgaver-empty-icon" />
-              <p className="il-opgaver-empty-title">Ingen opgaver</p>
-              <p className="il-opgaver-empty-subtitle">
+              <ClipboardList className="il-opgaver-empty-icon mb-3 size-6 text-muted-foreground" />
+              <p className="il-opgaver-empty-title text-base font-semibold text-foreground">Ingen opgaver</p>
+              <p className="il-opgaver-empty-subtitle text-sm text-muted-foreground">
                 Der er ingen opgaver at vise
               </p>
             </>
@@ -739,17 +739,17 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
         <>
           {/* ── Upcoming ───────────────────────── */}
           {upcoming.length > 0 && (
-            <section className="il-opgaver-section">
+            <section className="il-opgaver-section space-y-3 rounded-xl border border-border bg-card p-3">
               <button
                 type="button"
-                className="il-opgaver-section-toggle"
+                className="il-opgaver-section-toggle flex w-full items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-accent/40"
                 onClick={() => setIsUpcomingCollapsed((prev) => !prev)}
                 aria-expanded={!isUpcomingCollapsed}
               >
-                <h2 className="il-opgaver-section-title">
+                <h2 className="il-opgaver-section-title inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   <Clock size={14} />
                   Kommende
-                  <span className="il-opgaver-section-count">
+                  <span className="il-opgaver-section-count rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                     {upcoming.length}
                   </span>
                 </h2>
@@ -759,7 +759,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                 />
               </button>
               {!isUpcomingCollapsed && (
-                <div className="il-opgaver-upcoming">
+                <div className="il-opgaver-upcoming grid gap-2">
                   {upcoming.map((entry, idx) => {
                     const display = getDeadlineDisplay(entry.deadline);
                     const aggressiveMissing = isAggressiveMissing(entry, ignoredMissingIds, new Date());
@@ -778,7 +778,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       <a
                         key={idx}
                         href={entry.url}
-                        className={`il-opgaver-card is-${effectiveUrgency}`}
+                        className={`il-opgaver-card is-${effectiveUrgency} rounded-lg border border-border bg-background p-3 no-underline transition-colors hover:bg-accent/25`}
                         style={
                           {
                             '--hold-hue': hue,
@@ -790,26 +790,26 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         }
                       >
                         {/* Deadline — the hero element */}
-                        <div className="il-opgaver-card-deadline">
-                          <div className="il-opgaver-deadline-info">
+                        <div className="il-opgaver-card-deadline flex flex-wrap items-center justify-between gap-2">
+                          <div className="il-opgaver-deadline-info inline-flex min-w-0 items-center gap-1.5">
                             {effectiveUrgency === 'overdue' && (
                               <AlertTriangle
                                 size={16}
                                 className="il-opgaver-deadline-icon"
                               />
                             )}
-                            <span className="il-opgaver-deadline-label">
+                            <span className="il-opgaver-deadline-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                               {display.label}
                             </span>
-                            <span className="il-opgaver-deadline-sep">
+                            <span className="il-opgaver-deadline-sep text-muted-foreground">
                               &middot;
                             </span>
-                            <span className="il-opgaver-deadline-detail">
+                            <span className="il-opgaver-deadline-detail text-xs text-muted-foreground">
                               {display.detail}
                             </span>
                           </div>
                           <span
-                            className="il-opgaver-hold-pill"
+                            className="il-opgaver-hold-pill rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground"
                             style={{ '--hold-hue': hue } as any}
                           >
                             {getHoldDisplayName(entry.hold)}
@@ -817,31 +817,31 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         </div>
 
                         {/* Title */}
-                        <span className="il-opgaver-card-title">
+                        <span className="il-opgaver-card-title mt-1 block text-sm font-medium text-foreground">
                           {entry.title}
                         </span>
 
                         {/* Missing submission badge */}
                         {entry.status === 'mangler' && aggressiveMissing && (
-                          <div className="il-opgaver-missing-badge">
+                          <div className="il-opgaver-missing-badge mt-2 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
                             <Upload size={13} />
                             Mangler aflevering
                           </div>
                         )}
                         {entry.status === 'mangler' && !aggressiveMissing && (
-                          <div className="il-opgaver-status-badge is-mangler">
+                          <div className="il-opgaver-status-badge is-mangler mt-2 inline-flex rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
                             {entry.statusText || 'Ikke afleveret'}
                           </div>
                         )}
                         {entry.status !== 'mangler' && entry.statusText && (
-                          <div className={`il-opgaver-status-badge is-${entry.status}`}>
+                          <div className={`il-opgaver-status-badge is-${entry.status} mt-2 inline-flex rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground`}>
                             {entry.statusText}
                           </div>
                         )}
                         {entry.status === 'mangler' && (
                           <button
                             type="button"
-                            className="il-opgaver-ignore-missing"
+                            className="il-opgaver-ignore-missing mt-2 inline-flex rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -858,7 +858,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
                         {/* Meta */}
                         {hasMeta && (
-                          <div className="il-opgaver-card-meta">
+                          <div className="il-opgaver-card-meta mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                             {entry.studentTime &&
                               entry.studentTime !== '0,00' && (
                                 <span>{entry.studentTime} timer</span>
@@ -895,15 +895,15 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
           {/* ── Submitted ──────────────────────── */}
           {submitted.length > 0 && (
-            <section className="il-opgaver-section">
-              <h2 className="il-opgaver-section-title">
+            <section className="il-opgaver-section space-y-3 rounded-xl border border-border bg-card p-3">
+              <h2 className="il-opgaver-section-title inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
                 <CheckCircle2 size={14} />
                 Afleveret
-                <span className="il-opgaver-section-count">
+                <span className="il-opgaver-section-count rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                   {submitted.length}
                 </span>
               </h2>
-              <div className="il-opgaver-submitted-grid">
+              <div className="il-opgaver-submitted-grid grid gap-2 sm:grid-cols-2">
                 {visibleSubmitted.map((entry, idx) => {
                   const hue = getHoldHue(entry.hold);
                   const gradeHue = entry.grade
@@ -915,7 +915,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                     <a
                       key={idx}
                       href={entry.url}
-                      className="il-opgaver-submitted-card"
+                      className="il-opgaver-submitted-card flex items-start gap-3 rounded-lg border border-border bg-background p-3 no-underline transition-colors hover:bg-accent/25"
                       style={
                         {
                           '--hold-hue': hue,
@@ -927,7 +927,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         openDetail(e as unknown as MouseEvent, entry)
                       }
                     >
-                      <div className="il-opgaver-submitted-grade-wrap">
+                      <div className="il-opgaver-submitted-grade-wrap inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
                         {entry.grade ? (
                           <span className="il-opgaver-submitted-grade">
                             {entry.grade}
@@ -944,23 +944,23 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                           />
                         )}
                       </div>
-                      <div className="il-opgaver-submitted-info">
-                        <span className="il-opgaver-submitted-title">
+                      <div className="il-opgaver-submitted-info min-w-0 flex-1">
+                        <span className="il-opgaver-submitted-title block truncate text-sm font-medium text-foreground">
                           {entry.title}
                         </span>
-                        <div className="il-opgaver-submitted-meta">
+                        <div className="il-opgaver-submitted-meta mt-1 flex flex-wrap items-center gap-2">
                           <span
-                            className="il-opgaver-hold-pill"
+                            className="il-opgaver-hold-pill rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground"
                             style={{ '--hold-hue': hue } as any}
                           >
                             {getHoldDisplayName(entry.hold)}
                           </span>
-                          <span className="il-opgaver-submitted-date">
+                          <span className="il-opgaver-submitted-date text-xs text-muted-foreground">
                             {formatAbsoluteDeadline(entry.deadline)}
                           </span>
                         </div>
                         {entry.gradeExtra && (
-                          <span className="il-opgaver-submitted-extra">
+                          <span className="il-opgaver-submitted-extra mt-1 block text-xs text-muted-foreground">
                             {entry.gradeExtra}
                           </span>
                         )}
@@ -971,7 +971,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               </div>
               {submitted.length > 6 && !showAllSubmitted && (
                 <button
-                  className="il-opgaver-show-more"
+                  className="il-opgaver-show-more inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
                   onClick={() => setShowAllSubmitted(true)}
                 >
                   <ChevronDown size={16} />

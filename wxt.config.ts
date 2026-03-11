@@ -41,6 +41,10 @@ export default defineConfig({
   },
   zip: {
     excludeSources: [
+      // Build dependencies and artifacts
+      'node_modules/**',
+      '.output/**',
+      '.wxt/**',
       // Reference materials (flagged by Mozilla)
       'lectio-html/**',
       'lectio-scripts/**',
@@ -52,9 +56,11 @@ export default defineConfig({
       // CI/CD and docs
       '.github/**',
       'docs/**',
+      '.cursor/**',
       // Store listing assets (not part of extension)
       'chrome-*.svg',
       'firefox-*.svg',
+      'screenshots/**',
       // Development docs
       'CLAUDE.md',
       'ARCHITECTURE.md',

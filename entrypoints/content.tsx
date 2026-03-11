@@ -31,6 +31,7 @@ import {
 } from "@/lib/profile-cache";
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
+import { applyThemeForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
@@ -233,6 +234,8 @@ function initLayout() {
   const settings = getSettings();
 
   applyDarkMode(settings.visual.darkMode ?? false);
+  const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1] ?? null;
+  applyThemeForSchool(schoolId);
   installActivityModalClickInterceptor();
 
   // Redirect messages page to "Nyeste" folder by default

@@ -25,57 +25,57 @@ const ENTITY_CONFIG: Record<ScheduleEntityType, {
 }> = {
   student: {
     label: 'Elev',
-    bgClass: 'bg-blue-100 dark:bg-blue-900',
-    textClass: 'text-blue-700 dark:text-blue-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: Users,
     storagePrefix: 'S',
   },
   teacher: {
     label: 'Lærer',
-    bgClass: 'bg-emerald-100 dark:bg-emerald-900',
-    textClass: 'text-emerald-700 dark:text-emerald-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: GraduationCap,
     storagePrefix: 'T',
   },
   class: {
     label: 'Klasse',
-    bgClass: 'bg-purple-100 dark:bg-purple-900',
-    textClass: 'text-purple-700 dark:text-purple-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: School,
     storagePrefix: 'K',
   },
   room: {
     label: 'Lokale',
-    bgClass: 'bg-amber-100 dark:bg-amber-900',
-    textClass: 'text-amber-700 dark:text-amber-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: DoorOpen,
     storagePrefix: 'L',
   },
   resource: {
     label: 'Ressource',
-    bgClass: 'bg-slate-100 dark:bg-slate-800',
-    textClass: 'text-slate-700 dark:text-slate-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: Box,
     storagePrefix: 'R',
   },
   hold: {
     label: 'Hold',
-    bgClass: 'bg-cyan-100 dark:bg-cyan-900',
-    textClass: 'text-cyan-700 dark:text-cyan-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: UsersRound,
     storagePrefix: 'H',
   },
   group: {
     label: 'Gruppe',
-    bgClass: 'bg-pink-100 dark:bg-pink-900',
-    textClass: 'text-pink-700 dark:text-pink-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: LayoutGrid,
     storagePrefix: 'G',
   },
   holdelement: {
     label: 'Hold',
-    bgClass: 'bg-indigo-100 dark:bg-indigo-900',
-    textClass: 'text-indigo-700 dark:text-indigo-300',
+    bgClass: 'bg-accent',
+    textClass: 'text-accent-foreground',
     icon: UsersRound,
     storagePrefix: 'H', // Use H for storage since it's a type of hold
   },
@@ -200,7 +200,7 @@ export function ViewingScheduleHeader({
   }, [imageEnlarged]);
 
   return (
-    <div className="bg-muted/50 border-b border-border px-4 py-3">
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
       <div className="flex items-center gap-4">
         <a
           href={backUrl}
@@ -263,7 +263,7 @@ export function ViewingScheduleHeader({
               <button
                 type="button"
                 onClick={handleToggleMembers}
-                className="il-viewing-members-toggle"
+                className="il-viewing-members-toggle inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                 aria-expanded={membersOpen}
                 title="Vis medlemmer"
               >
@@ -277,22 +277,22 @@ export function ViewingScheduleHeader({
       </div>
 
       {supportsMembersPanel && membersOpen && (
-        <div className="il-viewing-members-panel">
+        <div className="il-viewing-members-panel mt-3 rounded-xl border border-border bg-background p-3">
           {membersLoading && (
-            <div className="il-viewing-members-status">
+            <div className="il-viewing-members-status inline-flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               <span>Henter medlemmer...</span>
             </div>
           )}
 
           {!membersLoading && membersError && (
-            <div className="il-viewing-members-status il-viewing-members-error">
+            <div className="il-viewing-members-status il-viewing-members-error text-sm text-destructive">
               {membersError}
             </div>
           )}
 
           {!membersLoading && !membersError && members && members.length === 0 && (
-            <div className="il-viewing-members-status">Ingen medlemmer fundet.</div>
+            <div className="il-viewing-members-status text-sm text-muted-foreground">Ingen medlemmer fundet.</div>
           )}
 
           {!membersLoading && !membersError && members && members.length > 0 && (

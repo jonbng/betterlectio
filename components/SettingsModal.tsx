@@ -32,6 +32,15 @@ import {
   type FeatureSettings,
 } from "@/lib/settings-storage";
 import { setUserJotTheme } from "@/lib/userjot";
+import {
+  THEME_PRESETS,
+  type ThemePresetId,
+} from "@/lib/theme-presets";
+import {
+  applyThemePreferenceToDocument,
+  getThemePreferenceForSchool,
+  saveThemePreferenceForSchool,
+} from "@/lib/theme-storage";
 import { clearPictureCache, getStarredPeople, getRecentPeople } from "@/lib/findskema-storage";
 import {
   Info,
@@ -187,6 +196,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeSection, setActiveSection] = useState("appearance");
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
+  const schoolId = getSchoolIdFromUrl();
+  const schoolTheme = getThemePreferenceForSchool(schoolId);
+  const [themeId, setThemeId] = useState<ThemePresetId>(schoolTheme.themeId);
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -199,6 +211,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   useEffect(() => {
     if (open) {
       setSettings(getSettings());
+      const preference = getThemePreferenceForSchool(getSchoolIdFromUrl());
+      setThemeId(preference.themeId);
     }
   }, [open]);
 
@@ -236,7 +250,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const browserInfo = getBrowserInfo();
   const osInfo = getOSInfo();
-  const schoolId = getSchoolIdFromUrl();
   const schoolName = getSchoolNameFromPage();
   const screenDimensions = `${window.screen.width} × ${window.screen.height}`;
   const debugInfoLines = [
@@ -304,6 +317,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const handleClearPictureCache = () => {
     clearPictureCache();
     toast.success("Billedcache ryddet");
+  };
+
+  const saveThemePreference = (nextThemeId: ThemePresetId) => {
+    saveThemePreferenceForSchool(schoolId, {
+      themeId: nextThemeId,
+    });
+    applyThemePreferenceToDocument({
+      themeId: nextThemeId,
+    });
+  };
+
+  const handleThemeChange = (nextThemeId: ThemePresetId) => {
+    setThemeId(nextThemeId);
+    saveThemePreference(nextThemeId);
   };
 
   const handleClearAllData = () => {
@@ -543,6 +570,37 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       case "appearance":
         return (
           <div className="space-y-6">
+            <SettingsSection
+              title="Tema"
+              description={
+                schoolName
+                  ? `Disse farver gælder kun for ${schoolName}`
+                  : "Disse farver gælder kun for den aktuelle skole"
+              }
+            >
+              <div className="flex items-start justify-between gap-4 py-3 px-4">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Tema</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Vælger både basisfarver og accentfarve
+                  </p>
+                </div>
+                <div className="flex max-w-[300px] flex-wrap justify-end gap-2">
+                  {THEME_PRESETS.map((preset) => (
+                    <Button
+                      key={preset.id}
+                      variant={themeId === preset.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleThemeChange(preset.id)}
+                      className="cursor-pointer"
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </SettingsSection>
+
             <SettingsSection title="Visuelle funktioner">
               <FeatureToggle
                 id="visual-favicon"

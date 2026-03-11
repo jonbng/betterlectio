@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/chart';
 
 const PieAny = Pie as any;
+const PieChartAny = PieChart as any;
+const ResponsiveContainerAny = ResponsiveContainer as any;
 const ChartContainerAny = ChartContainer as any;
 const ChartTooltipAny = ChartTooltip as any;
 
@@ -420,23 +422,23 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const presets = getPeriodPresets();
 
   return (
-    <div className={`il-fravaer-page${loading ? ' is-loading' : ''}`}>
+    <div className={`il-fravaer-page${loading ? ' is-loading' : ''} space-y-4`}>
       {/* ── Header ─────────────────────────────── */}
-      <div className="il-fravaer-header">
-        <div className="il-fravaer-header-top">
-          <h1 className="il-fravaer-title">Fravær</h1>
+      <div className="il-fravaer-header rounded-xl border border-border bg-card px-5 py-4">
+        <div className="il-fravaer-header-top flex flex-wrap items-center gap-2">
+          <h1 className="il-fravaer-title text-2xl font-bold tracking-tight text-foreground">Fravær</h1>
           {data.studentName && (
-            <span className="il-fravaer-student">{data.studentName}</span>
+            <span className="il-fravaer-student rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{data.studentName}</span>
           )}
         </div>
-        <p className="il-fravaer-subtitle">
+        <p className="il-fravaer-subtitle mt-1 text-sm text-muted-foreground">
           {data.holds.length} fag &middot; {data.records.length} registreringer
         </p>
       </div>
 
       {/* ── Warnings banner ────────────────────── */}
       {data.warnings.length > 0 && (
-        <div className="il-fravaer-warnings">
+        <div className="il-fravaer-warnings flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertTriangle size={16} />
           <div className="il-fravaer-warnings-content">
             {data.warnings.map((w, i) => (
@@ -487,13 +489,13 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {/* ── Period picker ──────────────────────── */}
-      <div className="il-fravaer-period">
-        <div className="il-fravaer-period-presets">
-          <Calendar size={14} className="il-fravaer-period-icon" />
+      <div className="il-fravaer-period space-y-2 rounded-xl border border-border bg-card p-3">
+        <div className="il-fravaer-period-presets flex flex-wrap items-center gap-1.5">
+          <Calendar size={14} className="il-fravaer-period-icon text-muted-foreground" />
           {presets.map(p => (
             <button
               key={p.key}
-              className="il-fravaer-period-preset"
+              className="il-fravaer-period-preset rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
               onClick={() => handlePreset(p)}
               disabled={loading}
             >
@@ -501,10 +503,10 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             </button>
           ))}
         </div>
-        <div className="il-fravaer-period-custom">
+        <div className="il-fravaer-period-custom flex flex-wrap items-center gap-2">
           <input
             type="text"
-            className="il-fravaer-period-input"
+            className="il-fravaer-period-input h-9 min-w-[130px] rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             value={periodStart}
             onInput={(e) => setPeriodStart((e.target as HTMLInputElement).value)}
             placeholder="dd/mm-yyyy"
@@ -512,13 +514,13 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           <span className="il-fravaer-period-sep">&ndash;</span>
           <input
             type="text"
-            className="il-fravaer-period-input"
+            className="il-fravaer-period-input h-9 min-w-[130px] rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             value={periodEnd}
             onInput={(e) => setPeriodEnd((e.target as HTMLInputElement).value)}
             placeholder="dd/mm-yyyy"
           />
           <button
-            className="il-fravaer-period-btn"
+            className="il-fravaer-period-btn inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             onClick={handleCustomPeriod}
             disabled={loading || !periodStart || !periodEnd}
           >
@@ -549,7 +551,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* ── Per-hold breakdown ─────────────────── */}
       {data.holds.length > 0 && (
-        <section className="il-fravaer-holds-section">
+        <section className="il-fravaer-holds-section space-y-3 rounded-xl border border-border bg-card p-3">
           <div className="il-fravaer-section-header">
             <h2 className="il-fravaer-section-title">
               <BarChart3 size={16} />
@@ -566,7 +568,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             onMetricChange={setDistributionMetric}
           />
 
-          <div className="il-fravaer-holds-table-wrap">
+          <div className="il-fravaer-holds-table-wrap overflow-x-auto rounded-lg border border-border/70">
             <table className="il-fravaer-holds-table">
               <thead>
                 <tr>
@@ -631,7 +633,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {/* ── Records section ────────────────────── */}
-      <section className="il-fravaer-records-section">
+      <section className="il-fravaer-records-section space-y-3 rounded-xl border border-border bg-card p-3">
         <div className="il-fravaer-section-header">
           <h2 className="il-fravaer-section-title">
             <Clock size={16} />
@@ -641,19 +643,19 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
         </div>
 
         {/* Records toolbar */}
-        <div className="il-fravaer-records-toolbar">
-          <div className="il-fravaer-records-search">
-            <Search size={14} className="il-fravaer-search-icon" />
+        <div className="il-fravaer-records-toolbar flex flex-wrap items-center gap-2">
+          <div className="il-fravaer-records-search relative min-w-[240px] flex-1">
+            <Search size={14} className="il-fravaer-search-icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               ref={searchRef}
               type="text"
-              className="il-fravaer-search-input"
+              className="il-fravaer-search-input h-10 w-full rounded-lg border border-border bg-background pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               placeholder="Søg i registreringer..."
               value={recordSearch}
               onInput={(e) => setRecordSearch((e.target as HTMLInputElement).value)}
             />
             {recordSearch && (
-              <button className="il-fravaer-search-clear" onClick={() => setRecordSearch('')}>
+              <button className="il-fravaer-search-clear absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" onClick={() => setRecordSearch('')}>
                 <X size={14} />
               </button>
             )}
@@ -661,7 +663,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {hasMissingReasons && (
             <button
-              className={`il-fravaer-missing-btn${showOnlyMissing ? ' is-active' : ''}`}
+              className={`il-fravaer-missing-btn${showOnlyMissing ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
               onClick={() => { setShowOnlyMissing(!showOnlyMissing); setVisibleRecords(20); }}
             >
               <AlertTriangle size={13} />
@@ -672,9 +674,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {/* Hold filter pills */}
         {recordHolds.length > 1 && (
-          <div className="il-fravaer-record-filters">
+          <div className="il-fravaer-record-filters flex flex-wrap gap-2">
             <button
-              className={`il-fravaer-filter-pill${selectedHold === null ? ' is-active' : ''}`}
+              className={`il-fravaer-filter-pill${selectedHold === null ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
               onClick={() => setSelectedHold(null)}
             >
               Alle fag
@@ -682,11 +684,11 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             {recordHolds.map(hold => (
               <button
                 key={hold}
-                className={`il-fravaer-filter-pill${selectedHold === hold ? ' is-active' : ''}`}
+                className={`il-fravaer-filter-pill${selectedHold === hold ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
                 onClick={() => setSelectedHold(selectedHold === hold ? null : hold)}
                 style={{ '--hold-hue': getHoldHue(hold) } as any}
               >
-                <span className="il-fravaer-filter-dot" />
+                <span className="il-fravaer-filter-dot inline-block size-2 rounded-full bg-primary/70" />
                 {getHoldDisplayName(hold)}
               </button>
             ))}
@@ -695,14 +697,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {/* Records list */}
         {filteredRecords.length === 0 ? (
-          <div className="il-fravaer-empty">
+          <div className="il-fravaer-empty flex flex-col items-center justify-center rounded-xl border border-border bg-background px-6 py-12 text-center">
             {recordSearch || selectedHold || showOnlyMissing ? (
               <>
-                <Search className="il-fravaer-empty-icon" />
-                <p className="il-fravaer-empty-title">Ingen resultater</p>
-                <p className="il-fravaer-empty-sub">Prøv at ændre dine filtre</p>
+                <Search className="il-fravaer-empty-icon mb-3 size-6 text-muted-foreground" />
+                <p className="il-fravaer-empty-title text-base font-semibold text-foreground">Ingen resultater</p>
+                <p className="il-fravaer-empty-sub text-sm text-muted-foreground">Prøv at ændre dine filtre</p>
                 <button
-                  className="il-fravaer-empty-reset"
+                  className="il-fravaer-empty-reset mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
                   onClick={() => { setRecordSearch(''); setSelectedHold(null); setShowOnlyMissing(false); }}
                 >
                   Nulstil filtre
@@ -710,14 +712,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               </>
             ) : (
               <>
-                <CheckCircle2 className="il-fravaer-empty-icon" />
-                <p className="il-fravaer-empty-title">Ingen registreringer</p>
-                <p className="il-fravaer-empty-sub">Intet fravær i den valgte periode</p>
+                <CheckCircle2 className="il-fravaer-empty-icon mb-3 size-6 text-muted-foreground" />
+                <p className="il-fravaer-empty-title text-base font-semibold text-foreground">Ingen registreringer</p>
+                <p className="il-fravaer-empty-sub text-sm text-muted-foreground">Intet fravær i den valgte periode</p>
               </>
             )}
           </div>
         ) : (
-          <div className="il-fravaer-records-list">
+          <div className="il-fravaer-records-list space-y-2">
             {shownRecords.map(({ record, isMissing }, i) => (
               <RecordCard
                 key={`${record.absid}-${i}`}
@@ -731,7 +733,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {filteredRecords.length > visibleRecords && (
           <button
-            className="il-fravaer-show-more"
+            className="il-fravaer-show-more inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
             onClick={() => setVisibleRecords(v => v + 20)}
           >
             <ChevronDown size={16} />
@@ -833,8 +835,8 @@ function DonutCard({
   return (
     <div className="il-fravaer-donut-card">
       <div className="il-fravaer-donut-chart">
-        <ResponsiveContainer width={120} height={120}>
-          <PieChart>
+        <ResponsiveContainerAny width={120} height={120}>
+          <PieChartAny>
             <PieAny
               data={chartData}
               dataKey="value"
@@ -852,8 +854,8 @@ function DonutCard({
                 />
               ))}
             </PieAny>
-          </PieChart>
-        </ResponsiveContainer>
+          </PieChartAny>
+        </ResponsiveContainerAny>
         <div className="il-fravaer-donut-center" style={{ color }}>
           {formatPct(pct)}
         </div>
