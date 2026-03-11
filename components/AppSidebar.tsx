@@ -59,7 +59,8 @@ import { getSettings } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
-import { OpgaveDetailSheet, type OpgaveEntry } from './OpgaveDetailSheet';
+import { OpgaveDetailSheet } from './OpgaveDetailSheet';
+import type { OpgaveEntry } from './OpgaverPage';
 import { ScheduleCountdown } from './ScheduleCountdown';
 
 function getSchoolIdFromUrl(): string {

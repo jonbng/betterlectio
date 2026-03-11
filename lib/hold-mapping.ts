@@ -149,7 +149,7 @@ const SUBJECT_DEFAULT_HUES: Record<string, number> = {
   [normalizeKey('Bioteknologi')]: 160,
   [normalizeKey('Astronomi')]: 260,
 
-  [normalizeKey('Informatik')]: 265,
+  [normalizeKey('Informatik')]: 248,
   [normalizeKey('Teknologi')]: 205,
   [normalizeKey('Design')]: 342,
   [normalizeKey('Mediefag')]: 318,
@@ -208,7 +208,7 @@ export const CURATED_HUES = [
   218,  // Azure
   235,  // Blue
   248,  // Cobalt
-  265,  // Indigo
+  258,  // Indigo
   280,  // Violet
   295,  // Purple
   312,  // Fuchsia

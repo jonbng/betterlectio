@@ -885,6 +885,7 @@ function enhanceScheduleBricks() {
   const bricks = document.querySelectorAll<HTMLElement>(
     "#il-original-content .s2skemabrik.s2bgbox.s2brik",
   );
+  const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? true;
 
   bricks.forEach((brick) => {
     // Skip bricks hidden by merge (cancelled bricks absorbed into replacements)
@@ -955,7 +956,19 @@ function enhanceScheduleBricks() {
     }
 
     // Apply hold color as CSS custom property
-    const hue = holdCode ? getHoldHue(holdCode) : 265;
+    let hue: number;
+    if (!subjectColorsEnabled) {
+      brick.classList.add('il-no-subject-colors');
+      if (brick.classList.contains('s2cancelled')) {
+        hue = 25;
+      } else if (brick.classList.contains('s2changed')) {
+        hue = 145;
+      } else {
+        hue = 265;
+      }
+    } else {
+      hue = holdCode ? getHoldHue(holdCode) : 265;
+    }
     brick.style.setProperty("--brick-hue", String(hue));
 
     // Mark as enhanced and clear old content

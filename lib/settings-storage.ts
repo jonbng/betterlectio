@@ -17,6 +17,7 @@ const ScheduleSettingsSchema = z.object({
   currentTimeLabel: z.boolean().default(false),
   countdownBar: z.boolean().default(true),
   viewingScheduleHeader: z.boolean().default(true),
+  subjectColors: z.boolean().default(true),
 });
 
 const PagesSettingsSchema = z.object({
@@ -97,6 +98,7 @@ export const SETTINGS_REQUIRING_RELOAD = [
   'behavior.autoRedirectForside',
   'pages.loginPageRedesign',
   'schedule.currentTimeLabel',
+  'schedule.subjectColors',
 ] as const;
 
 /**

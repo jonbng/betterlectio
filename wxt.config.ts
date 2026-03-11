@@ -5,13 +5,13 @@ import path from 'path';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   manifest: {
-    name: 'BetterLectio',
+    name: 'Better Lectio',
     description: 'Gør Lectio pænere og nemmere at bruge — med mørk tilstand, en ny sidebar og bedre beskeder.',
     version: '0.0.20',
     author: 'Jonathan Bangert <jonathan@bangert.dk>' as any,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
-      default_title: 'BetterLectio',
+      default_title: 'Better Lectio',
     },
     permissions: ['activeTab'],
     web_accessible_resources: [

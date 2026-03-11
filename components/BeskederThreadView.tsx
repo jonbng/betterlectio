@@ -633,6 +633,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
       {/* ── Reply Area ─────────────────────────── */}
       {replyTargets && (
+        <div className="il-thread-reply-sticky">
         <div className="il-thread-reply">
           <div className="il-thread-reply-header">
             <Reply size={14} className="il-thread-reply-icon" />
@@ -720,6 +721,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
               </button>
             </div>
           </div>
+        </div>
         </div>
       )}
 

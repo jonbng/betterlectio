@@ -4131,26 +4131,36 @@
 
   #il-beskeder-thread {
     padding: 0;
+    min-height: 100%;
   }
 
   .il-thread-view {
     max-width: 960px;
     margin: 0 auto;
-    padding: 1.5rem 2.5rem 2rem;
+    padding: 0 2.5rem;
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 4rem);
+    min-height: 100%;
+    width: 100%;
   }
 
   /* ── Thread Header ─────────────────────── */
 
   .il-thread-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
     display: flex;
     align-items: flex-start;
     gap: 0.875rem;
-    padding-bottom: 1.25rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.25rem;
+    padding: 1.25rem 0 1rem;
+    margin: 0 -2.5rem;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+    border-bottom: 1px solid oklch(from var(--border) l c h / 0.6);
+    background: oklch(from var(--background) l c h / 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .il-thread-back {
@@ -4224,7 +4234,7 @@
 
   .il-thread-messages {
     flex: 1;
-    padding: 0.5rem 0 1rem;
+    padding: 0.75rem 0 1rem;
   }
 
   .il-thread-message {
@@ -4651,12 +4661,23 @@
 
   /* ── Reply Area ────────────────────────── */
 
+  .il-thread-reply-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    padding: 1rem 0 1.5rem;
+  }
+
   .il-thread-reply {
-    margin-top: 1rem;
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     background: var(--card);
     overflow: hidden;
+    box-shadow: 0 -2px 12px oklch(0 0 0 / 0.04), 0 0 0 1px oklch(from var(--border) l c h / 0.3);
+  }
+
+  .dark .il-thread-reply {
+    box-shadow: 0 -2px 16px oklch(0 0 0 / 0.2), 0 0 0 1px oklch(from var(--border) l c h / 0.3);
   }
 
   .il-thread-reply-header {
@@ -11042,7 +11063,7 @@
   }
 
   /* Cancelled lessons - strikethrough effect */
-  #il-original-content .s2skemabrik.s2cancelled {
+  #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors) {
     opacity: 0.55;
   }
 
@@ -11091,12 +11112,12 @@
   }
 
   /* ── Cancelled brick — keeps subject color, just faded ── */
-  #il-original-content .s2skemabrik.s2cancelled:has(.il-enhanced) {
+  #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced) {
     opacity: 0.38;
     transition: opacity 0.2s ease;
   }
 
-  #il-original-content .s2skemabrik.s2cancelled:has(.il-enhanced):hover {
+  #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced):hover {
     opacity: 0.65;
   }
 
@@ -12120,11 +12141,11 @@
     color: oklch(0.8 0.1 80) !important;
   }
 
-  .dark #il-original-content .s2skemabrik.s2cancelled:has(.il-enhanced) {
+  .dark #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced) {
     opacity: 0.35 !important;
   }
 
-  .dark #il-original-content .s2skemabrik.s2cancelled:has(.il-enhanced):hover {
+  .dark #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced):hover {
     opacity: 0.6 !important;
   }
 

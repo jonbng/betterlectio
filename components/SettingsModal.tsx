@@ -619,6 +619,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 enabled={settings.schedule?.viewingScheduleHeader ?? true}
                 onChange={(v) => handleSettingChange('schedule', 'viewingScheduleHeader', v)}
               />
+              <FeatureToggle
+                id="schedule-subject-colors"
+                label="Fagfarver"
+                description="Vis unikke farver for hvert fag. Når slået fra vises blå for normale, grøn for ændrede og rød for aflyste lektioner"
+                enabled={settings.schedule?.subjectColors ?? true}
+                onChange={(v) => handleSettingChange('schedule', 'subjectColors', v)}
+                requiresReload
+              />
             </SettingsSection>
 
             <SettingsSection title="Sideredesigns">

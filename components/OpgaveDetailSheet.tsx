@@ -30,21 +30,7 @@ import { sanitizeHtml } from '@/lib/sanitize-html';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-export interface OpgaveEntry {
-  title: string;
-  url: string;
-  hold: string;
-  deadline: Date;
-  deadlineText: string;
-  studentTime: string;
-  status: 'venter' | 'mangler' | 'afleveret';
-  statusText: string;
-  absence: string;
-  awaiting: string;
-  note: string;
-  grade: string;
-  gradeExtra: string;
-}
+import type { OpgaveEntry } from '@/components/OpgaverPage';
 
 interface OpgaveDetailSheetProps {
   open: boolean;
