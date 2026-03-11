@@ -677,16 +677,17 @@ function showTooltip(brick: HTMLElement) {
     tooltipEl.innerHTML = renderTooltip(data, hue);
     tooltipEl.style.setProperty("--tt-hue", String(hue));
 
-    // Show but invisible first for measurement
+    // Reset to pre-animation state and make visible for measurement
     tooltipEl.classList.remove("bl-tt-visible", "opacity-100", "translate-y-0", "scale-100");
+    tooltipEl.classList.add("opacity-0", "translate-y-1", "scale-[0.98]");
     tooltipEl.style.display = "block";
     bridgeEl.style.display = "block";
 
-    // Measure and position
+    // Measure, position, then trigger enter animation
     requestAnimationFrame(() => {
       if (!tooltipEl || !bridgeEl) return;
       positionTooltip(brick, tooltipEl, bridgeEl);
-      // Trigger enter animation
+      tooltipEl.classList.remove("opacity-0", "translate-y-1", "scale-[0.98]");
       tooltipEl.classList.add("bl-tt-visible", "opacity-100", "translate-y-0", "scale-100");
     });
 
@@ -717,6 +718,7 @@ function hideTooltip() {
 
     if (tooltipEl) {
       tooltipEl.classList.remove("bl-tt-visible", "opacity-100", "translate-y-0", "scale-100");
+      tooltipEl.classList.add("opacity-0", "translate-y-1", "scale-[0.98]");
       // Wait for exit animation
       setTimeout(() => {
         if (tooltipEl && !tooltipEl.classList.contains("bl-tt-visible")) {
