@@ -86,14 +86,15 @@ export default defineContentScript({
             if (text.includes('Din session udløber snart')) {
               // Keep the native warning visible until renewal is confirmed.
               // This preserves a manual fallback if ping fails.
-              if (dialog.dataset.ilRenewHandled === '1') continue;
-              dialog.dataset.ilRenewHandled = '1';
+              const dialogEl = dialog as HTMLElement;
+              if (dialogEl.dataset.ilRenewHandled === '1') continue;
+              dialogEl.dataset.ilRenewHandled = '1';
               renewSession().then((renewed) => {
                 if (renewed) {
                   dialog.remove();
                   console.log('[BetterLectio] Session warning suppressed after successful renewal');
                 } else {
-                  dialog.dataset.ilRenewHandled = '0';
+                  dialogEl.dataset.ilRenewHandled = '0';
                   console.warn('[BetterLectio] Session renewal failed; keeping warning dialog');
                 }
               });

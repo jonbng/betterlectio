@@ -37,32 +37,9 @@ import {
 } from '@/lib/beskeder-submit';
 import { getTeacherName, getTeacherContextCardId, loadTeacherNames, type TeacherCache } from '@/lib/teacher-cache';
 import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
+import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
 
 // ── Helpers ────────────────────────────────────────────────────────────
-
-const DANISH_DAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
-const DANISH_MONTHS = [
-  'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
-  'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
-];
-
-function formatRelativeDate(dateText: string, date: Date | null): string {
-  if (!date) return dateText;
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diffDays = Math.round((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
-
-  const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-
-  if (diffDays === 0) return timeStr;
-  if (diffDays === 1) return `I går ${timeStr}`;
-  if (diffDays > 1 && diffDays < 7) {
-    return `${DANISH_DAYS[date.getDay()].charAt(0).toUpperCase() + DANISH_DAYS[date.getDay()].slice(1)} ${timeStr}`;
-  }
-  return `${date.getDate()}. ${DANISH_MONTHS[date.getMonth()]} ${date.getFullYear() !== now.getFullYear() ? date.getFullYear() : ''}`.trim();
-}
 
 function normalizePersonLabel(value: string): string {
   return value.replace(/\s*\n+\s*/g, ', ').replace(/\s{2,}/g, ' ').trim();
@@ -70,24 +47,6 @@ function normalizePersonLabel(value: string): string {
 
 function getPersonLabel(person: PersonRef): string {
   return normalizePersonLabel(person.fullName || person.name || '');
-}
-
-/** Generate initials from a name, stripping parenthetical suffixes. */
-function getInitials(name: string): string {
-  const clean = name.replace(/\s*\([^)]*\)/g, '').trim();
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function nameToHue(name: string): number {
-  const clean = name.replace(/\s*\([^)]*\)/g, '').trim();
-  let hash = 0;
-  for (let i = 0; i < clean.length; i++) {
-    hash = clean.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash) % 360;
 }
 
 /** Map folder IDs to appropriate icons. */
@@ -457,6 +416,18 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       isCancelled = true;
     };
   }, [schoolId]);
+
+  // Auto-open first thread when redirected from compose after sending
+  useEffect(() => {
+    const flag = sessionStorage.getItem('bl-autoopen-thread');
+    if (flag === 'first' && data.threads.length > 0) {
+      sessionStorage.removeItem('bl-autoopen-thread');
+      // Delay to ensure ASP.NET form is in the DOM after content script moves it
+      setTimeout(() => {
+        openThread(data.threads[0].threadId);
+      }, 100);
+    }
+  }, []);
 
   const threads = useMemo(
     () =>

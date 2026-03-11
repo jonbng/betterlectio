@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
 import {
   BookOpen,
@@ -22,6 +22,7 @@ import {
 } from "@/lib/activity-detail";
 import { getHoldDisplayName, getHoldHue } from "@/lib/hold-mapping";
 import { getTeacherName, loadTeacherNames, type TeacherCache } from "@/lib/teacher-cache";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 interface ActivityClassModalProps {
   open: boolean;
@@ -36,7 +37,6 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
   const [navError, setNavError] = useState<string | null>(null);
   const [lastNavTarget, setLastNavTarget] = useState<string | null>(null);
   const [teacherCache, setTeacherCache] = useState<TeacherCache | null>(null);
-  const [teacherName, setTeacherName] = useState<string>("");
 
   useEffect(() => {
     if (!open || !url) return;
@@ -53,7 +53,6 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     setNavigating(false);
     setNavError(null);
     setLastNavTarget(null);
-    setTeacherName("");
     setLoading(true);
 
     fetchActivityDetail(url)
@@ -110,28 +109,21 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     };
   }, [open, url]);
 
-  useEffect(() => {
+  const teacherName = useMemo(() => {
     const rawTeacher = detail?.meta.teacher?.trim() || "";
-    if (!rawTeacher) {
-      setTeacherName("");
-      return;
-    }
+    if (!rawTeacher) return "";
 
     const fullNameMatch = rawTeacher.match(/^(.+?)\s*\(([^)]+)\)$/);
     if (fullNameMatch) {
-      const fullName = fullNameMatch[1].trim();
-      setTeacherName(fullName || rawTeacher);
-      return;
+      return fullNameMatch[1].trim() || rawTeacher;
     }
 
     const initialsMatch = rawTeacher.match(/^[A-ZÆØÅ]{1,5}$/);
     if (initialsMatch && teacherCache) {
-      const resolved = getTeacherName(teacherCache, rawTeacher);
-      setTeacherName(resolved || rawTeacher);
-      return;
+      return getTeacherName(teacherCache, rawTeacher) || rawTeacher;
     }
 
-    setTeacherName(rawTeacher);
+    return rawTeacher;
   }, [detail?.meta.teacher, teacherCache]);
 
   if (!open || !url) return null;
@@ -409,7 +401,7 @@ function HomeworkCard({ item }: { item: ActivityHomeworkItem }) {
       <h4 className="il-act-sheet-hw-title">{item.title}</h4>
 
       {hasContent ? (
-        <div className="il-act-sheet-hw-content" dangerouslySetInnerHTML={{ __html: item.contentHtml }} />
+        <div className="il-act-sheet-hw-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.contentHtml) }} />
       ) : null}
 
       {hasLinks ? (

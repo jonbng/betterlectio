@@ -5,8 +5,11 @@ export interface AvanceretSkemaCacheParams {
 
 const AVANCERET_SKEMA_PATTERN = /AvanceretSkema_(\d+)_(\d{4})/;
 const DROPDOWN_CACHE_TTL_MS = 5 * 60 * 1000;
-const dropdownCache = new Map<string, { expiresAt: number; items: any[] }>();
-const dropdownInflight = new Map<string, Promise<any[]>>();
+/** A dropdown item from Lectio's AvanceretSkema cache: [name, id, ...rest fields]. */
+export type DropdownItem = [string, string, ...unknown[]];
+
+const dropdownCache = new Map<string, { expiresAt: number; items: DropdownItem[] }>();
+const dropdownInflight = new Map<string, Promise<DropdownItem[]>>();
 
 function parseAvanceretSkemaParams(source: string): AvanceretSkemaCacheParams | null {
   const match = source.match(AVANCERET_SKEMA_PATTERN);
@@ -36,7 +39,7 @@ export async function resolveAvanceretSkemaCacheParams(
   }
 }
 
-export async function fetchAvanceretSkemaDropdownItems(schoolId: string): Promise<any[]> {
+export async function fetchAvanceretSkemaDropdownItems(schoolId: string): Promise<DropdownItem[]> {
   const params = await resolveAvanceretSkemaCacheParams(schoolId);
   if (!params) return [];
 

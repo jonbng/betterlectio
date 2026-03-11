@@ -180,10 +180,6 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   }, [schoolId]);
 
   useEffect(() => {
-    if (blocks.length > 0 && !loaded) setLoaded(true);
-  }, [blocks, loaded]);
-
-  useEffect(() => {
     if (!loaded) return;
     function tick() {
       const now = new Date();

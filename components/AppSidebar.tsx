@@ -59,7 +59,7 @@ import { getSettings } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
-import { OpgaveDetailSheet } from './OpgaveDetailSheet';
+import { OpgaveDetailSheet, type OpgaveEntry } from './OpgaveDetailSheet';
 import { ScheduleCountdown } from './ScheduleCountdown';
 
 function getSchoolIdFromUrl(): string {
@@ -220,7 +220,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
   const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
-  const [opgaveSheetEntry, setOpgaveSheetEntry] = useState<any>(null);
+  const [opgaveSheetEntry, setOpgaveSheetEntry] = useState<OpgaveEntry | null>(null);
   const schoolInfo = getSchoolInfo();
   const schoolId = schoolInfo.id;
   const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData(schoolId, 'books') ?? true);
@@ -325,7 +325,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   // Listen for custom event to open opgave detail sheet (from forside/other pages)
   useEffect(() => {
     const handleOpenOpgave = (event: Event) => {
-      const customEvent = event as CustomEvent<{ entry?: any }>;
+      const customEvent = event as CustomEvent<{ entry?: OpgaveEntry }>;
       const entry = customEvent.detail?.entry;
       if (!entry) return;
       setOpgaveSheetEntry(entry);

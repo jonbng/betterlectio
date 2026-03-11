@@ -99,7 +99,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
 function SidebarInput({
   className,
   ...props
-}: React.ComponentProps<typeof Input>) {
+}: React.InputHTMLAttributes<HTMLInputElement> & { className?: string }) {
   return (
     <Input
       data-slot="sidebar-input"

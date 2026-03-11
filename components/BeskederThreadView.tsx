@@ -23,46 +23,8 @@ import {
   type ReplyFormTargets,
 } from '@/lib/beskeder-submit';
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
-
-// ── Helpers ────────────────────────────────────────────────────────────
-
-const DANISH_MONTHS = [
-  'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
-  'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
-];
-
-function formatMessageDate(date: Date | null, timestamp: string): string {
-  if (!date) return timestamp;
-
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const diffDays = Math.round(
-    (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24),
-  );
-
-  const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-
-  if (diffDays === 0) return `I dag ${timeStr}`;
-  if (diffDays === 1) return `I går ${timeStr}`;
-  return `${date.getDate()}. ${DANISH_MONTHS[date.getMonth()]} ${date.getFullYear() !== now.getFullYear() ? date.getFullYear() + ' ' : ''}${timeStr}`;
-}
-
-function getInitials(name: string): string {
-  const clean = name.replace(/\(.*?\)/g, '').trim();
-  const parts = clean.split(/\s+/);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function nameToHue(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return Math.abs(hash) % 360;
-}
+import { sanitizeHtml } from '@/lib/sanitize-html';
+import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
 
 /** Extract short display name: "Jonathan Arthur Hojer Bangert(k) (1x 17)" → "Jonathan Bangert" */
 function shortName(fullName: string): string {
@@ -334,7 +296,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
 
         <div
           className="il-thread-message-content"
-          dangerouslySetInnerHTML={{ __html: strippedContent }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(strippedContent) }}
         />
 
         {message.attachments.length > 0 && (

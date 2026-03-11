@@ -40,7 +40,7 @@ import "@/styles/globals.css";
 export default defineContentScript({
   matches: ["*://*.lectio.dk/*"],
   main() {
-    console.log("[BetterLectio] Content script loaded");
+    // Content script loaded
 
     // Listen for messages from background script (e.g., extension icon click)
     browser.runtime.onMessage.addListener((message) => {
@@ -204,9 +204,8 @@ function initLayout() {
   if (isLoginAspx) {
     const hasReturnUrl = new URLSearchParams(window.location.search).has('ReturnUrl');
     if (hasReturnUrl) {
-      console.log("[BetterLectio] On login.aspx with ReturnUrl - auth redirect in progress, keeping state");
+      // Auth redirect in progress, keeping state
     } else {
-      console.log("[BetterLectio] On login.aspx - session expired, clearing login state");
       updateLoginState(); // This will detect not logged in and clear the cache
     }
     document.documentElement.classList.add("il-ready");
@@ -218,15 +217,10 @@ function initLayout() {
   const hasMainHeader = !!document.querySelector(".ls-master-header");
 
   if (!hasMainHeader || isPrintPage) {
-    console.log("[BetterLectio] Not on main app page or print page, skipping");
-
     // If we're on a school page (has /lectio/XX/) but no main header,
     // user is likely logged out - update the state
     const isSchoolPage = /\/lectio\/\d+\//.test(window.location.pathname);
     if (isSchoolPage && !hasMainHeader && !isPrintPage) {
-      console.log(
-        "[BetterLectio] On school page but not logged in, clearing login state",
-      );
       updateLoginState(); // This will detect not logged in and clear the cache
     }
 

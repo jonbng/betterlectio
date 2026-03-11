@@ -269,7 +269,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
               const holdName = opgave.hold ? getHoldDisplayName(opgave.hold) : '';
               return (
                 <a
-                  key={i}
+                  key={opgave.url || `${opgave.title}-${opgave.hold}`}
                   href={opgave.url || undefined}
                   className="text-sm font-medium flex items-center gap-2 no-underline hover:underline"
                   style={{ color: isOverdue ? 'oklch(0.55 0.15 25)' : 'oklch(0.55 0.15 55)' }}

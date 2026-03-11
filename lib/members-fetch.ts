@@ -127,7 +127,7 @@ export async function fetchMembersFromUrls(urls: string[]): Promise<Member[]> {
     throw new Error('Kunne ikke finde medlemmer-link på siden');
   }
 
-  const responses = await Promise.all(
+  const results = await Promise.allSettled(
     urls.map(async (href) => {
       const response = await fetch(href, { credentials: 'include' });
       if (!response.ok) {
@@ -143,6 +143,16 @@ export async function fetchMembersFromUrls(urls: string[]): Promise<Member[]> {
       return parseMembersFromDocument(doc);
     }),
   );
+
+  const responses: Member[][] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      responses.push(result.value);
+    }
+  }
+  if (responses.length === 0) {
+    throw new Error('Kunne ikke hente medlemmer');
+  }
 
   const membersById = new Map<string, Member>();
   for (const members of responses) {

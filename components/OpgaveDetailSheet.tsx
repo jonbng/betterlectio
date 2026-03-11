@@ -26,10 +26,11 @@ import {
 } from '@/lib/opgave-detail';
 import type { OpgaveDetail } from '@/lib/opgave-detail';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-interface OpgaveEntry {
+export interface OpgaveEntry {
   title: string;
   url: string;
   hold: string;
@@ -298,7 +299,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
               {/* Assignment note */}
               {detail.note && (
                 <div className="il-opgave-sheet-note">
-                  <div dangerouslySetInnerHTML={{ __html: detail.note }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }} />
                 </div>
               )}
 

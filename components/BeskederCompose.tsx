@@ -111,13 +111,13 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       .then((items) => {
         if (cancelled) return;
         const parsed: ComposeRecipientOption[] = items
-          .filter((item: any[]) => {
+          .filter((item) => {
             const id = item[1];
             return typeof id === 'string' && !!id;
           })
-          .map((item: any[]) => {
-            const id = item[1] as string;
-            const name = (item[0] as string) || '';
+          .map((item) => {
+            const id = item[1];
+            const name = (item[0]) || '';
             const shortName = (item[7] as string | null) || '';
             const longName = (item[8] as string | null) || '';
             return {
@@ -320,7 +320,8 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       skipSig,
     ).then((result) => {
       if (result.success) {
-        // Navigate to thread list on success
+        // Signal BeskederPage to auto-open the first (newest) thread
+        sessionStorage.setItem('bl-autoopen-thread', 'first');
         window.location.href = `${window.location.origin}/lectio/${schoolId}/beskeder2.aspx?mappeid=-70`;
       } else {
         setSending(false);
@@ -435,16 +436,16 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     }
   }, [recipientPickerOpen, recipientSuggestions, activeSuggestionIndex, handleAddRecipient]);
 
-  const getInitials = useCallback((name: string): string => {
+  function getInitials(name: string): string {
     return name
       .split(' ')
       .filter(Boolean)
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() || '')
       .join('');
-  }, []);
+  }
 
-  const getRecipientTypeLabel = useCallback((id: string): string => {
+  function getRecipientTypeLabel(id: string): string {
     if (id.startsWith('S')) return 'Elev';
     if (id.startsWith('T')) return 'Lærer';
     if (id.startsWith('SC') || id.startsWith('K')) return 'Klasse';
@@ -453,7 +454,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     if (id.startsWith('RO') || id.startsWith('L')) return 'Lokale';
     if (id.startsWith('RE') || id.startsWith('R')) return 'Ressource';
     return 'Modtager';
-  }, []);
+  }
 
   // Ctrl+Enter to send
   useEffect(() => {

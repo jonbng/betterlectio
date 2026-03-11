@@ -317,8 +317,14 @@ export function updatePageTitle(): void {
  * Useful for SPAs or pages that update content dynamically.
  */
 export function observeTitleChanges(): void {
-  if ((window as any).__IL_TITLE_OBSERVER_INSTALLED__) return;
-  (window as any).__IL_TITLE_OBSERVER_INSTALLED__ = true;
+  // Disconnect any previous observer/listener before installing new ones
+  const win = window as any;
+  if (win.__IL_TITLE_OBSERVER__) {
+    (win.__IL_TITLE_OBSERVER__ as MutationObserver).disconnect();
+  }
+  if (win.__IL_TITLE_POPSTATE_HANDLER__) {
+    window.removeEventListener('popstate', win.__IL_TITLE_POPSTATE_HANDLER__);
+  }
 
   // Initial update
   updatePageTitle();
@@ -336,7 +342,7 @@ export function observeTitleChanges(): void {
       characterData: true,
       subtree: true,
     });
-    (window as any).__IL_TITLE_OBSERVER__ = observer;
+    win.__IL_TITLE_OBSERVER__ = observer;
   }
 
   // Also update on navigation (for SPA-like behavior)
@@ -344,5 +350,5 @@ export function observeTitleChanges(): void {
     setTimeout(updatePageTitle, 100);
   };
   window.addEventListener('popstate', onPopstate);
-  (window as any).__IL_TITLE_POPSTATE_HANDLER__ = onPopstate;
+  win.__IL_TITLE_POPSTATE_HANDLER__ = onPopstate;
 }
