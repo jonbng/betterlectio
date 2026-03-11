@@ -376,14 +376,33 @@ export function parseBeskederFromDOM(doc: Document = document): BeskederPageData
 // ── Postback Helpers ───────────────────────────────────────────────────
 
 /** Trigger a Lectio __doPostBack from our component.
- *  Uses Lectio's native __doPostBack in the main world to ensure
- *  PageRequestManager and other overrides are respected. */
+ *  Sets the hidden ASP.NET form fields directly and submits the form.
+ *  This avoids inline script injection which is blocked by Chrome MV3 CSP. */
 export function doPostBack(eventTarget: string, eventArgument: string): void {
-  const escaped = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const script = document.createElement('script');
-  script.textContent = `__doPostBack('${escaped(eventTarget)}','${escaped(eventArgument)}');`;
-  document.documentElement.appendChild(script);
-  script.remove();
+  const form = document.getElementById('aspnetForm') as HTMLFormElement | null;
+  if (!form) return;
+
+  let target = form.querySelector<HTMLInputElement>('input[name="__EVENTTARGET"]');
+  if (!target) {
+    target = document.createElement('input');
+    target.type = 'hidden';
+    target.name = '__EVENTTARGET';
+    target.id = '__EVENTTARGET';
+    form.appendChild(target);
+  }
+
+  let arg = form.querySelector<HTMLInputElement>('input[name="__EVENTARGUMENT"]');
+  if (!arg) {
+    arg = document.createElement('input');
+    arg.type = 'hidden';
+    arg.name = '__EVENTARGUMENT';
+    arg.id = '__EVENTARGUMENT';
+    form.appendChild(arg);
+  }
+
+  target.value = eventTarget;
+  arg.value = eventArgument;
+  form.submit();
 }
 
 /** Open a message thread. */

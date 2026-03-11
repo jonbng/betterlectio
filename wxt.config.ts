@@ -16,7 +16,7 @@ export default defineConfig({
     permissions: ['activeTab'],
     web_accessible_resources: [
       {
-        resources: ['assets/*', 'vendor/userjot/**'],
+        resources: ['assets/*', 'vendor/userjot/**', 'userjot-bootstrap.js'],
         matches: ['*://*.lectio.dk/*'],
       },
     ],
