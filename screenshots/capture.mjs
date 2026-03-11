@@ -112,7 +112,7 @@ async function captureScreenshots() {
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
     viewport: { width: 1280, height: 800 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 1,
     args: [
       `--disable-extensions-except=${EXT_PATH}`,
       `--load-extension=${EXT_PATH}`,
@@ -171,7 +171,7 @@ function loadOwlIcon() {
 
 async function renderBackground(jsx, width, height, fonts) {
   const svg = await satori(jsx, { width, height, fonts });
-  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width * 2 } });
+  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width } });
   return resvg.render().asPng();
 }
 
@@ -215,23 +215,23 @@ function marqueeBackground(owlSrc) {
           type: "div",
           props: {
             style: {
-              display: "flex", flexDirection: "column", maxWidth: "400px",
+              display: "flex", flexDirection: "column", maxWidth: "520px",
             },
             children: [
               // Logo row
               {
                 type: "div",
                 props: {
-                  style: { display: "flex", flexDirection: "row", alignItems: "center", gap: "12px", marginBottom: "16px" },
+                  style: { display: "flex", flexDirection: "row", alignItems: "center", gap: "16px", marginBottom: "20px" },
                   children: [
                     owlSrc ? {
                       type: "img",
-                      props: { src: owlSrc, width: 40, height: 40, style: { borderRadius: "10px" } },
+                      props: { src: owlSrc, width: 64, height: 64, style: { borderRadius: "14px" } },
                     } : null,
                     {
                       type: "div",
                       props: {
-                        style: { fontSize: "34px", fontWeight: 700, color: C.text, letterSpacing: "-0.04em" },
+                        style: { fontSize: "52px", fontWeight: 700, color: C.text, letterSpacing: "-0.04em" },
                         children: "BetterLectio",
                       },
                     },
@@ -242,7 +242,7 @@ function marqueeBackground(owlSrc) {
               {
                 type: "div",
                 props: {
-                  style: { fontSize: "17px", color: C.textMuted, lineHeight: "1.55", letterSpacing: "-0.01em" },
+                  style: { fontSize: "20px", color: C.textMuted, lineHeight: "1.55", letterSpacing: "-0.01em" },
                   children: "Et moderne design til Lectio — med skema, lektier, opgaver og hurtig søgning.",
                 },
               },
@@ -332,6 +332,50 @@ function cardBackground(title, subtitle, owlSrc) {
   };
 }
 
+// ─── Small promo tile background (440x280) ───
+function smallPromoBackground(owlSrc) {
+  return {
+    type: "div",
+    props: {
+      style: {
+        width: "100%", height: "100%", display: "flex",
+        flexDirection: "column", alignItems: "center", justifyContent: "center",
+        background: `linear-gradient(180deg, ${C.white} 0%, ${C.bg} 100%)`,
+        fontFamily: "Inter", overflow: "hidden",
+        position: "relative",
+      },
+      children: [
+        {
+          type: "div",
+          props: {
+            style: { display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" },
+            children: [
+              owlSrc ? {
+                type: "img",
+                props: { src: owlSrc, width: 96, height: 96, style: { borderRadius: "20px" } },
+              } : null,
+              {
+                type: "div",
+                props: {
+                  style: { fontSize: "38px", fontWeight: 700, color: C.text, letterSpacing: "-0.04em" },
+                  children: "BetterLectio",
+                },
+              },
+              {
+                type: "div",
+                props: {
+                  style: { fontSize: "15px", color: C.textMuted, textAlign: "center" },
+                  children: "Et moderne design til Lectio",
+                },
+              },
+            ].filter(Boolean),
+          },
+        },
+      ],
+    },
+  };
+}
+
 // ─── Sharp compositing helpers ───
 
 async function roundCorners(buf, w, h, r) {
@@ -353,18 +397,17 @@ function shadowSvg(w, h, r, blur, color) {
 }
 
 async function compositeScreenshotCard(bgPng, screenshotPath, outputPath) {
-  // @2x output: 2560x1600
-  const outW = 2560;
-  const outH = 1600;
-  const HEADER_H = 104;  // @2x: 52px logical header space
-  const PAD_X = 80;      // @2x: 40px logical side padding
-  const PAD_BOT = 60;    // @2x: 30px logical bottom padding
-  const RADIUS = 24;     // @2x corner radius
+  // Output at exact CWS size: 1280x800 (no @2x — CWS wants these exact pixels)
+  const outW = 1280;
+  const outH = 800;
+  const HEADER_H = 52;
+  const PAD_X = 40;
+  const PAD_BOT = 30;
+  const RADIUS = 12;
 
-  const ssMaxW = outW - PAD_X * 2; // 2400
-  const ssMaxH = outH - HEADER_H - PAD_BOT; // 1436
+  const ssMaxW = outW - PAD_X * 2;
+  const ssMaxH = outH - HEADER_H - PAD_BOT;
 
-  // Fit FULLY, no crop
   const screenshot = await sharp(screenshotPath)
     .resize(ssMaxW, ssMaxH, { fit: "inside", withoutEnlargement: true })
     .png()
@@ -375,13 +418,11 @@ async function compositeScreenshotCard(bgPng, screenshotPath, outputPath) {
   const ssH = meta.height;
 
   const rounded = await roundCorners(screenshot, ssW, ssH, RADIUS);
-  const shadow = shadowSvg(ssW, ssH, RADIUS, 24, "rgba(17,17,25,0.10)");
+  const shadow = shadowSvg(ssW, ssH, RADIUS, 12, "rgba(17,17,25,0.10)");
 
-  // Center horizontally, place below header
   const x = Math.round((outW - ssW) / 2);
   const y = HEADER_H;
 
-  // Thin border around screenshot for crispness
   const borderSvg = Buffer.from(
     `<svg width="${ssW + 2}" height="${ssH + 2}">
       <rect x="0.5" y="0.5" width="${ssW + 1}" height="${ssH + 1}" rx="${RADIUS}" ry="${RADIUS}" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>
@@ -389,23 +430,24 @@ async function compositeScreenshotCard(bgPng, screenshotPath, outputPath) {
   );
 
   await sharp(bgPng)
+    .flatten({ background: "#FFFFFF" })
     .composite([
-      { input: shadow, left: x - 48, top: y - 24 },
+      { input: shadow, left: x - 24, top: y - 12 },
       { input: rounded, left: x, top: y },
       { input: borderSvg, left: x - 1, top: y - 1 },
     ])
+    .png()
     .toFile(outputPath);
 }
 
 async function compositeMarquee(bgPng, screenshotPath, outputPath) {
-  // @2x output: 2800x1120
-  const outW = 2800;
-  const outH = 1120;
-  const RADIUS = 20;
+  // Output at exact CWS size: 1400x560
+  const outW = 1400;
+  const outH = 560;
+  const RADIUS = 10;
 
-  // Screenshot on the right, constrained to fit fully
-  const ssMaxW = 1560;
-  const ssMaxH = outH - 100; // 50px padding top+bottom
+  const ssMaxW = 780;
+  const ssMaxH = outH - 50;
 
   const screenshot = await sharp(screenshotPath)
     .resize(ssMaxW, ssMaxH, { fit: "inside", withoutEnlargement: true })
@@ -417,10 +459,9 @@ async function compositeMarquee(bgPng, screenshotPath, outputPath) {
   const ssH = meta.height;
 
   const rounded = await roundCorners(screenshot, ssW, ssH, RADIUS);
-  const shadow = shadowSvg(ssW, ssH, RADIUS, 30, "rgba(91,79,199,0.10)");
+  const shadow = shadowSvg(ssW, ssH, RADIUS, 15, "rgba(91,79,199,0.10)");
 
-  // Right-aligned, vertically centered
-  const x = outW - ssW - 60;
+  const x = outW - ssW - 30;
   const y = Math.round((outH - ssH) / 2);
 
   const borderSvg = Buffer.from(
@@ -430,11 +471,13 @@ async function compositeMarquee(bgPng, screenshotPath, outputPath) {
   );
 
   await sharp(bgPng)
+    .flatten({ background: "#FFFFFF" })
     .composite([
-      { input: shadow, left: x - 60, top: y - 30 },
+      { input: shadow, left: x - 30, top: y - 15 },
       { input: rounded, left: x, top: y },
       { input: borderSvg, left: x - 1, top: y - 1 },
     ])
+    .png()
     .toFile(outputPath);
 }
 
@@ -459,10 +502,17 @@ async function generatePromoImages() {
   }
   console.log("    -> promo-marquee.png");
 
-  // 2. Screenshot cards (1280x800) — Lektier replaces Opgaver
+  // 2. Small promo tile (440x280)
+  console.log("  Generating: promo-small.png (440x280)...");
+  const smallBg = await renderBackground(smallPromoBackground(owl), 440, 280, fonts);
+  await sharp(smallBg).flatten({ background: "#FFFFFF" }).png().toFile(`${OUT_DIR}/promo-small.png`);
+  console.log("    -> promo-small.png");
+
+  // 3. Screenshot cards (1280x800)
   const cards = [
     { screenshot: "1-schedule", name: "promo-schedule", title: "Skema", subtitle: "Ugentligt overblik med farvekodede moduler" },
     { screenshot: "2-forside", name: "promo-forside", title: "Forside", subtitle: "Personlig velkomst med dagens overblik" },
+    { screenshot: "3-opgaver", name: "promo-opgaver", title: "Opgaver", subtitle: "Opgaveoverblik med deadlines og karakterer" },
     { screenshot: "5-lektier", name: "promo-lektier", title: "Lektier", subtitle: "Dag-grupperet overblik med filer og noter" },
     { screenshot: "4-findskema", name: "promo-findskema", title: "Find Skema", subtitle: "Hurtig søgning med person-kort og favoritter" },
   ];
