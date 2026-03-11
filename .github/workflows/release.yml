@@ -12,6 +12,21 @@ on:
           - patch
           - minor
           - major
+      publish_chrome:
+        description: 'Publish to Chrome Web Store'
+        required: false
+        default: true
+        type: boolean
+      publish_firefox:
+        description: 'Publish to Firefox Add-ons'
+        required: false
+        default: true
+        type: boolean
+      publish_edge:
+        description: 'Publish to Edge Add-ons'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -91,11 +106,21 @@ jobs:
       - name: Submit to stores
         continue-on-error: true
         run: |
-          npx wxt@latest submit \
-            --chrome-zip .output/*-chrome.zip \
-            --firefox-zip .output/*-firefox.zip \
-            --firefox-sources-zip .output/*-sources.zip \
-            --edge-zip .output/*-chrome.zip
+          ARGS=""
+          if [ "${{ inputs.publish_chrome }}" = "true" ]; then
+            ARGS="$ARGS --chrome-zip .output/*-chrome.zip"
+          fi
+          if [ "${{ inputs.publish_firefox }}" = "true" ]; then
+            ARGS="$ARGS --firefox-zip .output/*-firefox.zip --firefox-sources-zip .output/*-sources.zip"
+          fi
+          if [ "${{ inputs.publish_edge }}" = "true" ]; then
+            ARGS="$ARGS --edge-zip .output/*-chrome.zip"
+          fi
+          if [ -n "$ARGS" ]; then
+            npx wxt@latest submit $ARGS
+          else
+            echo "No stores selected for publishing, skipping submit"
+          fi
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
