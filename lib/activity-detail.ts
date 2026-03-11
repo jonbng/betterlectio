@@ -69,7 +69,8 @@ export interface ActivityDetail {
   formTokens: ActivityFormTokens;
 }
 
-const CACHE_PREFIX = "il-activity-detail-";
+const CACHE_PREFIX = "bl-activity-detail-";
+const LEGACY_CACHE_PREFIX = "il-activity-detail-";
 const CACHE_TTL = 3 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 50;
 
@@ -101,11 +102,21 @@ function getActivityCacheKey(url: string): string {
   return `${CACHE_PREFIX}${schoolId}:${activityId}`;
 }
 
+function getLegacyActivityCacheKey(url: string): string {
+  const schoolId = getSchoolIdFromActivityUrl(url);
+  const activityId = getActivityId(url);
+  return `${LEGACY_CACHE_PREFIX}${schoolId}:${activityId}`;
+}
+
 export function getCachedActivityDetail(url: string): ActivityDetail | null {
   const key = getActivityCacheKey(url);
+  const legacyKey = getLegacyActivityCacheKey(url);
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
     if (!raw) return null;
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, raw);
+    }
     const parsed: CachedActivity = JSON.parse(raw);
     if (Date.now() - parsed.timestamp > CACHE_TTL) {
       localStorage.removeItem(key);
@@ -120,7 +131,9 @@ export function getCachedActivityDetail(url: string): ActivityDetail | null {
 function setCachedActivityDetail(url: string, detail: ActivityDetail): void {
   const key = getActivityCacheKey(url);
   try {
-    const keys = Object.keys(localStorage).filter((k) => k.startsWith(CACHE_PREFIX));
+    const keys = Object.keys(localStorage).filter(
+      (k) => k.startsWith(CACHE_PREFIX) || k.startsWith(LEGACY_CACHE_PREFIX),
+    );
     if (keys.length >= CACHE_MAX_ENTRIES) {
       let oldestKey = keys[0];
       let oldestTs = Number.POSITIVE_INFINITY;

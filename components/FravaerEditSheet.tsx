@@ -97,24 +97,24 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
   const holdName = record?.hold ? getHoldDisplayName(record.hold) : '';
 
   const dialogContent = (
-    <div className="il-fravaer-sheet-wrapper">
+    <div className="fixed inset-0 z-220">
       {/* Backdrop */}
       <div
-        className="il-fravaer-sheet-backdrop"
+        className="absolute inset-0 bg-[oklch(0_0_0/0.45)] backdrop-blur-[2px]"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
 
       {/* Modal */}
       <div
-        className="il-fravaer-sheet-panel"
+        className="absolute left-1/2 top-1/2 w-[min(96vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-popover shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-label="Rediger fraværsårsag"
       >
         {/* Close button */}
         <button
-          className="il-fravaer-sheet-close"
+          className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={() => onOpenChange(false)}
           aria-label="Luk"
         >
@@ -122,48 +122,48 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
         </button>
 
         {/* Header */}
-        <div className="il-fravaer-sheet-header">
-          <h2 className="il-fravaer-sheet-title">
+        <div className="border-b border-border px-5 py-4">
+          <h2 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
             <Edit3 size={18} />
             Rediger fraværsårsag
           </h2>
           {record && (
-            <div className="il-fravaer-sheet-record-info">
-              <span className="il-fravaer-sheet-date">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
                 <Clock size={14} />
                 {record.date || record.uge}
                 {record.module && ` — ${record.module}`}
               </span>
               {holdName && (
                 <span
-                  className="il-fravaer-sheet-hold"
+                  className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-medium"
                   style={{ '--hold-hue': holdHue } as any}
                 >
                   {holdName}
                 </span>
               )}
               {record.teacher && (
-                <span className="il-fravaer-sheet-teacher">{record.teacher}</span>
+                <span>{record.teacher}</span>
               )}
             </div>
           )}
         </div>
 
         {/* Body */}
-        <div className="il-fravaer-sheet-body">
+        <div className="space-y-3 px-5 py-4">
           {loading && (
-            <div className="il-fravaer-sheet-loading">
-              <Loader2 size={24} className="il-fravaer-spinner" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 size={20} className="animate-spin" />
               <span>Henter formular...</span>
             </div>
           )}
 
           {error && (
-            <div className="il-fravaer-sheet-error">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               <AlertTriangle size={24} />
-              <p>{error}</p>
+              <p className="mt-2">{error}</p>
               <button
-                className="il-fravaer-sheet-retry-btn"
+                className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
                 onClick={() => {
                   if (record?.editUrl) {
                     setError(null);
@@ -189,15 +189,15 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
           )}
 
           {formData && !loading && !error && (
-            <div className="il-fravaer-sheet-form">
+            <div className="space-y-3">
               {/* Reason select */}
-              <div className="il-fravaer-sheet-field">
-                <label className="il-fravaer-sheet-label" htmlFor="fravaer-aarsag">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="fravaer-aarsag">
                   Årsag
                 </label>
                 <select
                   id="fravaer-aarsag"
-                  className="il-fravaer-sheet-select"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
                   value={selectedAarsag}
                   onChange={(e) => setSelectedAarsag((e.target as HTMLSelectElement).value)}
                   disabled={submitting}
@@ -211,14 +211,14 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               </div>
 
               {/* Note input */}
-              <div className="il-fravaer-sheet-field">
-                <label className="il-fravaer-sheet-label" htmlFor="fravaer-note">
+              <div className="mt-3 space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="fravaer-note">
                   Note
                 </label>
                 <input
                   id="fravaer-note"
                   type="text"
-                  className="il-fravaer-sheet-input"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
                   value={note}
                   onInput={(e) => setNote((e.target as HTMLInputElement).value)}
                   placeholder="Valgfri note..."
@@ -228,11 +228,11 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
 
               {/* Current reason display (if set) */}
               {record?.aarsag && (
-                <div className="il-fravaer-sheet-current">
-                  <span className="il-fravaer-sheet-current-label">Nuværende årsag:</span>
-                  <span className="il-fravaer-sheet-current-value">{record.aarsag}</span>
+                <div className="mt-3 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nuværende årsag:</span>
+                  <span className="mt-1 block font-medium text-foreground">{record.aarsag}</span>
                   {record.note && (
-                    <span className="il-fravaer-sheet-current-note">{record.note}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">{record.note}</span>
                   )}
                 </div>
               )}
@@ -242,21 +242,21 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
 
         {/* Footer */}
         {formData && !error && (
-          <div className="il-fravaer-sheet-footer">
+          <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
             <button
-              className="il-fravaer-sheet-cancel-btn"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >
               Annuller
             </button>
             <button
-              className="il-fravaer-sheet-save-btn"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               onClick={handleSubmit}
               disabled={submitting}
             >
               {submitting ? (
-                <Loader2 size={15} className="il-fravaer-spinner" />
+                <Loader2 size={15} className="animate-spin" />
               ) : (
                 <Save size={15} />
               )}

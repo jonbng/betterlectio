@@ -17,6 +17,7 @@ import {
 import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 import { normalizeString, fuzzyMatch } from '@/lib/fuzzy-search';
+import { cn } from '@/lib/utils';
 
 interface BeskederComposePageProps {
   data: ComposeFormData;
@@ -471,55 +472,59 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   const isBusy = sending || !!uploadingFileName || removingAttachIndex !== null || !!addingRecipientId;
 
   return (
-    <div className="il-compose-view space-y-3">
+    <div className="space-y-3">
       {/* Header */}
-      <div className="il-compose-header flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
         <button
           type="button"
-          className="il-thread-back inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+          className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
           onClick={handleBack}
           title="Tilbage til beskeder"
         >
           <ArrowLeft size={18} />
         </button>
-        <h1 className="il-compose-page-title text-base font-semibold text-foreground">Ny besked</h1>
+        <h1 className="text-base font-semibold text-foreground">Ny besked</h1>
       </div>
 
       {/* Card */}
-      <div className="il-compose-card rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         {/* Recipients field */}
-        <div className="il-compose-field il-compose-field-recipients space-y-2">
-          <label className="il-compose-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">Til</label>
-          <div className="il-compose-recipients-area space-y-2">
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Til</label>
+          <div className="space-y-2">
             {recipients.length > 0 && (
-              <div className="il-compose-pills flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {recipientsWithContext.map((r) => (
                   <span
                     key={r.removePostbackTarget}
-                    className={`il-compose-pill ${removingRecipient === r.removePostbackTarget ? 'is-removing' : ''} inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1`}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1',
+                      removingRecipient === r.removePostbackTarget && 'opacity-60',
+                    )}
                   >
-                    <span className="il-compose-pill-avatar inline-flex size-5 items-center justify-center overflow-hidden rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                    <span className="inline-flex size-5 items-center justify-center overflow-hidden rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
                       {r.contextId && pictureByContextId[r.contextId] ? (
                         <img
                           src={pictureByContextId[r.contextId] as string}
                           alt=""
                           loading="lazy"
+                          className="size-full object-cover object-top"
                         />
                       ) : (
                         getInitials(r.name)
                       )}
                     </span>
-                    <span className="il-compose-pill-name text-xs font-medium text-foreground">{r.name}</span>
+                    <span className="text-xs font-medium text-foreground">{r.name}</span>
                     {r.removePostbackTarget && (
                       <button
                         type="button"
-                        className="il-compose-pill-remove inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         onClick={() => handleRemoveRecipient(r.removePostbackTarget)}
                         disabled={!!removingRecipient}
                         title={`Fjern ${r.name}`}
                       >
                         {removingRecipient === r.removePostbackTarget
-                          ? <Loader2 size={13} className="il-spin" />
+                          ? <Loader2 size={13} className="animate-spin" />
                           : <X size={13} />
                         }
                       </button>
@@ -531,14 +536,17 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
             <div
               ref={recipientPickerRef}
-              className={`il-compose-recipient-picker-wrap ${recipientPickerOpen ? 'is-open' : ''} relative`}
+              className="relative"
             >
-              <div className="il-compose-recipient-picker relative">
-                <Search size={15} className="il-compose-recipient-picker-icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <div className={cn(
+                'relative rounded-lg border border-border transition',
+                recipientPickerOpen && 'border-primary/40 ring-2 ring-primary/15',
+              )}>
+                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={recipientInputRef}
                   type="text"
-                  className="il-compose-recipient-input h-10 w-full rounded-lg border border-border bg-background pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                  className="h-10 w-full rounded-lg border-0 bg-background pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:ring-0"
                   value={recipientQuery}
                   onInput={(e) => setRecipientQuery((e.target as HTMLInputElement).value)}
                   onFocus={() => setRecipientPickerOpen(true)}
@@ -547,29 +555,29 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   autoComplete="off"
                   spellcheck={false}
                 />
-                {addingRecipientId && <Loader2 size={14} className="il-spin" />}
+                {addingRecipientId && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />}
               </div>
 
               {recipientPickerOpen && (
-                <div className="il-compose-recipient-dropdown absolute left-0 top-[calc(100%+6px)] z-40 w-full rounded-lg border border-border bg-popover p-1 shadow-lg">
+                <div className="absolute left-0 top-[calc(100%+6px)] z-40 w-full rounded-lg border border-border bg-popover p-1 shadow-[0_4px_16px_oklch(0_0_0/0.08),0_1px_3px_oklch(0_0_0/0.04)]">
                   {recipientDirectoryLoading && (
-                    <div className="il-compose-recipient-dropdown-empty inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground">
-                      <Loader2 size={14} className="il-spin" />
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground">
+                      <Loader2 size={14} className="animate-spin" />
                       <span>Indlæser modtagere...</span>
                     </div>
                   )}
                   {!recipientDirectoryLoading && recipientDirectoryError && (
-                    <div className="il-compose-recipient-dropdown-empty px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
                       {recipientDirectoryError}
                     </div>
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length < 2 && (
-                    <div className="il-compose-recipient-dropdown-empty px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
                       Skriv mindst 2 tegn for at søge
                     </div>
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length >= 2 && recipientSuggestions.length === 0 && (
-                    <div className="il-compose-recipient-dropdown-empty px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
                       Ingen resultater
                     </div>
                   )}
@@ -577,25 +585,29 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                     <button
                       key={option.id}
                       type="button"
-                      className={`il-compose-recipient-option ${index === activeSuggestionIndex ? 'is-active' : ''} flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent`}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent',
+                        index === activeSuggestionIndex && 'bg-accent',
+                      )}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleAddRecipient(option)}
                       disabled={!!addingRecipientId}
                     >
-                      <span className="il-compose-recipient-option-avatar inline-flex size-7 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
+                      <span className="inline-flex size-7 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
                         {pictureByContextId[option.id] ? (
                           <img
                             src={pictureByContextId[option.id] as string}
                             alt=""
                             loading="lazy"
+                            className="size-full object-cover object-top"
                           />
                         ) : (
                           <UserRound size={14} />
                         )}
                       </span>
-                      <span className="il-compose-recipient-option-text min-w-0">
-                        <span className="il-compose-recipient-option-name block truncate text-sm font-medium text-foreground">{option.name}</span>
-                        <span className="il-compose-recipient-option-meta block text-xs text-muted-foreground">
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-foreground">{option.name}</span>
+                        <span className="block text-xs text-muted-foreground">
                           {getRecipientTypeLabel(option.id)}
                         </span>
                       </span>
@@ -609,17 +621,20 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
         {/* No-reply toggle */}
         {data.noReplyCheckbox && (
-          <div className="il-compose-field il-compose-field-noreply mt-3">
-            <div ref={noReplyRef} className="il-compose-noreply-wrapper" />
+          <div className="mt-3">
+            <div
+              ref={noReplyRef}
+              className="[&_label]:inline-flex [&_label]:items-center [&_label]:gap-2 [&_label]:text-sm [&_label]:text-foreground [&_input[type='checkbox']]:size-4"
+            />
           </div>
         )}
 
         {/* Subject field */}
-        <div className="il-compose-field il-compose-field-subject mt-3 space-y-2">
-          <label className="il-compose-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emne</label>
+        <div className="mt-3 space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emne</label>
           <input
             type="text"
-            className="il-compose-input h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             value={title}
             onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
             placeholder="Titel"
@@ -628,7 +643,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         </div>
 
         {/* Body field with WYSIWYG editor */}
-        <div className="il-compose-field il-compose-field-body mt-3" id="il-compose-editor">
+        <div className="mt-3" id="bl-compose-editor">
           <WysiwygEditor
             initialBBCode={data.currentBody}
             onBBCodeChange={setBodyBBCode}
@@ -640,23 +655,23 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
         {/* Error message */}
         {error && (
-          <div className="il-compose-error mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
         )}
 
         {/* Attached files */}
         {attachedFiles.length > 0 && (
-          <div className="il-thread-attached-files mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {attachedFiles.map((file, i) => (
-              <span key={`${file.deleteArgument}-${i}`} className={`il-thread-attached-file ${removingAttachIndex === i ? 'is-removing' : ''} inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground`}>
+              <span key={`${file.deleteArgument}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 text-xs text-foreground">
                 {removingAttachIndex === i ? (
-                  <Loader2 size={12} className="il-spin" />
+                  <Loader2 size={12} className="animate-spin" />
                 ) : (
                   <Paperclip size={12} />
                 )}
-                <span className="il-thread-attached-file-name">{file.name}</span>
+                <span>{file.name}</span>
                 <button
                   type="button"
-                  className="il-thread-attached-file-remove inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   onClick={() => handleRemoveAttachment(file, i)}
                   disabled={removingAttachIndex !== null}
                   title="Fjern vedhæftning"
@@ -669,25 +684,25 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         )}
 
         {/* Footer */}
-        <div className="il-compose-footer mt-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="il-compose-footer-left inline-flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
+          <div className="inline-flex items-center gap-2">
             {attachPostbackTarget && (
               <>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  className="il-sr-only"
+                  className="sr-only"
                   onChange={handleFileSelect}
                 />
                 {uploadingFileName ? (
-                  <span className="il-thread-reply-uploading">
-                    <Loader2 size={14} className="il-spin" />
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 size={14} className="animate-spin" />
                     <span>Uploader {uploadingFileName}...</span>
                   </span>
                 ) : (
                   <button
                     type="button"
-                    className="il-thread-reply-attach-btn inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
                     onClick={() => fileInputRef.current?.click()}
                     title="Vedhæft fil"
                   >
@@ -698,17 +713,17 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
               </>
             )}
           </div>
-          <div className="il-compose-footer-right inline-flex items-center gap-2">
+          <div className="inline-flex items-center gap-2">
             <button
               type="button"
-              className="il-compose-cancel-btn rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
               onClick={handleBack}
             >
               Annuller
             </button>
             <button
               type="button"
-              className="il-compose-send-btn inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               onClick={handleSend}
               disabled={isBusy}
               title="Send (Ctrl+Enter)"
@@ -725,6 +740,6 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
 /** Legacy: enhance native compose form (fallback). */
 export function enhanceComposeForm(): void {
-  document.body.classList.add('il-beskeder-compose-active');
+  document.body.classList.add('bl-beskeder-compose-active');
   console.warn('[BetterLectio] Compose fallback: native form shown');
 }

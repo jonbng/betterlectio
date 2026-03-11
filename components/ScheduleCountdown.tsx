@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { getHoldHue } from '@/lib/hold-mapping';
 import { type ScheduleBlock, getTodaySchedule, getCachedSchedule } from '@/lib/schedule-cache';
+import { cn } from '@/lib/utils';
 
 // ── State machine ──────────────────────────────────────────────────────
 
@@ -192,15 +193,20 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'loading') return null;
 
+  const baseCd = "flex flex-col gap-1 rounded-lg border px-2.5 py-1.5 font-sans";
+  const baseTop = "flex items-baseline justify-between gap-1.5";
+  const baseBar = "h-0.5 rounded-sm overflow-hidden bg-[oklch(0.92_0.012_265)] dark:bg-[oklch(0.25_0.004_285)]";
+  const baseFill = "h-full rounded-sm transition-[width] duration-1000 ease-linear";
+
   if (state.type === 'no-classes') {
     const msg = getNoClassesMessage();
     return (
-      <div className="il-cd" data-state="done">
-        <div className="il-cd-top">
-          <span className="il-cd-done-text">{msg.text}</span>
-          <span className="il-cd-emoji">{msg.emoji}</span>
+      <div className={cn(baseCd, "bg-[oklch(0.97_0.012_145)] border-[oklch(0.9_0.03_145)] dark:bg-[oklch(0.17_0.012_145)] dark:border-[oklch(0.24_0.02_145)]")}>
+        <div className={baseTop}>
+          <span className="text-sm font-medium text-[oklch(0.42_0.1_145)] dark:text-[oklch(0.7_0.1_145)]">{msg.text}</span>
+          <span className="shrink-0 text-sm">{msg.emoji}</span>
         </div>
-        <div className="il-cd-bar"><div className="il-cd-fill" style={{ width: '100%', background: `oklch(0.6 0.14 145)` }} /></div>
+        <div className={baseBar}><div className={baseFill} style={{ width: '100%', background: 'oklch(0.6 0.14 145)' }} /></div>
       </div>
     );
   }
@@ -211,12 +217,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   if (state.type === 'after-school') {
     const msg = getDoneMessage();
     return (
-      <div className="il-cd" data-state="done">
-        <div className="il-cd-top">
-          <span className="il-cd-done-text">{msg.text}</span>
-          <span className="il-cd-emoji">{msg.emoji}</span>
+      <div className={cn(baseCd, "bg-[oklch(0.97_0.012_145)] border-[oklch(0.9_0.03_145)] dark:bg-[oklch(0.17_0.012_145)] dark:border-[oklch(0.24_0.02_145)]")}>
+        <div className={baseTop}>
+          <span className="text-sm font-medium text-[oklch(0.42_0.1_145)] dark:text-[oklch(0.7_0.1_145)]">{msg.text}</span>
+          <span className="shrink-0 text-sm">{msg.emoji}</span>
         </div>
-        <div className="il-cd-bar"><div className="il-cd-fill" style={{ width: '100%', background: `oklch(0.6 0.14 145)` }} /></div>
+        <div className={baseBar}><div className={baseFill} style={{ width: '100%', background: 'oklch(0.6 0.14 145)' }} /></div>
       </div>
     );
   }
@@ -225,19 +231,19 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     const msg = pickMessage(cancelledMessages);
     const nextHue = state.nextHoldCode ? getHoldHue(state.nextHoldCode) : 265;
     return (
-      <div className="il-cd" data-state="cancelled">
-        <div className="il-cd-top">
-          <span className="il-cd-done-text">{msg.text}</span>
-          <span className="il-cd-emoji">{msg.emoji}</span>
+      <div className={cn(baseCd, "bg-[oklch(0.97_0.015_85)] border-[oklch(0.88_0.04_85)] dark:bg-[oklch(0.18_0.015_85)] dark:border-[oklch(0.25_0.02_85)]")}>
+        <div className={baseTop}>
+          <span className="text-sm font-medium text-[oklch(0.42_0.1_85)] dark:text-[oklch(0.72_0.1_85)]">{msg.text}</span>
+          <span className="shrink-0 text-sm">{msg.emoji}</span>
         </div>
-        <div className="il-cd-sub il-cd-cancelled-sub">
-          <s>{state.label}</s> — fri i {fmt(state.remaining)}
+        <div className="text-xs text-[oklch(0.5_0.04_85)] dark:text-[oklch(0.58_0.03_85)]">
+          <s className="decoration-[oklch(0.6_0.08_25)] dark:decoration-[oklch(0.5_0.08_25)]">{state.label}</s> — fri i {fmt(state.remaining)}
         </div>
         {state.nextLabel && state.nextStart != null && (
-          <div className="il-cd-next">
-            <span className="il-cd-next-dot" style={{ background: `oklch(0.55 0.15 ${nextHue})` }} />
-            <span className="il-cd-next-label" style={{ color: `oklch(0.4 0.08 ${nextHue})` }}>{state.nextLabel}</span>
-            <span className="il-cd-next-time">kl. {fmtTime(state.nextStart)}</span>
+          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-[oklch(0.88_0.025_85)] pt-1.5 text-xs dark:border-[oklch(0.27_0.015_85)]">
+            <span className="size-1.5 shrink-0 rounded-full" style={{ background: `oklch(0.55 0.15 ${nextHue})` }} />
+            <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: `oklch(0.4 0.08 ${nextHue})` }}>{state.nextLabel}</span>
+            <span className="shrink-0 tabular-nums text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">kl. {fmtTime(state.nextStart)}</span>
           </div>
         )}
       </div>
@@ -246,12 +252,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'before-school') {
     return (
-      <div className="il-cd" data-state="waiting" style={{ '--cd-hue': hue } as React.CSSProperties}>
-        <div className="il-cd-top">
-          <span className="il-cd-subject" style={{ color: `oklch(0.38 0.1 ${hue})` }}>{state.label}</span>
-          <span className="il-cd-time">{fmt(state.remaining)}</span>
+      <div className={cn(baseCd, "bg-[oklch(0.97_0.008_265)] border-[oklch(0.91_0.015_265)] dark:bg-[oklch(0.18_0.004_285)] dark:border-[oklch(0.25_0.004_285)]")}>
+        <div className={baseTop}>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight" style={{ color: `oklch(0.38 0.1 ${hue})` }}>{state.label}</span>
+          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-[oklch(0.25_0.03_265)] dark:text-[oklch(0.88_0.003_90)]">{fmt(state.remaining)}</span>
         </div>
-        <div className="il-cd-sub">kl. {fmtTime(activeBlocks[0]?.start ?? 0)}</div>
+        <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">kl. {fmtTime(activeBlocks[0]?.start ?? 0)}</div>
       </div>
     );
   }
@@ -259,12 +265,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   if (state.type === 'break') {
     const nextStart = activeBlocks.find(b => b.start > (new Date().getHours() * 60 + new Date().getMinutes()))?.start ?? 0;
     return (
-      <div className="il-cd" data-state="break" style={{ '--cd-hue': hue } as React.CSSProperties}>
-        <div className="il-cd-top">
-          <span className="il-cd-pause">Pause</span>
-          <span className="il-cd-time">{fmt(state.remaining)}</span>
+      <div className={cn(baseCd, "border-dashed border-[oklch(0.91_0.015_265)] bg-[oklch(0.98_0.005_265)] dark:border-[oklch(0.25_0.004_285)] dark:bg-[oklch(0.16_0.004_285)]")}>
+        <div className={baseTop}>
+          <span className="text-sm font-semibold text-[oklch(0.4_0.02_265)] dark:text-[oklch(0.65_0.005_285)]">Pause</span>
+          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-[oklch(0.25_0.03_265)] dark:text-[oklch(0.88_0.003_90)]">{fmt(state.remaining)}</span>
         </div>
-        <div className="il-cd-sub">
+        <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">
           <span style={{ color: `oklch(0.38 0.1 ${hue})`, fontWeight: 600 }}>{state.label}</span>
           {' '}kl. {fmtTime(nextStart)}
         </div>
@@ -281,15 +287,15 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   })?.end ?? 0;
 
   return (
-    <div className="il-cd" data-state="active" style={{ '--cd-hue': hue } as React.CSSProperties}>
-      <div className="il-cd-top">
-        <span className="il-cd-subject" style={{ color: `oklch(0.35 0.1 ${hue})` }}>{state.label}</span>
-        <span className="il-cd-time" style={{ color: `oklch(0.35 0.12 ${hue})` }}>{fmt(state.remaining)}</span>
+    <div className={cn(baseCd, "bg-[oklch(0.97_0.008_265)] border-[oklch(0.91_0.015_265)] dark:bg-[oklch(0.18_0.004_285)] dark:border-[oklch(0.25_0.004_285)]")}>
+      <div className={baseTop}>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight" style={{ color: `oklch(0.35 0.1 ${hue})` }}>{state.label}</span>
+        <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight" style={{ color: `oklch(0.35 0.12 ${hue})` }}>{fmt(state.remaining)}</span>
       </div>
-      <div className="il-cd-bar">
-        <div className="il-cd-fill" style={{ width: `${(progress * 100).toFixed(1)}%`, background: `oklch(0.55 0.15 ${hue})` }} />
+      <div className={baseBar}>
+        <div className={baseFill} style={{ width: `${(progress * 100).toFixed(1)}%`, background: `oklch(0.55 0.15 ${hue})` }} />
       </div>
-      <div className="il-cd-sub">slutter kl. {fmtTime(endTime)}</div>
+      <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">slutter kl. {fmtTime(endTime)}</div>
     </div>
   );
 }

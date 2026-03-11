@@ -1,0 +1,3319 @@
+/* Pre-declare lectio layer so it has lowest cascade priority.
+   Layer order: lectio < theme < base < components < utilities
+   Lectio's CSS is wrapped in @layer lectio by hide-flash.content.ts,
+   so all our styles automatically win without needing !important. */
+@layer lectio;
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.985 0.003 265);
+  --foreground: oklch(0.145 0.014 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.014 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.014 265);
+  --primary: oklch(0.54 0.2 265);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.955 0.01 265);
+  --secondary-foreground: oklch(0.205 0.015 265);
+  --muted: oklch(0.955 0.01 265);
+  --muted-foreground: oklch(0.55 0.02 265);
+  --accent: oklch(0.94 0.012 265);
+  --accent-foreground: oklch(0.205 0.015 265);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.91 0.008 265);
+  --input: oklch(0.91 0.008 265);
+  --ring: oklch(0.54 0.2 265);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.97 0.006 265);
+  --sidebar-foreground: oklch(0.3 0.02 265);
+  --sidebar-primary: oklch(0.54 0.2 265);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0.012 265);
+  --sidebar-accent-foreground: oklch(0.205 0.015 265);
+  --sidebar-border: oklch(0.91 0.008 265);
+  --sidebar-ring: oklch(0.54 0.2 265);
+  --scrollbar-track: oklch(0.955 0.006 265);
+  --scrollbar-thumb: oklch(0.7 0.015 265);
+  --scrollbar-thumb-hover: oklch(0.55 0.02 265);
+}
+
+@theme inline {
+  --font-sans: "Geist", sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+.dark {
+  /* ── Warm-neutral dark mode ─────────────────────────────────
+     Near-achromatic grays with barely perceptible warm undertone.
+     Chroma kept ≤ 0.006 on neutrals so surfaces read as true
+     charcoal, not tinted blue. Primary indigo pops cleanly. ── */
+  --background: oklch(0.13 0.004 285);
+  --foreground: oklch(0.93 0.003 90);
+  --card: oklch(0.16 0.004 285);
+  --card-foreground: oklch(0.93 0.003 90);
+  --popover: oklch(0.18 0.004 285);
+  --popover-foreground: oklch(0.93 0.003 90);
+  --primary: oklch(0.65 0.16 265);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.21 0.005 285);
+  --secondary-foreground: oklch(0.88 0.003 90);
+  --muted: oklch(0.21 0.005 285);
+  --muted-foreground: oklch(0.58 0.006 285);
+  --accent: oklch(0.22 0.005 285);
+  --accent-foreground: oklch(0.88 0.003 90);
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.25 0.004 285);
+  --input: oklch(0.22 0.004 285);
+  --ring: oklch(0.65 0.16 265);
+  --sidebar: oklch(0.14 0.004 285);
+  --sidebar-foreground: oklch(0.85 0.003 90);
+  --sidebar-primary: oklch(0.65 0.16 265);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.2 0.005 285);
+  --sidebar-accent-foreground: oklch(0.85 0.003 90);
+  --sidebar-border: oklch(0.22 0.004 285);
+  --sidebar-ring: oklch(0.65 0.16 265);
+  --lectio-dark-bg: oklch(0.16 0.004 285);
+  --lectio-dark-surface: oklch(0.2 0.004 285);
+  --lectio-dark-element: oklch(0.25 0.004 285);
+  --lectio-dark-border: oklch(0.32 0.004 285);
+  --lectio-dark-text: oklch(0.88 0.003 90);
+  --lectio-dark-link: oklch(0.75 0.06 265);
+  --lectio-dark-link-hover: oklch(0.82 0.08 265);
+  --lectio-dark-calendar: oklch(0.35 0.006 285);
+  --lectio-dark-info: oklch(0.55 0.06 250);
+  --lectio-dark-header: oklch(0.88 0.003 90);
+  --scrollbar-track: oklch(0.15 0.004 285);
+  --scrollbar-thumb: oklch(0.32 0.004 285);
+  --scrollbar-thumb-hover: oklch(0.4 0.005 285);
+}
+
+/* ── Preset base themes (school scoped via html[data-il-theme]) ─────────────── */
+:root[data-il-theme="graphite"] {
+  --background: oklch(0.965 0.003 255);
+  --foreground: oklch(0.2 0.01 255);
+  --card: oklch(0.995 0.001 255);
+  --card-foreground: oklch(0.2 0.01 255);
+  --popover: oklch(0.995 0.001 255);
+  --popover-foreground: oklch(0.2 0.01 255);
+  --secondary: oklch(0.94 0.004 255);
+  --muted: oklch(0.94 0.004 255);
+  --accent: oklch(0.93 0.006 255);
+  --border: oklch(0.88 0.004 255);
+  --input: oklch(0.88 0.004 255);
+  --sidebar: oklch(0.95 0.003 255);
+  --sidebar-foreground: oklch(0.28 0.012 255);
+  --sidebar-accent: oklch(0.92 0.006 255);
+  --sidebar-border: oklch(0.88 0.004 255);
+  --primary: oklch(0.62 0.16 235);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.62 0.16 235);
+  --sidebar-primary: oklch(0.62 0.16 235);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.62 0.16 235);
+  --scrollbar-track: oklch(0.94 0.003 255);
+  --scrollbar-thumb: oklch(0.67 0.009 255);
+  --scrollbar-thumb-hover: oklch(0.55 0.012 255);
+}
+
+:root.dark[data-il-theme="graphite"] {
+  --background: oklch(0.13 0.003 255);
+  --foreground: oklch(0.93 0.003 90);
+  --card: oklch(0.16 0.003 255);
+  --card-foreground: oklch(0.93 0.003 90);
+  --popover: oklch(0.17 0.003 255);
+  --popover-foreground: oklch(0.93 0.003 90);
+  --secondary: oklch(0.21 0.004 255);
+  --muted: oklch(0.21 0.004 255);
+  --accent: oklch(0.23 0.004 255);
+  --border: oklch(0.28 0.004 255);
+  --input: oklch(0.24 0.004 255);
+  --sidebar: oklch(0.14 0.003 255);
+  --sidebar-foreground: oklch(0.85 0.003 90);
+  --sidebar-accent: oklch(0.2 0.004 255);
+  --sidebar-border: oklch(0.24 0.004 255);
+  --primary: oklch(0.72 0.13 235);
+  --ring: oklch(0.72 0.13 235);
+  --sidebar-primary: oklch(0.72 0.13 235);
+  --sidebar-ring: oklch(0.72 0.13 235);
+}
+
+:root[data-il-theme="sand"] {
+  --background: oklch(0.982 0.006 90);
+  --foreground: oklch(0.19 0.012 90);
+  --card: oklch(0.995 0.003 90);
+  --card-foreground: oklch(0.19 0.012 90);
+  --popover: oklch(0.995 0.003 90);
+  --popover-foreground: oklch(0.19 0.012 90);
+  --secondary: oklch(0.95 0.008 90);
+  --muted: oklch(0.95 0.008 90);
+  --accent: oklch(0.93 0.012 90);
+  --border: oklch(0.89 0.008 90);
+  --input: oklch(0.89 0.008 90);
+  --sidebar: oklch(0.96 0.007 90);
+  --sidebar-foreground: oklch(0.3 0.013 90);
+  --sidebar-accent: oklch(0.92 0.012 90);
+  --sidebar-border: oklch(0.89 0.008 90);
+  --primary: oklch(0.72 0.16 85);
+  --primary-foreground: oklch(0.18 0.01 90);
+  --ring: oklch(0.72 0.16 85);
+  --sidebar-primary: oklch(0.72 0.16 85);
+  --sidebar-primary-foreground: oklch(0.18 0.01 90);
+  --sidebar-ring: oklch(0.72 0.16 85);
+}
+
+:root.dark[data-il-theme="sand"] {
+  --background: oklch(0.14 0.004 80);
+  --foreground: oklch(0.93 0.003 90);
+  --card: oklch(0.17 0.004 80);
+  --card-foreground: oklch(0.93 0.003 90);
+  --popover: oklch(0.19 0.004 80);
+  --popover-foreground: oklch(0.93 0.003 90);
+  --secondary: oklch(0.22 0.005 80);
+  --muted: oklch(0.22 0.005 80);
+  --accent: oklch(0.24 0.006 80);
+  --border: oklch(0.29 0.005 80);
+  --input: oklch(0.25 0.005 80);
+  --sidebar: oklch(0.15 0.004 80);
+  --sidebar-foreground: oklch(0.85 0.003 90);
+  --sidebar-accent: oklch(0.21 0.005 80);
+  --sidebar-border: oklch(0.25 0.005 80);
+  --primary: oklch(0.78 0.13 85);
+  --ring: oklch(0.78 0.13 85);
+  --sidebar-primary: oklch(0.78 0.13 85);
+  --sidebar-ring: oklch(0.78 0.13 85);
+}
+
+:root[data-il-theme="forest"] {
+  --background: oklch(0.98 0.006 160);
+  --foreground: oklch(0.19 0.016 160);
+  --card: oklch(0.995 0.003 160);
+  --card-foreground: oklch(0.19 0.016 160);
+  --popover: oklch(0.995 0.003 160);
+  --popover-foreground: oklch(0.19 0.016 160);
+  --secondary: oklch(0.95 0.01 160);
+  --muted: oklch(0.95 0.01 160);
+  --accent: oklch(0.93 0.016 160);
+  --border: oklch(0.89 0.01 160);
+  --input: oklch(0.89 0.01 160);
+  --sidebar: oklch(0.96 0.009 160);
+  --sidebar-foreground: oklch(0.3 0.02 160);
+  --sidebar-accent: oklch(0.92 0.016 160);
+  --sidebar-border: oklch(0.89 0.01 160);
+  --primary: oklch(0.61 0.15 160);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.61 0.15 160);
+  --sidebar-primary: oklch(0.61 0.15 160);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.61 0.15 160);
+}
+
+:root.dark[data-il-theme="forest"] {
+  --background: oklch(0.13 0.005 160);
+  --foreground: oklch(0.93 0.003 90);
+  --card: oklch(0.16 0.005 160);
+  --card-foreground: oklch(0.93 0.003 90);
+  --popover: oklch(0.18 0.005 160);
+  --popover-foreground: oklch(0.93 0.003 90);
+  --secondary: oklch(0.21 0.006 160);
+  --muted: oklch(0.21 0.006 160);
+  --accent: oklch(0.23 0.008 160);
+  --border: oklch(0.28 0.006 160);
+  --input: oklch(0.24 0.006 160);
+  --sidebar: oklch(0.14 0.005 160);
+  --sidebar-foreground: oklch(0.85 0.003 90);
+  --sidebar-accent: oklch(0.2 0.006 160);
+  --sidebar-border: oklch(0.24 0.006 160);
+  --primary: oklch(0.7 0.13 160);
+  --ring: oklch(0.7 0.13 160);
+  --sidebar-primary: oklch(0.7 0.13 160);
+  --sidebar-ring: oklch(0.7 0.13 160);
+}
+
+:root[data-il-theme="pink"] {
+  --background: oklch(0.982 0.008 345);
+  --foreground: oklch(0.19 0.014 345);
+  --card: oklch(0.995 0.004 345);
+  --card-foreground: oklch(0.19 0.014 345);
+  --popover: oklch(0.995 0.004 345);
+  --popover-foreground: oklch(0.19 0.014 345);
+  --secondary: oklch(0.952 0.01 345);
+  --muted: oklch(0.952 0.01 345);
+  --accent: oklch(0.935 0.016 345);
+  --border: oklch(0.892 0.01 345);
+  --input: oklch(0.892 0.01 345);
+  --sidebar: oklch(0.964 0.009 345);
+  --sidebar-foreground: oklch(0.3 0.016 345);
+  --sidebar-accent: oklch(0.922 0.016 345);
+  --sidebar-border: oklch(0.892 0.01 345);
+  --primary: oklch(0.62 0.2 15);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.62 0.2 15);
+  --sidebar-primary: oklch(0.62 0.2 15);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.62 0.2 15);
+}
+
+:root.dark[data-il-theme="pink"] {
+  --background: oklch(0.14 0.005 335);
+  --foreground: oklch(0.93 0.003 90);
+  --card: oklch(0.17 0.005 335);
+  --card-foreground: oklch(0.93 0.003 90);
+  --popover: oklch(0.19 0.005 335);
+  --popover-foreground: oklch(0.93 0.003 90);
+  --secondary: oklch(0.22 0.006 335);
+  --muted: oklch(0.22 0.006 335);
+  --accent: oklch(0.24 0.009 335);
+  --border: oklch(0.29 0.006 335);
+  --input: oklch(0.25 0.006 335);
+  --sidebar: oklch(0.15 0.005 335);
+  --sidebar-foreground: oklch(0.85 0.003 90);
+  --sidebar-accent: oklch(0.21 0.006 335);
+  --sidebar-border: oklch(0.25 0.006 335);
+  --primary: oklch(0.71 0.15 15);
+  --ring: oklch(0.71 0.15 15);
+  --sidebar-primary: oklch(0.71 0.15 15);
+  --sidebar-ring: oklch(0.71 0.15 15);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  * {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 999px;
+    border: 2px solid var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  /* ── Lectio content isolation ────────────────────────────────
+     Revert ALL Tailwind preflight resets for elements inside
+     Lectio's native DOM. Without this, Tailwind's aggressive
+     resets (margin:0, padding:0, border:0, color:inherit, etc.)
+     override Lectio's CSS since @layer base > @layer lectio.
+
+     Using :where() keeps specificity at (1,0,0) from the ID only,
+     so our @layer components overrides still win easily.
+
+     Injected components (FindSkema, Lektier, etc.) live OUTSIDE
+     #il-original-content, so they still get Tailwind's base. */
+  #il-original-content :where(*) {
+    all: revert-layer;
+  }
+  #il-original-content :where(*)::before,
+  #il-original-content :where(*)::after {
+    all: revert-layer;
+  }
+
+  /* Keep custom scrollbar styling consistent inside Lectio content */
+  #il-original-content :where(*) {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}
+
+/* ========================================
+   Custom Styles for BetterLectio
+   ======================================== */
+
+@layer components {
+  /* Ensure html and body take full height */
+  html {
+    height: 100% !important;
+  }
+
+  body.il-dashboard-active {
+    height: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* ── Root element baseline ──────────────────────────────────
+     Establishes a clean foundation for ALL custom UI (sidebar,
+     injected pages, modals, etc.). Prevents any inherited Lectio
+     styles from leaking in via the <body> cascade. */
+  #il-root {
+    height: 100vh;
+    width: 100%;
+    font-family: "Geist", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: left;
+    letter-spacing: normal;
+    word-spacing: normal;
+  }
+
+  /* Force sidebar wrapper to be a proper flex row */
+  [data-slot="sidebar-wrapper"] {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* Ensure main content area shrinks properly in Firefox */
+  [data-slot="sidebar-inset"] {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Settings modal needs wrapper constrained to modal height */
+  .settings-modal[data-slot="sidebar-wrapper"] {
+    min-height: 0;
+    height: 100%;
+  }
+
+  /* Sidebar wrapper - must be visible (override hidden class) */
+  [data-slot="sidebar"].hidden {
+    display: block !important;
+  }
+
+  [data-slot="sidebar"] {
+    display: block !important;
+    height: 100vh;
+  }
+
+  .settings-modal [data-slot="sidebar"] {
+    height: 100%;
+  }
+
+  .settings-modal [data-slot="sidebar-gap"] {
+    display: none;
+  }
+
+  .settings-modal [data-slot="sidebar-container"] {
+    position: static;
+    height: 100%;
+  }
+
+  /* Force modal main layout to flex to enable inner scrolling */
+  .settings-modal .settings-modal-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .settings-modal .settings-modal-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* Design playground modal - same layout pattern as settings modal */
+  .design-playground-modal[data-slot="sidebar-wrapper"] {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .design-playground-modal [data-slot="sidebar"] {
+    height: 100%;
+  }
+
+  .design-playground-modal [data-slot="sidebar-gap"] {
+    display: none;
+  }
+
+  .design-playground-modal [data-slot="sidebar-container"] {
+    position: static;
+    height: 100%;
+  }
+
+  .design-playground-modal .design-playground-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .design-playground-modal .design-playground-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* Sidebar inner container - fixed left panel */
+  [data-slot="sidebar-container"] {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    z-index: 50 !important;
+    width: var(--sidebar-width, 16rem);
+    background-color: var(--sidebar);
+    border-right: 1px solid var(--sidebar-border);
+    overflow: hidden;
+  }
+
+  /* Sidebar inner content wrapper */
+  [data-sidebar="sidebar"] {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background-color: var(--sidebar);
+  }
+
+  /* Sidebar gap - the space taken by the sidebar */
+  [data-slot="sidebar-gap"] {
+    flex-shrink: 0;
+    width: var(--sidebar-width, 16rem);
+  }
+
+  /* Main content area */
+  [data-slot="sidebar-inset"] {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Lectio content scroll container */
+  #il-lectio-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--background);
+  }
+
+  /* Original content wrapper — flex child stretches cross-axis (width) automatically */
+  #il-original-content {
+    flex: 1 0 auto;
+    min-width: 0;
+    min-height: 100%;
+  }
+
+  /* Redesign pages append Preact content after #il-original-content.
+     Disable flex growth so hidden native DOM doesn't reserve viewport height. */
+  body:is(
+      .il-fravaer-page-active,
+      .il-beskeder-page-active,
+      .il-lektier-page-active,
+      .il-opgaver-page-active,
+      .il-members-page-active
+    ) #il-original-content {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: auto;
+  }
+
+  /* Apply Geist font everywhere except icon fonts */
+  body.il-dashboard-active,
+  body.il-dashboard-active *:not(.ls-fonticon) {
+    font-family: "Geist", sans-serif !important;
+  }
+
+  .ls-fonticon {
+    font-family: ls-font-icons !important;
+  }
+
+  /* Hide old navigation and page headers */
+  #il-original-content .ls-master-header,
+  #il-original-content #s_m_mastermenu,
+  #il-original-content #m_mastermenu,
+  #il-original-content nav.lectioToolbar,
+  #il-original-content .ls-subnav1,
+  #il-original-content .ls-subnav-container nav,
+  #il-original-content .ls-master-pageheader {
+    display: none !important;
+  }
+
+  /* Show subnavigation for entity schedule pages (hold, class, room, etc.) */
+  .il-entity-schedule #il-original-content .ls-master-pageheader {
+    display: block !important;
+  }
+
+  /* Hide other parts of the page header, just keep the subnav */
+  .il-entity-schedule #il-original-content .ls-master-pageheader .thumber,
+  .il-entity-schedule
+    #il-original-content
+    .ls-master-pageheader
+    .ls-identity-container,
+  .il-entity-schedule #il-original-content .ls-master-pageheader .maintitle {
+    display: none !important;
+  }
+
+  /* Hide Bøger and Beskeder nav items - redundant with sidebar */
+  .il-entity-schedule
+    #il-original-content
+    .ls-subnav1
+    .buttonlink:has(a[href*="Reservations.aspx"]),
+  .il-entity-schedule
+    #il-original-content
+    .ls-subnav1
+    .buttonlink:has(a[href*="beskeder2.aspx"]) {
+    display: none !important;
+  }
+
+  .il-entity-schedule #il-original-content .ls-subnav-container,
+  .il-entity-schedule #il-original-content .ls-subnav-container nav {
+    display: block !important;
+  }
+
+  .il-entity-schedule #il-original-content .ls-subnav1 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.75rem 1rem;
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    border-bottom: 1px solid var(--border);
+    margin: 0;
+  }
+
+  .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink {
+    margin: 0;
+  }
+
+  .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    border-radius: 0.375rem;
+    transition: all 0.15s;
+  }
+
+  .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .il-entity-schedule
+    #il-original-content
+    .ls-subnav1
+    .buttonlink.ls-subnav-active
+    a {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  /* Dark mode: protect schedule nav buttons from the nuclear .dark a rule */
+  .dark .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark .il-entity-schedule #il-original-content .ls-subnav1 .buttonlink a:hover {
+    color: var(--accent-foreground) !important;
+  }
+
+  .dark
+    .il-entity-schedule
+    #il-original-content
+    .ls-subnav1
+    .buttonlink.ls-subnav-active
+    a {
+    color: var(--primary-foreground) !important;
+  }
+
+  /* "I dag" button in schedule toolbar — match subnav button style */
+  .dark #il-original-content .il-today-btn a {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark #il-original-content .il-today-btn a:hover {
+    color: var(--accent-foreground) !important;
+  }
+
+  /* ========================================
+     Fravær Page Redesign Styles
+     ======================================== */
+
+  /* Hide original content when fravær redesign is active */
+  body.il-fravaer-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-fravaer-page-active #il-original-content,
+  body.il-fravaer-page-active #il-original-content #masterContent,
+  body.il-fravaer-page-active #il-original-content #aspnetForm,
+  body.il-fravaer-page-active #il-original-content .ls-master-container1,
+  body.il-fravaer-page-active #il-original-content .ls-master-container2,
+  body.il-fravaer-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-fravaer-page-active #il-original-content .outerContentFrame,
+  body.il-fravaer-page-active #il-original-content .ls-content-container,
+  body.il-fravaer-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  /* ── Page container ──────────────────────── */
+
+  #il-opgaver-page {
+    padding: 0;
+  }
+
+  @keyframes opgaver-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* ========================================
+     Activity Sheet Animations
+     ======================================== */
+
+  @keyframes act-sheet-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes act-sheet-slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes act-sheet-progress-slide {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(380%); }
+  }
+
+  @keyframes act-sheet-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+
+  @keyframes act-sheet-mobile-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  /* ========================================
+     FindSkema Page (FindSkema.aspx) Styles
+     ======================================== */
+
+  /* Hide original FindSkema content when our UI is active */
+  body.il-findskema #il-original-content {
+    display: none !important;
+  }
+
+  /* FindSkema page container */
+  .findskema-page {
+    min-height: 100%;
+    background: var(--background);
+  }
+
+  /* Search container - prominent at top */
+  .findskema-search-container {
+    padding: 2rem 1.5rem;
+    background: linear-gradient(
+      to bottom,
+      var(--muted),
+      transparent
+    );
+  }
+
+  .findskema-search-wrapper {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .findskema-search-icon {
+    position: absolute;
+    left: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.5rem;
+    height: 1.5rem;
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
+
+  .findskema-search-input {
+    width: 100%;
+    height: 4rem;
+    padding-left: 3.5rem;
+    padding-right: 5rem;
+    font-size: 1.25rem;
+    border-radius: 1rem;
+    border: 2px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.05);
+    transition: all 0.2s ease;
+  }
+
+  .findskema-search-input::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .findskema-search-input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow:
+      0 4px 12px oklch(0 0 0 / 0.1),
+      0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+  }
+
+  .findskema-search-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .findskema-search-actions {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .findskema-clear-btn {
+    padding: 0.5rem;
+    color: var(--muted-foreground);
+    border-radius: 0.5rem;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+  }
+
+  .findskema-clear-btn:hover {
+    color: var(--foreground);
+    background: var(--accent);
+  }
+
+  .findskema-shortcut-hint {
+    display: none;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+  }
+
+  @media (min-width: 640px) {
+    .findskema-shortcut-hint {
+      display: inline-flex;
+    }
+  }
+
+  .findskema-error {
+    margin-top: 0.75rem;
+    text-align: center;
+    color: var(--destructive);
+    font-size: 0.875rem;
+  }
+
+  /* Filter pills */
+  .findskema-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 1.5rem 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+
+  .findskema-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+
+  .findskema-filter-pill:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .findskema-filter-pill.is-active {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+  }
+
+  .findskema-filter-pill.is-active:hover {
+    background: color-mix(in oklch, var(--primary) 90%, black);
+  }
+
+  /* Section styling */
+  .findskema-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .findskema-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Card grid - responsive */
+  .findskema-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    padding: 0 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .findskema-card-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      padding: 0 1rem;
+    }
+
+    .findskema-search-container {
+      padding: 1rem;
+    }
+
+    .findskema-search-input {
+      height: 3.5rem;
+      font-size: 1rem;
+      padding-left: 3rem;
+    }
+
+    .findskema-search-icon {
+      left: 1rem;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    .findskema-section-header {
+      padding: 0.75rem 1rem;
+    }
+  }
+
+  /* Person card styling - vertical layout */
+  .findskema-person-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+  }
+
+  .findskema-person-card:hover {
+    border-color: var(--ring);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.1);
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+
+  /* Image container at top */
+  .findskema-card-image-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: var(--muted);
+    overflow: hidden;
+  }
+
+  .findskema-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+    transition:
+      transform 0.3s ease,
+      opacity 0.3s ease;
+    opacity: 0;
+  }
+
+  .findskema-card-image.is-loaded {
+    opacity: 1;
+  }
+
+  .findskema-person-card:hover .findskema-card-image.is-loaded {
+    transform: scale(1.05);
+  }
+
+  .findskema-card-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    background: var(--muted);
+  }
+
+  .findskema-card-fallback.hidden {
+    display: none;
+  }
+
+  /* Entity card variant (classes, rooms, resources, hold, groups) */
+  .findskema-entity-card {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+
+  .findskema-entity-bg-icon {
+    position: absolute;
+    top: -10%;
+    right: -10%;
+    width: 70%;
+    height: 70%;
+    color: var(--foreground);
+    opacity: 0.05;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+
+  .findskema-entity-card:hover .findskema-entity-bg-icon {
+    opacity: 0.09;
+    transform: scale(1.05) rotate(-3deg);
+  }
+
+  .findskema-entity-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1;
+  }
+
+  .findskema-entity-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--foreground);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  .findskema-entity-content > .findskema-card-badge {
+    align-self: flex-start;
+  }
+
+  /* Entity type accent colors — subtle left border */
+  .findskema-entity-K { border-left: 3px solid oklch(0.63 0.18 295); }
+  .findskema-entity-L { border-left: 3px solid oklch(0.7 0.16 55); }
+  .findskema-entity-R { border-left: 3px solid oklch(0.65 0.2 350); }
+  .findskema-entity-H { border-left: 3px solid oklch(0.7 0.14 200); }
+  .findskema-entity-G { border-left: 3px solid oklch(0.75 0.14 85); }
+
+  /* Content below image */
+  .findskema-card-content {
+    padding: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .findskema-card-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .findskema-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .findskema-card-class {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+  }
+
+  .findskema-card-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  /* Action buttons - overlay on image */
+  .findskema-card-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .findskema-person-card:hover .findskema-card-actions,
+  .findskema-card-actions:has(.is-starred) {
+    opacity: 1;
+  }
+
+  .findskema-star-btn,
+  .findskema-remove-btn {
+    padding: 0.5rem;
+    border-radius: 50%;
+    background: oklch(1 0 0 / 0.9);
+    backdrop-filter: blur(4px);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--muted-foreground);
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.1);
+  }
+
+  .findskema-star-btn:hover {
+    background: white;
+    color: oklch(0.75 0.16 70); /* amber-500 */
+    transform: scale(1.1);
+  }
+
+  .findskema-star-btn.is-starred {
+    color: oklch(0.75 0.16 70); /* amber-500 */
+    background: white;
+  }
+
+  .findskema-remove-btn:hover {
+    background: white;
+    color: var(--destructive);
+    transform: scale(1.1);
+  }
+
+  /* Empty state */
+  .findskema-empty {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: var(--muted-foreground);
+  }
+
+  /* Loading state */
+  .findskema-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 3rem 1.5rem;
+    color: var(--muted-foreground);
+  }
+
+  .findskema-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: findskema-spin 0.8s linear infinite;
+  }
+
+  @keyframes findskema-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* ========================================
+     Viewing Schedule Header: Members Panel
+     ======================================== */
+
+  .il-viewing-members-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border);
+    background: color-mix(in oklch, var(--card) 78%, transparent);
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+    transition: all 0.15s ease;
+  }
+
+  .il-viewing-members-toggle:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+    border-color: color-mix(in oklch, var(--ring) 35%, var(--border));
+  }
+
+  .il-viewing-members-toggle[aria-expanded="true"] {
+    background: color-mix(in oklch, var(--primary) 12%, var(--card));
+    border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
+    color: var(--foreground);
+  }
+
+  .il-viewing-members-panel {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .il-viewing-members-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.6rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .il-viewing-members-error {
+    background: color-mix(in oklch, oklch(0.63 0.2 25) 10%, var(--card));
+    border-color: color-mix(in oklch, oklch(0.63 0.2 25) 40%, var(--border));
+    color: oklch(0.56 0.2 25);
+  }
+
+  .dark .il-viewing-members-error {
+    color: oklch(0.74 0.14 25);
+  }
+
+  .il-viewing-members-grid {
+    padding: 0;
+  }
+
+  /* ========================================
+     Members Page (members.aspx) Styles
+     ======================================== */
+
+  /* Hide the original Lectio content area when our members page is active (keep subnav) */
+  body.il-members-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  /* Collapse all parent containers so they don't take up space */
+  body.il-members-page-active #il-original-content,
+  body.il-members-page-active #il-original-content #masterContent,
+  body.il-members-page-active #il-original-content #aspnetForm,
+  body.il-members-page-active #il-original-content .ls-master-container1,
+  body.il-members-page-active #il-original-content .ls-master-container2,
+  body.il-members-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-members-page-active #il-original-content .outerContentFrame,
+  body.il-members-page-active #il-original-content .ls-content-container,
+  body.il-members-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  /* Members page grid container */
+  #il-members-page {
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+  }
+
+  /* ========================================
+     Lectio Modernizer — Phase 3
+     Restyles native Lectio elements with a
+     clean, modern look. All rules live in
+     @layer components so they beat Lectio's
+     @layer lectio without !important.
+     ======================================== */
+
+  /* ── Content area baseline ───────────────── */
+
+  #il-original-content #aspnetForm,
+  #il-original-content .ls-master-container1,
+  #il-original-content .ls-master-container2,
+  #il-original-content .outerContentFrame,
+  #il-original-content .ls-content-container,
+  #il-original-content .ls-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+
+  #il-original-content #contenttable {
+    padding: 1.25rem 1.5rem 2rem;
+  }
+
+  /* ── Typography ──────────────────────────── */
+
+  #il-original-content .maintitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--foreground);
+  }
+
+  #il-original-content .ls-label,
+  #il-original-content .ls-label-normal,
+  #il-original-content .ls-label-block {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    letter-spacing: 0.01em;
+  }
+
+  /* ── Links ───────────────────────────────── */
+
+  #il-original-content a {
+    color: oklch(0.5 0.14 250);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  #il-original-content a:hover {
+    color: oklch(0.42 0.16 250);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Context-card links (person/hold names) - inherit container color */
+  #il-original-content [data-lectiocontextcard] {
+    color: oklch(0.5 0.14 250);
+    cursor: pointer;
+  }
+
+  #il-original-content [data-lectiocontextcard]:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ── Tables (lf-grid) ────────────────────── */
+
+  #il-original-content .ls-table-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid oklch(0.91 0.01 265);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.04), 0 0.5px 1px oklch(0 0 0 / 0.03);
+  }
+
+  /* Seamless table wrapper inside island cards — no double border */
+  #il-original-content .lf-island .ls-table-wrapper {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow-y: visible;
+  }
+
+  #il-original-content table.lf-grid {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+  }
+
+  #il-original-content table.lf-grid th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: oklch(0.55 0.03 265);
+    background: oklch(0.97 0.008 265);
+    border-bottom: 1px solid oklch(0.91 0.01 265);
+    white-space: nowrap;
+  }
+
+  #il-original-content table.lf-grid td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid oklch(0.94 0.005 265);
+    color: var(--foreground);
+    vertical-align: middle;
+    transition: background-color 0.15s ease;
+  }
+
+  #il-original-content table.lf-grid tr:last-child td {
+    border-bottom: none;
+  }
+
+  #il-original-content table.lf-grid tbody tr:hover td {
+    background: oklch(0.96 0.015 265);
+  }
+
+  /* Indigo left-accent on hovered row */
+  #il-original-content table.lf-grid tbody tr:hover td:first-child {
+    box-shadow: inset 2px 0 0 oklch(0.54 0.2 265);
+  }
+
+  /* Separator rows between groups */
+  #il-original-content table.lf-grid tr.separationCell td {
+    background: oklch(0.97 0.008 265);
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: oklch(0.5 0.03 265);
+  }
+
+  /* ── Tables inside island cards ─────────── */
+
+  /* Remove default table margin inside island cards */
+  #il-original-content .lf-island table.lf-grid {
+    margin: 0;
+  }
+
+  /* Lighter table header in islands — card header already provides section context */
+  #il-original-content .lf-island table.lf-grid th {
+    background: transparent;
+    border-bottom-color: oklch(0.94 0.005 265);
+  }
+
+  /* Round bottom corners of last row to match island card container */
+  #il-original-content .lf-island table.lf-grid tr:last-child td:first-child {
+    border-bottom-left-radius: calc(0.75rem - 1px);
+  }
+
+  #il-original-content .lf-island table.lf-grid tr:last-child td:last-child {
+    border-bottom-right-radius: calc(0.75rem - 1px);
+  }
+
+  /* ── Info tables (label:value pairs) ─────── */
+
+  #il-original-content table.ls-std-table-inputlist {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+  }
+
+  #il-original-content table.ls-std-table-inputlist th {
+    text-align: left;
+    padding: 0.625rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: oklch(0.55 0.03 265);
+    white-space: nowrap;
+    vertical-align: top;
+    width: 10rem;
+    border-bottom: 1px solid oklch(0.94 0.005 265);
+  }
+
+  #il-original-content table.ls-std-table-inputlist td {
+    padding: 0.625rem 1rem;
+    color: var(--foreground);
+    border-bottom: 1px solid oklch(0.94 0.005 265);
+    vertical-align: top;
+  }
+
+  /* ── Buttons ─────────────────────────────── */
+
+  /* Primary filled button */
+  #il-original-content .buttonfilled a,
+  #il-original-content .buttonfilled a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-foreground);
+    background: var(--primary);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonfilled a:hover {
+    opacity: 0.9;
+    text-decoration: none;
+  }
+
+  /* Tonal filled button */
+  #il-original-content .buttonfilledtonal a,
+  #il-original-content .buttonfilledtonal a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--secondary-foreground);
+    background: var(--secondary);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonfilledtonal a:hover {
+    background: color-mix(in oklch, var(--secondary) 85%, black);
+    text-decoration: none;
+  }
+
+  /* Outlined button */
+  #il-original-content .buttonoutlined a,
+  #il-original-content .buttonoutlined a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--foreground);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonoutlined a:hover {
+    background: var(--muted);
+    text-decoration: none;
+  }
+
+  /* Icon button */
+  #il-original-content .buttonicon a,
+  #il-original-content .buttonicon a[data-role="button"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    border-radius: 0.375rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+
+  #il-original-content .buttonicon a:hover {
+    background: var(--muted);
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
+  /* ── Form elements ──────────────────────── */
+
+  #il-original-content input[type="text"],
+  #il-original-content input[type="search"],
+  #il-original-content input[type="password"],
+  #il-original-content input[type="email"],
+  #il-original-content input[type="number"],
+  #il-original-content .ls-control-textbox-large {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  #il-original-content input[type="text"]:focus,
+  #il-original-content input[type="search"]:focus,
+  #il-original-content input[type="password"]:focus,
+  #il-original-content .ls-control-textbox-large:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+  }
+
+  #il-original-content textarea,
+  #il-original-content .ls-control-textbox-multiline {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    resize: vertical;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  #il-original-content textarea:focus,
+  #il-original-content .ls-control-textbox-multiline:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+  }
+
+  #il-original-content select {
+    padding: 0.375rem 2rem 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    transition: border-color 0.15s ease;
+  }
+
+  #il-original-content select:focus {
+    outline: none;
+    border-color: var(--ring);
+  }
+
+  #il-original-content input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    accent-color: oklch(0.5 0.14 250);
+  }
+
+  /* Datepicker */
+  #il-original-content .ls-datepickerbox {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    background: var(--background);
+    color: var(--foreground);
+    width: auto;
+    min-width: 8rem;
+  }
+
+  /* ── Schedule bricks ─────────────────────── */
+
+  #il-original-content .s2skemabrik {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: box-shadow 0.15s ease, transform 0.1s ease;
+    text-decoration: none;
+  }
+
+  #il-original-content .s2skemabrik:hover {
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.12);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  #il-original-content .s2skemabrikcontent {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  /* Cancelled lessons - strikethrough effect */
+  #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors) {
+    opacity: 0.55;
+  }
+
+  /* ── Enhanced schedule brick layout ───────── */
+
+  /* Override blue link color on the brick <a> itself, so children inherit
+     a neutral color instead of blue. */
+  #il-original-content a.s2skemabrik:has(.il-enhanced),
+  #il-original-content a.s2skemabrik:has(.il-enhanced):hover {
+    color: oklch(0.3 0.02 265);
+    text-decoration: none;
+  }
+
+  /* Kill blue link color + hover underline on context-card spans inside
+     enhanced bricks. They inherit the brick's neutral color above. */
+  #il-original-content .il-enhanced [data-lectiocontextcard],
+  #il-original-content .il-enhanced [data-lectiocontextcard]:hover {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Color-coded brick with left accent border */
+  #il-original-content .s2skemabrik.s2bgbox:has(.il-enhanced) {
+    background: oklch(0.965 0.018 var(--brick-hue, 265));
+    border-left: 3.5px solid oklch(0.58 0.17 var(--brick-hue, 265));
+    border-radius: 0.125rem 0.5rem 0.5rem 0.125rem;
+  }
+
+  #il-original-content .s2skemabrik.s2bgbox:has(.il-enhanced):hover {
+    background: oklch(0.94 0.03 var(--brick-hue, 265));
+  }
+
+  /* ── Changed/moved brick — keeps subject color, badge indicates change ── */
+
+  #il-original-content .il-brick-changed-badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: oklch(0.82 0.12 80);
+    color: oklch(0.3 0.06 80);
+    padding: 0.09375rem 0.375rem;
+    border-radius: 0.28125rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+
+  /* ── Cancelled brick — keeps subject color, just faded ── */
+  #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced) {
+    opacity: 0.38;
+    transition: opacity 0.2s ease;
+  }
+
+  #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced):hover {
+    opacity: 0.65;
+  }
+
+  #il-original-content .s2skemabrik.s2cancelled .il-brick-subject {
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: oklch(0.6 0.1 25);
+  }
+
+  #il-original-content .il-brick-cancelled-badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: oklch(0.6 0.18 25);
+    color: oklch(0.98 0 0);
+    padding: 0.09375rem 0.375rem;
+    border-radius: 0.28125rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+
+  /* Inner container flex layout */
+  #il-original-content .s2skemabrikInnerContainer.il-enhanced {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0.4375rem 0.5625rem;
+    gap: 0.1875rem;
+    overflow: hidden;
+  }
+
+  /* Header: subject name + room badge */
+  #il-original-content .il-brick-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem 0.375rem;
+    flex-wrap: wrap;
+  }
+
+  #il-original-content .il-brick-subject {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: oklch(0.25 0.04 var(--brick-hue, 265));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1 0 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #il-original-content .il-brick-room {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: oklch(0.55 0.15 var(--brick-hue, 265) / 0.13);
+    color: oklch(0.38 0.1 var(--brick-hue, 265));
+    padding: 0.09375rem 0.375rem;
+    border-radius: 0.28125rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+
+  /* Meta row: teacher, time */
+  #il-original-content .il-brick-meta {
+    font-size: 1rem;
+    color: oklch(0.4 0.02 265);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Topic / lesson title */
+  #il-original-content .il-brick-topic {
+    font-size: 0.875rem;
+    line-height: 1.35;
+    color: oklch(0.5 0.015 265);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Icons (homework, notes) */
+  #il-original-content .il-brick-icons {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: auto;
+    align-self: flex-end;
+  }
+
+  #il-original-content .il-brick-icons .ls-fonticon {
+    font-size: 1.125rem;
+    opacity: 0.65;
+    color: oklch(0.42 0.1 var(--brick-hue, 265));
+  }
+
+  /* ── "Erstatter" note on merged cancelled+replacement bricks ── */
+
+  #il-original-content .il-brick-replaces {
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: oklch(0.42 0.06 265);
+    background: oklch(0.55 0.1 var(--brick-hue, 265) / 0.08);
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  #il-original-content .il-brick-replaces::before {
+    content: "↳ ";
+  }
+
+  /* ── Narrow brick adaptation (side-by-side overlapping bricks) ── */
+
+  #il-original-content .s2skemabrik.il-narrow .s2skemabrikInnerContainer.il-enhanced {
+    padding: 0.3125rem 0.375rem;
+    gap: 0.125rem;
+  }
+
+  #il-original-content .s2skemabrik.il-narrow .il-brick-subject {
+    font-size: 0.9375rem;
+  }
+
+  #il-original-content .s2skemabrik.il-narrow .il-brick-room {
+    font-size: 0.75rem;
+    padding: 0.03125rem 0.21875rem;
+  }
+
+  #il-original-content .s2skemabrik.il-narrow .il-brick-meta {
+    font-size: 0.8125rem;
+  }
+
+  #il-original-content .s2skemabrik.il-narrow .il-brick-topic {
+    font-size: 0.8125rem;
+    -webkit-line-clamp: 1;
+  }
+
+  #il-original-content .s2skemabrik.il-narrow .il-brick-icons .ls-fonticon {
+    font-size: 0.875rem;
+  }
+
+  #il-original-content .s2skemabrik.il-narrow .il-brick-cancelled-badge,
+  #il-original-content .s2skemabrik.il-narrow .il-brick-changed-badge {
+    font-size: 0.75rem;
+    padding: 0.03125rem 0.21875rem;
+  }
+
+  /* ── Info header (day-level notices at top of column) ── */
+
+  /* Container: stack pills vertically */
+  #il-original-content .s2infoHeader.s2skemabrikcontainer > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    padding: 0.25rem;
+  }
+
+  /* Each notice: compact pill */
+  #il-original-content .s2infoHeader .s2skemabrik {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.3125rem;
+    background: oklch(0.94 0.012 265);
+    border-radius: 0.375rem;
+    padding: 0.1875rem 0.4375rem;
+    width: auto !important;
+    max-width: 100%;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: oklch(0.35 0.02 265);
+    text-decoration: none;
+    transition: background 0.15s ease;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  #il-original-content .s2infoHeader .s2skemabrik:hover {
+    background: oklch(0.9 0.02 265);
+    text-decoration: none;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Flatten wrapper div so icon + content sit side-by-side */
+  #il-original-content .s2infoHeader .s2skemabrik > div {
+    display: contents;
+  }
+
+  /* Content row — inline with gap */
+  #il-original-content .s2infoHeader .s2skema-top-separator {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  /* Hide the ugly bullet dot */
+  #il-original-content .s2infoHeader .separator-dot {
+    display: none;
+  }
+
+  /* Time prefix */
+  #il-original-content .s2infoHeader .separator-value:not(:empty) {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: oklch(0.5 0.02 265);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  #il-original-content .s2infoHeader .separator-value:empty {
+    display: none;
+  }
+
+  /* Notice text */
+  #il-original-content .s2infoHeader .separator-undervalue {
+    font-weight: 500;
+    color: oklch(0.3 0.02 265);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* Icon */
+  #il-original-content .s2infoHeader .s2skemabrikIcons {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  #il-original-content .s2infoHeader .s2skemabrikIcons .ls-fonticon {
+    font-size: 0.8125rem;
+    color: oklch(0.5 0.06 265);
+  }
+
+  /* Day headers */
+  #il-original-content .s2dayHeader td {
+    padding: 0.625rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: oklch(0.4 0.02 265);
+    background: transparent;
+    border-bottom: 1px solid oklch(0.92 0.006 265) !important;
+  }
+
+  /* Week header (e.g. "Uge 11 - 2026") */
+  #il-original-content .s2weekHeader {
+    display: none !important;
+  }
+
+  /* Module info (time labels on left) — do NOT override font-size on .s2module-info,
+     because Lectio positions it with em-based inline styles (top, height).
+     Changing font-size would shift all absolute positions. */
+  #il-original-content .s2module-info {
+    color: oklch(0.55 0.015 265);
+    font-weight: 400;
+  }
+
+  /* Hide stripes and dividers in the time-label column */
+  #il-original-content .s2skema td:first-child .s2module-bg {
+    display: none !important;
+  }
+
+  #il-original-content .s2skema td:first-child .s2SkemaDivider,
+  #il-original-content .s2skema td:first-child > .s2skemabrikcontainer > hr {
+    display: none !important;
+  }
+
+  /* Right-align the inner div so times sit flush against the calendar */
+  #il-original-content .s2module-info > div {
+    transform: scale(0.85);
+    transform-origin: top right;
+    text-align: right;
+    padding-right: 0.5em !important;
+    padding-left: 0 !important;
+  }
+
+  /* Cleaned-up module time labels (start at top, end at bottom) */
+  #il-original-content .il-module-time {
+    font-size: 1.05rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: oklch(0.5 0.015 265);
+    line-height: 1;
+  }
+
+  #il-original-content .il-module-time-end {
+    color: oklch(0.62 0.012 265);
+    font-weight: 400;
+  }
+
+  #il-original-content .s2time {
+    color: oklch(0.62 0.012 265);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Schedule brick tooltip ─────────────── */
+
+  #il-brick-tooltip {
+    position: fixed;
+    z-index: 10000;
+    display: none;
+    width: 21rem;
+    max-width: calc(100vw - 1rem);
+    max-height: min(28rem, calc(100vh - 2rem));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    font-family: "Geist", sans-serif;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: oklch(0.25 0.015 265);
+    background: oklch(0.995 0.003 265);
+    border: 1px solid oklch(0.9 0.01 265);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.04),
+      0 4px 16px oklch(0 0 0 / 0.08),
+      0 12px 40px oklch(0 0 0 / 0.06);
+    pointer-events: auto;
+
+    /* Enter/exit animation */
+    opacity: 0;
+    transform: translateY(3px) scale(0.98);
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+
+    /* Scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.8 0.01 265) transparent;
+  }
+
+  #il-brick-tooltip.il-tt-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  /* Invisible bridge between brick and tooltip — prevents hover gap flash */
+  #il-brick-tooltip-bridge {
+    position: fixed;
+    z-index: 9999;
+    display: none;
+    pointer-events: auto;
+    /* background: oklch(1 0 0 / 0.05); — debug: uncomment to visualize */
+  }
+
+  /* ── Tooltip header ── */
+
+  .il-tt-header {
+    padding: 0.625rem 0.75rem 0.5rem;
+    border-bottom: 1px solid oklch(0.93 0.008 265);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3125rem;
+  }
+
+  .il-tt-title {
+    font-size: 0.9375rem;
+    font-weight: 650;
+    line-height: 1.3;
+    color: oklch(0.2 0.02 265);
+    word-break: break-word;
+  }
+
+  .il-tt-badge {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    line-height: 1.4;
+  }
+
+  .il-tt-badge--changed {
+    background: oklch(0.88 0.1 80);
+    color: oklch(0.35 0.08 80);
+  }
+
+  .il-tt-time {
+    display: flex;
+    align-items: center;
+    gap: 0.3125rem;
+    font-variant-numeric: tabular-nums;
+    color: oklch(0.45 0.02 265);
+  }
+
+  .il-tt-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+    color: oklch(0.55 0.1 var(--tt-hue, 265));
+  }
+
+  .il-tt-date {
+    font-weight: 550;
+    color: oklch(0.35 0.015 265);
+  }
+
+  .il-tt-timerange {
+    color: oklch(0.5 0.015 265);
+  }
+
+  .il-tt-date + .il-tt-timerange::before {
+    content: "·";
+    margin: 0 0.1875rem;
+    color: oklch(0.7 0.01 265);
+  }
+
+  /* ── Tooltip meta section ── */
+
+  .il-tt-meta {
+    padding: 0.4375rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .il-tt-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+  }
+
+  .il-tt-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.58 0.02 265);
+    min-width: 2.75rem;
+    flex-shrink: 0;
+  }
+
+  .il-tt-value {
+    font-size: 0.8125rem;
+    font-weight: 450;
+    color: oklch(0.3 0.02 265);
+  }
+
+  .il-tt-students {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: oklch(0.4 0.015 265);
+  }
+
+  .il-tt-holds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .il-tt-hold {
+    font-size: 0.75rem;
+    font-weight: 550;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.25rem;
+    background: oklch(0.55 0.15 var(--hold-hue, 265) / 0.12);
+    color: oklch(0.38 0.1 var(--hold-hue, 265));
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+
+  .il-tt-room {
+    font-weight: 550;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Homework section ── */
+
+  .il-tt-homework {
+    padding: 0.4375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+  }
+
+  .il-tt-homework-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.55 0.06 var(--tt-hue, 265));
+    margin-bottom: 0.3125rem;
+  }
+
+  .il-tt-hw-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.0625rem;
+    padding: 0.1875rem 0;
+  }
+
+  .il-tt-hw-item + .il-tt-hw-item {
+    border-top: 1px dashed oklch(0.93 0.006 265);
+  }
+
+  .il-tt-hw-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.3 0.015 265);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-tt-hw-desc {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: oklch(0.5 0.015 265);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ── Note section ── */
+
+  .il-tt-note {
+    padding: 0.4375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+  }
+
+  .il-tt-note-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.55 0.04 var(--tt-hue, 265));
+    margin-bottom: 0.25rem;
+  }
+
+  .il-tt-note-text {
+    font-size: 0.75rem;
+    font-style: italic;
+    color: oklch(0.45 0.015 265);
+    line-height: 1.45;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+  }
+
+  /* ── Homework link chips ── */
+
+  .il-tt-hw-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+  }
+
+  .il-tt-hw-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1875rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 0.25rem;
+    background: oklch(0.94 0.01 265);
+    color: oklch(0.4 0.04 265);
+    white-space: nowrap;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .il-tt-hw-link:hover,
+  .il-tt-hw-link:focus-visible {
+    background: oklch(0.9 0.02 265);
+    color: oklch(0.35 0.06 265);
+    outline: none;
+  }
+
+  .il-tt-hw-link--more {
+    background: oklch(0.92 0.015 265);
+    color: oklch(0.5 0.03 265);
+    font-weight: 600;
+  }
+
+  .il-tt-icon--sm {
+    width: 0.6875rem;
+    height: 0.6875rem;
+  }
+
+  /* ── Homework count badge ── */
+
+  .il-tt-count {
+    font-size: 0.625rem;
+    font-weight: 650;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    background: oklch(0.55 0.1 var(--tt-hue, 265) / 0.12);
+    color: oklch(0.45 0.08 var(--tt-hue, 265));
+    padding: 0 0.25rem;
+    margin-left: 0.25rem;
+  }
+
+  /* ── Related items section ── */
+
+  .il-tt-related {
+    padding: 0.4375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+  }
+
+  .il-tt-related-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: oklch(0.55 0.04 var(--tt-hue, 265));
+    margin-bottom: 0.25rem;
+  }
+
+  .il-tt-related-item {
+    display: block;
+    font-size: 0.75rem;
+    color: oklch(0.4 0.015 265);
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-tt-related-link {
+    color: oklch(0.43 0.06 265);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .il-tt-related-link:hover,
+  .il-tt-related-link:focus-visible {
+    color: oklch(0.35 0.09 265);
+    text-decoration: underline;
+    text-underline-offset: 0.1em;
+    outline: none;
+  }
+
+  .il-tt-related-more {
+    color: oklch(0.55 0.03 265);
+    font-style: italic;
+  }
+
+  /* ── Loading indicator ── */
+
+  .il-tt-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem 0.5rem;
+    border-top: 1px solid oklch(0.93 0.008 265);
+    font-size: 0.6875rem;
+    color: oklch(0.55 0.02 265);
+  }
+
+  @keyframes il-tt-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .il-tt-spinner {
+    animation: il-tt-spin 0.8s linear infinite;
+    color: oklch(0.55 0.1 var(--tt-hue, 265));
+  }
+
+  /* ── Suppress Lectio's native cluetip ── */
+
+  #cluetip {
+    display: none !important;
+  }
+
+  /* ── Islands / Cards ─────────────────────── */
+
+  #il-original-content .ls-card-filled {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  /* ── Rowblocks ───────────────────────────── */
+
+  #il-original-content .ls-std-rowblock {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    flex-wrap: wrap;
+  }
+
+  /* ── Horizontal rule ─────────────────────── */
+
+  #il-original-content .ls-hr-solid {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.75rem 0;
+  }
+
+  /* ── Status badges ───────────────────────── */
+
+  #il-original-content .exercisewait {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: oklch(0.94 0.05 50);
+    color: oklch(0.48 0.15 50);
+    white-space: nowrap;
+  }
+
+  /* Delivered status */
+  #il-original-content [class^="delivered_"] {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.45 0.12 145);
+  }
+
+  /* Attention text (urgent dates) */
+  #il-original-content .attention {
+    font-weight: 600;
+    color: oklch(0.52 0.2 25);
+  }
+
+  /* ── Context cards popup ─────────────────── */
+
+  #il-original-content .lec-context-menu {
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 30px oklch(0 0 0 / 0.12);
+    overflow: hidden;
+  }
+
+  /* ── Horizontal link list (Hold og grupper) ── */
+
+  #il-original-content ul.linklist-horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #il-original-content ul.linklist-horizontal li {
+    display: inline-flex;
+  }
+
+  #il-original-content ul.linklist-horizontal li a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: oklch(0.5 0.1 250);
+    background: oklch(0.97 0.01 250);
+    border: 1px solid oklch(0.93 0.02 250);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  #il-original-content ul.linklist-horizontal li a:hover {
+    background: oklch(0.95 0.02 250);
+    border-color: oklch(0.88 0.04 250);
+    text-decoration: none;
+  }
+
+  /* ── Dashboard table rows (forside) ──────── */
+
+  #il-original-content table.dashboard td.infoCol {
+    font-size: 0.9375rem;
+  }
+
+  #il-original-content table.dashboard td.countCol {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  #il-original-content table.dashboard td.timeCol {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground);
+  }
+
+  /* ── Homework note ───────────────────────── */
+
+  #il-original-content .ls-homework-note {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border-left: 3px solid var(--border);
+    margin-top: 0.375rem;
+    line-height: 1.5;
+  }
+
+  /* ── Info / warning / error messages ──────── */
+
+  #il-original-content .ls-info-message {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    background: oklch(0.97 0.01 250);
+    border: 1px solid oklch(0.92 0.03 250);
+    border-radius: 0.5rem;
+    color: oklch(0.4 0.12 250);
+  }
+
+  #il-original-content .ls-warning-message {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    background: oklch(0.97 0.02 70);
+    border: 1px solid oklch(0.92 0.04 70);
+    border-radius: 0.5rem;
+    color: oklch(0.4 0.14 70);
+  }
+
+  #il-original-content .ls-error-message {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    background: oklch(0.97 0.02 25);
+    border: 1px solid oklch(0.92 0.04 25);
+    border-radius: 0.5rem;
+    color: oklch(0.45 0.18 25);
+  }
+
+  /* ── Tabs ─────────────────────────────────── */
+
+  #il-original-content .lectioTabToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  #il-original-content .lectioTabToolbar a,
+  #il-original-content .lectioTabToolbar .lectioTabSelected a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    border-radius: 0.375rem;
+    transition: all 0.15s ease;
+  }
+
+  #il-original-content .lectioTabToolbar a:hover {
+    background: var(--background);
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
+  #il-original-content .lectioTabToolbar .lectioTabSelected a {
+    background: var(--background);
+    color: var(--foreground);
+    font-weight: 600;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
+  }
+
+  #il-original-content .lectioTabContent {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 0.75rem 0.75rem;
+    overflow: hidden;
+  }
+
+  /* ── Tooltips (Lectio title popups) ──────── */
+
+  #il-original-content .ls-tooltip,
+  #il-original-content #s_m_Content_Content_tooltip {
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.1);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    max-width: 24rem;
+  }
+
+  /* ========================================
+     Lectio Modernizer — Dark Mode
+     Dark counterparts for hardcoded oklch
+     values in the modernizer section above.
+     Rules using CSS variables (var(--border),
+     var(--muted), etc.) adapt automatically.
+     ======================================== */
+
+  /* ── Links ───────────────────────────────── */
+
+  .dark #il-original-content a {
+    color: oklch(0.75 0.06 265);
+  }
+
+  .dark #il-original-content a:hover {
+    color: oklch(0.82 0.08 265);
+  }
+
+  .dark #il-original-content [data-lectiocontextcard] {
+    color: oklch(0.75 0.06 265);
+  }
+
+  /* ── Tables ──────────────────────────────── */
+
+  .dark #il-original-content .ls-table-wrapper {
+    border-color: oklch(0.25 0.004 285);
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.25), 0 0.5px 1px oklch(0 0 0 / 0.2);
+  }
+
+  .dark #il-original-content table.lf-grid th {
+    background: oklch(0.18 0.004 285);
+    color: oklch(0.58 0.005 285);
+    border-bottom-color: oklch(0.25 0.004 285);
+  }
+
+  .dark #il-original-content table.lf-grid td {
+    border-bottom-color: oklch(0.22 0.004 285);
+  }
+
+  .dark #il-original-content table.lf-grid tbody tr:hover td {
+    background: oklch(0.19 0.004 285);
+  }
+
+  .dark #il-original-content table.lf-grid tbody tr:hover td:first-child {
+    box-shadow: inset 2px 0 0 oklch(0.65 0.16 265);
+  }
+
+  .dark #il-original-content table.lf-grid tr.separationCell td {
+    background: oklch(0.19 0.004 285);
+    color: oklch(0.58 0.005 285);
+  }
+
+  .dark #il-original-content .lf-island table.lf-grid th {
+    background: transparent;
+    border-bottom-color: oklch(0.22 0.004 285);
+  }
+
+  .dark #il-original-content table.ls-std-table-inputlist th {
+    color: oklch(0.58 0.005 285);
+  }
+
+  .dark #il-original-content table.ls-std-table-inputlist th,
+  .dark #il-original-content table.ls-std-table-inputlist td {
+    border-bottom-color: oklch(0.22 0.004 285);
+  }
+
+  /* ── Schedule bricks ─────────────────────── */
+
+  .dark #il-original-content .s2skemabrik:hover {
+    box-shadow: 0 4px 12px oklch(0 0 0 / 0.4);
+  }
+
+  /* ── Enhanced schedule bricks (dark) ──────── */
+
+  .dark #il-original-content a.s2skemabrik:has(.il-enhanced),
+  .dark #il-original-content a.s2skemabrik:has(.il-enhanced):hover {
+    color: oklch(0.88 0.003 90) !important;
+    text-decoration: none !important;
+  }
+
+  .dark #il-original-content .il-enhanced [data-lectiocontextcard],
+  .dark #il-original-content .il-enhanced [data-lectiocontextcard]:hover {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  .dark #il-original-content .s2skemabrik.s2bgbox:has(.il-enhanced) {
+    background: oklch(0.22 0.02 var(--brick-hue, 265)) !important;
+    border-left-color: oklch(0.52 0.14 var(--brick-hue, 265)) !important;
+  }
+
+  .dark #il-original-content .s2skemabrik.s2bgbox:has(.il-enhanced):hover {
+    background: oklch(0.26 0.025 var(--brick-hue, 265)) !important;
+  }
+
+  .dark #il-original-content .il-brick-changed-badge {
+    background: oklch(0.3 0.06 80) !important;
+    color: oklch(0.8 0.1 80) !important;
+  }
+
+  .dark #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced) {
+    opacity: 0.35 !important;
+  }
+
+  .dark #il-original-content .s2skemabrik.s2cancelled:not(.il-no-subject-colors):has(.il-enhanced):hover {
+    opacity: 0.6 !important;
+  }
+
+  .dark #il-original-content .s2skemabrik.s2cancelled .il-brick-subject {
+    text-decoration-color: oklch(0.5 0.12 25) !important;
+  }
+
+  .dark #il-original-content .il-brick-cancelled-badge {
+    background: oklch(0.45 0.15 25) !important;
+  }
+
+  .dark #il-original-content .il-brick-subject {
+    color: oklch(0.88 0.03 var(--brick-hue, 265)) !important;
+  }
+
+  .dark #il-original-content .il-brick-room {
+    background: oklch(0.5 0.13 var(--brick-hue, 265) / 0.18) !important;
+    color: oklch(0.78 0.08 var(--brick-hue, 265)) !important;
+  }
+
+  .dark #il-original-content .il-brick-meta {
+    color: oklch(0.68 0.005 285) !important;
+  }
+
+  .dark #il-original-content .il-brick-topic {
+    color: oklch(0.65 0.005 285) !important;
+  }
+
+  .dark #il-original-content .il-brick-icons .ls-fonticon {
+    color: oklch(0.6 0.08 var(--brick-hue, 265)) !important;
+    opacity: 0.85 !important;
+  }
+
+  .dark #il-original-content .il-brick-replaces {
+    color: oklch(0.68 0.005 285) !important;
+    background: oklch(0.5 0.08 var(--brick-hue, 265) / 0.1) !important;
+  }
+
+  /* ── Info header pills (dark) ─────────────── */
+
+  .dark #il-original-content .s2infoHeader .s2skemabrik {
+    background: oklch(0.2 0.004 285) !important;
+    color: oklch(0.7 0.005 285) !important;
+  }
+
+  .dark #il-original-content .s2infoHeader .s2skemabrik:hover {
+    background: oklch(0.24 0.004 285) !important;
+  }
+
+  .dark #il-original-content .s2infoHeader .separator-value:not(:empty) {
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark #il-original-content .s2infoHeader .separator-undervalue {
+    color: oklch(0.75 0.003 285) !important;
+  }
+
+  .dark #il-original-content .s2infoHeader .s2skemabrikIcons .ls-fonticon {
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  /* ── Schedule brick tooltip (dark) ──────── */
+
+  .dark #il-brick-tooltip {
+    background: oklch(0.16 0.004 285) !important;
+    border-color: oklch(0.25 0.004 285) !important;
+    color: oklch(0.85 0.003 90) !important;
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.25),
+      0 4px 16px oklch(0 0 0 / 0.35),
+      0 12px 40px oklch(0 0 0 / 0.25) !important;
+  }
+
+  .dark .il-tt-header {
+    border-bottom-color: oklch(0.23 0.004 285) !important;
+  }
+
+  .dark .il-tt-title {
+    color: oklch(0.9 0.003 90) !important;
+  }
+
+  .dark .il-tt-badge--changed {
+    background: oklch(0.3 0.06 80) !important;
+    color: oklch(0.82 0.1 80) !important;
+  }
+
+  .dark .il-tt-time {
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-icon {
+    color: oklch(0.5 0.1 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-date {
+    color: oklch(0.68 0.005 285) !important;
+  }
+
+  .dark .il-tt-timerange {
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-date + .il-tt-timerange::before {
+    color: oklch(0.38 0.004 285) !important;
+  }
+
+  .dark .il-tt-label {
+    color: oklch(0.48 0.005 285) !important;
+  }
+
+  .dark .il-tt-value {
+    color: oklch(0.78 0.003 90) !important;
+  }
+
+  .dark .il-tt-students {
+    color: oklch(0.58 0.005 285) !important;
+  }
+
+  .dark .il-tt-hold {
+    background: oklch(0.5 0.12 var(--hold-hue, 265) / 0.15) !important;
+    color: oklch(0.75 0.08 var(--hold-hue, 265)) !important;
+  }
+
+  .dark .il-tt-homework {
+    border-top-color: oklch(0.23 0.004 285) !important;
+  }
+
+  .dark .il-tt-homework-label {
+    color: oklch(0.5 0.06 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-hw-item + .il-tt-hw-item {
+    border-top-color: oklch(0.22 0.004 285) !important;
+  }
+
+  .dark .il-tt-hw-label {
+    color: oklch(0.78 0.003 90) !important;
+  }
+
+  .dark .il-tt-hw-desc {
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-note {
+    border-top-color: oklch(0.23 0.004 285) !important;
+  }
+
+  .dark .il-tt-note-label {
+    color: oklch(0.5 0.04 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-note-text {
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-hw-link {
+    background: oklch(0.22 0.004 285) !important;
+    color: oklch(0.65 0.003 90) !important;
+  }
+
+  .dark .il-tt-hw-link:hover,
+  .dark .il-tt-hw-link:focus-visible {
+    background: oklch(0.26 0.006 285) !important;
+    color: oklch(0.78 0.003 90) !important;
+  }
+
+  .dark .il-tt-hw-link--more {
+    background: oklch(0.24 0.005 285) !important;
+    color: oklch(0.55 0.005 285) !important;
+  }
+
+  .dark .il-tt-count {
+    background: oklch(0.5 0.1 var(--tt-hue, 265) / 0.15) !important;
+    color: oklch(0.7 0.08 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-related {
+    border-top-color: oklch(0.23 0.004 285) !important;
+  }
+
+  .dark .il-tt-related-label {
+    color: oklch(0.5 0.04 var(--tt-hue, 265)) !important;
+  }
+
+  .dark .il-tt-related-item {
+    color: oklch(0.65 0.003 90) !important;
+  }
+
+  .dark .il-tt-related-link {
+    color: oklch(0.72 0.06 265) !important;
+  }
+
+  .dark .il-tt-related-link:hover,
+  .dark .il-tt-related-link:focus-visible {
+    color: oklch(0.8 0.08 265) !important;
+    text-decoration-color: oklch(0.8 0.08 265) !important;
+  }
+
+  .dark .il-tt-related-more {
+    color: oklch(0.48 0.005 285) !important;
+  }
+
+  .dark .il-tt-loading {
+    border-top-color: oklch(0.23 0.004 285) !important;
+    color: oklch(0.48 0.005 285) !important;
+  }
+
+  .dark .il-tt-spinner {
+    color: oklch(0.5 0.1 var(--tt-hue, 265)) !important;
+  }
+
+  .dark #il-brick-tooltip {
+    scrollbar-color: oklch(0.3 0.004 285) transparent !important;
+  }
+
+  /* ── Form elements ──────────────────────── */
+
+  .dark #il-original-content input[type="checkbox"] {
+    accent-color: oklch(0.65 0.16 265);
+  }
+
+  .dark #il-original-content select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  /* ── Status badges ───────────────────────── */
+
+  .dark #il-original-content .exercisewait {
+    background: oklch(0.24 0.05 50);
+    color: oklch(0.75 0.1 50);
+  }
+
+  .dark #il-original-content [class^="delivered_"] {
+    color: oklch(0.7 0.1 145);
+  }
+
+  .dark #il-original-content .attention {
+    color: oklch(0.72 0.16 25);
+  }
+
+  /* ── Context cards popup ─────────────────── */
+
+  .dark #il-original-content .lec-context-menu {
+    box-shadow: 0 8px 30px oklch(0 0 0 / 0.45);
+  }
+
+  /* ── Horizontal link list ─────────────────── */
+
+  .dark #il-original-content ul.linklist-horizontal li a {
+    color: oklch(0.75 0.06 265);
+    background: oklch(0.19 0.004 285);
+    border-color: oklch(0.27 0.004 285);
+  }
+
+  .dark #il-original-content ul.linklist-horizontal li a:hover {
+    background: oklch(0.22 0.004 285);
+    border-color: oklch(0.3 0.004 285);
+  }
+
+  /* ── Homework note ───────────────────────── */
+
+  .dark #il-original-content .ls-homework-note {
+    background: oklch(0.19 0.004 285);
+    border-left-color: oklch(0.3 0.004 285);
+  }
+
+  /* ── Info / warning / error messages ──────── */
+
+  .dark #il-original-content .ls-info-message {
+    background: oklch(0.18 0.004 285);
+    border-color: oklch(0.27 0.004 285);
+    color: oklch(0.75 0.06 265);
+  }
+
+  .dark #il-original-content .ls-warning-message {
+    background: oklch(0.18 0.015 70);
+    border-color: oklch(0.27 0.03 70);
+    color: oklch(0.72 0.1 70);
+  }
+
+  .dark #il-original-content .ls-error-message {
+    background: oklch(0.18 0.015 25);
+    border-color: oklch(0.27 0.03 25);
+    color: oklch(0.72 0.12 25);
+  }
+
+  /* ── Tabs ─────────────────────────────────── */
+
+  .dark #il-original-content .lectioTabToolbar .lectioTabSelected a {
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+  }
+
+  /* ── Tooltips ────────────────────────────── */
+
+  .dark #il-original-content .ls-tooltip,
+  .dark #il-original-content #s_m_Content_Content_tooltip {
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.4);
+  }
+
+  /* ========================================
+     Experimental dark mode for native Lectio UI
+     ======================================== */
+  .dark body,
+  .dark #masterContent,
+  .dark .island,
+  .dark .ls-container,
+  .dark .islandContent {
+    background-color: var(--lectio-dark-bg) !important;
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark SECTION.island .islandHeaderContainer {
+    background-image: url("") !important;
+    background-color: var(--lectio-dark-element) !important;
+  }
+
+  .dark .ls-island-elevated div[role="heading"] > span:first-of-type {
+    color: var(--lectio-dark-link) !important;
+  }
+
+  .dark SECTION.island .islandHeader {
+    color: var(--lectio-dark-header) !important;
+  }
+
+  .dark .message-thread-message,
+  .dark .ls-paper,
+  .dark .ls-texteditor-container,
+  .dark .ls-tocContainer-outer,
+  .dark .lc-display-fragment,
+  .dark .ls-phase-activity,
+  .dark #s_m_Content_Content_SkemaMedNavigation_skemaprintare {
+    background-color: var(--lectio-dark-surface) !important;
+    border-color: var(--lectio-dark-element) !important;
+  }
+
+  .dark .lectioTabContent {
+    background-color: var(--lectio-dark-border) !important;
+  }
+
+  .dark .ls-island-elevated,
+  .dark .lec-context-menu,
+  .dark .ls-questionnaire-question,
+  .dark .ls-island-outlined {
+    background-color: var(--lectio-dark-element) !important;
+    border-color: var(--lectio-dark-border) !important;
+    outline: var(--lectio-dark-border) !important;
+  }
+
+  .dark #il-original-content .s2module-bg {
+    background-color: oklch(0.12 0.003 285) !important;
+    opacity: 0.5 !important;
+    border: none !important;
+  }
+
+  /* Today column: keep module stripes transparent so the highlight shows through */
+  .dark #il-original-content .s2skema td[data-date].is-today .s2module-bg {
+    background-color: transparent !important;
+  }
+
+  .dark .message-thread-container,
+  .dark .s2skemabrikcontainer,
+  .dark .s2infoHeader {
+    background-color: var(--lectio-dark-element) !important;
+    color: var(--lectio-dark-text) !important;
+    border: none !important;
+  }
+
+  /* Dark mode column separators */
+  .dark #il-original-content .s2skema td,
+  .dark #il-original-content .s2skema th {
+    border-right-color: oklch(0.22 0.004 285) !important;
+  }
+
+  .dark #il-original-content .s2skema td:first-child {
+    border-right: none !important;
+    background: transparent !important;
+  }
+
+  .dark #il-original-content .il-module-time {
+    color: oklch(0.5 0.005 285) !important;
+  }
+
+  .dark #il-original-content .il-module-time-end {
+    color: oklch(0.4 0.004 285) !important;
+  }
+
+  .dark #il-original-content .s2dayHeader td {
+    color: oklch(0.6 0.005 285) !important;
+    background: transparent !important;
+    border-bottom-color: oklch(0.22 0.004 285) !important;
+  }
+
+  /* Dark mode weekend collapse overrides */
+  .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col {
+    background: oklch(0.16 0.004 285) !important;
+  }
+
+  .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col::after {
+    color: oklch(0.45 0.004 285);
+  }
+
+  .dark #il-original-content .s2skema.il-weekend-collapsed td.il-weekend-col[data-date] {
+    background: oklch(0.12 0.003 285) !important;
+  }
+
+  .dark #il-original-content .s2skema .s2dayHeader td.il-weekend-col:hover {
+    background: oklch(0.2 0.004 285) !important;
+  }
+
+  .dark #il-original-content .s2skema.il-weekend-collapsed .s2dayHeader td.il-weekend-col:hover {
+    background: oklch(0.2 0.005 285) !important;
+  }
+
+  .dark .s2skemabrik {
+    background-color: var(--lectio-dark-calendar) !important;
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .s2module-info {
+    color: var(--lectio-dark-info) !important;
+  }
+
+  .dark .s2skemabrik * {
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .ls-island-outlined div.islandHeaderContainer[role="heading"] span.islandHeader,
+  .dark .ls-island-filled div.islandHeaderContainer[role="heading"] span.islandHeader,
+  .dark .ls-island-elevated div.islandHeaderContainer[role="heading"] span.islandHeader,
+  .dark .ls-island-nostyle div.islandHeaderContainer[role="heading"] span.islandHeader {
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .month,
+  .dark .week {
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .ls-island-filled,
+  .dark .ls-island-filled div.islandHeaderContainer[role="heading"] span.islandHeader {
+    background-color: var(--lectio-dark-element) !important;
+    color: var(--lectio-dark-header) !important;
+  }
+
+  .dark .fixedTableHeaderRow > TD,
+  .dark .fixedTableHeaderRow > TH,
+  .dark .fixedTableHeaderRow > GD {
+    background-image: url("") !important;
+  }
+
+  .dark .phase {
+    background-color: var(--lectio-dark-element) !important;
+  }
+
+  .dark #il-original-content option {
+    background-color: var(--lectio-dark-element) !important;
+  }
+
+  .dark #il-original-content table,
+  .dark #il-original-content tr,
+  .dark #il-original-content td,
+  .dark #il-original-content th {
+    background-color: var(--lectio-dark-surface) !important;
+    color: var(--lectio-dark-text) !important;
+    border-color: var(--lectio-dark-element) !important;
+  }
+
+  .dark #il-original-content a {
+    color: var(--lectio-dark-link) !important;
+  }
+
+  .dark #il-original-content a:hover {
+    color: var(--lectio-dark-link-hover) !important;
+  }
+
+  .dark #il-original-content input,
+  .dark #il-original-content select,
+  .dark #il-original-content textarea,
+  .dark #il-original-content button {
+    background-color: var(--lectio-dark-element) !important;
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .ls-menu-item,
+  .dark .ls-menu-item:hover {
+    background-color: var(--lectio-dark-surface) !important;
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .ls-card-filled {
+    background-color: var(--lectio-dark-surface) !important;
+  }
+
+  .dark #il-original-content h1,
+  .dark #il-original-content h2,
+  .dark #il-original-content h3,
+  .dark #il-original-content h4,
+  .dark #il-original-content h5,
+  .dark #il-original-content h6,
+  .dark .s2skemabrikcontent {
+    color: var(--lectio-dark-text) !important;
+  }
+
+  .dark .ls-info-message,
+  .dark .ls-warning-message,
+  .dark .ls-error-message {
+    background-color: var(--lectio-dark-element) !important;
+    color: var(--lectio-dark-text) !important;
+    border: 1px solid var(--lectio-dark-border) !important;
+  }
+
+  .dark #il-original-content DIV.button A,
+  .dark #il-original-content DIV.button,
+  .dark #il-original-content A.button,
+  .dark #il-original-content a,
+  .dark #il-original-content a:hover,
+  .dark .lectioToolbar,
+  .dark .ls-master-header {
+    background-image: url("") !important;
+    background-color: transparent !important;
+  }
+
+  .dark .lectioToolbar,
+  .dark .ls-master-header {
+    justify-content: center !important;
+  }
+
+  .dark .lectioBorderRight,
+  .dark .lectioBorderLeft {
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+
+  .dark .ls-master-container2 .ls-master-header-institution {
+    color: oklch(0.58 0.005 285) !important;
+  }
+
+  .dark .maintitle {
+    color: oklch(0.93 0.003 90) !important;
+  }
+}

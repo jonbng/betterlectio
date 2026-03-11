@@ -1,6 +1,7 @@
 import { getHoldDisplayName } from '@/lib/hold-mapping';
 
-const CACHE_KEY = 'il-schedule-today';
+const CACHE_KEY = 'bl-schedule-today';
+const LEGACY_CACHE_KEY = 'il-schedule-today';
 const CACHE_TTL = 45 * 60 * 1000; // 45 minutes
 
 export interface ScheduleBlock {
@@ -22,6 +23,10 @@ function getCacheKey(schoolId: string): string {
   return `${CACHE_KEY}:${schoolId}`;
 }
 
+function getLegacyCacheKey(schoolId: string): string {
+  return `${LEGACY_CACHE_KEY}:${schoolId}`;
+}
+
 /** Parse "8:10" → 490 */
 function parseTime(s: string): number {
   const [h, m] = s.split(':').map(Number);
@@ -37,7 +42,12 @@ function todayISO(): string {
 /** Try to read a valid cached schedule for today */
 export function getCachedSchedule(schoolId: string): ScheduleBlock[] | null {
   try {
-    const raw = localStorage.getItem(getCacheKey(schoolId));
+    const key = getCacheKey(schoolId);
+    const legacyKey = getLegacyCacheKey(schoolId);
+    const raw = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
+    if (!localStorage.getItem(key) && raw) {
+      localStorage.setItem(key, raw);
+    }
     if (!raw) return null;
     const cached: CachedSchedule = JSON.parse(raw);
     if (cached.schoolId !== schoolId) return null;

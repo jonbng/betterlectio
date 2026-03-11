@@ -1,8 +1,10 @@
 import { getRecentPeople, getStarredPeople } from './findskema-storage';
 import { getFullHoldDisplayName } from './hold-mapping';
 
-const PROFILE_CACHE_KEY = 'il-user-profile';
-const LOGIN_STATE_KEY = 'il-login-state';
+const PROFILE_CACHE_KEY = 'bl-user-profile';
+const LEGACY_PROFILE_CACHE_KEY = 'il-user-profile';
+const LOGIN_STATE_KEY = 'bl-login-state';
+const LEGACY_LOGIN_STATE_KEY = 'il-login-state';
 
 export interface LoginState {
   isLoggedIn: boolean;
@@ -60,10 +62,11 @@ export function getCachedProfile(): UserProfile | null {
     if (scoped) return JSON.parse(scoped);
 
     // Backwards compatibility with legacy global cache.
-    const legacy = localStorage.getItem(PROFILE_CACHE_KEY);
+    const legacy = localStorage.getItem(LEGACY_PROFILE_CACHE_KEY);
     if (!legacy) return null;
     const parsed = JSON.parse(legacy) as UserProfile;
     if (!schoolId || !parsed.schoolId || parsed.schoolId === schoolId) {
+      localStorage.setItem(getProfileCacheKey(schoolId), legacy);
       return parsed;
     }
   } catch {
@@ -108,8 +111,11 @@ export function isLoggedIn(): boolean {
 
 export function getCachedLoginState(): LoginState | null {
   try {
-    const stored = localStorage.getItem(LOGIN_STATE_KEY);
+    const stored = localStorage.getItem(LOGIN_STATE_KEY) ?? localStorage.getItem(LEGACY_LOGIN_STATE_KEY);
     if (stored) {
+      if (!localStorage.getItem(LOGIN_STATE_KEY)) {
+        localStorage.setItem(LOGIN_STATE_KEY, stored);
+      }
       return JSON.parse(stored);
     }
   } catch {
@@ -129,7 +135,9 @@ export function cacheLoginState(state: LoginState): void {
 export function clearLoginState(): void {
   try {
     localStorage.removeItem(LOGIN_STATE_KEY);
+    localStorage.removeItem(LEGACY_LOGIN_STATE_KEY);
     localStorage.removeItem(PROFILE_CACHE_KEY);
+    localStorage.removeItem(LEGACY_PROFILE_CACHE_KEY);
     const schoolId = getCurrentSchoolId();
     if (schoolId) {
       localStorage.removeItem(getProfileCacheKey(schoolId));

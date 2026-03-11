@@ -112,12 +112,16 @@ function getConfigForId(id: string): TypeConfig {
   return TYPE_CONFIG[type] || TYPE_CONFIG.elev;
 }
 
-const RECENT_SEARCHES_KEY = 'il-recent-searches';
+const RECENT_SEARCHES_KEY = 'bl-recent-searches';
+const LEGACY_RECENT_SEARCHES_KEY = 'il-recent-searches';
 const MAX_RECENT_SEARCHES = 10;
 
 function getRecentSearches(filterType?: SearchType): RecentSearch[] {
   try {
-    const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+    const stored = localStorage.getItem(RECENT_SEARCHES_KEY) ?? localStorage.getItem(LEGACY_RECENT_SEARCHES_KEY);
+    if (!localStorage.getItem(RECENT_SEARCHES_KEY) && stored) {
+      localStorage.setItem(RECENT_SEARCHES_KEY, stored);
+    }
     const all: RecentSearch[] = stored ? JSON.parse(stored) : [];
     if (!filterType || filterType === 'all') {
       return all;

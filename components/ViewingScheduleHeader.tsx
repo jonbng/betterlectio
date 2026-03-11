@@ -263,7 +263,7 @@ export function ViewingScheduleHeader({
               <button
                 type="button"
                 onClick={handleToggleMembers}
-                className="il-viewing-members-toggle inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent aria-expanded:bg-primary/10 aria-expanded:border-primary/40"
                 aria-expanded={membersOpen}
                 title="Vis medlemmer"
               >
@@ -277,26 +277,26 @@ export function ViewingScheduleHeader({
       </div>
 
       {supportsMembersPanel && membersOpen && (
-        <div className="il-viewing-members-panel mt-3 rounded-xl border border-border bg-background p-3">
+        <div className="mt-3 rounded-xl border border-border bg-background p-3">
           {membersLoading && (
-            <div className="il-viewing-members-status inline-flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               <span>Henter medlemmer...</span>
             </div>
           )}
 
           {!membersLoading && membersError && (
-            <div className="il-viewing-members-status il-viewing-members-error text-sm text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {membersError}
             </div>
           )}
 
           {!membersLoading && !membersError && members && members.length === 0 && (
-            <div className="il-viewing-members-status text-sm text-muted-foreground">Ingen medlemmer fundet.</div>
+            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">Ingen medlemmer fundet.</div>
           )}
 
           {!membersLoading && !membersError && members && members.length > 0 && (
-            <div className="findskema-card-grid il-viewing-members-grid">
+            <div className="findskema-card-grid mt-2">
               {sortedMembers.map((member) => {
                 const fullName = `${member.firstName} ${member.lastName}`.trim();
                 return (

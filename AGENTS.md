@@ -1,6 +1,6 @@
 # BetterLectio
 
-!IMPORTANT: Please update @Claude.md and @ARCHITECTURE.md after each big change to reflect changes
+!IMPORTANT: Please update @AGENTS.md and @ARCHITECTURE.md after each big change to reflect changes
 
 **Design skill:** When building big new features that require design, or doing significant UI changes/refactors, use the `frontend-design` skill to generate high-quality, polished interfaces. Always invoke it for new page redesigns, component overhauls, or visual reworks.
 

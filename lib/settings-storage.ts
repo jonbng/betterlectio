@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-const SETTINGS_KEY = 'il-feature-settings';
+const SETTINGS_KEY = 'bl-feature-settings';
+const LEGACY_SETTINGS_KEY = 'il-feature-settings';
 const SETTINGS_VERSION = 1;
 
 // Define nested schemas separately so we can use them for defaults
@@ -117,7 +118,10 @@ export const FEATURE_DEPENDENCIES: Record<string, string> = {
  */
 export function getSettings(): FeatureSettings {
   try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
+    const stored = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem(LEGACY_SETTINGS_KEY);
+    if (!localStorage.getItem(SETTINGS_KEY) && stored) {
+      localStorage.setItem(SETTINGS_KEY, stored);
+    }
     if (!stored) {
       const defaults = FeatureSettingsSchema.parse({});
       console.log('[BetterLectio] No settings found, using defaults');
@@ -184,7 +188,7 @@ export function updateSetting<K extends keyof Omit<FeatureSettings, 'version'>>(
  */
 export function isFeatureEnabled(category: string, key: string): boolean {
   try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
+    const stored = localStorage.getItem(SETTINGS_KEY) ?? localStorage.getItem(LEGACY_SETTINGS_KEY);
     if (!stored) return true; // Default enabled
 
     const settings = JSON.parse(stored);
@@ -200,6 +204,7 @@ export function isFeatureEnabled(category: string, key: string): boolean {
 export function resetSettings(): void {
   try {
     localStorage.removeItem(SETTINGS_KEY);
+    localStorage.removeItem(LEGACY_SETTINGS_KEY);
   } catch {
     // Ignore errors
   }
@@ -213,9 +218,9 @@ export function clearAllData(): void {
     // Get all localStorage keys
     const keys = Object.keys(localStorage);
 
-    // Remove all keys that start with 'il-' (BetterLectio prefix)
+    // Remove all BetterLectio storage prefixes (new + legacy)
     for (const key of keys) {
-      if (key.startsWith('il-')) {
+      if (key.startsWith('bl-') || key.startsWith('il-')) {
         localStorage.removeItem(key);
       }
     }

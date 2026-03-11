@@ -211,7 +211,8 @@ const calendarItems = [
 ];
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
-  const WELCOME_STORAGE_KEY = "il-welcome-popup-seen-v1";
+  const WELCOME_STORAGE_KEY = "bl-welcome-popup-seen-v1";
+  const LEGACY_WELCOME_STORAGE_KEY = "il-welcome-popup-seen-v1";
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [findSkemaOpen, setFindSkemaOpen] = useState(false);
@@ -287,7 +288,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   // Show a one-time welcome message after first install/use.
   useEffect(() => {
     try {
-      const hasSeenWelcome = localStorage.getItem(WELCOME_STORAGE_KEY) === "true";
+      const hasSeenWelcome = (localStorage.getItem(WELCOME_STORAGE_KEY) ?? localStorage.getItem(LEGACY_WELCOME_STORAGE_KEY)) === "true";
+      if (!localStorage.getItem(WELCOME_STORAGE_KEY) && hasSeenWelcome) {
+        localStorage.setItem(WELCOME_STORAGE_KEY, "true");
+      }
       if (!hasSeenWelcome) {
         setWelcomeOpen(true);
       }
@@ -295,7 +299,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       // If localStorage fails, fail open without blocking the app.
       setWelcomeOpen(true);
     }
-  }, [WELCOME_STORAGE_KEY]);
+  }, [WELCOME_STORAGE_KEY, LEGACY_WELCOME_STORAGE_KEY]);
 
   const closeWelcome = () => {
     setWelcomeOpen(false);
@@ -674,7 +678,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           className="fixed inset-0 z-200 flex items-center justify-center"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="il-welcome-title"
+          aria-labelledby="bl-welcome-title"
         >
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
@@ -683,7 +687,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           />
           <div className="relative z-10 mx-4 w-full max-w-3xl rounded-2xl border bg-background shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
             <div className="space-y-5 p-8 md:p-10">
-              <h2 id="il-welcome-title" className="text-3xl font-bold tracking-tight md:text-4xl">
+              <h2 id="bl-welcome-title" className="text-3xl font-bold tracking-tight md:text-4xl">
                 Velkommen til BetterLectio
               </h2>
               <p className="text-base leading-relaxed text-muted-foreground md:text-lg">

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   SidebarContent,
   SidebarGroup,
@@ -58,6 +59,7 @@ import {
   FlaskConical,
   Copy,
   Check,
+  Moon,
 } from "lucide-react";
 import { DesignPlayground } from "@/components/DesignPlayground";
 
@@ -599,6 +601,29 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   ))}
                 </div>
               </div>
+              <div className="flex items-center justify-between gap-4 py-3 px-4">
+                <div className="flex items-start gap-3 pr-4">
+                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border bg-primary/10 text-primary">
+                    <Moon className="size-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="visual-darkmode" className="cursor-pointer font-medium">
+                        Mørk tilstand
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Brug mørkt farvetema i BetterLectio.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="visual-darkmode"
+                  checked={settings.visual?.darkMode ?? false}
+                  onCheckedChange={(v) => handleSettingChange("visual", "darkMode", v)}
+                  className="cursor-pointer"
+                />
+              </div>
             </SettingsSection>
 
             <SettingsSection title="Visuelle funktioner">
@@ -748,15 +773,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               />
             </SettingsSection>
 
-            <SettingsSection title="Eksperimentelt">
-              <FeatureToggle
-                id="visual-darkmode"
-                label="Eksperimentel mørk tilstand (beta)"
-                description="Kan give uventede farver på enkelte sider"
-                enabled={settings.visual?.darkMode ?? false}
-                onChange={(v) => handleSettingChange('visual', 'darkMode', v)}
-              />
-            </SettingsSection>
           </div>
         );
 

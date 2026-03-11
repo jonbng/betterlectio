@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
+import { cn } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -16,6 +17,30 @@ export interface ForsideOpgave {
 }
 
 type Urgency = 'overdue' | 'imminent' | 'soon' | 'later' | 'missing';
+
+const URGENCY_BAR: Record<Urgency, string> = {
+  overdue: 'bg-[oklch(0.55_0.22_25)] dark:bg-[oklch(0.58_0.18_25)]',
+  missing: 'bg-[oklch(0.5_0.25_25)] dark:bg-[oklch(0.55_0.2_25)]',
+  imminent: 'bg-[oklch(0.6_0.18_50)] dark:bg-[oklch(0.58_0.15_50)]',
+  soon: 'bg-[oklch(0.72_0.12_80)] dark:bg-[oklch(0.55_0.1_80)]',
+  later: 'bg-border',
+};
+
+const URGENCY_ICON: Record<Urgency, string> = {
+  overdue: 'bg-[oklch(0.92_0.05_25)] text-[oklch(0.5_0.22_25)] dark:bg-[oklch(0.22_0.05_25)] dark:text-[oklch(0.72_0.18_25)]',
+  missing: 'bg-[oklch(0.88_0.08_25)] text-[oklch(0.45_0.25_25)] dark:bg-[oklch(0.24_0.06_25)] dark:text-[oklch(0.75_0.18_25)]',
+  imminent: 'bg-[oklch(0.93_0.04_50)] text-[oklch(0.52_0.18_50)] dark:bg-[oklch(0.22_0.04_50)] dark:text-[oklch(0.72_0.15_50)]',
+  soon: 'bg-[oklch(0.95_0.03_80)] text-[oklch(0.55_0.12_80)] dark:bg-[oklch(0.22_0.03_80)] dark:text-[oklch(0.72_0.1_80)]',
+  later: 'bg-muted text-muted-foreground',
+};
+
+const URGENCY_DEADLINE: Record<Urgency, string> = {
+  overdue: 'text-[oklch(0.5_0.22_25)] dark:text-[oklch(0.72_0.18_25)] font-bold',
+  missing: 'text-[oklch(0.45_0.25_25)] dark:text-[oklch(0.75_0.18_25)] font-bold',
+  imminent: 'text-[oklch(0.52_0.18_50)] dark:text-[oklch(0.72_0.15_50)] font-bold',
+  soon: 'text-[oklch(0.55_0.12_80)] dark:text-[oklch(0.72_0.1_80)] font-bold',
+  later: 'text-foreground font-medium',
+};
 
 interface DeadlineInfo {
   label: string;
@@ -214,19 +239,19 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
   if (entries.length === 0) return null;
 
   return (
-    <div className="il-foc rounded-xl border border-border bg-card">
+    <div className="flex flex-col rounded-xl border border-border bg-card">
       {/* Header */}
       <a
         href={opgaverPageUrl}
-        className="il-foc-header flex items-center gap-2 border-b border-border px-4 py-3 no-underline transition-colors hover:bg-accent/45"
+        className="flex items-center gap-2 border-b border-border px-4 py-3 no-underline transition-colors hover:bg-accent/45"
       >
-        <span className="il-foc-header-title text-sm font-semibold text-foreground">Opgaver</span>
-        <span className="il-foc-header-count inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{entries.length}</span>
-        <ArrowUpRight size={14} className="il-foc-header-arrow ml-auto text-muted-foreground" />
+        <span className="text-sm font-semibold text-foreground">Opgaver</span>
+        <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{entries.length}</span>
+        <ArrowUpRight size={14} className="ml-auto text-muted-foreground opacity-40 transition-all hover:opacity-80" />
       </a>
 
       {/* Assignment list */}
-      <div className="il-foc-list flex flex-col p-2">
+      <div className="flex flex-col p-2">
         {entries.map((opgave, i) => {
           const info = getDeadlineInfo(opgave.deadline, opgave.isMissing);
           const hue = getHoldHue(opgave.holdCode);
@@ -236,15 +261,25 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
             <a
               key={opgave.url || i}
               href={opgave.url}
-              className={`il-foc-item is-${info.urgency}${isFirst ? ' is-primary' : ''} relative flex items-center gap-3 overflow-hidden rounded-lg border border-border/60 bg-card px-3 py-2.5 no-underline transition-colors hover:bg-accent/35`}
-              style={{ '--hold-hue': hue, '--anim-i': i } as any}
+              className={cn(
+                "relative flex items-center gap-2.5 overflow-hidden rounded-lg border-b border-border/60 bg-card px-3 py-2.5 no-underline transition-colors last:border-b-0 hover:bg-accent/35 animate-in fade-in-0 slide-in-from-bottom-1 duration-300",
+                info.urgency === 'missing' && "bg-[oklch(0.97_0.02_25)] hover:bg-[oklch(0.95_0.03_25)] dark:bg-[oklch(0.17_0.02_25)] dark:hover:bg-[oklch(0.2_0.025_25)]",
+              )}
+              style={{ animationDelay: `${i * 50}ms`, '--hold-hue': hue } as any}
               onClick={(e) => openDetail(e as unknown as MouseEvent, opgave)}
             >
-              {/* Urgency bar */}
-              <div className="il-foc-bar absolute left-0 top-0 h-full w-0.5 opacity-80" style={{ '--progress': info.progress } as any} />
+              {/* Urgency bar (bottom) */}
+              <div
+                className={cn(
+                  "absolute bottom-0 left-0 h-0.5 rounded-r transition-[width] duration-400",
+                  (info.urgency === 'overdue' || info.urgency === 'missing') && "h-[3px]",
+                  URGENCY_BAR[info.urgency],
+                )}
+                style={{ width: `${info.progress * 100}%` }}
+              />
 
               {/* Icon */}
-              <div className="il-foc-icon inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <div className={cn("inline-flex size-7 shrink-0 items-center justify-center rounded-md", URGENCY_ICON[info.urgency])}>
                 {info.urgency === 'missing' ? <Upload size={15} /> :
                  info.urgency === 'overdue' ? <AlertTriangle size={15} /> :
                  info.urgency === 'imminent' ? <Flame size={15} /> :
@@ -252,16 +287,21 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               </div>
 
               {/* Content */}
-              <div className="il-foc-content min-w-0 flex-1">
-                <div className="il-foc-deadline-row flex flex-wrap items-center gap-x-2">
-                  <span className="il-foc-deadline text-xs font-semibold uppercase tracking-wide text-muted-foreground">{info.label}</span>
-                  <span className="il-foc-deadline-sub text-xs text-muted-foreground">{info.sub}</span>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex flex-wrap items-baseline gap-1.5">
+                  <span className={cn("text-xs uppercase tracking-wide whitespace-nowrap", URGENCY_DEADLINE[info.urgency], isFirst && (info.urgency === 'overdue' || info.urgency === 'missing' || info.urgency === 'imminent') && "text-sm")}>
+                    {info.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
                 </div>
-                <span className="il-foc-title line-clamp-2 text-sm font-medium text-foreground">{opgave.title}</span>
+                <span className="line-clamp-2 text-sm font-medium text-foreground">{opgave.title}</span>
               </div>
 
               {/* Hold pill */}
-              <span className="il-foc-hold shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground" style={{ '--hold-hue': hue } as any}>
+              <span
+                className="hold-pill-dynamic shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                style={{ '--hold-hue': hue } as any}
+              >
                 {getHoldDisplayName(opgave.holdCode)}
               </span>
             </a>

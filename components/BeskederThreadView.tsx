@@ -25,6 +25,7 @@ import {
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
+import { cn } from '@/lib/utils';
 
 /** Extract short display name: "Jonathan Arthur Hojer Bangert(k) (1x 17)" → "Jonathan Bangert" */
 function shortName(fullName: string): string {
@@ -174,6 +175,17 @@ function getAttachmentIcon(kind: AttachmentKind) {
   }
 }
 
+const ATTACHMENT_ICON_CLASS: Record<AttachmentKind, string> = {
+  image: 'text-[oklch(0.59_0.11_215)] bg-[oklch(0.94_0.03_215/0.7)]',
+  document: 'text-[oklch(0.54_0.13_265)] bg-[oklch(0.93_0.03_265/0.75)]',
+  spreadsheet: 'text-[oklch(0.56_0.11_150)] bg-[oklch(0.93_0.028_150/0.75)]',
+  archive: 'text-[oklch(0.56_0.09_75)] bg-[oklch(0.94_0.026_75/0.75)]',
+  code: 'text-[oklch(0.58_0.1_245)] bg-[oklch(0.93_0.028_245/0.75)]',
+  audio: 'text-[oklch(0.6_0.1_330)] bg-[oklch(0.93_0.026_330/0.75)]',
+  video: 'text-[oklch(0.58_0.12_20)] bg-[oklch(0.93_0.028_20/0.75)]',
+  file: 'text-muted-foreground bg-muted/80',
+};
+
 // ── Avatar Component ────────────────────────────────────────────────────
 
 interface AvatarProps {
@@ -218,7 +230,7 @@ function SenderAvatar({ name, contextCardId, schoolId, size = 36 }: AvatarProps)
       <img
         src={pictureUrl}
         alt={name}
-        className="il-thread-avatar"
+        className="shrink-0 rounded-full object-cover object-top"
         style={{ width: size, height: size }}
         onError={() => setError(true)}
       />
@@ -227,7 +239,7 @@ function SenderAvatar({ name, contextCardId, schoolId, size = 36 }: AvatarProps)
 
   return (
     <div
-      className="il-thread-avatar il-thread-avatar-initials"
+      className="flex shrink-0 items-center justify-center rounded-full font-semibold tracking-[0.02em] select-none [background:oklch(0.92_0.03_var(--avatar-hue))] text-[oklch(0.35_0.08_var(--avatar-hue))] dark:[background:oklch(0.25_0.04_var(--avatar-hue))] dark:text-[oklch(0.75_0.08_var(--avatar-hue))]"
       style={{
         width: size,
         height: size,
@@ -271,10 +283,13 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
 
   return (
     <div
-      className={`il-thread-message ${message.isOwnMessage ? 'is-own' : ''} flex gap-3 rounded-lg border border-border bg-card p-3`}
+      className={cn(
+        'animate-[thread-msg-in_0.3s_ease_both] flex gap-3 border-b border-border/50 py-4 last:border-b-0',
+        message.isOwnMessage && '-mx-4 rounded-lg border-b-transparent bg-primary/6 px-4',
+      )}
       style={{ animationDelay: `${index * 40}ms` } as any}
     >
-      <div className="il-thread-message-avatar shrink-0">
+      <div className="shrink-0">
         <SenderAvatar
           name={message.senderName}
           contextCardId={message.senderContextCardId}
@@ -282,25 +297,25 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
         />
       </div>
 
-      <div className="il-thread-message-body min-w-0 flex-1">
-        <div className="il-thread-message-meta flex items-center justify-between gap-2">
-          <span className="il-thread-message-sender truncate text-sm font-semibold text-foreground">
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <span className="truncate text-sm font-semibold tracking-tight text-foreground">
             {shortName(message.senderName)}
           </span>
-          <span className="il-thread-message-time shrink-0 text-xs text-muted-foreground">{dateStr}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">{dateStr}</span>
         </div>
 
         {showTitle && (
-          <div className="il-thread-message-title mt-1 text-sm font-medium text-foreground">{message.title}</div>
+          <div className="mb-1 mt-1 text-sm font-medium text-muted-foreground">{message.title}</div>
         )}
 
         <div
-          className="il-thread-message-content mt-2 text-sm text-foreground"
+          className="mt-2 wrap-anywhere text-sm leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:decoration-2"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(strippedContent) }}
         />
 
         {message.attachments.length > 0 && (
-          <div className="il-thread-message-attachments mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
             {message.attachments.map((att, i) => {
               const kind = getAttachmentKind(att.name, att.url);
               const ext = getAttachmentExtension(att.name, att.url);
@@ -308,29 +323,29 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
 
               if (kind === 'image') {
                 return (
-                  <div key={i} className="il-thread-image-attachment overflow-hidden rounded-md border border-border bg-background">
+                  <div key={i} className="col-span-full max-w-[420px] overflow-hidden rounded-xl border border-border/90 bg-card/70">
                     <button
                       type="button"
-                      className="il-thread-image-preview-link"
+                      className="block w-full cursor-zoom-in bg-muted/30 p-0"
                       onClick={() => onImageClick({ url: att.url, name: att.name, sizeLabel: att.sizeLabel, ext })}
                     >
                       <img
                         src={att.url}
                         alt={att.name}
-                        className="il-thread-image-preview"
+                        className="block max-h-80 w-full object-contain"
                         loading="lazy"
                       />
                     </button>
-                    <div className="il-thread-image-info flex items-center gap-1.5 px-2 py-1.5">
-                      <FileImage size={14} className="il-thread-image-info-icon" />
-                      <span className="il-thread-image-info-name truncate text-xs font-medium text-foreground">{att.name}</span>
-                      <span className="il-thread-image-info-size text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5 border-t border-border/60 px-2.5 py-1.5 text-xs">
+                      <FileImage size={14} className="shrink-0 text-[oklch(0.59_0.11_215)]" />
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{att.name}</span>
+                      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
                         {att.sizeLabel || (ext ? ext.toUpperCase() : '')}
                       </span>
                       <a
                         href={att.url}
                         download={att.name}
-                        className="il-thread-image-info-download ml-auto inline-flex size-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="ml-auto inline-flex size-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         title="Download"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -345,21 +360,21 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
                 <a
                   key={i}
                   href={att.url}
-                  className={`il-thread-attachment is-${kind} inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 no-underline`}
+                  className="inline-flex max-w-full items-center gap-2 rounded-xl border border-border/90 bg-card/70 px-2.5 py-2 text-foreground no-underline transition-all hover:-translate-y-px hover:border-primary/40 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring/60 focus-visible:outline-offset-2"
                   target="_blank"
                   rel="noopener noreferrer"
                   title={att.name}
                 >
-                  <span className="il-thread-attachment-icon">
+                  <span className={cn('inline-flex size-[1.9rem] shrink-0 items-center justify-center rounded-lg', ATTACHMENT_ICON_CLASS[kind])}>
                     <Icon size={16} />
                   </span>
-                  <span className="il-thread-attachment-meta min-w-0">
-                    <span className="il-thread-attachment-name block truncate text-xs font-medium text-foreground">{att.name}</span>
-                    <span className="il-thread-attachment-detail block text-[11px] text-muted-foreground">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium text-foreground">{att.name}</span>
+                    <span className="block text-[11px] font-medium uppercase tracking-[0.01em] text-muted-foreground">
                       {att.sizeLabel || (ext ? ext.toUpperCase() : 'Fil')}
                     </span>
                   </span>
-                  <Download size={14} className="il-thread-attachment-download shrink-0 text-muted-foreground" />
+                  <Download size={14} className="shrink-0 text-muted-foreground/80" />
                 </a>
               );
             })}
@@ -589,35 +604,35 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const recipientNames = recipients.map((r) => shortName(r.name));
 
   return (
-    <div className="il-thread-view space-y-3">
+    <div className="space-y-3">
       {/* ── Header ─────────────────────────────── */}
-      <div className="il-thread-header flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
         <button
           type="button"
-          className="il-thread-back inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+          className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
           onClick={handleBack}
           title="Tilbage til beskeder"
         >
           <ArrowLeft size={18} />
         </button>
 
-        <div className="il-thread-header-content min-w-0 flex-1">
-          <h1 className="il-thread-subject truncate text-base font-semibold text-foreground">{data.threadSubject}</h1>
-          <div className="il-thread-recipients mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users size={13} className="il-thread-recipients-icon text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-base font-semibold text-foreground">{data.threadSubject}</h1>
+          <div className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Users size={13} className="text-muted-foreground" />
             <span>{recipientNames.join(', ')}</span>
           </div>
         </div>
 
-        <div className="il-thread-header-actions">
-          <span className="il-thread-message-count text-xs text-muted-foreground">
+        <div>
+          <span className="text-xs text-muted-foreground">
             {messages.length} {messages.length === 1 ? 'besked' : 'beskeder'}
           </span>
         </div>
       </div>
 
       {/* ── Messages ───────────────────────────── */}
-      <div className="il-thread-messages space-y-2">
+      <div className="flex-1 space-y-2 py-3 pb-4">
         {messages.map((msg, idx) => (
           <MessageItem
             key={`${msg.timestamp}-${msg.senderContextCardId}-${idx}`}
@@ -633,10 +648,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
       {/* ── Reply Area ─────────────────────────── */}
       {replyTargets && (
-        <div className="il-thread-reply-sticky">
-        <div className="il-thread-reply rounded-xl border border-border bg-card p-3">
-          <div className="il-thread-reply-header mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Reply size={14} className="il-thread-reply-icon text-muted-foreground" />
+        <div className="sticky bottom-0 z-10 py-4 pb-6">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_-2px_12px_oklch(0_0_0/0.04),0_0_0_1px_oklch(from_var(--border)_l_c_h/0.3)] dark:shadow-[0_-2px_16px_oklch(0_0_0/0.2),0_0_0_1px_oklch(from_var(--border)_l_c_h/0.3)]">
+          <div className="mb-2 inline-flex items-center gap-1.5 border-b border-border/50 px-4 py-3 text-sm font-semibold text-muted-foreground">
+            <Reply size={14} className="text-muted-foreground/60" />
             <span>Svar</span>
           </div>
 
@@ -648,23 +663,23 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
           />
 
           {error && (
-            <div className="il-thread-reply-error mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-sm text-destructive">{error}</div>
+            <div className="mx-4 mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-sm text-destructive">{error}</div>
           )}
 
           {/* Attached files list */}
           {attachedFiles.length > 0 && (
-            <div className="il-thread-attached-files mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-1.5 px-4 pt-2">
               {attachedFiles.map((file, i) => (
-                <span key={`${file.deleteArgument}-${i}`} className={`il-thread-attached-file ${removingIndex === i ? 'is-removing' : ''} inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground`}>
+                <span key={`${file.deleteArgument}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 text-xs text-foreground">
                   {removingIndex === i ? (
-                    <Loader2 size={12} className="il-spin" />
+                    <Loader2 size={12} className="animate-spin" />
                   ) : (
                     <Paperclip size={12} />
                   )}
-                  <span className="il-thread-attached-file-name">{file.name}</span>
+                  <span>{file.name}</span>
                   <button
                     type="button"
-                    className="il-thread-attached-file-remove inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     onClick={() => handleRemoveFile(file, i)}
                     disabled={removingIndex !== null}
                     title="Fjern vedhæftning"
@@ -676,25 +691,25 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             </div>
           )}
 
-          <div className="il-thread-reply-footer mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="il-thread-reply-footer-left inline-flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 px-4 py-2.5">
+            <div className="inline-flex items-center gap-2">
               {replyTargets.attachPostbackTarget && (
                 <>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    className="il-sr-only"
+                    className="sr-only"
                     onChange={handleFileSelect}
                   />
                   {uploadingFileName ? (
-                    <span className="il-thread-reply-uploading">
-                      <Loader2 size={14} className="il-spin" />
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 size={14} className="animate-spin" />
                       <span>Uploader {uploadingFileName}...</span>
                     </span>
                   ) : (
                     <button
                       type="button"
-                      className="il-thread-reply-attach-btn inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
                       onClick={() => fileInputRef.current?.click()}
                       title="Vedhæft fil"
                     >
@@ -704,15 +719,18 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                   )}
                 </>
               )}
-              <div ref={notifyRef} className="il-thread-reply-notify" />
+              <div
+                ref={notifyRef}
+                className="empty:hidden [&_select]:rounded-md [&_select]:border [&_select]:border-border [&_select]:bg-background [&_select]:px-2 [&_select]:py-1.5 [&_select]:text-xs [&_select]:text-foreground [&_select]:outline-none [&_select]:focus:border-primary [&_select]:focus:ring-2 [&_select]:focus:ring-primary/15"
+              />
             </div>
-            <div className="il-thread-reply-footer-right inline-flex items-center gap-2">
-              <span className="il-thread-reply-hint text-xs text-muted-foreground">
+            <div className="ml-auto inline-flex items-center gap-2">
+              <span className="text-xs text-muted-foreground/60">
                 Ctrl+Enter for at sende
               </span>
               <button
                 type="button"
-                className="il-thread-send-btn inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-[0_1px_2px_oklch(0_0_0/0.06)] transition-all hover:bg-[oklch(from_var(--primary)_calc(l-0.04)_c_h)] hover:shadow-[0_2px_6px_oklch(0_0_0/0.1)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={handleSend}
                 disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null}
               >
@@ -728,24 +746,24 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       {/* ── Image Lightbox ───────────────────────── */}
       {lightboxImage && (
         <div
-          className="il-image-lightbox"
+          className="animate-[lightbox-fade-in_0.15s_ease-out] fixed inset-0 z-100 flex cursor-pointer items-center justify-center bg-[oklch(0_0_0/0.6)] backdrop-blur-sm"
           onClick={() => setLightboxImage(null)}
         >
           <div
-            className="il-image-lightbox-content"
+            className="animate-[lightbox-scale-in_0.2s_ease-out] flex max-h-[85vh] max-w-[min(85vw,900px)] cursor-default flex-col overflow-hidden rounded-xl bg-card shadow-[0_24px_80px_-12px_oklch(0_0_0/0.5),0_0_0_1px_oklch(1_0_0/0.08)]"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={lightboxImage.url}
               alt={lightboxImage.name}
-              className="il-image-lightbox-img"
+              className="block max-h-[calc(85vh-3rem)] max-w-full object-contain bg-[oklch(0.12_0_0)]"
             />
-            <div className="il-image-lightbox-bar">
-              <FileImage size={15} className="il-image-lightbox-bar-icon" />
-              <div className="il-image-lightbox-bar-meta">
-                <span className="il-image-lightbox-bar-name">{lightboxImage.name}</span>
+            <div className="flex min-h-11 items-center gap-2 border-t border-border/50 px-3 py-2">
+              <FileImage size={15} className="shrink-0 text-[oklch(0.59_0.11_215)]" />
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium text-foreground">{lightboxImage.name}</span>
                 {(lightboxImage.sizeLabel || lightboxImage.ext) && (
-                  <span className="il-image-lightbox-bar-size">
+                  <span className="block text-[11px] font-medium uppercase tracking-[0.01em] text-muted-foreground">
                     {lightboxImage.sizeLabel || lightboxImage.ext.toUpperCase()}
                   </span>
                 )}
@@ -753,14 +771,14 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
               <a
                 href={lightboxImage.url}
                 download={lightboxImage.name}
-                className="il-image-lightbox-download"
+                className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                 title="Download"
               >
                 <Download size={15} />
               </a>
               <button
                 type="button"
-                className="il-image-lightbox-close"
+                className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                 onClick={() => setLightboxImage(null)}
                 title="Luk"
               >

@@ -5,11 +5,15 @@ export interface LastSchool {
   lastUsed: number;
 }
 
-const LAST_SCHOOL_KEY = "il-last-school";
+const LAST_SCHOOL_KEY = "bl-last-school";
+const LEGACY_LAST_SCHOOL_KEY = "il-last-school";
 
 export function getLastSchool(): LastSchool | null {
   try {
-    const stored = localStorage.getItem(LAST_SCHOOL_KEY);
+    const stored = localStorage.getItem(LAST_SCHOOL_KEY) ?? localStorage.getItem(LEGACY_LAST_SCHOOL_KEY);
+    if (!localStorage.getItem(LAST_SCHOOL_KEY) && stored) {
+      localStorage.setItem(LAST_SCHOOL_KEY, stored);
+    }
     if (!stored) return null;
     return JSON.parse(stored) as LastSchool;
   } catch {

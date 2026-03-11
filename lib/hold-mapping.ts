@@ -2,7 +2,8 @@
 // Resolves Lectio hold codes into shared subject mappings, per-hold exceptions,
 // and ignored non-academic groups that should never clutter user settings.
 
-const STORAGE_KEY = 'il-hold-mappings';
+const STORAGE_KEY = 'bl-hold-mappings';
+const LEGACY_STORAGE_KEY = 'il-hold-mappings';
 const STORE_VERSION = 2;
 const UNMAPPED_HUE = 235;
 
@@ -260,7 +261,10 @@ function loadStore(): HoldMappingStore {
   const schoolId = getCurrentSchoolId();
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!localStorage.getItem(STORAGE_KEY) && raw) {
+      localStorage.setItem(STORAGE_KEY, raw);
+    }
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<HoldMappingStore> & { schoolId?: string; version?: number };
       if (parsed.schoolId === schoolId) {
@@ -827,6 +831,7 @@ export function clearHoldMappings(): void {
   cachedStore = null;
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     // Ignore errors
   }

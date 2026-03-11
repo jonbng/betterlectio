@@ -34,6 +34,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import { cn } from '@/lib/utils';
 
 const PieAny = Pie as any;
 const PieChartAny = PieChart as any;
@@ -422,27 +423,27 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const presets = getPeriodPresets();
 
   return (
-    <div className={`il-fravaer-page${loading ? ' is-loading' : ''} space-y-4`}>
+    <div className={cn("mx-auto max-w-[1080px] space-y-4 px-8 pb-12 pt-10 relative isolate before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-z-1 before:h-64 before:rounded-[1.25rem] before:bg-[radial-gradient(circle_at_15%_10%,oklch(0.92_0.05_265/0.55),transparent_56%),radial-gradient(circle_at_85%_0%,oklch(0.89_0.04_220/0.35),transparent_44%)] max-sm:px-4 max-sm:pb-8 max-sm:pt-6", loading && "pointer-events-none opacity-70")}>
       {/* ── Header ─────────────────────────────── */}
-      <div className="il-fravaer-header rounded-xl border border-border bg-card px-5 py-4">
-        <div className="il-fravaer-header-top flex flex-wrap items-center gap-2">
-          <h1 className="il-fravaer-title text-2xl font-bold tracking-tight text-foreground">Fravær</h1>
+      <div className="mb-6 rounded-2xl border border-[color-mix(in_oklch,var(--border)_88%,oklch(0.88_0.03_265))] bg-[linear-gradient(180deg,color-mix(in_oklch,var(--card)_95%,transparent),var(--card))] px-5 py-4 shadow-[0_20px_40px_oklch(0_0_0/0.06),inset_0_1px_0_oklch(1_0_0/0.4)]">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="text-[2rem] leading-none font-extrabold tracking-[-0.03em] text-foreground max-sm:text-2xl">Fravær</h1>
           {data.studentName && (
-            <span className="il-fravaer-student rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">{data.studentName}</span>
+            <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 text-sm font-medium text-muted-foreground">{data.studentName}</span>
           )}
         </div>
-        <p className="il-fravaer-subtitle mt-1 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-sm text-muted-foreground">
           {data.holds.length} fag &middot; {data.records.length} registreringer
         </p>
       </div>
 
       {/* ── Warnings banner ────────────────────── */}
       {data.warnings.length > 0 && (
-        <div className="il-fravaer-warnings flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="mb-6 flex gap-3 rounded-xl border border-[oklch(0.90_0.06_50)] bg-[oklch(0.97_0.02_50)] px-4 py-3 text-sm text-[oklch(0.45_0.12_50)] dark:border-[oklch(0.35_0.06_50)] dark:bg-[oklch(0.25_0.03_50)] dark:text-[oklch(0.80_0.10_50)]">
           <AlertTriangle size={16} />
-          <div className="il-fravaer-warnings-content">
+          <div className="flex flex-col gap-1 leading-relaxed">
             {data.warnings.map((w, i) => (
-              <div key={i} className="il-fravaer-warning-item">
+              <div key={i}>
                 <strong>{w.hold}</strong> {w.type}: {w.message}
               </div>
             ))}
@@ -451,21 +452,21 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {hasMissingReasons && (
-        <section className="il-fravaer-attention-panel">
-          <div className="il-fravaer-attention-header">
-            <span className="il-fravaer-attention-kicker">
+        <section className="mb-5 rounded-2xl border border-[color-mix(in_oklch,oklch(0.82_0.12_50)_52%,var(--border))] bg-[linear-gradient(135deg,oklch(0.985_0.012_50),oklch(0.972_0.018_50)),var(--card)] p-4 shadow-[0_14px_34px_oklch(0.78_0.06_50/0.08)] dark:border-[color-mix(in_oklch,oklch(0.58_0.11_50)_48%,var(--border))] dark:bg-[linear-gradient(135deg,oklch(0.23_0.014_50),oklch(0.26_0.022_50)),var(--card)] dark:shadow-[0_16px_36px_oklch(0_0_0/0.2)]">
+          <div>
+            <span className="inline-flex items-center gap-1 text-[0.71rem] font-bold tracking-[0.05em] uppercase text-[oklch(0.5_0.14_50)] dark:text-[oklch(0.8_0.11_50)]">
               <AlertTriangle size={13} />
               Kræver handling
             </span>
-            <p className="il-fravaer-attention-title">
+            <p className="mt-1 text-base font-bold leading-tight text-foreground">
               {data.missingReasons.length} registrering{data.missingReasons.length === 1 ? '' : 'er'} mangler fraværsårsag
             </p>
-            <p className="il-fravaer-attention-text">
+            <p className="mt-1 text-[0.83rem] text-muted-foreground">
               Her er dem, der mangler din handling lige nu.
             </p>
           </div>
 
-          <div className="il-fravaer-attention-list">
+          <div className="mt-3 grid gap-2.5">
             {topMissingRecords.map((record, index) => (
               <TopMissingReasonCard
                 key={`${record.absid}-${index}`}
@@ -477,7 +478,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {hasCollapsedTopMissing && (
             <button
-              className="il-fravaer-attention-more"
+              className="mt-3 inline-flex items-center justify-center px-3 py-1.5 text-[0.78rem] font-bold text-[oklch(0.45_0.14_50)] hover:underline hover:underline-offset-[0.18rem]"
               onClick={() => setShowAllTopMissing((value) => !value)}
             >
               {showAllTopMissing
@@ -489,13 +490,13 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {/* ── Period picker ──────────────────────── */}
-      <div className="il-fravaer-period space-y-2 rounded-xl border border-border bg-card p-3">
-        <div className="il-fravaer-period-presets flex flex-wrap items-center gap-1.5">
-          <Calendar size={14} className="il-fravaer-period-icon text-muted-foreground" />
+      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border/85 bg-card/96 p-4">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Calendar size={14} className="mr-0.5 shrink-0 text-muted-foreground/50" />
           {presets.map(p => (
             <button
               key={p.key}
-              className="il-fravaer-period-preset rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
+              className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => handlePreset(p)}
               disabled={loading}
             >
@@ -503,35 +504,35 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             </button>
           ))}
         </div>
-        <div className="il-fravaer-period-custom flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="text"
-            className="il-fravaer-period-input h-9 min-w-[130px] rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="h-9 min-w-[130px] rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:min-w-[104px]"
             value={periodStart}
             onInput={(e) => setPeriodStart((e.target as HTMLInputElement).value)}
             placeholder="dd/mm-yyyy"
           />
-          <span className="il-fravaer-period-sep">&ndash;</span>
+          <span className="text-sm text-muted-foreground">&ndash;</span>
           <input
             type="text"
-            className="il-fravaer-period-input h-9 min-w-[130px] rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="h-9 min-w-[130px] rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:min-w-[104px]"
             value={periodEnd}
             onInput={(e) => setPeriodEnd((e.target as HTMLInputElement).value)}
             placeholder="dd/mm-yyyy"
           />
           <button
-            className="il-fravaer-period-btn inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={handleCustomPeriod}
             disabled={loading || !periodStart || !periodEnd}
           >
-            {loading ? <Loader2 size={14} className="il-fravaer-spinner" /> : 'Vis'}
+            {loading ? <Loader2 size={14} className="animate-spin text-primary" /> : 'Vis'}
           </button>
         </div>
       </div>
 
       {/* ── Summary donuts ─────────────────────── */}
       {data.totals && (
-        <div className="il-fravaer-summary-row">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2">
           <DonutCard
             label="Almindeligt"
             pct={almOpgjort}
@@ -551,9 +552,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* ── Per-hold breakdown ─────────────────── */}
       {data.holds.length > 0 && (
-        <section className="il-fravaer-holds-section space-y-3 rounded-xl border border-border bg-card p-3">
-          <div className="il-fravaer-section-header">
-            <h2 className="il-fravaer-section-title">
+        <section className="mb-10 space-y-3 rounded-xl border border-border bg-card p-3">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
               <BarChart3 size={16} />
               Fravær per fag
             </h2>
@@ -568,8 +569,8 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             onMetricChange={setDistributionMetric}
           />
 
-          <div className="il-fravaer-holds-table-wrap overflow-x-auto rounded-lg border border-border/70">
-            <table className="il-fravaer-holds-table">
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr>
                   <SortHeader label="Fag" sortKey="hold" current={sortKey} dir={sortDir} onSort={handleSort} />
@@ -581,8 +582,8 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               </thead>
               <tbody>
                 {visibleHolds.length === 0 && (
-                  <tr className="il-fravaer-holds-empty-row">
-                    <td className="il-fravaer-holds-empty-cell" colSpan={5}>
+                  <tr>
+                    <td className="bg-muted/35 px-3.5 py-4 text-center text-[0.82rem] text-muted-foreground" colSpan={5}>
                       Ingen fag med registreret fravær i den valgte periode.
                     </td>
                   </tr>
@@ -591,12 +592,12 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                 {visibleHolds.map((h, i) => {
                   const hue = getHoldHue(h.hold);
                   return (
-                    <tr key={i} className="il-fravaer-hold-row" style={{ '--hold-hue': hue } as any}>
-                      <td className="il-fravaer-hold-cell">
-                        <span className="il-fravaer-hold-dot" />
+                    <tr key={i} className="border-t border-border/50 transition-colors hover:bg-muted/30" style={{ '--hold-hue': hue } as any}>
+                      <td className="flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 font-medium text-foreground">
+                        <span className="size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
                         {getHoldDisplayName(h.hold)}
                         {getHoldDisplayName(h.hold) !== h.hold && (
-                          <span className="il-fravaer-hold-code">{h.hold}</span>
+                          <span className="ml-1 text-[11px] text-muted-foreground/70">{h.hold}</span>
                         )}
                       </td>
                       <td>
@@ -620,7 +621,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {zeroAbsenceHolds.length > 0 && (
             <button
-              className="il-fravaer-holds-toggle"
+              className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-[0.8rem] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={() => setShowZeroAbsenceHolds((value) => !value)}
             >
               {showZeroAbsenceHolds ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -633,29 +634,29 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {/* ── Records section ────────────────────── */}
-      <section className="il-fravaer-records-section space-y-3 rounded-xl border border-border bg-card p-3">
-        <div className="il-fravaer-section-header">
-          <h2 className="il-fravaer-section-title">
+      <section className="mb-8 space-y-3 rounded-xl border border-border bg-card p-3">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
             <Clock size={16} />
             Fraværsregistreringer
-            <span className="il-fravaer-section-count">{filteredRecords.length}</span>
+            <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{filteredRecords.length}</span>
           </h2>
         </div>
 
         {/* Records toolbar */}
-        <div className="il-fravaer-records-toolbar flex flex-wrap items-center gap-2">
-          <div className="il-fravaer-records-search relative min-w-[240px] flex-1">
-            <Search size={14} className="il-fravaer-search-icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[240px] flex-1">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               ref={searchRef}
               type="text"
-              className="il-fravaer-search-input h-10 w-full rounded-lg border border-border bg-background pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               placeholder="Søg i registreringer..."
               value={recordSearch}
               onInput={(e) => setRecordSearch((e.target as HTMLInputElement).value)}
             />
             {recordSearch && (
-              <button className="il-fravaer-search-clear absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" onClick={() => setRecordSearch('')}>
+              <button className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" onClick={() => setRecordSearch('')}>
                 <X size={14} />
               </button>
             )}
@@ -663,7 +664,10 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {hasMissingReasons && (
             <button
-              className={`il-fravaer-missing-btn${showOnlyMissing ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                showOnlyMissing && 'border-[oklch(0.50_0.14_50)] bg-[oklch(0.50_0.14_50)] text-[oklch(0.98_0.01_50)] dark:border-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.55_0.14_50)]',
+              )}
               onClick={() => { setShowOnlyMissing(!showOnlyMissing); setVisibleRecords(20); }}
             >
               <AlertTriangle size={13} />
@@ -674,9 +678,12 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {/* Hold filter pills */}
         {recordHolds.length > 1 && (
-          <div className="il-fravaer-record-filters flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             <button
-              className={`il-fravaer-filter-pill${selectedHold === null ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                selectedHold === null && 'border-[oklch(0.88_0.08_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:border-[oklch(0.4_0.08_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
+              )}
               onClick={() => setSelectedHold(null)}
             >
               Alle fag
@@ -684,11 +691,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             {recordHolds.map(hold => (
               <button
                 key={hold}
-                className={`il-fravaer-filter-pill${selectedHold === hold ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                  selectedHold === hold && 'border-[oklch(0.88_0.08_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:border-[oklch(0.4_0.08_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
+                )}
                 onClick={() => setSelectedHold(selectedHold === hold ? null : hold)}
                 style={{ '--hold-hue': getHoldHue(hold) } as any}
               >
-                <span className="il-fravaer-filter-dot inline-block size-2 rounded-full bg-primary/70" />
+                <span className="inline-block size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
                 {getHoldDisplayName(hold)}
               </button>
             ))}
@@ -697,14 +707,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {/* Records list */}
         {filteredRecords.length === 0 ? (
-          <div className="il-fravaer-empty flex flex-col items-center justify-center rounded-xl border border-border bg-background px-6 py-12 text-center">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background px-8 py-12 text-center text-muted-foreground">
             {recordSearch || selectedHold || showOnlyMissing ? (
               <>
-                <Search className="il-fravaer-empty-icon mb-3 size-6 text-muted-foreground" />
-                <p className="il-fravaer-empty-title text-base font-semibold text-foreground">Ingen resultater</p>
-                <p className="il-fravaer-empty-sub text-sm text-muted-foreground">Prøv at ændre dine filtre</p>
+                <Search className="mb-1 size-10 text-muted-foreground/30" />
+                <p className="text-base font-semibold text-foreground">Ingen resultater</p>
+                <p className="text-sm text-muted-foreground">Prøv at ændre dine filtre</p>
                 <button
-                  className="il-fravaer-empty-reset mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+                  className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
                   onClick={() => { setRecordSearch(''); setSelectedHold(null); setShowOnlyMissing(false); }}
                 >
                   Nulstil filtre
@@ -712,14 +722,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               </>
             ) : (
               <>
-                <CheckCircle2 className="il-fravaer-empty-icon mb-3 size-6 text-muted-foreground" />
-                <p className="il-fravaer-empty-title text-base font-semibold text-foreground">Ingen registreringer</p>
-                <p className="il-fravaer-empty-sub text-sm text-muted-foreground">Intet fravær i den valgte periode</p>
+                <CheckCircle2 className="mb-1 size-10 text-muted-foreground/30" />
+                <p className="text-base font-semibold text-foreground">Ingen registreringer</p>
+                <p className="text-sm text-muted-foreground">Intet fravær i den valgte periode</p>
               </>
             )}
           </div>
         ) : (
-          <div className="il-fravaer-records-list space-y-2">
+          <div className="space-y-2">
             {shownRecords.map(({ record, isMissing }, i) => (
               <RecordCard
                 key={`${record.absid}-${i}`}
@@ -733,7 +743,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {filteredRecords.length > visibleRecords && (
           <button
-            className="il-fravaer-show-more inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+            className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={() => setVisibleRecords(v => v + 20)}
           >
             <ChevronDown size={16} />
@@ -752,8 +762,8 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* Loading overlay */}
       {loading && (
-        <div className="il-fravaer-loading-overlay">
-          <Loader2 size={24} className="il-fravaer-spinner" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[oklch(1_0_0/0.5)] pointer-events-none dark:bg-[oklch(0.15_0_0/0.5)]">
+          <Loader2 size={24} className="animate-spin text-primary" />
         </div>
       )}
     </div>
@@ -776,38 +786,38 @@ function TopMissingReasonCard({
 
   return (
     <div
-      className="il-fravaer-attention-item"
+      className="flex items-start justify-between gap-3 rounded-2xl border border-border/75 bg-background/82 p-3.5 shadow-[inset_3px_0_0_oklch(0.65_0.16_var(--hold-hue,50))] dark:bg-background/60 max-sm:flex-col max-sm:items-stretch"
       style={{ '--hold-hue': hue } as any}
     >
-      <div className="il-fravaer-attention-item-copy">
-        <div className="il-fravaer-attention-item-top">
-          <span className="il-fravaer-attention-item-date">{record.date || record.uge}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[0.82rem] font-bold text-foreground">{record.date || record.uge}</span>
           {record.module && (
-            <span className="il-fravaer-attention-item-module">{record.module}</span>
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.72rem] text-muted-foreground">{record.module}</span>
           )}
-          <span className="il-fravaer-attention-item-pct" style={{ color: absenceColor(record.fravaerPct) }}>
+          <span className="text-[0.74rem] font-extrabold" style={{ color: absenceColor(record.fravaerPct) }}>
             {record.fravaerPct}%
           </span>
         </div>
 
-        <div className="il-fravaer-attention-item-meta">
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.78rem] text-muted-foreground">
           {holdName && (
-            <span className="il-fravaer-attention-item-hold" style={{ '--hold-hue': hue } as any}>
+            <span className="font-bold text-[oklch(0.5_0.1_var(--hold-hue,265))] dark:text-[oklch(0.74_0.1_var(--hold-hue,265))]" style={{ '--hold-hue': hue } as any}>
               {holdName}
             </span>
           )}
           {secondaryText && (
-            <span className="il-fravaer-attention-item-secondary">{secondaryText}</span>
+            <span className="opacity-80">{secondaryText}</span>
           )}
         </div>
 
         {detailText && (
-          <p className="il-fravaer-attention-item-note">{detailText}</p>
+          <p className="mt-1.5 text-[0.78rem] leading-relaxed text-muted-foreground">{detailText}</p>
         )}
       </div>
 
       <button
-        className="il-fravaer-attention-item-edit"
+        className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-full border border-[color-mix(in_oklch,oklch(0.72_0.12_50)_45%,var(--border))] bg-[oklch(0.99_0.006_50/0.9)] px-3 py-1.5 text-[0.74rem] font-bold text-[oklch(0.45_0.14_50)] transition-all hover:-translate-y-px hover:border-[oklch(0.65_0.12_50/0.85)] hover:bg-[oklch(0.995_0.004_50)] dark:border-[oklch(0.58_0.11_50/0.42)] dark:bg-[oklch(0.3_0.018_50/0.9)] dark:text-[oklch(0.86_0.09_50)] max-sm:w-full"
         onClick={() => onEdit(record)}
       >
         <Edit3 size={13} />
@@ -833,8 +843,8 @@ function DonutCard({
   const color = absenceColor(pct);
 
   return (
-    <div className="il-fravaer-donut-card">
-      <div className="il-fravaer-donut-chart">
+    <div className="flex items-center gap-5 rounded-2xl border border-border bg-card px-6 py-5 shadow-[0_12px_28px_oklch(0_0_0/0.05)] max-sm:gap-4 max-sm:px-4 max-sm:py-4">
+      <div className="relative size-[120px] shrink-0 max-sm:size-[90px]">
         <ResponsiveContainerAny width={120} height={120}>
           <PieChartAny>
             <PieAny
@@ -856,14 +866,14 @@ function DonutCard({
             </PieAny>
           </PieChartAny>
         </ResponsiveContainerAny>
-        <div className="il-fravaer-donut-center" style={{ color }}>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xl font-bold tracking-tight max-sm:text-base" style={{ color }}>
           {formatPct(pct)}
         </div>
       </div>
-      <div className="il-fravaer-donut-info">
-        <span className="il-fravaer-donut-label">{label}</span>
-        {detail && <span className="il-fravaer-donut-detail">{detail}</span>}
-        {subLabel && <span className="il-fravaer-donut-sub">{subLabel}</span>}
+      <div className="flex flex-col gap-1">
+        <span className="text-[0.9rem] font-semibold text-foreground">{label}</span>
+        {detail && <span className="text-[0.8rem] text-muted-foreground">{detail}</span>}
+        {subLabel && <span className="text-xs text-muted-foreground/80">{subLabel}</span>}
       </div>
     </div>
   );
@@ -905,30 +915,36 @@ function SubjectDistributionCard({
   } as ChartConfig);
 
   return (
-    <div className="il-fravaer-distribution-card">
-      <div className="il-fravaer-distribution-top">
-        <div className="il-fravaer-distribution-copy">
-          <h3 className="il-fravaer-distribution-title">Fordeling af fravær</h3>
-          <p className="il-fravaer-distribution-subtitle">
+    <div className="mb-4 rounded-2xl border border-[color-mix(in_oklch,var(--border)_88%,oklch(0.9_0.02_265))] bg-[radial-gradient(circle_at_top_left,oklch(0.97_0.035_265),transparent_42%),linear-gradient(180deg,color-mix(in_oklch,var(--card)_92%,transparent),var(--card))] p-5 shadow-[0_14px_34px_oklch(0_0_0/0.06)] dark:border-[color-mix(in_oklch,var(--border)_82%,oklch(0.36_0.03_265))] dark:bg-[radial-gradient(circle_at_top_left,oklch(0.28_0.03_265/0.55),transparent_42%),linear-gradient(180deg,color-mix(in_oklch,var(--card)_94%,transparent),var(--card))]">
+      <div className="mb-4 flex items-start justify-between gap-4 max-sm:flex-col">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-base font-bold text-foreground">Fordeling af fravær</h3>
+          <p className="text-[0.8125rem] text-muted-foreground">
             Se hvilke fag dit opgjorte fravær fylder mest i.
           </p>
           {topSubject && (
-            <p className="il-fravaer-distribution-highlight">
+            <p className="text-[0.8125rem] text-[oklch(0.44_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">
               Mest i <strong>{topSubject.label}</strong> med {formatPct(topSubject.share)}
             </p>
           )}
         </div>
 
         {hasWrittenDistribution && (
-          <div className="il-fravaer-view-toggle">
+          <div className="flex overflow-hidden rounded-md border border-border">
             <button
-              className={`il-fravaer-view-btn${metric === 'alm' ? ' is-active' : ''}`}
+              className={cn(
+                'bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                metric === 'alm' && 'bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
+              )}
               onClick={() => onMetricChange('alm')}
             >
               Almindeligt
             </button>
             <button
-              className={`il-fravaer-view-btn${metric === 'skr' ? ' is-active' : ''}`}
+              className={cn(
+                'border-l border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                metric === 'skr' && 'bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
+              )}
               onClick={() => onMetricChange('skr')}
             >
               Skriftligt
@@ -938,12 +954,12 @@ function SubjectDistributionCard({
       </div>
 
       {items.length > 0 ? (
-        <div className="il-fravaer-distribution-body">
-          <div className="il-fravaer-distribution-chart-wrap">
-            <div className="il-fravaer-distribution-chart">
+        <div className="grid grid-cols-[minmax(220px,280px)_minmax(0,1fr)] items-center gap-5 max-sm:grid-cols-1">
+          <div className="flex justify-center">
+            <div className="relative size-[220px] max-sm:size-[184px]">
               <ChartContainerAny
                 config={chartConfig}
-                className="il-fravaer-distribution-chart-container"
+                className="size-full max-h-[220px] max-sm:max-h-[184px]"
               >
                 <PieChart>
                   <ChartTooltipAny
@@ -971,29 +987,29 @@ function SubjectDistributionCard({
                 </PieChart>
               </ChartContainerAny>
 
-              <div className="il-fravaer-distribution-center">
-                <span className="il-fravaer-distribution-center-value">{formatNumber(totalAmount)}</span>
-                <span className="il-fravaer-distribution-center-unit">{unitShort}</span>
-                <span className="il-fravaer-distribution-center-meta">
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-[1.7rem] leading-none font-extrabold tracking-[-0.03em] text-foreground max-sm:text-[1.4rem]">{formatNumber(totalAmount)}</span>
+                <span className="mt-1 text-[0.8rem] font-semibold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">{unitShort}</span>
+                <span className="mt-1 text-xs text-muted-foreground">
                   ud af {formatNumber(totalPossible)}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="il-fravaer-distribution-list">
+          <div className="grid gap-2.5">
             {items.map((item) => (
-              <div key={item.label} className="il-fravaer-distribution-item">
+              <div key={item.label} className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/82 px-3.5 py-3 dark:bg-background/58">
                 <span
-                  className="il-fravaer-distribution-dot"
+                  className="mt-0.5 size-3 shrink-0 rounded-full [background:oklch(0.68_0.14_var(--hold-hue))] shadow-[0_0_0_0.25rem_oklch(0.68_0.14_var(--hold-hue)/0.14)]"
                   style={{ '--hold-hue': item.hue } as any}
                 />
-                <div className="il-fravaer-distribution-item-copy">
-                  <div className="il-fravaer-distribution-item-row">
-                    <span className="il-fravaer-distribution-item-label">{item.label}</span>
-                    <span className="il-fravaer-distribution-item-share">{formatPct(item.share)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3 max-sm:flex-col max-sm:items-start max-sm:gap-1">
+                    <span className="min-w-0 text-sm font-semibold text-foreground">{item.label}</span>
+                    <span className="shrink-0 text-sm font-bold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.8_0.08_265)]">{formatPct(item.share)}</span>
                   </div>
-                  <div className="il-fravaer-distribution-item-detail">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {formatNumber(item.amount)}/{formatNumber(item.total)} {unitLong}
                   </div>
                 </div>
@@ -1002,7 +1018,7 @@ function SubjectDistributionCard({
           </div>
         </div>
       ) : (
-        <div className="il-fravaer-distribution-empty">
+        <div className="rounded-xl bg-muted/55 px-4 py-3 text-sm text-muted-foreground">
           Intet {metric === 'alm' ? 'almindeligt' : 'skriftligt'} fravær i den valgte periode.
         </div>
       )}
@@ -1026,7 +1042,7 @@ function SortHeader({
   const isActive = current === key;
   return (
     <th
-      className={`il-fravaer-th${isActive ? ' is-sorted' : ''}`}
+      className={cn("cursor-pointer select-none whitespace-nowrap px-3.5 py-2.5 text-left text-xs font-semibold tracking-[0.04em] uppercase text-muted-foreground transition-colors hover:text-foreground", isActive && "text-foreground")}
       onClick={() => onSort(key)}
     >
       {label}
@@ -1042,17 +1058,17 @@ function PctCell({ pct, detail }: { pct: string; detail: string }) {
   const color = absenceColor(num);
 
   return (
-    <div className="il-fravaer-pct-cell">
+    <div className="flex min-w-20 flex-col gap-1">
       {pct && (
         <>
-          <span className="il-fravaer-pct-bar-bg">
+          <span className="block h-1 w-full overflow-hidden rounded bg-muted/60">
             <span
-              className="il-fravaer-pct-bar-fill"
+              className="block h-full rounded transition-[width]"
               style={{ width: `${Math.min(num, 100)}%`, background: color }}
             />
           </span>
-          <span className="il-fravaer-pct-value" style={{ color }}>{pct}</span>
-          {detail && <span className="il-fravaer-pct-detail">{detail}</span>}
+          <span className="text-[0.8125rem] font-semibold" style={{ color }}>{pct}</span>
+          {detail && <span className="text-[0.6875rem] text-muted-foreground/70">{detail}</span>}
         </>
       )}
     </div>
@@ -1073,53 +1089,57 @@ function RecordCard({
 
   return (
     <div
-      className={`il-fravaer-record${isMissing ? ' is-missing' : ''}${record.fravaerType === 'godskrevet' ? ' is-godskrevet' : ''}`}
+      className={cn(
+        'rounded-xl border border-border bg-card px-4 py-3 [border-left:3px_solid_oklch(0.65_0.16_var(--hold-hue,265))] transition-[box-shadow,border-color] hover:shadow-[0_2px_8px_oklch(0_0_0/0.05)]',
+        isMissing && 'border-l-[oklch(0.65_0.18_50)] bg-[linear-gradient(135deg,oklch(0.99_0.006_50),oklch(0.975_0.018_50)),var(--card)] shadow-[0_10px_22px_oklch(0.78_0.08_50/0.08)] dark:border-l-[oklch(0.60_0.16_50)] dark:bg-[linear-gradient(135deg,oklch(0.22_0.012_50),oklch(0.25_0.02_50)),var(--card)] dark:shadow-[0_10px_22px_oklch(0_0_0/0.2)]',
+        record.fravaerType === 'godskrevet' && 'border-l-[oklch(0.65_0.14_145)] opacity-70',
+      )}
       style={{ '--hold-hue': hue } as any}
     >
-      <div className="il-fravaer-record-main">
-        <div className="il-fravaer-record-left">
-          <div className="il-fravaer-record-top">
-            <span className="il-fravaer-record-date">{record.date || record.uge}</span>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[0.8125rem] font-semibold text-foreground">{record.date || record.uge}</span>
             {record.module && (
-              <span className="il-fravaer-record-module">{record.module}</span>
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{record.module}</span>
             )}
-            <span className="il-fravaer-record-pct" style={{ color: absenceColor(record.fravaerPct) }}>
+            <span className="text-xs font-bold" style={{ color: absenceColor(record.fravaerPct) }}>
               {record.fravaerPct}%
             </span>
           </div>
-          <div className="il-fravaer-record-details">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {holdName && (
-              <span className="il-fravaer-record-hold" style={{ '--hold-hue': hue } as any}>
+              <span className="text-[oklch(0.50_0.10_var(--hold-hue,265))] dark:text-[oklch(0.72_0.10_var(--hold-hue,265))]" style={{ '--hold-hue': hue } as any}>
                 {holdName}
               </span>
             )}
             {record.teacher && (
-              <span className="il-fravaer-record-teacher">{record.teacher}</span>
+              <span className="opacity-80">{record.teacher}</span>
             )}
             {record.room && (
-              <span className="il-fravaer-record-room">{record.room}</span>
+              <span className="opacity-80">{record.room}</span>
             )}
           </div>
         </div>
-        <div className="il-fravaer-record-right">
+        <div className="shrink-0 flex items-center gap-2">
           {record.fravaerType === 'godskrevet' && (
-            <span className="il-fravaer-record-godskrevet">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_145)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[oklch(0.55_0.14_145)] dark:bg-[oklch(0.25_0.03_145)] dark:text-[oklch(0.72_0.12_145)]">
               <CheckCircle2 size={13} />
               Godskrevet
             </span>
           )}
           {record.aarsag && (
-            <span className="il-fravaer-record-aarsag">{record.aarsag}</span>
+            <span className="max-w-48 truncate rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{record.aarsag}</span>
           )}
           {isMissing && (
-            <span className="il-fravaer-record-no-aarsag">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_50)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.25_0.03_50)] dark:text-[oklch(0.75_0.12_50)]">
               <AlertTriangle size={12} />
               Mangler årsag
             </span>
           )}
           {record.editUrl && (
             <button
-              className="il-fravaer-record-edit"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={(e) => { e.stopPropagation(); onEdit(record); }}
               title="Rediger årsag"
             >
@@ -1129,15 +1149,15 @@ function RecordCard({
         </div>
       </div>
       {(record.bemaerkning || record.note) && (
-        <div className="il-fravaer-record-extra">
+        <div className="mt-2 flex flex-col gap-1 border-t border-border/40 pt-2">
           {record.bemaerkning && (
-            <span className="il-fravaer-record-bemærkning">
+            <span className="flex items-start gap-1 text-xs leading-relaxed text-muted-foreground">
               <Info size={12} />
               {record.bemaerkning}
             </span>
           )}
           {record.note && (
-            <span className="il-fravaer-record-note">{record.note}</span>
+            <span className="flex items-start gap-1 text-xs leading-relaxed text-muted-foreground">{record.note}</span>
           )}
         </div>
       )}

@@ -5,7 +5,8 @@ import {
   type ThemePresetId,
 } from "@/lib/theme-presets";
 
-const SCHOOL_THEME_KEY = "il-school-themes-v1";
+const SCHOOL_THEME_KEY = "bl-school-themes-v1";
+const LEGACY_SCHOOL_THEME_KEY = "il-school-themes-v1";
 
 type SchoolThemeMap = Record<string, ThemePreference>;
 
@@ -24,7 +25,10 @@ function normalizeThemePreference(value: unknown): ThemePreference {
 
 function readThemeMap(): SchoolThemeMap {
   try {
-    const stored = localStorage.getItem(SCHOOL_THEME_KEY);
+    const stored = localStorage.getItem(SCHOOL_THEME_KEY) ?? localStorage.getItem(LEGACY_SCHOOL_THEME_KEY);
+    if (!localStorage.getItem(SCHOOL_THEME_KEY) && stored) {
+      localStorage.setItem(SCHOOL_THEME_KEY, stored);
+    }
     if (!stored) return {};
     const parsed = JSON.parse(stored) as Record<string, unknown>;
     const cleaned: SchoolThemeMap = {};

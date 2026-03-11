@@ -1,9 +1,13 @@
 import { getSettings } from './settings-storage';
 
-const STARRED_KEY = 'il-starred-people';
-const RECENTS_KEY = 'il-recent-searches';
-const PICTURE_CACHE_KEY = 'il-picture-cache';
-const NAME_ID_CACHE_KEY = 'il-name-id-cache';
+const STARRED_KEY = 'bl-starred-people';
+const LEGACY_STARRED_KEY = 'il-starred-people';
+const RECENTS_KEY = 'bl-recent-searches';
+const LEGACY_RECENTS_KEY = 'il-recent-searches';
+const PICTURE_CACHE_KEY = 'bl-picture-cache';
+const LEGACY_PICTURE_CACHE_KEY = 'il-picture-cache';
+const NAME_ID_CACHE_KEY = 'bl-name-id-cache';
+const LEGACY_NAME_ID_CACHE_KEY = 'il-name-id-cache';
 const MAX_STARRED = 50;
 const MAX_RECENTS = 10;
 const MAX_CACHED_PICTURES = 1000;
@@ -35,7 +39,10 @@ function getCurrentSchoolId(): string | null {
 
 export function getStarredPeople(): StarredPerson[] {
   try {
-    const stored = localStorage.getItem(STARRED_KEY);
+    const stored = localStorage.getItem(STARRED_KEY) ?? localStorage.getItem(LEGACY_STARRED_KEY);
+    if (!localStorage.getItem(STARRED_KEY) && stored) {
+      localStorage.setItem(STARRED_KEY, stored);
+    }
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -83,7 +90,10 @@ export function toggleStarred(person: Omit<StarredPerson, 'starredAt'>): boolean
 
 export function getRecentPeople(): RecentPerson[] {
   try {
-    const stored = localStorage.getItem(RECENTS_KEY);
+    const stored = localStorage.getItem(RECENTS_KEY) ?? localStorage.getItem(LEGACY_RECENTS_KEY);
+    if (!localStorage.getItem(RECENTS_KEY) && stored) {
+      localStorage.setItem(RECENTS_KEY, stored);
+    }
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
@@ -210,9 +220,16 @@ function getNameIdCacheKey(schoolId: string): string {
   return `${NAME_ID_CACHE_KEY}:${schoolId}`;
 }
 
+function getLegacyNameIdCacheKey(schoolId: string): string {
+  return `${LEGACY_NAME_ID_CACHE_KEY}:${schoolId}`;
+}
+
 function getPictureCache(): PictureCache {
   try {
-    const stored = localStorage.getItem(PICTURE_CACHE_KEY);
+    const stored = localStorage.getItem(PICTURE_CACHE_KEY) ?? localStorage.getItem(LEGACY_PICTURE_CACHE_KEY);
+    if (!localStorage.getItem(PICTURE_CACHE_KEY) && stored) {
+      localStorage.setItem(PICTURE_CACHE_KEY, stored);
+    }
     return stored ? JSON.parse(stored) : {};
   } catch {
     return {};
@@ -256,6 +273,7 @@ export function cachePictureUrl(id: string, url: string | null): void {
 export function clearPictureCache(): void {
   try {
     localStorage.removeItem(PICTURE_CACHE_KEY);
+    localStorage.removeItem(LEGACY_PICTURE_CACHE_KEY);
   } catch {
     // Ignore errors
   }
@@ -356,7 +374,12 @@ type NameIdCache = Record<string, string>; // normalized name → context card I
 
 function getNameIdCache(schoolId: string): NameIdCache {
   try {
-    const stored = localStorage.getItem(getNameIdCacheKey(schoolId));
+    const key = getNameIdCacheKey(schoolId);
+    const legacyKey = getLegacyNameIdCacheKey(schoolId);
+    const stored = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
+    if (!localStorage.getItem(key) && stored) {
+      localStorage.setItem(key, stored);
+    }
     return stored ? JSON.parse(stored) : {};
   } catch {
     return {};

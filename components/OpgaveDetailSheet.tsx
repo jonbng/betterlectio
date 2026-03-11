@@ -27,6 +27,7 @@ import {
 import type { OpgaveDetail } from '@/lib/opgave-detail';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { sanitizeHtml } from '@/lib/sanitize-html';
+import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -199,19 +200,23 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
           : 'Sender...';
 
   const sheetContent = (
-    <div className="il-opgave-sheet-wrapper">
+    <div className="fixed inset-0 z-100 pointer-events-auto">
       {/* Backdrop */}
       <div
-        className="il-opgave-sheet-backdrop"
+        className="absolute inset-0 bg-[oklch(0_0_0/0.45)] backdrop-blur-sm animate-in fade-in-0 duration-200"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
 
       {/* Panel */}
-      <div className="il-opgave-sheet-panel" role="dialog" aria-label={entry?.title || 'Opgavedetaljer'}>
+      <div
+        className="absolute right-0 top-0 bottom-0 w-[92%] max-w-xl overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300"
+        role="dialog"
+        aria-label={entry?.title || 'Opgavedetaljer'}
+      >
         {/* Close button */}
         <button
-          className="il-opgave-sheet-close"
+          className="absolute right-5 top-5 z-10 inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
           onClick={() => onOpenChange(false)}
           aria-label="Luk"
         >
@@ -219,20 +224,20 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
         </button>
 
         {/* Header */}
-        <div className="il-opgave-sheet-header">
-          <div className="il-opgave-sheet-header-top">
-            <h2 className="il-opgave-sheet-title">
+        <div className="shrink-0 border-b border-border px-7 pb-5 pt-7">
+          <div className="flex flex-col gap-3">
+            <h2 className="pr-12 text-2xl font-bold tracking-[-0.02em] text-foreground leading-snug">
               {entry?.title || 'Opgave'}
             </h2>
             {entry && (
-              <div className="il-opgave-sheet-header-meta">
+              <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className="il-opgaver-hold-pill"
+                  className="inline-flex items-center rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground"
                   style={{ '--hold-hue': holdHue } as any}
                 >
                   {getHoldDisplayName(entry.hold)}
                 </span>
-                <span className="il-opgave-sheet-deadline">
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Clock size={14} />
                   {entry.deadlineText}
                 </span>
@@ -242,16 +247,16 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
         </div>
 
         {/* Body */}
-        <div className="il-opgave-sheet-body">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-7 py-6">
           {loading && <LoadingSkeleton />}
 
           {error && (
-            <div className="il-opgave-sheet-error">
-              <AlertTriangle size={28} />
-              <p>{error}</p>
-              <div className="il-opgave-sheet-error-actions">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 py-10 text-center">
+              <AlertTriangle size={28} className="text-muted-foreground" />
+              <p className="text-sm text-foreground">{error}</p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
-                  className="il-opgave-sheet-btn il-opgave-sheet-btn-outline"
+                  className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent cursor-pointer"
                   onClick={() => entry && loadDetail(entry.url, false)}
                 >
                   Prøv igen
@@ -259,7 +264,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 {entry && (
                   <a
                     href={entry.url}
-                    className="il-opgave-sheet-btn il-opgave-sheet-btn-ghost"
+                    className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground no-underline"
                   >
                     <ExternalLink size={15} />
                     Åbn i Lectio
@@ -272,7 +277,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
           {detail && !loading && !error && (
             <>
               {/* Info grid */}
-              <div className="il-opgave-sheet-info-grid">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <InfoRow label="Ansvarlig" value={detail.responsible} />
                 <InfoRow label="Elevtid" value={detail.studentTime} />
                 <InfoRow label="Karakterskala" value={detail.gradeScale} />
@@ -284,19 +289,20 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
               {/* Assignment note */}
               {detail.note && (
-                <div className="il-opgave-sheet-note">
-                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }} />
-                </div>
+                <div
+                  className="rounded-xl border border-border bg-card p-4 text-sm text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }}
+                />
               )}
 
               {/* Description files */}
               {detail.descriptionFiles.length > 0 && (
-                <div className="il-opgave-sheet-files">
+                <div className="flex flex-col gap-2">
                   {detail.descriptionFiles.map((file, i) => (
                     <a
                       key={i}
                       href={file.url}
-                      className="il-opgave-sheet-file-link"
+                      className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent/40"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -311,39 +317,46 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
               {/* Student status */}
               {detail.students.length > 0 && (
-                <div className="il-opgave-sheet-student-section">
-                  <h3 className="il-opgave-sheet-section-label">
+                <div className="space-y-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <User size={15} />
                     Status
                   </h3>
                   {detail.students.map((student, i) => (
-                    <div key={i} className="il-opgave-sheet-student">
-                      <div className="il-opgave-sheet-student-name">{student.name}</div>
-                      <div className="il-opgave-sheet-student-meta">
+                    <div key={i} className="rounded-xl border border-border bg-card px-4 py-3">
+                      <div className="text-sm font-semibold text-foreground">{student.name}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         {student.awaiting && (
-                          <span className={`il-opgave-sheet-awaiting-badge${student.awaiting === 'Elev' ? ' is-student' : ' is-teacher'}`}>
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                              student.awaiting === 'Elev'
+                                ? "border-border bg-muted text-foreground"
+                                : "border-border bg-accent text-accent-foreground",
+                            )}
+                          >
                             Afventer {student.awaiting.toLowerCase()}
                           </span>
                         )}
                         {student.statusText && (
-                          <span className="il-opgave-sheet-status-text">{student.statusText}</span>
+                          <span>{student.statusText}</span>
                         )}
                       </div>
                       {student.grade && (
-                        <div className="il-opgave-sheet-student-grade">
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
                           <span
-                            className="il-opgaver-grade"
+                            className="inline-flex items-center rounded-md border border-border bg-background px-2 py-1 text-xs font-semibold text-foreground"
                             style={{ '--grade-hue': getGradeHue(student.grade) } as any}
                           >
                             {student.grade}
                           </span>
                           {student.gradeNote && (
-                            <span className="il-opgave-sheet-grade-note">{student.gradeNote}</span>
+                            <span className="text-xs text-muted-foreground">{student.gradeNote}</span>
                           )}
                         </div>
                       )}
                       {student.studentNote && (
-                        <div className="il-opgave-sheet-student-note">{student.studentNote}</div>
+                        <div className="mt-2 text-sm text-foreground">{student.studentNote}</div>
                       )}
                     </div>
                   ))}
@@ -354,32 +367,37 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
               {detail.entries.length > 0 && (
                 <>
                   <Separator />
-                  <div className="il-opgave-sheet-entries-section">
-                    <h3 className="il-opgave-sheet-section-label">
+                  <div className="space-y-3">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <FileText size={15} />
                       Indlæg
-                      <span className="il-opgave-sheet-entry-count">{detail.entries.length}</span>
+                      <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                        {detail.entries.length}
+                      </span>
                     </h3>
-                    <div className="il-opgave-sheet-entries">
+                    <div className="space-y-3">
                       {detail.entries.map((historyEntry, i) => (
                         <div
                           key={i}
-                          className={`il-opgave-sheet-entry${historyEntry.isTeacher ? ' is-teacher' : ''}`}
+                          className={cn(
+                            "rounded-xl border border-border bg-card px-4 py-3",
+                            historyEntry.isTeacher && "border-border/70 bg-muted/30",
+                          )}
                         >
-                          <div className="il-opgave-sheet-entry-header">
-                            <span className="il-opgave-sheet-entry-user">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                               {historyEntry.isTeacher ? <GraduationCap size={14} /> : <User size={14} />}
                               {historyEntry.user}
                             </span>
-                            <span className="il-opgave-sheet-entry-time">{historyEntry.timestamp}</span>
+                            <span className="text-xs text-muted-foreground">{historyEntry.timestamp}</span>
                           </div>
                           {historyEntry.comment && (
-                            <p className="il-opgave-sheet-entry-comment">{historyEntry.comment}</p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{historyEntry.comment}</p>
                           )}
                           {historyEntry.documentName && (
                             <a
                               href={historyEntry.documentUrl}
-                              className="il-opgave-sheet-entry-doc"
+                              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent/40"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -399,14 +417,14 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
         {/* Footer */}
         {detail && !error && (
-          <div className="il-opgave-sheet-footer">
+          <div className="shrink-0 border-t border-border bg-background">
             <Separator />
 
             {/* Submission form */}
             {detail.hasSubmissionForm && (
-              <div className="il-opgave-sheet-form">
+              <div className="space-y-3 px-7 py-5">
                 <textarea
-                  className="il-opgave-sheet-textarea"
+                  className="min-h-12 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder="Skriv en kommentar..."
                   value={comment}
                   onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
@@ -416,26 +434,35 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
                 {/* File drop zone */}
                 <div
-                  className={`il-opgave-sheet-dropzone${dragOver ? ' is-dragover' : ''}${selectedFile ? ' has-file' : ''}`}
+                  className={cn(
+                    "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-colors hover:bg-accent/20",
+                    dragOver && "border-ring bg-accent/30",
+                    selectedFile && "border-border bg-background",
+                    submitting && "cursor-not-allowed opacity-70",
+                  )}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleFileDrop}
                   onClick={() => !selectedFile && fileInputRef.current?.click()}
                 >
                   {selectedFile ? (
-                    <div className="il-opgave-sheet-selected-file">
+                    <div className="flex items-center gap-2">
                       <FileText size={16} />
-                      <span className="il-opgave-sheet-file-name">{selectedFile.name}</span>
-                      <span className="il-opgave-sheet-file-size">{formatFileSize(selectedFile.size)}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                        {selectedFile.name}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatFileSize(selectedFile.size)}
+                      </span>
                       <button
-                        className="il-opgave-sheet-file-remove"
+                        className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                       >
                         <X size={15} />
                       </button>
                     </div>
                   ) : (
-                    <div className="il-opgave-sheet-dropzone-hint">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Upload size={16} />
                       <span>Vælg fil eller træk hertil</span>
                     </div>
@@ -443,7 +470,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   <input
                     ref={fileInputRef}
                     type="file"
-                    className="il-opgave-sheet-file-input"
+                    className="hidden"
                     onChange={handleFileSelect}
                     disabled={submitting}
                   />
@@ -451,12 +478,12 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
                 {/* Send button */}
                 <button
-                  className="il-opgave-sheet-send-btn"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                   disabled={submitting || (!comment.trim() && !selectedFile)}
                   onClick={handleSubmit}
                 >
                   {submitting ? (
-                    <Loader2 size={16} className="il-opgave-sheet-spinner" />
+                    <Loader2 size={16} className="animate-spin" />
                   ) : (
                     <Send size={16} />
                   )}
@@ -469,7 +496,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
             {entry && (
               <a
                 href={entry.url}
-                className="il-opgave-sheet-lectio-link"
+                className="flex items-center justify-center gap-2 border-t border-border px-7 py-3 text-sm font-medium text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground"
               >
                 <ExternalLink size={15} />
                 Åbn i Lectio
@@ -491,19 +518,23 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 function InfoRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
-    <div className="il-opgave-sheet-info-row">
-      <span className="il-opgave-sheet-info-label">{label}</span>
-      <span className="il-opgave-sheet-info-value">{value}</span>
+    <div className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-medium text-foreground">
+        {value}
+      </div>
     </div>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="il-opgave-sheet-skeleton">
-      <div className="il-opgave-sheet-info-grid">
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="il-opgave-sheet-info-row">
+          <div key={i} className="rounded-xl border border-border bg-card px-4 py-3">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-3 w-32" />
           </div>

@@ -1,4 +1,5 @@
-const CACHE_KEY = 'il-my-teachers';
+const CACHE_KEY = 'bl-my-teachers';
+const LEGACY_CACHE_KEY = 'il-my-teachers';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 interface MyTeachersCache {
@@ -10,8 +11,11 @@ interface MyTeachersCache {
 /** Get cached teacher IDs if fresh */
 function getCached(schoolId: string): Set<string> | null {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(CACHE_KEY) ?? localStorage.getItem(LEGACY_CACHE_KEY);
     if (!raw) return null;
+    if (!localStorage.getItem(CACHE_KEY)) {
+      localStorage.setItem(CACHE_KEY, raw);
+    }
     const cached: MyTeachersCache = JSON.parse(raw);
     if (cached.schoolId !== schoolId) return null;
     if (Date.now() - cached.cachedAt > CACHE_TTL) return null;

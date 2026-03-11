@@ -43,7 +43,8 @@ export interface OpgaveDetail {
 
 // ── Cache ──────────────────────────────────────────────────────────────
 
-const CACHE_PREFIX = 'il-opgave-detail-';
+const CACHE_PREFIX = 'bl-opgave-detail-';
+const LEGACY_CACHE_PREFIX = 'il-opgave-detail-';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const CACHE_MAX_ENTRIES = 50;
 interface CachedEntry {
@@ -75,13 +76,24 @@ function getDetailCacheKey(url: string): string | null {
   return `${CACHE_PREFIX}${schoolId}:${id}`;
 }
 
+function getLegacyDetailCacheKey(url: string): string | null {
+  const id = getExerciseId(url);
+  if (!id) return null;
+  const schoolId = getSchoolIdFromUrl(url);
+  return `${LEGACY_CACHE_PREFIX}${schoolId}:${id}`;
+}
+
 export function getCachedDetail(url: string): OpgaveDetail | null {
   const key = getDetailCacheKey(url);
+  const legacyKey = getLegacyDetailCacheKey(url);
   if (!key) return null;
 
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(key) ?? (legacyKey ? localStorage.getItem(legacyKey) : null);
     if (!raw) return null;
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(key, raw);
+    }
 
     const cached: CachedEntry = JSON.parse(raw);
     if (Date.now() - cached.timestamp > CACHE_TTL) {
@@ -100,7 +112,9 @@ function setCachedDetail(url: string, detail: OpgaveDetail): void {
 
   try {
     // LRU eviction: if at max, remove oldest
-    const keys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX));
+    const keys = Object.keys(localStorage).filter(
+      (k) => k.startsWith(CACHE_PREFIX) || k.startsWith(LEGACY_CACHE_PREFIX),
+    );
     if (keys.length >= CACHE_MAX_ENTRIES) {
       let oldestKey = keys[0];
       let oldestTime = Infinity;

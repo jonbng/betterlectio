@@ -1,4 +1,5 @@
-const TEACHER_CACHE_KEY = 'il-teacher-names';
+const TEACHER_CACHE_KEY = 'bl-teacher-names';
+const LEGACY_TEACHER_CACHE_KEY = 'il-teacher-names';
 const TEACHER_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 const inflightTeacherLoads = new Map<string, Promise<TeacherCache | null>>();
 
@@ -16,8 +17,11 @@ export interface TeacherCache {
 
 export function getCachedTeachers(schoolId: string): TeacherCache | null {
   try {
-    const stored = localStorage.getItem(TEACHER_CACHE_KEY);
+    const stored = localStorage.getItem(TEACHER_CACHE_KEY) ?? localStorage.getItem(LEGACY_TEACHER_CACHE_KEY);
     if (!stored) return null;
+    if (!localStorage.getItem(TEACHER_CACHE_KEY)) {
+      localStorage.setItem(TEACHER_CACHE_KEY, stored);
+    }
     const cache: TeacherCache = JSON.parse(stored);
     if (cache.schoolId !== schoolId) return null;
     if (Date.now() - cache.cachedAt > TEACHER_CACHE_TTL) return null;

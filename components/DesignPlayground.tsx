@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { cn } from "@/lib/utils";
 import { createPortal } from "preact/compat";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -372,7 +373,7 @@ function BadgesSection() {
         </div>
       </Subsection>
 
-      <Subsection title="Hold-pills (.il-opgaver-hold-pill)">
+      <Subsection title="Hold-pills (dynamic hue)">
         <div className="flex flex-wrap gap-2">
           {[
             { name: "1x DA", hue: 265 },
@@ -383,7 +384,7 @@ function BadgesSection() {
           ].map((h) => (
             <span
               key={h.name}
-              className="il-opgaver-hold-pill"
+              className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-semibold"
               style={{ "--hold-hue": h.hue } as any}
             >
               {h.name}
@@ -392,12 +393,12 @@ function BadgesSection() {
         </div>
       </Subsection>
 
-      <Subsection title="Karakter-badges (.il-opgaver-grade)">
+      <Subsection title="Karakter-badges (dynamic hue)">
         <div className="flex flex-wrap gap-2">
           {Object.entries(gradeHues).map(([grade, hue]) => (
             <span
               key={grade}
-              className="il-opgaver-grade"
+              className="grade-pill-dynamic"
               style={{ "--grade-hue": hue } as any}
             >
               {grade}
@@ -565,7 +566,7 @@ function TabellerSection() {
               <TableCell className="font-medium">{r.fag}</TableCell>
               <TableCell>
                 <span
-                  className="il-opgaver-hold-pill"
+                  className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-semibold"
                   style={{ "--hold-hue": gradeHue[r.karakter] ?? 265 } as any}
                 >
                   {r.hold}
@@ -573,7 +574,7 @@ function TabellerSection() {
               </TableCell>
               <TableCell>
                 <span
-                  className="il-opgaver-grade"
+                  className="grade-pill-dynamic"
                   style={{ "--grade-hue": gradeHue[r.karakter] ?? 145 } as any}
                 >
                   {r.karakter}
@@ -763,22 +764,32 @@ function OpgavekortSection() {
   ];
 
   return (
-    <Section title="Opgavekort" description="Alle 4 urgency-tiers + afleverede kort (globalt scoped CSS)">
+    <Section title="Opgavekort" description="Alle 4 urgency-tiers + afleverede kort (Tailwind)">
       <Subsection title="Kommende (4 urgency-niveauer)">
-        <div className="il-opgaver-upcoming" style={{ maxWidth: 500 }}>
+        <div className="grid gap-2" style={{ maxWidth: 500 }}>
           {cards.map((c) => (
-            <div key={c.title} className={`il-opgaver-card ${c.urgency}`} style={{ "--hold-hue": c.holdHue } as any}>
-              <div className="il-opgaver-card-deadline">
-                <div className="il-opgaver-deadline-info">
-                  <span className="il-opgaver-deadline-label">{c.deadline}</span>
-                  <span className="il-opgaver-deadline-sep">·</span>
-                  <span className="il-opgaver-deadline-detail">{c.detail}</span>
+            <div
+              key={c.title}
+              className={cn(
+                "rounded-lg border border-border bg-background p-3 transition-all",
+                c.urgency === "is-overdue" && "border-l-[3px] border-l-[oklch(0.63_0.2_25)] bg-[linear-gradient(135deg,oklch(0.98_0.012_25),oklch(0.99_0.004_25))]",
+                c.urgency === "is-imminent" && "border-l-[3px] border-l-[oklch(0.64_0.16_50)] bg-[linear-gradient(135deg,oklch(0.98_0.01_50),oklch(0.99_0.004_50))]",
+                c.urgency === "is-soon" && "border-l-[3px] border-l-[oklch(0.62_0.12_80)]",
+                c.urgency === "is-later" && "border-l-[3px] border-l-border",
+              )}
+              style={{ "--hold-hue": c.holdHue } as any}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="inline-flex min-w-0 items-center gap-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.deadline}</span>
+                  <span className="text-xs text-muted-foreground/40">·</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{c.detail}</span>
                 </div>
               </div>
-              <span className="il-opgaver-card-title">{c.title}</span>
-              <div className="il-opgaver-card-meta">
-                <span className="il-opgaver-hold-pill" style={{ "--hold-hue": c.holdHue } as any}>{c.hold}</span>
-                <span className="il-opgaver-meta-dot" />
+              <span className="mt-1 block truncate text-sm font-medium text-foreground">{c.title}</span>
+              <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-medium" style={{ "--hold-hue": c.holdHue } as any}>{c.hold}</span>
+                <span className="size-[3px] rounded-full bg-muted-foreground/40" />
                 <span>{c.meta}</span>
               </div>
             </div>
@@ -787,23 +798,23 @@ function OpgavekortSection() {
       </Subsection>
 
       <Subsection title="Afleverede">
-        <div className="il-opgaver-submitted-grid" style={{ maxWidth: 500 }}>
+        <div className="grid gap-2 sm:grid-cols-2" style={{ maxWidth: 500 }}>
           {submitted.map((s) => (
-            <div key={s.title} className="il-opgaver-submitted-card" style={{ "--hold-hue": s.holdHue } as any}>
-              <div className="il-opgaver-submitted-grade-wrap" style={{ "--grade-hue": s.gradeHue } as any}>
+            <div key={s.title} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3" style={{ "--hold-hue": s.holdHue } as any}>
+              <div className="inline-flex size-11 shrink-0 items-center justify-center rounded-[0.625rem] border border-border bg-[oklch(0.94_0.06_var(--grade-hue,145))] dark:bg-[oklch(0.24_0.06_var(--grade-hue,145))]" style={{ "--grade-hue": s.gradeHue } as any}>
                 {s.grade ? (
-                  <span className="il-opgaver-submitted-grade" style={{ "--grade-hue": s.gradeHue } as any}>
+                  <span className="text-xl font-extrabold leading-none tabular-nums text-[oklch(0.38_0.16_var(--grade-hue,145))] dark:text-[oklch(0.78_0.1_var(--grade-hue,145))]" style={{ "--grade-hue": s.gradeHue } as any}>
                     {s.grade}
                   </span>
                 ) : (
-                  <CheckCircle2 className="size-5 il-opgaver-submitted-check" />
+                  <CheckCircle2 className="size-5 text-[oklch(0.5_0.12_145)] dark:text-[oklch(0.62_0.1_145)]" />
                 )}
               </div>
-              <div className="il-opgaver-submitted-info">
-                <span className="il-opgaver-submitted-title">{s.title}</span>
-                <div className="il-opgaver-submitted-meta">
-                  <span className="il-opgaver-hold-pill" style={{ "--hold-hue": s.holdHue } as any}>{s.hold}</span>
-                  <span className="il-opgaver-submitted-date">{s.date}</span>
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium text-foreground">{s.title}</span>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-medium" style={{ "--hold-hue": s.holdHue } as any}>{s.hold}</span>
+                  <span className="tabular-nums">{s.date}</span>
                 </div>
               </div>
             </div>
@@ -818,57 +829,61 @@ function OpgavekortSection() {
    12. NEDTÆLLING
    ═══════════════════════════════════════════════════════════ */
 function NedtaellingSection() {
+  const baseCd = "flex flex-col gap-1 rounded-lg border px-2.5 py-1.5 font-sans";
+  const baseTop = "flex items-baseline justify-between gap-1.5";
+  const baseBar = "h-0.5 rounded-sm overflow-hidden bg-[oklch(0.92_0.012_265)] dark:bg-[oklch(0.25_0.004_285)]";
+  const baseFill = "h-full rounded-sm transition-[width] duration-1000 ease-linear";
   return (
-    <Section title="Nedtælling" description="Countdown-widget i 4 tilstande (.il-cd CSS)">
+    <Section title="Nedtælling" description="Countdown-widget i 4 tilstande (Tailwind)">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ maxWidth: 500 }}>
         {/* Active */}
-        <div className="il-cd">
-          <div className="il-cd-top">
-            <span className="il-cd-subject">Matematik A</span>
-            <span className="il-cd-time">32:15</span>
+        <div className={cn(baseCd, "bg-[oklch(0.97_0.008_265)] border-[oklch(0.91_0.015_265)] dark:bg-[oklch(0.18_0.004_285)] dark:border-[oklch(0.25_0.004_285)]")}>
+          <div className={baseTop}>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight text-[oklch(0.35_0.1_265)]">Matematik A</span>
+            <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-[oklch(0.35_0.12_265)]">32:15</span>
           </div>
-          <div className="il-cd-bar">
-            <div className="il-cd-fill" style={{ width: "65%", background: "oklch(0.54 0.2 265)" }} />
+          <div className={baseBar}>
+            <div className={baseFill} style={{ width: "65%", background: "oklch(0.54 0.2 265)" }} />
           </div>
-          <div className="il-cd-sub">Slutter 09:50 · Lokale 201</div>
+          <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">Slutter 09:50 · Lokale 201</div>
         </div>
 
         {/* Break / pause */}
-        <div className="il-cd" data-state="break">
-          <div className="il-cd-top">
-            <span className="il-cd-pause">Frikvarter</span>
-            <span className="il-cd-time">8:42</span>
+        <div className={cn(baseCd, "border-dashed border-[oklch(0.91_0.015_265)] bg-[oklch(0.98_0.005_265)] dark:border-[oklch(0.25_0.004_285)] dark:bg-[oklch(0.16_0.004_285)]")}>
+          <div className={baseTop}>
+            <span className="text-sm font-semibold text-[oklch(0.4_0.02_265)] dark:text-[oklch(0.65_0.005_285)]">Frikvarter</span>
+            <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-[oklch(0.25_0.03_265)] dark:text-[oklch(0.88_0.003_90)]">8:42</span>
           </div>
-          <div className="il-cd-bar">
-            <div className="il-cd-fill" style={{ width: "35%", background: "oklch(0.55 0.02 265)" }} />
+          <div className={baseBar}>
+            <div className={baseFill} style={{ width: "35%", background: "oklch(0.55 0.02 265)" }} />
           </div>
-          <div className="il-cd-sub">Næste: Dansk A · 10:05</div>
+          <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">Næste: Dansk A · 10:05</div>
         </div>
 
         {/* Done */}
-        <div className="il-cd" data-state="done">
-          <div className="il-cd-top">
-            <svg className="il-cd-check" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8.5L6.5 12L13 4" stroke="oklch(0.42 0.1 145)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <div className={cn(baseCd, "bg-[oklch(0.97_0.012_145)] border-[oklch(0.9_0.03_145)] dark:bg-[oklch(0.17_0.012_145)] dark:border-[oklch(0.24_0.02_145)]")}>
+          <div className={baseTop}>
+            <svg className="shrink-0" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8.5L6.5 12L13 4" stroke="oklch(0.42 0.1 145)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-[oklch(0.7_0.1_145)]" />
             </svg>
-            <span className="il-cd-done-text">Færdig for i dag</span>
-            <span className="il-cd-emoji">🎉</span>
+            <span className="text-sm font-medium text-[oklch(0.42_0.1_145)] dark:text-[oklch(0.7_0.1_145)]">Færdig for i dag</span>
+            <span className="shrink-0 text-sm">🎉</span>
           </div>
         </div>
 
         {/* Cancelled */}
-        <div className="il-cd" data-state="cancelled">
-          <div className="il-cd-top">
-            <span className="il-cd-done-text">Aflyst</span>
-            <span className="il-cd-emoji">😊</span>
+        <div className={cn(baseCd, "bg-[oklch(0.97_0.015_85)] border-[oklch(0.88_0.04_85)] dark:bg-[oklch(0.18_0.015_85)] dark:border-[oklch(0.25_0.02_85)]")}>
+          <div className={baseTop}>
+            <span className="text-sm font-medium text-[oklch(0.42_0.1_85)] dark:text-[oklch(0.72_0.1_85)]">Aflyst</span>
+            <span className="shrink-0 text-sm">😊</span>
           </div>
-          <div className="il-cd-cancelled-sub">
-            <s>Fysik B · 12:15 – 13:45</s>
+          <div className="text-xs text-[oklch(0.5_0.04_85)] dark:text-[oklch(0.58_0.03_85)]">
+            <s className="decoration-[oklch(0.6_0.08_25)] dark:decoration-[oklch(0.5_0.08_25)]">Fysik B · 12:15 – 13:45</s>
           </div>
-          <div className="il-cd-next">
-            <span className="il-cd-next-dot" style={{ background: "oklch(0.54 0.2 265)" }} />
-            <span className="il-cd-next-label">Historie A</span>
-            <span className="il-cd-next-time">14:00</span>
+          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-[oklch(0.88_0.025_85)] pt-1.5 text-xs dark:border-[oklch(0.27_0.015_85)]">
+            <span className="size-1.5 shrink-0 rounded-full bg-[oklch(0.54_0.2_265)]" />
+            <span className="min-w-0 flex-1 truncate font-semibold text-[oklch(0.4_0.08_265)]">Historie A</span>
+            <span className="shrink-0 tabular-nums text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">14:00</span>
           </div>
         </div>
       </div>

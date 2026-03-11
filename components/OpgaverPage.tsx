@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -394,9 +395,53 @@ interface OpgaverPageProps {
   schoolId: string;
 }
 
-const MISSING_IGNORED_PREFIX = 'il-opgaver-ignored-missing-';
+const MISSING_IGNORED_PREFIX = 'bl-opgaver-ignored-missing-';
+const LEGACY_MISSING_IGNORED_PREFIX = 'il-opgaver-ignored-missing-';
 const MISSING_AGGRESSIVE_MAX_AGE_DAYS = 60;
 const MISSING_ZERO_TIME_MAX_AGE_DAYS = 7;
+
+const ALERT_BANNER_STYLE: Record<Urgency, string> = {
+  overdue:
+    'border-[oklch(0.83_0.07_25)] bg-[linear-gradient(135deg,oklch(0.98_0.012_25),oklch(0.99_0.004_25))] hover:bg-[linear-gradient(135deg,oklch(0.96_0.02_25),oklch(0.98_0.008_25))] dark:bg-[linear-gradient(135deg,oklch(0.18_0.025_25),oklch(0.16_0.012_25))] dark:[box-shadow:inset_0_0_0_1px_oklch(0.3_0.05_25)]',
+  imminent:
+    'border-[oklch(0.84_0.06_50)] bg-[linear-gradient(135deg,oklch(0.99_0.01_50),oklch(0.98_0.004_50))] hover:bg-[linear-gradient(135deg,oklch(0.97_0.02_50),oklch(0.98_0.008_50))] dark:bg-[linear-gradient(135deg,oklch(0.18_0.015_50),oklch(0.16_0.008_50))] dark:[box-shadow:inset_0_0_0_1px_oklch(0.3_0.03_50)]',
+  soon: '',
+  later: '',
+};
+const ALERT_ICON_STYLE: Record<Urgency, string> = {
+  overdue: 'bg-[oklch(0.94_0.05_25)] text-[oklch(0.58_0.18_25)] dark:bg-[oklch(0.24_0.05_25)] dark:text-[oklch(0.72_0.18_25)]',
+  imminent: 'bg-[oklch(0.95_0.04_50)] text-[oklch(0.58_0.15_50)] dark:bg-[oklch(0.24_0.04_50)] dark:text-[oklch(0.72_0.15_50)]',
+  soon: '',
+  later: '',
+};
+const ALERT_TIME_STYLE: Record<Urgency, string> = {
+  overdue: 'text-[oklch(0.52_0.18_25)] dark:text-[oklch(0.72_0.18_25)]',
+  imminent: 'text-[oklch(0.52_0.15_50)] dark:text-[oklch(0.72_0.15_50)]',
+  soon: '',
+  later: '',
+};
+const UPCOMING_CARD_STYLE: Record<Urgency, string> = {
+  overdue:
+    'border-l-[3px] border-l-[oklch(0.63_0.2_25)] bg-[linear-gradient(135deg,oklch(0.98_0.012_25),oklch(0.99_0.004_25))] dark:border-l-[oklch(0.58_0.18_25)] dark:bg-[linear-gradient(135deg,oklch(0.16_0.02_25),oklch(0.14_0.008_25))]',
+  imminent:
+    'border-l-[3px] border-l-[oklch(0.64_0.16_50)] bg-[linear-gradient(135deg,oklch(0.98_0.01_50),oklch(0.99_0.004_50))] dark:border-l-[oklch(0.58_0.15_50)] dark:bg-[linear-gradient(135deg,oklch(0.16_0.015_50),oklch(0.14_0.006_50))]',
+  soon: 'border-l-[3px] border-l-[oklch(0.62_0.12_80)] dark:border-l-[oklch(0.55_0.1_80)]',
+  later: 'border-l-[3px] border-l-border dark:border-l-[oklch(0.3_0.004_285)]',
+};
+const DEADLINE_LABEL_STYLE: Record<Urgency, string> = {
+  overdue: 'text-[oklch(0.52_0.18_25)] dark:text-[oklch(0.72_0.18_25)]',
+  imminent: 'text-[oklch(0.52_0.15_50)] dark:text-[oklch(0.72_0.15_50)]',
+  soon: 'text-[oklch(0.48_0.12_80)] dark:text-[oklch(0.72_0.1_80)]',
+  later: '',
+};
+const STATUS_BADGE_STYLE = {
+  venter:
+    'border-border bg-muted text-muted-foreground dark:border-[oklch(0.48_0.06_80/0.5)] dark:bg-[oklch(0.3_0.05_80/0.32)] dark:text-[oklch(0.76_0.1_80)]',
+  afleveret:
+    'border-border bg-muted text-muted-foreground dark:border-[oklch(0.46_0.05_145/0.45)] dark:bg-[oklch(0.3_0.05_145/0.28)] dark:text-[oklch(0.74_0.09_145)]',
+  mangler:
+    'border-border bg-muted text-muted-foreground dark:border-[oklch(0.44_0.02_25/0.45)] dark:bg-[oklch(0.28_0.01_25/0.4)] dark:text-[oklch(0.74_0.04_25)]',
+};
 
 function getExerciseIdFromUrl(url: string): string | null {
   const match = url.match(/exerciseid=(\d+)/i);
@@ -405,6 +450,10 @@ function getExerciseIdFromUrl(url: string): string | null {
 
 function getMissingIgnoreStorageKey(schoolId: string): string {
   return `${MISSING_IGNORED_PREFIX}${schoolId}`;
+}
+
+function getLegacyMissingIgnoreStorageKey(schoolId: string): string {
+  return `${LEGACY_MISSING_IGNORED_PREFIX}${schoolId}`;
 }
 
 function parseStudentTimeHours(studentTime: string): number {
@@ -457,7 +506,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   useEffect(() => {
     try {
       const key = getMissingIgnoreStorageKey(schoolId);
-      const raw = localStorage.getItem(key);
+      const legacyKey = getLegacyMissingIgnoreStorageKey(schoolId);
+      const raw = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
+      if (!localStorage.getItem(key) && raw) {
+        localStorage.setItem(key, raw);
+      }
       if (!raw) {
         setIgnoredMissingIds(new Set());
         return;
@@ -606,11 +659,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const hasActiveFilters = selectedHold !== null || datePreset !== 'all' || queryLower !== '';
 
   return (
-    <div className="il-opgaver-page space-y-4">
+    <div className="space-y-4 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* ── Header ─────────────────────────────── */}
-      <div className="il-opgaver-header rounded-xl border border-border bg-card px-5 py-4">
-        <h1 className="il-opgaver-title text-2xl font-bold tracking-tight text-foreground">Opgaver</h1>
-        <p className="il-opgaver-subtitle text-sm text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card px-5 py-4">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground max-sm:text-2xl">Opgaver</h1>
+        <p className="text-sm text-muted-foreground">
           {upcoming.length} kommende &middot; {submitted.length} afleveret
         </p>
       </div>
@@ -618,59 +671,66 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
       {/* ── Urgent banner ──────────────────────── */}
       {nextUrgent && (
         <button
-          className={`il-opgaver-alert-banner is-${nextUrgent.display.urgency} flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/40`}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/40 max-sm:gap-2.5 max-sm:p-3',
+            ALERT_BANNER_STYLE[nextUrgent.display.urgency],
+          )}
           onClick={(e) => openDetail(e as unknown as MouseEvent, nextUrgent.entry)}
         >
-          <div className="il-opgaver-alert-icon inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <div className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground', ALERT_ICON_STYLE[nextUrgent.display.urgency])}>
             {nextUrgent.display.urgency === 'overdue' ? (
               <AlertTriangle size={20} />
             ) : (
               <Flame size={20} />
             )}
           </div>
-          <div className="il-opgaver-alert-content min-w-0 flex-1">
-            <span className="il-opgaver-alert-time block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <span className={cn('block text-xs font-semibold uppercase tracking-wide text-muted-foreground', ALERT_TIME_STYLE[nextUrgent.display.urgency])}>
               {nextUrgent.display.label}
               {nextUrgent.entry.status === 'mangler' &&
                 ' — Mangler aflevering'}
             </span>
-            <span className="il-opgaver-alert-title block truncate text-sm font-medium text-foreground">{nextUrgent.entry.title}</span>
+            <span className="block truncate text-sm font-medium text-foreground">{nextUrgent.entry.title}</span>
           </div>
-          <ArrowRight size={16} className="il-opgaver-alert-arrow shrink-0 text-muted-foreground" />
+          <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
         </button>
       )}
 
       {/* ── Search + filters toolbar ───────────── */}
-      <div className="il-opgaver-toolbar flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
         {/* Search */}
-        <div className="il-opgaver-search relative min-w-[240px] flex-1">
-          <Search size={15} className="il-opgaver-search-icon" />
+        <div className="relative min-w-[240px] flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={searchRef}
             type="text"
-            className="il-opgaver-search-input h-10 w-full rounded-lg border border-border bg-background pl-9 pr-20 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-20 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:pr-10 dark:bg-[oklch(0.18_0.004_285)]"
             placeholder="Søg opgaver..."
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
           />
           {searchQuery && (
             <button
-              className="il-opgaver-search-clear absolute right-12 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="absolute right-12 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               onClick={() => setSearchQuery('')}
             >
               <X size={14} />
             </button>
           )}
-          <kbd className="il-opgaver-search-kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
+          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground max-sm:hidden">⌘K</kbd>
         </div>
 
         {/* Date presets */}
-        <div className="il-opgaver-date-filters flex flex-wrap items-center gap-1.5">
-          <CalendarDays size={14} className="il-opgaver-date-icon text-muted-foreground" />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <CalendarDays size={14} className="text-muted-foreground" />
           {DATE_PRESETS.map(preset => (
             <button
               key={preset.key}
-              className={`il-opgaver-date-pill${datePreset === preset.key ? ' is-active' : ''} rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent`}
+              className={cn(
+                'rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent',
+                datePreset === preset.key &&
+                  'border-[oklch(0.34_0.06_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.43_0.14_265)] hover:bg-[oklch(0.92_0.08_265)] dark:border-[oklch(0.34_0.06_265)] dark:bg-[oklch(0.24_0.06_265)] dark:text-[oklch(0.75_0.12_265)] dark:hover:bg-[oklch(0.28_0.08_265)]',
+              )}
               onClick={() => setDatePreset(datePreset === preset.key ? 'all' : preset.key)}
             >
               {preset.label}
@@ -681,9 +741,12 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
       {/* ── Hold filter pills ──────────────────── */}
       {holds.length > 1 && (
-        <div className="il-opgaver-filters flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
-            className={`il-opgaver-filter-pill${selectedHold === null ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent',
+              selectedHold === null && 'border-primary/40 bg-primary/10 text-foreground',
+            )}
             onClick={() => setSelectedHold(null)}
           >
             Alle fag
@@ -691,13 +754,19 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           {holds.map(hold => (
             <button
               key={hold}
-              className={`il-opgaver-filter-pill${selectedHold === hold ? ' is-active' : ''} inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent`}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent',
+                selectedHold === hold &&
+                  'border-[oklch(0.6_0.12_var(--hold-hue,265))] bg-[oklch(0.94_0.06_var(--hold-hue,265))] text-[oklch(0.4_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]',
+              )}
               onClick={() =>
                 setSelectedHold(selectedHold === hold ? null : hold)
               }
               style={{ '--hold-hue': getHoldHue(hold) } as any}
             >
-              <span className="il-opgaver-filter-dot inline-block size-2 rounded-full bg-primary/70" />
+              <span
+                className="inline-block size-2 rounded-full bg-[oklch(0.54_0.2_var(--hold-hue,265))] dark:bg-[oklch(0.62_0.1_var(--hold-hue,265))]"
+              />
               {getHoldDisplayName(hold)}
             </button>
           ))}
@@ -706,16 +775,16 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
       {/* ── Empty state ────────────────────────── */}
       {filtered.length === 0 ? (
-        <div className="il-opgaver-empty flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
           {hasActiveFilters ? (
             <>
-              <Search className="il-opgaver-empty-icon mb-3 size-6 text-muted-foreground" />
-              <p className="il-opgaver-empty-title text-base font-semibold text-foreground">Ingen resultater</p>
-              <p className="il-opgaver-empty-subtitle text-sm text-muted-foreground">
+              <Search className="mb-3 size-6 text-muted-foreground" />
+              <p className="text-base font-semibold text-foreground">Ingen resultater</p>
+              <p className="text-sm text-muted-foreground">
                 Prøv at ændre dine filtre eller søgning
               </p>
               <button
-                className="il-opgaver-empty-reset mt-4 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                className="mt-4 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedHold(null);
@@ -727,9 +796,9 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
             </>
           ) : (
             <>
-              <ClipboardList className="il-opgaver-empty-icon mb-3 size-6 text-muted-foreground" />
-              <p className="il-opgaver-empty-title text-base font-semibold text-foreground">Ingen opgaver</p>
-              <p className="il-opgaver-empty-subtitle text-sm text-muted-foreground">
+              <ClipboardList className="mb-3 size-6 text-muted-foreground" />
+              <p className="text-base font-semibold text-foreground">Ingen opgaver</p>
+              <p className="text-sm text-muted-foreground">
                 Der er ingen opgaver at vise
               </p>
             </>
@@ -739,27 +808,27 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
         <>
           {/* ── Upcoming ───────────────────────── */}
           {upcoming.length > 0 && (
-            <section className="il-opgaver-section space-y-3 rounded-xl border border-border bg-card p-3">
+            <section className="space-y-3 rounded-xl border border-border bg-card p-3">
               <button
                 type="button"
-                className="il-opgaver-section-toggle flex w-full items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-accent/40"
+                className="flex w-full items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-accent/40"
                 onClick={() => setIsUpcomingCollapsed((prev) => !prev)}
                 aria-expanded={!isUpcomingCollapsed}
               >
-                <h2 className="il-opgaver-section-title inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <h2 className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   <Clock size={14} />
                   Kommende
-                  <span className="il-opgaver-section-count rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                     {upcoming.length}
                   </span>
                 </h2>
                 <ChevronDown
                   size={16}
-                  className={`il-opgaver-section-chevron${isUpcomingCollapsed ? ' is-collapsed' : ''}`}
+                  className={cn('transition-transform', isUpcomingCollapsed && 'rotate-180')}
                 />
               </button>
               {!isUpcomingCollapsed && (
-                <div className="il-opgaver-upcoming grid gap-2">
+                <div className="grid gap-2">
                   {upcoming.map((entry, idx) => {
                     const display = getDeadlineDisplay(entry.deadline);
                     const aggressiveMissing = isAggressiveMissing(entry, ignoredMissingIds, new Date());
@@ -778,7 +847,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       <a
                         key={idx}
                         href={entry.url}
-                        className={`il-opgaver-card is-${effectiveUrgency} rounded-lg border border-border bg-background p-3 no-underline transition-colors hover:bg-accent/25`}
+                        className={cn(
+                          'rounded-lg border border-border bg-background p-3 no-underline transition-all animate-[opgaver-slide-up_0.5s_ease_both] hover:-translate-y-px hover:bg-accent/25 hover:shadow-[0_4px_16px_oklch(0_0_0/0.06)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_20px_oklch(0_0_0/0.4)]',
+                          UPCOMING_CARD_STYLE[effectiveUrgency],
+                        )}
                         style={
                           {
                             '--hold-hue': hue,
@@ -790,26 +862,26 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         }
                       >
                         {/* Deadline — the hero element */}
-                        <div className="il-opgaver-card-deadline flex flex-wrap items-center justify-between gap-2">
-                          <div className="il-opgaver-deadline-info inline-flex min-w-0 items-center gap-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2 max-sm:flex-col max-sm:items-start max-sm:gap-1.5">
+                          <div className="inline-flex min-w-0 items-center gap-1.5">
                             {effectiveUrgency === 'overdue' && (
                               <AlertTriangle
                                 size={16}
-                                className="il-opgaver-deadline-icon"
+                                className={cn('relative top-px', DEADLINE_LABEL_STYLE[effectiveUrgency])}
                               />
                             )}
-                            <span className="il-opgaver-deadline-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <span className={cn('text-xs font-semibold uppercase tracking-wide text-muted-foreground', DEADLINE_LABEL_STYLE[effectiveUrgency])}>
                               {display.label}
                             </span>
-                            <span className="il-opgaver-deadline-sep text-muted-foreground">
+                            <span className="text-xs text-muted-foreground/40">
                               &middot;
                             </span>
-                            <span className="il-opgaver-deadline-detail text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground tabular-nums">
                               {display.detail}
                             </span>
                           </div>
                           <span
-                            className="il-opgaver-hold-pill rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground"
+                            className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-medium"
                             style={{ '--hold-hue': hue } as any}
                           >
                             {getHoldDisplayName(entry.hold)}
@@ -817,31 +889,33 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         </div>
 
                         {/* Title */}
-                        <span className="il-opgaver-card-title mt-1 block text-sm font-medium text-foreground">
+                        <span
+                          className="mt-1 block truncate text-sm font-medium text-foreground transition-colors hover:text-[oklch(0.5_0.16_var(--hold-hue,235))] max-sm:whitespace-normal"
+                        >
                           {entry.title}
                         </span>
 
                         {/* Missing submission badge */}
                         {entry.status === 'mangler' && aggressiveMissing && (
-                          <div className="il-opgaver-missing-badge mt-2 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
+                          <div className="mt-2 inline-flex items-center gap-1 rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive dark:border-[oklch(0.58_0.18_25/0.2)] dark:bg-[oklch(0.58_0.18_25/0.12)] dark:text-[oklch(0.72_0.18_25)]">
                             <Upload size={13} />
                             Mangler aflevering
                           </div>
                         )}
                         {entry.status === 'mangler' && !aggressiveMissing && (
-                          <div className="il-opgaver-status-badge is-mangler mt-2 inline-flex rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                          <div className={cn('mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-medium', STATUS_BADGE_STYLE.mangler)}>
                             {entry.statusText || 'Ikke afleveret'}
                           </div>
                         )}
                         {entry.status !== 'mangler' && entry.statusText && (
-                          <div className={`il-opgaver-status-badge is-${entry.status} mt-2 inline-flex rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium text-muted-foreground`}>
+                          <div className={cn('mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-medium', STATUS_BADGE_STYLE[entry.status])}>
                             {entry.statusText}
                           </div>
                         )}
                         {entry.status === 'mangler' && (
                           <button
                             type="button"
-                            className="il-opgaver-ignore-missing mt-2 inline-flex rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
+                            className="mt-2 inline-flex rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -858,7 +932,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
                         {/* Meta */}
                         {hasMeta && (
-                          <div className="il-opgaver-card-meta mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                             {entry.studentTime &&
                               entry.studentTime !== '0,00' && (
                                 <span>{entry.studentTime} timer</span>
@@ -866,7 +940,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                             {entry.studentTime &&
                               entry.studentTime !== '0,00' &&
                               entry.awaiting && (
-                                <span className="il-opgaver-meta-dot" />
+                                <span className="size-[3px] rounded-full bg-muted-foreground/40" />
                               )}
                             {entry.awaiting && <span>{entry.awaiting}</span>}
                           </div>
@@ -875,7 +949,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         {/* Note */}
                         {entry.note && (
                           <div
-                            className={`il-opgaver-note${expandedNotes.has(globalIdx) ? ' is-expanded' : ''}`}
+                            className={cn(
+                              'mt-2 cursor-pointer rounded-md border-l-[3px] border-l-[oklch(0.75_0.12_var(--hold-hue,235))] bg-[oklch(0.96_0.005_265/0.6)] px-2.5 py-2 text-[13px] leading-6 text-muted-foreground whitespace-pre-line transition-all dark:border-l-[oklch(0.45_0.1_var(--hold-hue,265))] dark:bg-[oklch(0.18_0.004_285/0.6)]',
+                              expandedNotes.has(globalIdx) ? 'line-clamp-none' : 'line-clamp-2',
+                            )}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -895,15 +972,15 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
           {/* ── Submitted ──────────────────────── */}
           {submitted.length > 0 && (
-            <section className="il-opgaver-section space-y-3 rounded-xl border border-border bg-card p-3">
-              <h2 className="il-opgaver-section-title inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <section className="space-y-3 rounded-xl border border-border bg-card p-3">
+              <h2 className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
                 <CheckCircle2 size={14} />
                 Afleveret
-                <span className="il-opgaver-section-count rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                   {submitted.length}
                 </span>
               </h2>
-              <div className="il-opgaver-submitted-grid grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2 max-sm:grid-cols-1">
                 {visibleSubmitted.map((entry, idx) => {
                   const hue = getHoldHue(entry.hold);
                   const gradeHue = entry.grade
@@ -915,7 +992,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                     <a
                       key={idx}
                       href={entry.url}
-                      className="il-opgaver-submitted-card flex items-start gap-3 rounded-lg border border-border bg-background p-3 no-underline transition-colors hover:bg-accent/25"
+                      className="flex items-start gap-3 rounded-lg border border-border bg-background p-3 no-underline transition-all animate-[opgaver-slide-up_0.35s_ease_both] hover:-translate-y-px hover:bg-accent/25 hover:shadow-[0_4px_16px_oklch(0_0_0/0.06)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_16px_oklch(0_0_0/0.4)]"
                       style={
                         {
                           '--hold-hue': hue,
@@ -927,40 +1004,40 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         openDetail(e as unknown as MouseEvent, entry)
                       }
                     >
-                      <div className="il-opgaver-submitted-grade-wrap inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
+                      <div className="inline-flex size-11 shrink-0 items-center justify-center rounded-[0.625rem] border border-border bg-[oklch(0.94_0.06_var(--grade-hue,145))] dark:bg-[oklch(0.24_0.06_var(--grade-hue,145))]">
                         {entry.grade ? (
-                          <span className="il-opgaver-submitted-grade">
+                          <span className="text-xl font-extrabold leading-none tabular-nums text-[oklch(0.38_0.16_var(--grade-hue,145))] dark:text-[oklch(0.78_0.1_var(--grade-hue,145))]">
                             {entry.grade}
                           </span>
                         ) : entry.status === 'mangler' ? (
                           <XCircle
                             size={18}
-                            className="il-opgaver-submitted-missing"
+                            className="text-[oklch(0.58_0.18_25)] dark:text-[oklch(0.72_0.16_25)]"
                           />
                         ) : (
                           <Check
                             size={18}
-                            className="il-opgaver-submitted-check"
+                            className="text-[oklch(0.5_0.12_145)] dark:text-[oklch(0.62_0.1_145)]"
                           />
                         )}
                       </div>
-                      <div className="il-opgaver-submitted-info min-w-0 flex-1">
-                        <span className="il-opgaver-submitted-title block truncate text-sm font-medium text-foreground">
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium text-foreground transition-colors hover:text-[oklch(0.5_0.16_var(--hold-hue,235))] max-sm:whitespace-normal dark:hover:text-[oklch(0.72_0.12_var(--hold-hue,265))]">
                           {entry.title}
                         </span>
-                        <div className="il-opgaver-submitted-meta mt-1 flex flex-wrap items-center gap-2">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span
-                            className="il-opgaver-hold-pill rounded-md border border-border px-2 py-0.5 text-xs font-medium text-foreground"
+                            className="hold-pill-dynamic rounded-full px-2 py-0.5 text-xs font-medium"
                             style={{ '--hold-hue': hue } as any}
                           >
                             {getHoldDisplayName(entry.hold)}
                           </span>
-                          <span className="il-opgaver-submitted-date text-xs text-muted-foreground">
+                          <span className="text-xs tabular-nums text-muted-foreground">
                             {formatAbsoluteDeadline(entry.deadline)}
                           </span>
                         </div>
                         {entry.gradeExtra && (
-                          <span className="il-opgaver-submitted-extra mt-1 block text-xs text-muted-foreground">
+                          <span className="mt-1 block text-xs italic text-muted-foreground/70">
                             {entry.gradeExtra}
                           </span>
                         )}
@@ -971,7 +1048,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               </div>
               {submitted.length > 6 && !showAllSubmitted && (
                 <button
-                  className="il-opgaver-show-more inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-input bg-muted px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   onClick={() => setShowAllSubmitted(true)}
                 >
                   <ChevronDown size={16} />

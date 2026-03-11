@@ -160,41 +160,41 @@ function LinkPopover({ onInsert, onCancel, anchorRef }: LinkPopoverProps) {
   return (
     <div
       ref={popoverRef}
-      className="il-link-popover absolute left-0 top-[calc(100%+8px)] z-50 w-[260px] rounded-lg border border-border bg-popover p-3 shadow-xl"
+      className="absolute left-0 top-[calc(100%+8px)] z-50 w-[260px] rounded-lg border border-border bg-popover p-3 shadow-xl"
       onKeyDown={handleKeyDown}
     >
-      <div className="il-link-popover-field mb-2.5 flex flex-col gap-1.5">
-        <label className="il-link-popover-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">URL</label>
+      <div className="mb-2.5 flex flex-col gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">URL</label>
         <input
           ref={urlInputRef}
           type="text"
-          className="il-link-popover-input h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+          className="h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
           value={url}
           onInput={(e) => setUrl((e.target as HTMLInputElement).value)}
           placeholder="https://..."
         />
       </div>
-      <div className="il-link-popover-field mb-3 flex flex-col gap-1.5">
-        <label className="il-link-popover-label text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tekst (valgfri)</label>
+      <div className="mb-3 flex flex-col gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tekst (valgfri)</label>
         <input
           type="text"
-          className="il-link-popover-input h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+          className="h-8 rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
           value={text}
           onInput={(e) => setText((e.target as HTMLInputElement).value)}
           placeholder="Linktekst"
         />
       </div>
-      <div className="il-link-popover-actions flex justify-end gap-2">
+      <div className="flex justify-end gap-2">
         <button
           type="button"
-          className="il-link-popover-cancel inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+          className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
           onClick={onCancel}
         >
           Annuller
         </button>
         <button
           type="button"
-          className="il-link-popover-submit inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
           onClick={handleSubmit}
         >
           Indsæt
@@ -373,15 +373,15 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
 
   return (
     <div
-      className="il-bbcode-toolbar flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1"
+      className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1"
       role="toolbar"
       aria-label="Tekstformatering"
     >
       <button
         type="button"
         className={cn(
-          "il-bbcode-btn inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
-          activeFormats.has('B') && "il-bbcode-btn-active border-border bg-accent text-accent-foreground",
+          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+          activeFormats.has('B') && "border-border bg-accent text-accent-foreground",
         )}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleBold}
@@ -393,8 +393,8 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       <button
         type="button"
         className={cn(
-          "il-bbcode-btn inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
-          activeFormats.has('I') && "il-bbcode-btn-active border-border bg-accent text-accent-foreground",
+          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+          activeFormats.has('I') && "border-border bg-accent text-accent-foreground",
         )}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleItalic}
@@ -406,8 +406,8 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       <button
         type="button"
         className={cn(
-          "il-bbcode-btn inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
-          activeFormats.has('U') && "il-bbcode-btn-active border-border bg-accent text-accent-foreground",
+          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+          activeFormats.has('U') && "border-border bg-accent text-accent-foreground",
         )}
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleUnderline}
@@ -416,14 +416,14 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       >
         <Underline size={15} />
       </button>
-      <div className="il-bbcode-separator mx-1 h-5 w-px bg-border" />
-      <div className="il-bbcode-link-wrapper relative">
+      <div className="mx-1 h-5 w-px bg-border" />
+      <div className="relative">
         <button
           ref={linkBtnRef}
           type="button"
           className={cn(
-            "il-bbcode-btn inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
-            activeFormats.has('A') && "il-bbcode-btn-active border-border bg-accent text-accent-foreground",
+            "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+            activeFormats.has('A') && "border-border bg-accent text-accent-foreground",
           )}
           onMouseDown={(e) => e.preventDefault()}
           onClick={openLinkPopover}
@@ -442,7 +442,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       </div>
       <button
         type="button"
-        className="il-bbcode-btn inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent"
+        className="inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent"
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleUnorderedList}
         title="Punktopstilling"
@@ -451,7 +451,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       </button>
       <button
         type="button"
-        className="il-bbcode-btn inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent"
+        className="inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent"
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleOrderedList}
         title="Nummereret liste"

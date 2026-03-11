@@ -63,6 +63,7 @@ export default defineConfig({
       'screenshots/**',
       // Development docs
       'CLAUDE.md',
+      'AGENTS.md',
       'ARCHITECTURE.md',
       'SOURCE_CODE_REVIEW.md',
       'web-ext.config.ts',

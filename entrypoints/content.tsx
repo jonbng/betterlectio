@@ -731,7 +731,14 @@ function setupWeekendCollapse() {
   if (weekendIndices.length === 0) return;
 
   // Read persisted state (default: collapsed)
-  const stored = localStorage.getItem("il-weekend-collapsed");
+  const weekendCollapsedKey = "bl-weekend-collapsed";
+  const legacyWeekendCollapsedKey = "il-weekend-collapsed";
+  const stored =
+    localStorage.getItem(weekendCollapsedKey) ??
+    localStorage.getItem(legacyWeekendCollapsedKey);
+  if (!localStorage.getItem(weekendCollapsedKey) && stored !== null) {
+    localStorage.setItem(weekendCollapsedKey, stored);
+  }
   let isCollapsed = stored !== "false"; // default true
 
   function applyState() {
@@ -751,7 +758,7 @@ function setupWeekendCollapse() {
 
   function toggle() {
     isCollapsed = !isCollapsed;
-    localStorage.setItem("il-weekend-collapsed", String(isCollapsed));
+    localStorage.setItem(weekendCollapsedKey, String(isCollapsed));
     applyState();
   }
 
@@ -1439,7 +1446,7 @@ function injectBeskederThreadView(schoolId: string) {
 
 function injectBeskederCompose(schoolId: string) {
   document.body.classList.add("il-beskeder-page-active");
-  document.body.classList.add("il-beskeder-compose-active");
+  document.body.classList.add("bl-beskeder-compose-active");
 
   const data = parseComposeFromDOM();
   if (!data) {

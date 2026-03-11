@@ -3,7 +3,7 @@ import {
   Search, X, Plus, CheckCheck, Trash2, Flag, FlagOff,
   Mail, MailOpen, Paperclip, ChevronDown, ChevronRight,
   Inbox, Send, Star, Clock, AlertCircle, Users, FolderOpen,
-  MoreHorizontal, MailWarning,
+  MoreHorizontal, MailWarning, Check, Minus,
 } from 'lucide-react';
 import {
   parseBeskederFromDOM,
@@ -38,6 +38,7 @@ import {
 import { getTeacherName, getTeacherContextCardId, loadTeacherNames, type TeacherCache } from '@/lib/teacher-cache';
 import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
 import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
+import { cn } from '@/lib/utils';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -84,27 +85,29 @@ function FolderPill({ folder, isChild, onSelectFolder }: FolderPillProps) {
     }
   };
 
-  const pillClass = [
-    'il-beskeder-folder-pill',
-    folder.isSelected ? 'is-selected' : '',
-    isChild ? 'is-child' : '',
-    folder.isExpandable ? 'is-expandable' : '',
-  ].filter(Boolean).join(' ');
+  const pillClass = cn(
+    'inline-flex items-center gap-1.5 rounded-full border bg-background text-xs font-medium leading-tight text-muted-foreground transition-all',
+    'px-3 py-1.5',
+    'hover:border-muted-foreground hover:bg-muted hover:text-foreground',
+    folder.isSelected && 'border-primary bg-primary text-primary-foreground font-semibold',
+    isChild && 'px-2.5 py-1 text-[11px]',
+    folder.isExpandable && 'pr-2',
+  );
 
   return (
-    <div className="il-beskeder-folder-group">
-      <button type="button" className={pillClass} onClick={handleClick}>
+    <div className="relative">
+      <button type="button" className={cn('group', pillClass)} onClick={handleClick}>
         {!isChild && getFolderIcon(folder.id)}
-        <span className="il-beskeder-folder-name truncate">{folder.name}</span>
+        <span className="truncate">{folder.name}</span>
         {folder.isExpandable && folder.children.length > 0 && (
-          <span className="il-beskeder-folder-chevron">
+          <span className="inline-flex items-center opacity-70 transition-opacity group-hover:opacity-100">
             {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
           </span>
         )}
       </button>
 
       {folder.isExpandable && expanded && folder.children.length > 0 && (
-        <div className="il-beskeder-folder-sublist ml-3 mt-1 space-y-1 border-l border-border/60 pl-2">
+        <div className="animate-[beskeder-dropdown-in_0.15s_ease-out] absolute left-0 top-[calc(100%+6px)] z-50 flex max-h-72 min-w-56 max-w-96 flex-wrap gap-1 overflow-y-auto rounded-lg border border-border bg-popover p-2 shadow-[0_4px_16px_oklch(0_0_0/0.08),0_1px_3px_oklch(0_0_0/0.04)]">
           {folder.children.map(child => (
             <FolderPill key={child.id} folder={child} isChild onSelectFolder={onSelectFolder} />
           ))}
@@ -128,7 +131,7 @@ function FolderNav({ folders, onSelectFolder }: { folders: BeskedFolder[]; onSel
   });
 
   return (
-    <nav className="il-beskeder-folders flex flex-wrap gap-1.5 rounded-xl border border-border bg-card p-2">
+    <nav className="mb-4 flex flex-wrap gap-1.5 rounded-xl border border-border bg-card p-2 pb-4">
       {sorted.map(folder => (
         <FolderPill key={folder.id} folder={folder} onSelectFolder={onSelectFolder} />
       ))}
@@ -174,7 +177,7 @@ function SenderAvatar({ person, schoolId, nameIdReady }: { person: PersonRef; sc
       <img
         src={pictureUrl}
         alt={displayName}
-        className="il-beskeder-avatar il-beskeder-avatar-img size-8 rounded-full object-cover"
+        className="size-8 rounded-full object-cover object-top"
         title={displayName}
         onError={() => setImgError(true)}
       />
@@ -183,7 +186,7 @@ function SenderAvatar({ person, schoolId, nameIdReady }: { person: PersonRef; sc
 
   return (
     <div
-      className="il-beskeder-avatar inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-xs font-semibold text-foreground"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-xs font-semibold [background:oklch(0.92_0.03_var(--avatar-hue))] text-[oklch(0.35_0.08_var(--avatar-hue))] dark:[background:oklch(0.28_0.04_var(--avatar-hue))] dark:text-[oklch(0.76_0.08_var(--avatar-hue))]"
       style={{ '--avatar-hue': hue } as any}
       title={displayName}
     >
@@ -222,18 +225,18 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
   const [showActions, setShowActions] = useState(false);
   const isBusy = actionIsLoading(actionLoading, thread.threadId);
 
-  const rowClass = [
-    'il-beskeder-row relative flex items-center gap-3 border-b border-border/70 px-3 py-2.5 transition-colors hover:bg-accent/30',
-    thread.isUnread ? 'is-unread' : '',
-    thread.isFlagged ? 'is-flagged' : '',
-    isSelected ? 'is-selected' : '',
-  ].filter(Boolean).join(' ');
+  const rowClass = cn(
+    'animate-[beskeder-row-in_0.25s_ease-out_both] relative flex cursor-pointer items-center gap-3 border-b border-border/70 px-3 py-2.5 transition-colors last:border-b-0',
+    'hover:bg-muted',
+    thread.isUnread && 'bg-primary/5',
+    isSelected && 'bg-primary/10 hover:bg-primary/15',
+  );
 
   const handleOpen = (e: MouseEvent) => {
     // Don't open if clicking on an action button or checkbox
     const target = e.target as HTMLElement;
-    if (target.closest('.il-beskeder-row-actions') ||
-        target.closest('.il-beskeder-row-check')) return;
+    if (target.closest('[data-row-actions]') ||
+        target.closest('[data-row-check]')) return;
     openThread(thread.threadId);
   };
 
@@ -281,50 +284,59 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
       style={{ animationDelay: `${index * 30}ms` } as any}
     >
       {/* Checkbox */}
-      <label className="il-beskeder-row-check inline-flex size-5 shrink-0 items-center justify-center rounded border border-border bg-background" onClick={(e) => e.stopPropagation()}>
+      <label data-row-check className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center" onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
           checked={isSelected}
           onChange={handleCheck}
+          className="peer sr-only"
         />
-        <span className="il-beskeder-row-checkmark" />
+        <span className="inline-flex size-4 items-center justify-center rounded-[4px] border border-border bg-background transition-colors peer-checked:border-primary peer-checked:bg-primary">
+          <Check size={12} className="text-primary-foreground opacity-0 transition-opacity peer-checked:opacity-100" />
+        </span>
       </label>
 
       {/* Unread indicator */}
-      {thread.isUnread && <div className="il-beskeder-row-dot size-2 shrink-0 rounded-full bg-primary" />}
+      {thread.isUnread && <div className="absolute left-1 size-1.5 shrink-0 rounded-full bg-primary" />}
 
       {/* Avatar */}
       <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} />
 
       {/* Content */}
-      <div className="il-beskeder-row-content min-w-0 flex-1">
-        <div className="il-beskeder-row-top flex items-center justify-between gap-2">
-          <span className="il-beskeder-row-sender truncate text-sm font-semibold text-foreground">
+      <div className="min-w-0 flex-1 pr-17">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
+          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-sm text-foreground", thread.isUnread ? "font-semibold" : "font-medium")}>
             {getPersonLabel(thread.latestSender)}
           </span>
-          <span className="il-beskeder-row-date shrink-0 text-xs text-muted-foreground">{dateDisplay}</span>
+          <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">{dateDisplay}</span>
         </div>
-        <div className="il-beskeder-row-middle mt-0.5 inline-flex items-center gap-1.5">
-          <span className="il-beskeder-row-subject truncate text-sm text-foreground">{thread.subject}</span>
+        <div className="mt-0.5 inline-flex items-center gap-1.5">
+          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-sm text-foreground/85", thread.isUnread && "font-semibold text-foreground")}>{thread.subject}</span>
           {thread.hasAttachment && (
-            <Paperclip size={13} className="il-beskeder-row-attachment" />
+            <Paperclip size={13} className="shrink-0 text-muted-foreground/70" />
           )}
           {thread.isFlagged && (
-            <Flag size={13} className="il-beskeder-row-flag-icon" />
+            <Flag size={13} className="shrink-0 text-[oklch(0.65_0.18_50)]" />
           )}
         </div>
-        <div className="il-beskeder-row-bottom mt-0.5">
-          <span className="il-beskeder-row-recipients truncate text-xs text-muted-foreground">
+        <div className="mt-0.5 flex items-center">
+          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-[11px] leading-tight text-muted-foreground">
             Til: {getPersonLabel(thread.recipients)}
           </span>
         </div>
       </div>
 
       {/* Hover actions */}
-      <div className={`il-beskeder-row-actions ${showActions ? 'is-visible' : ''} ml-2 inline-flex items-center gap-1`}>
+      <div
+        data-row-actions
+        className={cn(
+          'pointer-events-none absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-md bg-card p-0.5 shadow-[-8px_0_8px_var(--card)] transition-opacity',
+          showActions ? 'pointer-events-auto opacity-100' : 'opacity-0',
+        )}
+      >
         <button
           type="button"
-          className="il-beskeder-action-btn inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex size-6.5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={handleFlag}
           disabled={isBusy}
           title={thread.isFlagged ? 'Fjern flag' : 'Tilføj flag'}
@@ -333,7 +345,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
         </button>
         <button
           type="button"
-          className="il-beskeder-action-btn inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex size-6.5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={handleRead}
           disabled={isBusy}
           title={thread.isRead ? 'Marker som ulæst' : 'Marker som læst'}
@@ -342,7 +354,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
         </button>
         <button
           type="button"
-          className="il-beskeder-action-btn il-beskeder-action-danger inline-flex size-8 items-center justify-center rounded-md border border-destructive/30 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+          className="inline-flex size-6.5 items-center justify-center rounded text-destructive transition-colors hover:bg-[oklch(0.95_0.02_25)] hover:text-[oklch(0.55_0.2_25)] dark:hover:bg-[oklch(0.25_0.04_25)] dark:hover:text-[oklch(0.7_0.16_25)]"
           onClick={handleDelete}
           disabled={isBusy}
           title="Slet besked"
@@ -696,18 +708,18 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   const someSelected = selectedThreads.size > 0;
 
   return (
-    <div className="il-beskeder-page space-y-4">
+    <div className="space-y-4">
       {/* ── Header ─────────────────────────────── */}
-      <div className="il-beskeder-header flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
-        <div className="il-beskeder-header-left inline-flex items-center gap-2">
-          <h1 className="il-beskeder-title text-2xl font-bold tracking-tight text-foreground">Beskeder</h1>
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
+        <div className="inline-flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Beskeder</h1>
           {unreadCount > 0 && (
-            <span className="il-beskeder-badge inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{unreadCount}</span>
+            <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{unreadCount}</span>
           )}
         </div>
         <button
           type="button"
-          className="il-beskeder-new-btn inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 active:scale-[0.97]"
           onClick={() => newMessage()}
         >
           <Plus size={16} />
@@ -719,25 +731,30 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       <FolderNav folders={folders} onSelectFolder={handleSelectFolder} />
 
       {/* ── Toolbar ────────────────────────────── */}
-      <div className="il-beskeder-toolbar flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
-        <div className="il-beskeder-toolbar-left inline-flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+        <div className="inline-flex items-center gap-2">
           {/* Select all */}
-          <label className="il-beskeder-select-all inline-flex size-8 items-center justify-center rounded-md border border-border bg-background" title="Markér alle">
+          <label className="inline-flex size-8 cursor-pointer items-center justify-center" title="Markér alle">
             <input
               type="checkbox"
               checked={allSelected}
-              // @ts-ignore -- indeterminate is valid on input
-              indeterminate={someSelected && !allSelected}
               onChange={handleSelectAll}
+              className="peer sr-only"
             />
-            <span className="il-beskeder-select-checkmark" />
+            <span className="inline-flex size-4 items-center justify-center rounded-[4px] border border-border bg-background text-primary-foreground transition-colors peer-checked:border-primary peer-checked:bg-primary">
+              {someSelected && !allSelected ? (
+                <Minus size={12} className="text-primary" />
+              ) : (
+                <Check size={12} className={cn('transition-opacity', allSelected ? 'opacity-100' : 'opacity-0')} />
+              )}
+            </span>
           </label>
 
           {someSelected && (
             <>
               <button
                 type="button"
-                className="il-beskeder-toolbar-btn inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 onClick={handleMarkAllRead}
                 title="Alle læst"
               >
@@ -745,22 +762,22 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
               </button>
 
               {/* Bulk actions dropdown */}
-              <div className="il-beskeder-bulk-wrap relative" ref={bulkRef}>
+              <div className="relative" ref={bulkRef}>
                 <button
                   type="button"
-                  className="il-beskeder-toolbar-btn inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
                   title="Flere handlinger"
                 >
                   <MoreHorizontal size={15} />
                 </button>
                 {bulkMenuOpen && (
-                  <div className="il-beskeder-bulk-menu absolute left-0 top-[calc(100%+6px)] z-40 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-lg">
+                  <div className="animate-[beskeder-dropdown-in_0.12s_ease-out] absolute left-0 top-[calc(100%+6px)] z-40 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-[0_4px_16px_oklch(0_0_0/0.08),0_1px_3px_oklch(0_0_0/0.04)]">
                     {data.toolbar.bulkActions.map(action => (
                       <button
                         type="button"
                         key={action.value}
-                        className="il-beskeder-bulk-item block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                        className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
                         onClick={() => handleBulkAction(action.value)}
                       >
                         {action.label}
@@ -774,12 +791,12 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         </div>
 
         {/* Search */}
-        <form className="il-beskeder-search relative min-w-[240px] flex-1" onSubmit={handleSearch}>
-          <Search size={15} className="il-beskeder-search-icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <form className="relative min-w-[240px] flex-1" onSubmit={handleSearch}>
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={searchRef}
             type="text"
-            className="il-beskeder-search-input h-10 w-full rounded-lg border border-border bg-background pl-9 pr-16 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="peer h-10 w-full rounded-lg border border-border bg-background pl-9 pr-16 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             placeholder="Søg beskeder..."
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -787,36 +804,40 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
           {searchQuery && (
             <button
               type="button"
-              className="il-beskeder-search-clear absolute right-10 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="absolute right-10 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
             >
               <X size={14} />
             </button>
           )}
-          <kbd className="il-beskeder-search-kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">/</kbd>
+          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground opacity-70 transition-opacity peer-focus:opacity-0">/</kbd>
         </form>
       </div>
-      {error && <div className="il-beskeder-reply-error">{error}</div>}
+      {error && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
       {/* ── Folder name label ──────────────────── */}
-      <div className="il-beskeder-folder-label inline-flex items-center gap-2 rounded-md bg-muted/40 px-3 py-1.5">
-        <span className="il-beskeder-folder-label-text text-sm font-semibold text-foreground">{currentFolderName}</span>
-        <span className="il-beskeder-folder-label-count text-xs text-muted-foreground">
+      <div className="mb-1.5 inline-flex items-baseline gap-2 rounded-md bg-muted/40 px-3 py-1.5">
+        <span className="text-sm font-semibold text-foreground">{currentFolderName}</span>
+        <span className="text-xs text-muted-foreground">
           {threads.length} {threads.length === 1 ? 'besked' : 'beskeder'}
         </span>
       </div>
 
       {/* ── Message list ───────────────────────── */}
       {threads.length === 0 ? (
-        <div className="il-beskeder-empty flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
-          <Inbox className="il-beskeder-empty-icon mb-3 size-6 text-muted-foreground" />
-          <p className="il-beskeder-empty-title text-base font-semibold text-foreground">Ingen beskeder</p>
-          <p className="il-beskeder-empty-subtitle text-sm text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-8 py-16 text-center">
+          <Inbox className="mb-4 size-12 text-muted-foreground/40" />
+          <p className="text-base font-semibold text-foreground">Ingen beskeder</p>
+          <p className="text-sm text-muted-foreground">
             Der er ingen beskeder i denne mappe
           </p>
         </div>
       ) : (
-        <div className="il-beskeder-list overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
           {threads.map((thread, idx) => (
             <ThreadRow
               key={thread.threadId}

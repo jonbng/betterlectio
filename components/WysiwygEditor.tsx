@@ -1,7 +1,8 @@
-import { useRef, useEffect, useCallback } from 'preact/hooks';
+import { useRef, useEffect, useCallback, useState } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { bbcodeToHtml, htmlToBBCode, sanitizeHtml, sanitizeUrl } from '@/lib/bbcode-convert';
 import { BBCodeToolbar } from '@/components/BBCodeToolbar';
+import { cn } from '@/lib/utils';
 
 interface WysiwygEditorProps {
   initialBBCode?: string;
@@ -23,6 +24,7 @@ export function WysiwygEditor({
 }: WysiwygEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isEmpty, setIsEmpty] = useState(true);
   // Ref to always-current syncBBCode to avoid stale closures in debounce
   const syncBBCodeRef = useRef<() => void>(() => {});
 
@@ -54,11 +56,18 @@ export function WysiwygEditor({
     if (editorRef.current && initialBBCode) {
       editorRef.current.innerHTML = bbcodeToHtml(initialBBCode);
     }
+    // Sync empty state on mount (with or without initial content)
+    queueMicrotask(() => {
+      const html = editorRef.current?.innerHTML ?? '';
+      setIsEmpty(isEditorHtmlEmpty(html));
+    });
   }, []);
 
   const handleInput = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => syncBBCodeRef.current(), 50);
+    const html = editorRef.current?.innerHTML ?? '';
+    setIsEmpty(isEditorHtmlEmpty(html));
   }, []);
 
   const handlePaste = useCallback((e: ClipboardEvent) => {
@@ -83,6 +92,10 @@ export function WysiwygEditor({
     // Sync after paste
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => syncBBCodeRef.current(), 50);
+    queueMicrotask(() => {
+      const html2 = editorRef.current?.innerHTML ?? '';
+      setIsEmpty(isEditorHtmlEmpty(html2));
+    });
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -168,22 +181,51 @@ export function WysiwygEditor({
   }, [forceSyncAndGet, syncRef]);
 
   return (
-    <div className={`il-wysiwyg-editor ${className || ''}`}>
+    <div
+      className={cn(
+        "flex flex-col overflow-hidden rounded-lg border border-border bg-background focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20",
+        className,
+      )}
+    >
       <BBCodeToolbar editorRef={editorRef} onFormat={() => syncBBCodeRef.current()} />
-      <div
-        ref={editorRef}
-        className="il-wysiwyg-content"
-        contentEditable
-        data-placeholder={placeholder}
-        onInput={handleInput}
-        onPaste={handlePaste}
-        onKeyDown={handleKeyDown}
-      />
+      <div className="relative">
+        {isEmpty && (
+          <div className="pointer-events-none absolute left-3 top-2.5 text-sm text-muted-foreground/70">
+            {placeholder}
+          </div>
+        )}
+        <div
+          ref={editorRef}
+          className={cn(
+            "min-h-20 max-h-60 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none",
+            "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2",
+            "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-6",
+            "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-6",
+            "[&_li]:my-0.5",
+          )}
+          contentEditable
+          onInput={handleInput}
+          onPaste={handlePaste}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
     </div>
   );
 }
 
 // ── DOM formatting helpers ───────────────────────────────────────────
+
+function isEditorHtmlEmpty(html: string): boolean {
+  const cleaned = html
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\u200B/g, '')
+    .replace(/<br\s*\/?>/gi, '')
+    .replace(/<div><\/div>/gi, '')
+    .replace(/<p><\/p>/gi, '')
+    .replace(/<p>\s*<\/p>/gi, '')
+    .trim();
+  return cleaned.length === 0;
+}
 
 export function insertHtmlAtCursor(html: string): void {
   const sel = window.getSelection();
