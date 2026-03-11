@@ -42,7 +42,7 @@
     </picture>
   </a>
   &nbsp;&nbsp;
-  <a href="https://addons.mozilla.org/firefox/addon/betterlectio/">
+  <a href="https://addons.mozilla.org/en-US/firefox/addon/betterlectio/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="firefox-dark.svg">
       <source media="(prefers-color-scheme: light)" srcset="firefox-light.svg">
