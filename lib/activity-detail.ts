@@ -64,6 +64,7 @@ export interface ActivityDetail {
   tabs: ActivityTabLink[];
   phase: ActivityPhase | null;
   homework: ActivityHomeworkItem[];
+  otherContent: ActivityHomeworkItem[];
   related: ActivityRelatedItem[];
   navigation: ActivityNavigation;
   formTokens: ActivityFormTokens;
@@ -364,59 +365,80 @@ function extractLinksFromElement(el: HTMLElement): ActivityHomeworkLink[] {
   return links;
 }
 
-function parseHomework(doc: Document): ActivityHomeworkItem[] {
-  const articles = doc.querySelectorAll<HTMLElement>(
-    "#s_m_Content_Content_tocAndToolbar_inlineHomeworkDiv article",
-  );
+function parseArticle(article: HTMLElement, fallbackLabel: string, index: number): ActivityHomeworkItem {
+  // Lectio uses h1 or h2 as the article title heading depending on content type
+  const titleEl =
+    article.querySelector<HTMLElement>("h1") ||
+    article.querySelector<HTMLElement>("h2[id*='titleHeader']") ||
+    article.querySelector<HTMLElement>("h2");
 
-  const items: ActivityHomeworkItem[] = [];
+  // Extract links from heading BEFORE removing it (heading often wraps file download links)
+  const h1Links = titleEl ? extractLinksFromElement(titleEl) : [];
 
-  articles.forEach((article, index) => {
-    // Lectio uses h1 or h2 as the article title heading depending on content type
-    const titleEl =
-      article.querySelector<HTMLElement>("h1") ||
-      article.querySelector<HTMLElement>("h2[id*='titleHeader']") ||
-      article.querySelector<HTMLElement>("h2");
+  const title = titleEl?.textContent?.replace(/\s+/g, " ").trim() || `${fallbackLabel} ${index + 1}`;
 
-    // Extract links from heading BEFORE removing it (heading often wraps file download links)
-    const h1Links = titleEl ? extractLinksFromElement(titleEl) : [];
+  const clone = article.cloneNode(true) as HTMLElement;
+  // Remove the same heading tag from the clone
+  const headingTag = titleEl?.tagName?.toLowerCase() || "h1";
+  clone.querySelector(headingTag)?.remove();
+  sanitizeActivityHtml(clone);
 
-    const title = titleEl?.textContent?.replace(/\s+/g, " ").trim() || `Lektie ${index + 1}`;
+  // Extract links from the body content
+  const bodyLinks = extractLinksFromElement(clone);
 
-    const clone = article.cloneNode(true) as HTMLElement;
-    // Remove the same heading tag from the clone
-    const headingTag = titleEl?.tagName?.toLowerCase() || "h1";
-    clone.querySelector(headingTag)?.remove();
-    sanitizeActivityHtml(clone);
+  // Combine h1 links + body links, deduplicating by URL
+  const seenUrls = new Set<string>();
+  const links: ActivityHomeworkLink[] = [];
+  for (const link of [...h1Links, ...bodyLinks]) {
+    if (!seenUrls.has(link.url)) {
+      seenUrls.add(link.url);
+      links.push(link);
+    }
+  }
 
-    // Extract links from the body content
-    const bodyLinks = extractLinksFromElement(clone);
+  // Auto-linkify bare URLs in the remaining content HTML
+  let contentHtml = clone.innerHTML.trim();
+  contentHtml = linkifyBareUrls(contentHtml);
 
-    // Combine h1 links + body links, deduplicating by URL
-    const seenUrls = new Set<string>();
-    const links: ActivityHomeworkLink[] = [];
-    for (const link of [...h1Links, ...bodyLinks]) {
-      if (!seenUrls.has(link.url)) {
-        seenUrls.add(link.url);
-        links.push(link);
+  const id = article.closest("[id]")?.id || `homework-${index + 1}`;
+
+  return { id, title, contentHtml, links };
+}
+
+function parseHomeworkSections(doc: Document): { homework: ActivityHomeworkItem[]; otherContent: ActivityHomeworkItem[] } {
+  const container = doc.querySelector("#s_m_Content_Content_tocAndToolbar_inlineHomeworkDiv");
+  if (!container) return { homework: [], otherContent: [] };
+
+  const homework: ActivityHomeworkItem[] = [];
+  const otherContent: ActivityHomeworkItem[] = [];
+
+  // Walk section headings and articles to determine which section each article belongs to
+  // Section headings are h1.ls-paper-section-heading with text "Lektier" or "Øvrigt indhold"
+  let currentSection: "homework" | "other" = "homework"; // default if no heading found
+  const allNodes = Array.from(container.querySelectorAll("h1.ls-paper-section-heading, article"));
+
+  let hwIndex = 0;
+  let ocIndex = 0;
+  for (const node of allNodes) {
+    if (node.matches("h1.ls-paper-section-heading")) {
+      const text = node.textContent?.trim().toLowerCase() || "";
+      if (text.includes("øvrigt indhold")) {
+        currentSection = "other";
+      } else {
+        currentSection = "homework";
+      }
+    } else if (node.matches("article")) {
+      if (currentSection === "other") {
+        otherContent.push(parseArticle(node as HTMLElement, "Indhold", ocIndex));
+        ocIndex++;
+      } else {
+        homework.push(parseArticle(node as HTMLElement, "Lektie", hwIndex));
+        hwIndex++;
       }
     }
+  }
 
-    // Auto-linkify bare URLs in the remaining content HTML
-    let contentHtml = clone.innerHTML.trim();
-    contentHtml = linkifyBareUrls(contentHtml);
-
-    const id = article.closest("[id]")?.id || `homework-${index + 1}`;
-
-    items.push({
-      id,
-      title,
-      contentHtml,
-      links,
-    });
-  });
-
-  return items;
+  return { homework, otherContent };
 }
 
 function parseRelated(doc: Document): ActivityRelatedItem[] {
@@ -538,6 +560,8 @@ function parseActivityDetail(doc: Document, url: string): ActivityDetail {
       .querySelector<HTMLTextAreaElement>("#s_m_Content_Content_tocAndToolbar_ActNoteTB_tb")
       ?.value?.trim() || "";
 
+  const { homework, otherContent } = parseHomeworkSections(doc);
+
   return {
     url: absolute.href,
     absid,
@@ -545,7 +569,8 @@ function parseActivityDetail(doc: Document, url: string): ActivityDetail {
     note,
     tabs: parseTabs(doc),
     phase: parsePhase(doc),
-    homework: parseHomework(doc),
+    homework,
+    otherContent,
     related: parseRelated(doc),
     navigation: parseNavigation(doc),
     formTokens: parseFormTokens(doc, absolute.href),

@@ -158,7 +158,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     }
   };
 
-  const hasContent = !!detail?.note || (detail?.homework.length ?? 0) > 0 || (detail?.related.length ?? 0) > 0;
+  const hasContent = !!detail?.note || (detail?.homework.length ?? 0) > 0 || (detail?.otherContent?.length ?? 0) > 0 || (detail?.related.length ?? 0) > 0;
   const metaLine = [detail?.meta.dateText, detail?.meta.timeText, detail?.meta.moduleText]
     .filter(Boolean)
     .join(" \u00b7 ");
@@ -332,6 +332,22 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </h3>
                   <div className="flex flex-col gap-3">
                     {detail.homework.map((item) => (
+                      <HomeworkCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {(detail.otherContent?.length ?? 0) > 0 ? (
+                <section className="mb-8 last:mb-0">
+                  <h3 className="mb-3.5 flex items-center gap-2 text-[0.8rem] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                    Øvrigt indhold
+                    <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
+                      {detail.otherContent.length}
+                    </span>
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {detail.otherContent.map((item) => (
                       <HomeworkCard key={item.id} item={item} />
                     ))}
                   </div>

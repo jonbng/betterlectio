@@ -14,6 +14,7 @@ export interface BeskedThread {
   isFlagged: boolean;
   isRead: boolean;
   isUnread: boolean;
+  isDeleted: boolean;
   latestSender: PersonRef;
   firstSender: PersonRef;
   recipients: PersonRef;
@@ -84,7 +85,7 @@ function parsePersonRef(el: Element | null): PersonRef {
   };
 }
 
-const THREAD_ID_RE = /(?:FLAGMESSAGE|VIEWTHREAD|HIDEMESSAGE|UNREADMESSAGE|READMESSAGE|\$LB2\$_MC_\$_)(\d+)/;
+const THREAD_ID_RE = /(?:FLAGMESSAGE|VIEWTHREAD|(?:UN)?HIDEMESSAGE|UNREADMESSAGE|READMESSAGE|\$LB2\$_MC_\$_)(\d+)/;
 
 function extractThreadId(row: Element): string {
   // Try images first (flag, read, delete icons have onclick)
@@ -270,6 +271,10 @@ export function parseThreadsFromDOM(doc: Document = document): BeskedThread[] {
     const dateText = (cells[7]?.textContent || '').trim();
     const date = parseDateText(dateText);
 
+    // Cell 8: Delete/restore — add.auto = already deleted, delete.auto = not deleted
+    const deleteImg = cells[8]?.querySelector('img') as HTMLImageElement | null;
+    const isDeleted = deleteImg?.src?.includes('add.auto') ?? false;
+
     threads.push({
       threadId,
       subject,
@@ -277,6 +282,7 @@ export function parseThreadsFromDOM(doc: Document = document): BeskedThread[] {
       isFlagged,
       isRead,
       isUnread,
+      isDeleted,
       latestSender,
       firstSender,
       recipients,
@@ -436,9 +442,10 @@ export function toggleRead(threadId: string, currentlyRead: boolean): void {
   doPostBack('__Page', currentlyRead ? `UNREADMESSAGE_${threadId}` : `READMESSAGE_${threadId}`);
 }
 
-/** Delete/restore a thread. */
-export function deleteThread(threadId: string): void {
-  doPostBack('__Page', `HIDEMESSAGE_${threadId}`);
+/** Delete or restore a thread. */
+export function deleteThread(threadId: string, isDeleted?: boolean): void {
+  const command = isDeleted ? `UNHIDEMESSAGE_${threadId}` : `HIDEMESSAGE_${threadId}`;
+  doPostBack('__Page', command);
 }
 
 /** Select a folder. */

@@ -31,6 +31,7 @@ interface TooltipData {
   room: string;
   students: string;
   homework: HomeworkItem[];
+  otherContent: HomeworkItem[];
   note: string;
 }
 
@@ -64,6 +65,7 @@ function parseTooltip(raw: string): TooltipData {
     room: "",
     students: "",
     homework: [],
+    otherContent: [],
     note: "",
   };
 
@@ -145,10 +147,18 @@ function parseTooltip(raw: string): TooltipData {
   }
 
   // Homework items — lines starting with "- " and indented descriptions
+  // Stop when hitting "Øvrigt indhold:" so those items don't bleed into homework
   let currentItem: HomeworkItem | null = null;
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
+
+    if (trimmed.startsWith("Øvrigt indhold:") || trimmed === "Øvrigt indhold:") {
+      if (currentItem) data.homework.push(currentItem);
+      currentItem = null;
+      i++;
+      break;
+    }
 
     if (trimmed.startsWith("- ")) {
       if (currentItem) data.homework.push(currentItem);
@@ -170,6 +180,31 @@ function parseTooltip(raw: string): TooltipData {
     i++;
   }
   if (currentItem) data.homework.push(currentItem);
+
+  // Øvrigt indhold items — same format as homework
+  currentItem = null;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith("- ")) {
+      if (currentItem) data.otherContent.push(currentItem);
+      currentItem = { label: trimmed.slice(2), description: "" };
+    } else if (currentItem && trimmed.startsWith("(") && trimmed.endsWith(")")) {
+      currentItem.description = trimmed.slice(1, -1);
+    } else if (currentItem && (line.startsWith("    ") || line.startsWith("\t"))) {
+      const descLine = trimmed;
+      if (descLine.startsWith("(")) {
+        currentItem.description += (currentItem.description ? " " : "") + descLine.slice(1);
+      } else if (descLine.endsWith(")")) {
+        currentItem.description += (currentItem.description ? " " : "") + descLine.slice(0, -1);
+      } else {
+        currentItem.description += (currentItem.description ? " " : "") + descLine;
+      }
+    }
+    i++;
+  }
+  if (currentItem) data.otherContent.push(currentItem);
 
   return data;
 }
@@ -199,7 +234,8 @@ function createTooltipElement(): HTMLElement {
   const el = document.createElement("div");
   el.id = "bl-brick-tooltip";
   el.className =
-    "fixed z-[220] hidden w-[min(420px,calc(100vw-16px))] max-h-[min(80vh,640px)] overflow-y-auto rounded-xl border border-border bg-popover p-3 text-sm text-foreground shadow-[0_24px_60px_oklch(0_0_0/0.22)] transition-all duration-150 ease-out opacity-0 translate-y-1 scale-[0.98]";
+    "fixed z-[10000] hidden w-[21rem] max-w-[calc(100vw-1rem)] max-h-[min(28rem,calc(100vh-2rem))] overflow-y-auto overflow-x-hidden overscroll-contain font-sans text-[0.8125rem] leading-[1.45] text-foreground bg-popover border border-border rounded-xl shadow-[0_1px_2px_oklch(0_0_0/0.04),0_4px_16px_oklch(0_0_0/0.08),0_12px_40px_oklch(0_0_0/0.06)] dark:shadow-[0_1px_2px_oklch(0_0_0/0.25),0_4px_16px_oklch(0_0_0/0.35),0_12px_40px_oklch(0_0_0/0.25)] pointer-events-auto transition-all duration-150 ease-out opacity-0 translate-y-[3px] scale-[0.98]";
+  el.style.scrollbarWidth = "thin";
   el.setAttribute("role", "tooltip");
   document.body.appendChild(el);
   return el;
@@ -208,115 +244,117 @@ function createTooltipElement(): HTMLElement {
 function createBridgeElement(): HTMLElement {
   const el = document.createElement("div");
   el.id = "bl-brick-tooltip-bridge";
-  el.className = "fixed z-[219] hidden bg-transparent";
+  el.className = "fixed z-[9999] hidden pointer-events-auto";
   document.body.appendChild(el);
   return el;
 }
 
 // ── SVG icons (inline, no dependencies) ────────────────
 
-const ICON_CLOCK = `<svg class="size-4 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_CLOCK = `<svg class="size-3.5 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const ICON_HOMEWORK = `<svg class="size-4 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M3 2.5h7l3 3V13a.5.5 0 01-.5.5h-9A.5.5 0 013 13V3a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2.5V5.5h3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+const ICON_HOMEWORK = `<svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none"><path d="M3 2.5h7l3 3V13a.5.5 0 01-.5.5h-9A.5.5 0 013 13V3a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2.5V5.5h3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
 
-const ICON_NOTE = `<svg class="size-4 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M13 10l-3 3H4a.5.5 0 01-.5-.5v-9A.5.5 0 014 3h8.5a.5.5 0 01.5.5V10z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13 10h-3v3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 6.5h4M6 9h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+const ICON_NOTE = `<svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none"><path d="M13 10l-3 3H4a.5.5 0 01-.5-.5v-9A.5.5 0 014 3h8.5a.5.5 0 01.5.5V10z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13 10h-3v3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 6.5h4M6 9h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
 
-const ICON_LINK = `<svg class="size-4 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5l3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9 10.5l1.5-1.5a2.121 2.121 0 000-3v0a2.121 2.121 0 00-3 0L6 7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M7 5.5L5.5 7a2.121 2.121 0 000 3v0a2.121 2.121 0 003 0L10 8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
+const ICON_LINK = `<svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5l3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9 10.5l1.5-1.5a2.121 2.121 0 000-3v0a2.121 2.121 0 00-3 0L6 7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M7 5.5L5.5 7a2.121 2.121 0 000 3v0a2.121 2.121 0 003 0L10 8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
 
-const ICON_FILE = `<svg class="size-3.5 shrink-0 text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M4 2h5.5l3 3V13.5a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V2.5A.5.5 0 014 2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M9.5 2v3.5h3" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>`;
+const ICON_FILE = `<svg class="size-[0.6875rem] shrink-0" viewBox="0 0 16 16" fill="none"><path d="M4 2h5.5l3 3V13.5a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V2.5A.5.5 0 014 2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M9.5 2v3.5h3" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>`;
 
-const ICON_SPINNER = `<svg class="size-4 shrink-0 animate-spin text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 105.196 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+const ICON_SPINNER = `<svg class="size-3.5 shrink-0 animate-spin text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 105.196 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 
 // ── Rendering ──────────────────────────────────────────
 
 function renderTooltip(data: TooltipData, hue: number): string {
   const parts: string[] = [];
 
-  // Header section
-  parts.push('<div class="space-y-2 border-b border-border/60 pb-2">');
+  // ── Header section ──
+  parts.push('<div class="px-3 pt-2.5 pb-2 border-b border-border/60 flex flex-col gap-[0.3125rem]">');
 
   if (data.title) {
-    parts.push(`<div class="text-sm font-semibold leading-snug text-foreground">${esc(data.title)}</div>`);
+    parts.push(`<div class="text-[0.9375rem] font-semibold leading-snug text-foreground break-words">${esc(data.title)}</div>`);
   }
 
   if (data.changed) {
-    parts.push('<span class="inline-flex rounded-full border border-[oklch(0.66_0.13_50/0.45)] bg-[oklch(0.97_0.02_50)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[oklch(0.48_0.12_50)]">Ændret</span>');
+    parts.push('<span class="inline-flex items-center w-fit text-[0.6875rem] font-semibold uppercase tracking-[0.025em] px-1.5 py-0.5 rounded bg-accent text-accent-foreground leading-[1.4]">Ændret</span>');
   }
 
   // Time row
   if (data.date || data.time) {
-    parts.push('<div class="flex items-center gap-1.5 text-xs text-muted-foreground">');
+    parts.push('<div class="flex items-center gap-[0.3125rem] tabular-nums text-muted-foreground">');
     parts.push(ICON_CLOCK);
     if (data.date) {
-      parts.push(`<span class="font-medium text-foreground/90">${esc(formatDate(data.date))}</span>`);
+      parts.push(`<span class="font-medium text-foreground/80">${esc(formatDate(data.date))}</span>`);
+    }
+    if (data.date && data.time) {
+      parts.push('<span class="text-border">·</span>');
     }
     if (data.time) {
-      if (data.date) {
-        parts.push('<span class="text-muted-foreground/60">•</span>');
-      }
       parts.push(
-        `<span class="font-medium text-muted-foreground">${esc(data.time.replace("til", "–"))}</span>`,
+        `<span class="text-muted-foreground">${esc(data.time.replace("til", "–"))}</span>`,
       );
     }
     parts.push("</div>");
   }
   parts.push("</div>");
 
-  // Meta section (hold, teacher, room)
-  const hasMeta = data.hold.length > 0 || data.teacher || data.room;
+  // ── Meta section (hold, teacher, room) ──
+  const hasMeta = data.hold.length > 0 || data.teacher || data.room || data.students;
   if (hasMeta) {
-    parts.push('<div class="mt-2 space-y-1.5">');
+    parts.push('<div class="px-3 py-[0.4375rem] flex flex-col gap-1">');
 
     if (data.hold.length > 0) {
-      parts.push('<div class="flex items-start gap-2">');
-      parts.push('<span class="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Fag</span>');
+      parts.push('<div class="flex items-baseline gap-1.5">');
+      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Hold</span>');
       parts.push('<div class="flex flex-wrap gap-1">');
       for (const h of data.hold) {
         const holdHue = getHoldHue(h);
         const displayName = getHoldDisplayName(h);
         parts.push(
-          `<span class="inline-flex rounded-full border border-border/70 bg-background px-2 py-0.5 text-[11px] font-medium text-[oklch(0.5_0.1_var(--hold-hue,265))] dark:text-[oklch(0.74_0.1_var(--hold-hue,265))]" style="--hold-hue:${holdHue}">${esc(displayName)}</span>`,
+          `<span class="il-tt-hold text-[0.75rem] font-medium px-[0.3125rem] py-[0.0625rem] rounded whitespace-nowrap leading-normal" style="--hold-hue:${holdHue}">${esc(displayName)}</span>`,
         );
       }
       parts.push("</div></div>");
     }
 
     if (data.teacher) {
-      parts.push('<div class="flex items-start gap-2">');
-      parts.push('<span class="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Lærer</span>');
-      parts.push(`<span class="min-w-0 flex-1 text-xs text-foreground">${esc(data.teacher)}</span>`);
+      parts.push('<div class="flex items-baseline gap-1.5">');
+      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Lærer</span>');
+      parts.push(`<span class="min-w-0 flex-1 text-[0.8125rem] text-foreground/85">${esc(data.teacher)}</span>`);
       parts.push("</div>");
     }
 
     if (data.room) {
-      parts.push('<div class="flex items-start gap-2">');
-      parts.push('<span class="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Lokale</span>');
-      parts.push(`<span class="min-w-0 flex-1 text-xs text-foreground font-medium">${esc(data.room)}</span>`);
+      parts.push('<div class="flex items-baseline gap-1.5">');
+      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Lokale</span>');
+      parts.push(`<span class="min-w-0 flex-1 text-[0.8125rem] font-medium text-foreground/85 tabular-nums">${esc(data.room)}</span>`);
       parts.push("</div>");
     }
 
     if (data.students) {
-      parts.push('<div class="flex items-start gap-2">');
-      parts.push('<span class="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">Elever</span>');
-      parts.push(`<span class="min-w-0 flex-1 text-xs text-muted-foreground">${esc(data.students)}</span>`);
+      parts.push('<div class="flex items-baseline gap-1.5">');
+      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Elever</span>');
+      parts.push(`<span class="min-w-0 flex-1 text-[0.75rem] leading-[1.4] text-muted-foreground">${esc(data.students)}</span>`);
       parts.push("</div>");
     }
 
     parts.push("</div>");
   }
 
-  // Homework section (basic, from tooltip text)
+  // ── Homework section (basic, from tooltip text) ──
   if (data.homework.length > 0) {
-    parts.push('<div class="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-background/60 p-2" data-tt-section="homework">');
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="homework">');
     parts.push(
-      `<div class="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">${ICON_HOMEWORK}Lektier</div>`,
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_HOMEWORK}Lektier</div>`,
     );
-    for (const item of data.homework) {
-      parts.push('<div class="space-y-0.5">');
-      parts.push(`<span class="block text-xs font-medium text-foreground">${esc(item.label)}</span>`);
+    for (let idx = 0; idx < data.homework.length; idx++) {
+      const item = data.homework[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.label)}</span>`);
       if (item.description) {
         parts.push(
-          `<span class="block text-[11px] leading-relaxed text-muted-foreground">${esc(item.description)}</span>`,
+          `<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(item.description)}</span>`,
         );
       }
       parts.push("</div>");
@@ -324,16 +362,37 @@ function renderTooltip(data: TooltipData, hue: number): string {
     parts.push("</div>");
   }
 
-  // Note section (basic, from tooltip text)
-  if (data.note) {
-    parts.push('<div class="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-background/60 p-2" data-tt-section="note">');
-    parts.push(`<div class="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">${ICON_NOTE}Note</div>`);
-    parts.push(`<div class="text-[11px] leading-relaxed text-muted-foreground">${esc(data.note)}</div>`);
+  // ── Øvrigt indhold section (basic, from tooltip text) ──
+  if (data.otherContent.length > 0) {
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="other-content">');
+    parts.push(
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_NOTE}Øvrigt indhold</div>`,
+    );
+    for (let idx = 0; idx < data.otherContent.length; idx++) {
+      const item = data.otherContent[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.label)}</span>`);
+      if (item.description) {
+        parts.push(
+          `<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(item.description)}</span>`,
+        );
+      }
+      parts.push("</div>");
+    }
     parts.push("</div>");
   }
 
-  // Loading indicator placeholder (hidden initially, shown during fetch)
-  parts.push('<div class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground" id="bl-tt-loading" style="display:none">');
+  // ── Note section (basic, from tooltip text) ──
+  if (data.note) {
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="note">');
+    parts.push(`<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-1">${ICON_NOTE}Note</div>`);
+    parts.push(`<div class="text-[0.75rem] italic text-muted-foreground leading-[1.45] line-clamp-4">${esc(data.note)}</div>`);
+    parts.push("</div>");
+  }
+
+  // ── Loading indicator (hidden initially, shown during fetch) ──
+  parts.push('<div class="flex items-center gap-1.5 px-3 py-[0.375rem] border-t border-border/60 text-[0.6875rem] text-muted-foreground" id="bl-tt-loading" style="display:none">');
   parts.push(`${ICON_SPINNER}<span>Henter detaljer…</span>`);
   parts.push("</div>");
 
@@ -346,45 +405,45 @@ function renderEnrichedSections(detail: ActivityDetail, basicData: TooltipData):
   const parts: string[] = [];
 
   // ── Rich Note section ──
-  // Prefer the fetched note (from the textarea) over the tooltip-parsed note
   const note = detail.note || basicData.note;
   if (note) {
-    parts.push('<div class="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-background/60 p-2" data-tt-section="note">');
-    parts.push(`<div class="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">${ICON_NOTE}Note</div>`);
-    parts.push(`<div class="text-[11px] leading-relaxed text-muted-foreground">${esc(note)}</div>`);
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="note">');
+    parts.push(`<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-1">${ICON_NOTE}Note</div>`);
+    parts.push(`<div class="text-[0.75rem] italic text-muted-foreground leading-[1.45] line-clamp-4">${esc(note)}</div>`);
     parts.push("</div>");
   }
 
   // ── Rich Lektier section ──
   if (detail.homework.length > 0) {
-    parts.push('<div class="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-background/60 p-2" data-tt-section="homework">');
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="homework">');
     parts.push(
-      `<div class="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">${ICON_HOMEWORK}Lektier <span class="inline-flex min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] font-semibold text-muted-foreground">${detail.homework.length}</span></div>`,
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_HOMEWORK}Lektier <span class="il-tt-count inline-flex min-w-[1.125rem] h-[1.125rem] items-center justify-center rounded-lg px-1 text-[0.625rem] font-semibold ml-1">${detail.homework.length}</span></div>`,
     );
-    for (const item of detail.homework) {
-      parts.push('<div class="space-y-0.5">');
-      parts.push(`<span class="block text-xs font-medium text-foreground">${esc(item.title)}</span>`);
+    for (let idx = 0; idx < detail.homework.length; idx++) {
+      const item = detail.homework[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.title)}</span>`);
 
-      // Show content (sanitized HTML from the activity page, truncated for tooltip)
       const contentText = stripHtml(item.contentHtml);
       if (contentText) {
         parts.push(
-          `<span class="block text-[11px] leading-relaxed text-muted-foreground">${esc(contentText)}</span>`,
+          `<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(contentText)}</span>`,
         );
       }
 
-      // Show file/link chips
+      // File/link chips
       if (item.links.length > 0) {
-        parts.push('<div class="mt-1.5 flex flex-wrap gap-1">');
+        parts.push('<div class="flex flex-wrap gap-1 mt-1">');
         for (const link of item.links.slice(0, 3)) {
           const icon = link.type === "file" ? ICON_FILE : ICON_LINK;
           const label = truncate(link.label, 30);
           parts.push(
-            `<a class="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground no-underline transition-colors hover:bg-accent" href="${escAttr(link.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(link.label)}">${icon}${esc(label)}</a>`,
+            `<a class="inline-flex items-center gap-[0.1875rem] text-[0.6875rem] font-medium px-[0.3125rem] py-[0.0625rem] rounded bg-muted text-muted-foreground no-underline whitespace-nowrap max-w-[12rem] overflow-hidden text-ellipsis transition-colors hover:bg-accent hover:text-accent-foreground" href="${escAttr(link.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(link.label)}">${icon}${esc(label)}</a>`,
           );
         }
         if (item.links.length > 3) {
-          parts.push(`<span class="inline-flex items-center rounded-md border border-border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">+${item.links.length - 3}</span>`);
+          parts.push(`<span class="inline-flex items-center text-[0.6875rem] font-semibold px-[0.3125rem] py-[0.0625rem] rounded bg-muted text-muted-foreground">+${item.links.length - 3}</span>`);
         }
         parts.push("</div>");
       }
@@ -393,16 +452,74 @@ function renderEnrichedSections(detail: ActivityDetail, basicData: TooltipData):
     }
     parts.push("</div>");
   } else if (basicData.homework.length > 0) {
-    // Fall back to basic homework if fetch returned none (shouldn't happen, but safe)
-    parts.push('<div class="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-background/60 p-2" data-tt-section="homework">');
+    // Fall back to basic homework
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="homework">');
     parts.push(
-      `<div class="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">${ICON_HOMEWORK}Lektier</div>`,
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_HOMEWORK}Lektier</div>`,
     );
-    for (const item of basicData.homework) {
-      parts.push('<div class="space-y-0.5">');
-      parts.push(`<span class="block text-xs font-medium text-foreground">${esc(item.label)}</span>`);
+    for (let idx = 0; idx < basicData.homework.length; idx++) {
+      const item = basicData.homework[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.label)}</span>`);
       if (item.description) {
-        parts.push(`<span class="block text-[11px] leading-relaxed text-muted-foreground">${esc(item.description)}</span>`);
+        parts.push(`<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(item.description)}</span>`);
+      }
+      parts.push("</div>");
+    }
+    parts.push("</div>");
+  }
+
+  // ── Rich Øvrigt indhold section ──
+  if (detail.otherContent.length > 0) {
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="other-content">');
+    parts.push(
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_NOTE}Øvrigt indhold <span class="il-tt-count inline-flex min-w-[1.125rem] h-[1.125rem] items-center justify-center rounded-lg px-1 text-[0.625rem] font-semibold ml-1">${detail.otherContent.length}</span></div>`,
+    );
+    for (let idx = 0; idx < detail.otherContent.length; idx++) {
+      const item = detail.otherContent[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.title)}</span>`);
+
+      const contentText = stripHtml(item.contentHtml);
+      if (contentText) {
+        parts.push(
+          `<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(contentText)}</span>`,
+        );
+      }
+
+      if (item.links.length > 0) {
+        parts.push('<div class="flex flex-wrap gap-1 mt-1">');
+        for (const link of item.links.slice(0, 3)) {
+          const icon = link.type === "file" ? ICON_FILE : ICON_LINK;
+          const label = truncate(link.label, 30);
+          parts.push(
+            `<a class="inline-flex items-center gap-[0.1875rem] text-[0.6875rem] font-medium px-[0.3125rem] py-[0.0625rem] rounded bg-muted text-muted-foreground no-underline whitespace-nowrap max-w-[12rem] overflow-hidden text-ellipsis transition-colors hover:bg-accent hover:text-accent-foreground" href="${escAttr(link.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(link.label)}">${icon}${esc(label)}</a>`,
+          );
+        }
+        if (item.links.length > 3) {
+          parts.push(`<span class="inline-flex items-center text-[0.6875rem] font-semibold px-[0.3125rem] py-[0.0625rem] rounded bg-muted text-muted-foreground">+${item.links.length - 3}</span>`);
+        }
+        parts.push("</div>");
+      }
+
+      parts.push("</div>");
+    }
+    parts.push("</div>");
+  } else if (basicData.otherContent.length > 0) {
+    // Fall back to basic other content
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="other-content">');
+    parts.push(
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_NOTE}Øvrigt indhold</div>`,
+    );
+    for (let idx = 0; idx < basicData.otherContent.length; idx++) {
+      const item = basicData.otherContent[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.label)}</span>`);
+      if (item.description) {
+        parts.push(`<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(item.description)}</span>`);
       }
       parts.push("</div>");
     }
@@ -411,21 +528,21 @@ function renderEnrichedSections(detail: ActivityDetail, basicData: TooltipData):
 
   // ── Related items section ──
   if (detail.related.length > 0) {
-    parts.push('<div class="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-background/60 p-2">');
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60">');
     parts.push(
-      `<div class="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">${ICON_LINK}Relateret</div>`,
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-1">${ICON_LINK}Relateret</div>`,
     );
     for (const item of detail.related.slice(0, 4)) {
       if (item.url) {
         parts.push(
-          `<a class="block rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground no-underline transition-colors hover:bg-accent" href="${escAttr(item.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(item.label)}">${esc(item.label)}</a>`,
+          `<a class="block text-[0.75rem] text-primary leading-normal truncate no-underline transition-colors hover:underline hover:underline-offset-[0.1em]" href="${escAttr(item.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(item.label)}">${esc(item.label)}</a>`,
         );
       } else {
-        parts.push(`<span class="inline-flex rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-foreground">${esc(item.label)}</span>`);
+        parts.push(`<span class="block text-[0.75rem] text-muted-foreground leading-normal truncate">${esc(item.label)}</span>`);
       }
     }
     if (detail.related.length > 4) {
-      parts.push(`<span class="inline-flex rounded-md border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">+${detail.related.length - 4} mere</span>`);
+      parts.push(`<span class="text-[0.75rem] italic text-muted-foreground">+${detail.related.length - 4} mere</span>`);
     }
     parts.push("</div>");
   }
@@ -625,11 +742,13 @@ function applyEnrichedContent(
 ) {
   if (!tooltipEl) return;
 
-  // Remove basic homework, note, and loading indicator
+  // Remove basic homework, other content, note, and loading indicator
   const basicHomework = tooltipEl.querySelector('[data-tt-section="homework"]');
+  const basicOtherContent = tooltipEl.querySelector('[data-tt-section="other-content"]');
   const basicNote = tooltipEl.querySelector('[data-tt-section="note"]');
   const loadingEl = tooltipEl.querySelector("#bl-tt-loading");
   basicHomework?.remove();
+  basicOtherContent?.remove();
   basicNote?.remove();
   loadingEl?.remove();
 
@@ -678,10 +797,9 @@ function showTooltip(brick: HTMLElement) {
     tooltipEl.style.setProperty("--tt-hue", String(hue));
 
     // Reset to pre-animation state and make visible for measurement
-    tooltipEl.classList.remove("bl-tt-visible", "opacity-100", "translate-y-0", "scale-100");
+    tooltipEl.classList.remove("bl-tt-visible", "opacity-100", "translate-y-0", "scale-100", "hidden");
     tooltipEl.classList.add("opacity-0", "translate-y-1", "scale-[0.98]");
-    tooltipEl.style.display = "block";
-    bridgeEl.style.display = "block";
+    bridgeEl.classList.remove("hidden");
 
     // Measure, position, then trigger enter animation
     requestAnimationFrame(() => {
@@ -722,12 +840,12 @@ function hideTooltip() {
       // Wait for exit animation
       setTimeout(() => {
         if (tooltipEl && !tooltipEl.classList.contains("bl-tt-visible")) {
-          tooltipEl.style.display = "none";
+          tooltipEl.classList.add("hidden");
         }
       }, 150);
     }
     if (bridgeEl) {
-      bridgeEl.style.display = "none";
+      bridgeEl.classList.add("hidden");
     }
     activeBrick = null;
   }, 80);

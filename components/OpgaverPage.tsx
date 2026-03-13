@@ -5,8 +5,6 @@ import {
   CheckCircle2,
   ChevronDown,
   AlertTriangle,
-  Flame,
-  ArrowRight,
   Check,
   XCircle,
   Search,
@@ -16,6 +14,7 @@ import {
 } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -400,60 +399,31 @@ const LEGACY_MISSING_IGNORED_PREFIX = 'il-opgaver-ignored-missing-';
 const MISSING_AGGRESSIVE_MAX_AGE_DAYS = 60;
 const MISSING_ZERO_TIME_MAX_AGE_DAYS = 7;
 
-const ALERT_BANNER_STYLE: Record<Urgency, string> = {
-  overdue:
-    'border-[oklch(0.83_0.07_25)] bg-[linear-gradient(135deg,oklch(0.98_0.012_25),oklch(0.99_0.004_25))] hover:bg-[linear-gradient(135deg,oklch(0.96_0.02_25),oklch(0.98_0.008_25))] dark:bg-[linear-gradient(135deg,oklch(0.18_0.025_25),oklch(0.16_0.012_25))] dark:[box-shadow:inset_0_0_0_1px_oklch(0.3_0.05_25)]',
-  imminent:
-    'border-[oklch(0.84_0.06_50)] bg-[linear-gradient(135deg,oklch(0.99_0.01_50),oklch(0.98_0.004_50))] hover:bg-[linear-gradient(135deg,oklch(0.97_0.02_50),oklch(0.98_0.008_50))] dark:bg-[linear-gradient(135deg,oklch(0.18_0.015_50),oklch(0.16_0.008_50))] dark:[box-shadow:inset_0_0_0_1px_oklch(0.3_0.03_50)]',
-  soon: '',
-  later: '',
-};
-const ALERT_ICON_STYLE: Record<Urgency, string> = {
-  overdue: 'bg-[oklch(0.94_0.05_25)] text-[oklch(0.58_0.18_25)] dark:bg-[oklch(0.24_0.05_25)] dark:text-[oklch(0.72_0.18_25)]',
-  imminent: 'bg-[oklch(0.95_0.04_50)] text-[oklch(0.58_0.15_50)] dark:bg-[oklch(0.24_0.04_50)] dark:text-[oklch(0.72_0.15_50)]',
-  soon: '',
-  later: '',
-};
-const ALERT_TIME_STYLE: Record<Urgency, string> = {
-  overdue: 'text-[oklch(0.52_0.18_25)] dark:text-[oklch(0.72_0.18_25)]',
-  imminent: 'text-[oklch(0.52_0.15_50)] dark:text-[oklch(0.72_0.15_50)]',
-  soon: '',
-  later: '',
-};
 const UPCOMING_CARD_STYLE: Record<Urgency, string> = {
   overdue:
-    'border-l-[3px] border-l-[oklch(0.63_0.2_25)] bg-[linear-gradient(135deg,oklch(0.98_0.012_25),oklch(0.99_0.004_25))] dark:border-l-[oklch(0.58_0.18_25)] dark:bg-[linear-gradient(135deg,oklch(0.16_0.02_25),oklch(0.14_0.008_25))]',
+    'border-l-[5px] border-l-[oklch(0.63_0.2_25)] bg-[linear-gradient(135deg,oklch(0.98_0.012_25),oklch(0.99_0.004_25))] dark:border-l-[oklch(0.58_0.18_25)] dark:bg-[linear-gradient(135deg,oklch(0.16_0.02_25),oklch(0.14_0.008_25))]',
   imminent:
-    'border-l-[3px] border-l-[oklch(0.64_0.16_50)] bg-[linear-gradient(135deg,oklch(0.98_0.01_50),oklch(0.99_0.004_50))] dark:border-l-[oklch(0.58_0.15_50)] dark:bg-[linear-gradient(135deg,oklch(0.16_0.015_50),oklch(0.14_0.006_50))]',
+    'border-l-[4px] border-l-[oklch(0.64_0.16_50)] bg-[linear-gradient(135deg,oklch(0.98_0.01_50),oklch(0.99_0.004_50))] dark:border-l-[oklch(0.58_0.15_50)] dark:bg-[linear-gradient(135deg,oklch(0.16_0.015_50),oklch(0.14_0.006_50))]',
   soon: 'border-l-[3px] border-l-[oklch(0.62_0.12_80)] dark:border-l-[oklch(0.55_0.1_80)]',
-  later: 'border-l-[3px] border-l-border dark:border-l-[oklch(0.3_0.004_285)]',
+  later: 'border-l-[2px] border-l-border dark:border-l-[oklch(0.3_0.004_285)]',
 };
 const DEADLINE_LABEL_STYLE: Record<Urgency, string> = {
-  overdue: 'text-[oklch(0.52_0.18_25)] dark:text-[oklch(0.72_0.18_25)]',
-  imminent: 'text-[oklch(0.52_0.15_50)] dark:text-[oklch(0.72_0.15_50)]',
-  soon: 'text-[oklch(0.48_0.12_80)] dark:text-[oklch(0.72_0.1_80)]',
-  later: '',
+  overdue: 'text-[1.0625rem] font-[800] text-[oklch(0.52_0.18_25)] dark:text-[oklch(0.72_0.18_25)]',
+  imminent: 'text-[1rem] font-[700] text-[oklch(0.52_0.15_50)] dark:text-[oklch(0.72_0.15_50)]',
+  soon: 'text-[0.9375rem] font-[600] text-[oklch(0.48_0.12_80)] dark:text-[oklch(0.72_0.1_80)]',
+  later: 'text-[0.875rem] font-medium',
 };
 const STATUS_BADGE_STYLE = {
   venter:
-    'border-border bg-muted text-muted-foreground dark:border-[oklch(0.48_0.06_80/0.5)] dark:bg-[oklch(0.3_0.05_80/0.32)] dark:text-[oklch(0.76_0.1_80)]',
+    'bg-[oklch(0.95_0.06_80)] text-[oklch(0.45_0.14_80)] border-[oklch(0.75_0.08_80/0.4)] dark:border-[oklch(0.48_0.06_80/0.5)] dark:bg-[oklch(0.3_0.05_80/0.32)] dark:text-[oklch(0.76_0.1_80)]',
   afleveret:
-    'border-border bg-muted text-muted-foreground dark:border-[oklch(0.46_0.05_145/0.45)] dark:bg-[oklch(0.3_0.05_145/0.28)] dark:text-[oklch(0.74_0.09_145)]',
+    'bg-[oklch(0.95_0.05_145)] text-[oklch(0.43_0.12_145)] border-[oklch(0.72_0.07_145/0.35)] dark:border-[oklch(0.46_0.05_145/0.45)] dark:bg-[oklch(0.3_0.05_145/0.28)] dark:text-[oklch(0.74_0.09_145)]',
   mangler:
-    'border-border bg-muted text-muted-foreground dark:border-[oklch(0.44_0.02_25/0.45)] dark:bg-[oklch(0.28_0.01_25/0.4)] dark:text-[oklch(0.74_0.04_25)]',
+    'bg-[oklch(0.95_0.02_25)] text-[oklch(0.44_0.06_25)] border-[oklch(0.72_0.03_25/0.35)] dark:border-[oklch(0.44_0.02_25/0.45)] dark:bg-[oklch(0.28_0.01_25/0.4)] dark:text-[oklch(0.74_0.04_25)]',
 };
-
-function getExerciseIdFromUrl(url: string): string | null {
-  const match = url.match(/exerciseid=(\d+)/i);
-  return match?.[1] || null;
-}
 
 function getMissingIgnoreStorageKey(schoolId: string): string {
   return `${MISSING_IGNORED_PREFIX}${schoolId}`;
-}
-
-function getLegacyMissingIgnoreStorageKey(schoolId: string): string {
-  return `${LEGACY_MISSING_IGNORED_PREFIX}${schoolId}`;
 }
 
 function parseStudentTimeHours(studentTime: string): number {
@@ -504,26 +474,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    try {
-      const key = getMissingIgnoreStorageKey(schoolId);
-      const legacyKey = getLegacyMissingIgnoreStorageKey(schoolId);
-      const raw = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
-      if (!localStorage.getItem(key) && raw) {
-        localStorage.setItem(key, raw);
-      }
-      if (!raw) {
-        setIgnoredMissingIds(new Set());
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setIgnoredMissingIds(new Set(parsed.filter((id) => typeof id === 'string')));
-      } else {
-        setIgnoredMissingIds(new Set());
-      }
-    } catch {
-      setIgnoredMissingIds(new Set());
-    }
+    setIgnoredMissingIds(loadIgnoredMissingIds(schoolId));
   }, [schoolId]);
 
   // Focus search on Cmd/Ctrl+K
@@ -626,85 +577,28 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
     });
   };
 
-  // Next urgent deadline (from unfiltered upcoming for the banner)
-  // Only aggressive missing assignments should trigger the urgent banner.
-  const allUpcoming = entries
-    .filter((entry) => {
-      if (entry.status === 'venter') return true;
-      return isActiveMissingForUpcoming(entry, ignoredMissingIds, new Date());
-    })
-    .sort((a, b) => {
-      const now = new Date();
-      const aActiveMissing = isActiveMissingForUpcoming(a, ignoredMissingIds, now);
-      const bActiveMissing = isActiveMissingForUpcoming(b, ignoredMissingIds, now);
-      if (aActiveMissing && !bActiveMissing) return -1;
-      if (bActiveMissing && !aActiveMissing) return 1;
-      return a.deadline.getTime() - b.deadline.getTime();
-    });
-  const nextUrgent = allUpcoming.length > 0 ? (() => {
-    const now = new Date();
-    for (const entry of allUpcoming) {
-      const display = getDeadlineDisplay(entry.deadline);
-      const activeMissing = isActiveMissingForUpcoming(entry, ignoredMissingIds, now);
-      const aggressiveMissing = isAggressiveMissing(entry, ignoredMissingIds, now);
-      const isUrgentWaiting = entry.status !== 'mangler'
-        && (display.urgency === 'overdue' || display.urgency === 'imminent');
-      if (activeMissing || aggressiveMissing || isUrgentWaiting) {
-        return { entry, display };
-      }
-    }
-    return null;
-  })() : null;
-
   const hasActiveFilters = selectedHold !== null || datePreset !== 'all' || queryLower !== '';
 
   return (
-    <div className="space-y-4 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto max-w-[860px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* ── Header ─────────────────────────────── */}
-      <div className="rounded-xl border border-border bg-card px-5 py-4">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground max-sm:text-2xl">Opgaver</h1>
+      <div className="border-b border-border pb-5 mb-7">
+        <h1 className="text-[2rem] font-[800] tracking-[-0.03em] text-foreground max-sm:text-2xl">Opgaver</h1>
         <p className="text-sm text-muted-foreground">
           {upcoming.length} kommende &middot; {submitted.length} afleveret
         </p>
       </div>
 
-      {/* ── Urgent banner ──────────────────────── */}
-      {nextUrgent && (
-        <button
-          className={cn(
-            'flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-accent/40 max-sm:gap-2.5 max-sm:p-3',
-            ALERT_BANNER_STYLE[nextUrgent.display.urgency],
-          )}
-          onClick={(e) => openDetail(e as unknown as MouseEvent, nextUrgent.entry)}
-        >
-          <div className={cn('inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground', ALERT_ICON_STYLE[nextUrgent.display.urgency])}>
-            {nextUrgent.display.urgency === 'overdue' ? (
-              <AlertTriangle size={20} />
-            ) : (
-              <Flame size={20} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className={cn('block text-xs font-semibold uppercase tracking-wide text-muted-foreground', ALERT_TIME_STYLE[nextUrgent.display.urgency])}>
-              {nextUrgent.display.label}
-              {nextUrgent.entry.status === 'mangler' &&
-                ' — Mangler aflevering'}
-            </span>
-            <span className="block truncate text-sm font-medium text-foreground">{nextUrgent.entry.title}</span>
-          </div>
-          <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
-        </button>
-      )}
 
       {/* ── Search + filters toolbar ───────────── */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
         <div className="relative min-w-[240px] flex-1">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={searchRef}
             type="text"
-            className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-20 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:pr-10 dark:bg-[oklch(0.18_0.004_285)]"
+            className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-20 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:pr-10"
             placeholder="Søg opgaver..."
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -727,7 +621,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
             <button
               key={preset.key}
               className={cn(
-                'rounded-md border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent',
+                'rounded-full border border-border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent',
                 datePreset === preset.key &&
                   'border-[oklch(0.34_0.06_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.43_0.14_265)] hover:bg-[oklch(0.92_0.08_265)] dark:border-[oklch(0.34_0.06_265)] dark:bg-[oklch(0.24_0.06_265)] dark:text-[oklch(0.75_0.12_265)] dark:hover:bg-[oklch(0.28_0.08_265)]',
               )}
@@ -808,7 +702,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
         <>
           {/* ── Upcoming ───────────────────────── */}
           {upcoming.length > 0 && (
-            <section className="space-y-3 rounded-xl border border-border bg-card p-3">
+            <section className="space-y-3">
               <button
                 type="button"
                 className="flex w-full items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2 text-left hover:bg-accent/40"
@@ -828,7 +722,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                 />
               </button>
               {!isUpcomingCollapsed && (
-                <div className="grid gap-2">
+                <div className="flex flex-col gap-[0.625rem]">
                   {upcoming.map((entry, idx) => {
                     const display = getDeadlineDisplay(entry.deadline);
                     const aggressiveMissing = isAggressiveMissing(entry, ignoredMissingIds, new Date());
@@ -839,16 +733,14 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                     const hue = getHoldHue(entry.hold);
                     const globalIdx = entries.indexOf(entry);
                     const hasMeta =
-                      (entry.studentTime && entry.studentTime !== '0,00') ||
-                      entry.awaiting ||
-                      (entry.statusText && entry.status !== 'mangler');
+                      entry.studentTime && entry.studentTime !== '0,00';
 
                     return (
                       <a
                         key={idx}
                         href={entry.url}
                         className={cn(
-                          'rounded-lg border border-border bg-background p-3 no-underline transition-all animate-[opgaver-slide-up_0.5s_ease_both] hover:-translate-y-px hover:bg-accent/25 hover:shadow-[0_4px_16px_oklch(0_0_0/0.06)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_20px_oklch(0_0_0/0.4)]',
+                          'rounded-lg border border-border bg-card px-4 py-3.5 no-underline transition-all animate-[opgaver-slide-up_0.4s_ease_both] hover:-translate-y-[2px] hover:bg-accent/25 hover:shadow-[0_4px_20px_oklch(0_0_0/0.07)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_20px_oklch(0_0_0/0.4)]',
                           UPCOMING_CARD_STYLE[effectiveUrgency],
                         )}
                         style={
@@ -870,7 +762,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                 className={cn('relative top-px', DEADLINE_LABEL_STYLE[effectiveUrgency])}
                               />
                             )}
-                            <span className={cn('text-xs font-semibold uppercase tracking-wide text-muted-foreground', DEADLINE_LABEL_STYLE[effectiveUrgency])}>
+                            <span className={cn('whitespace-nowrap', DEADLINE_LABEL_STYLE[effectiveUrgency])}>
                               {display.label}
                             </span>
                             <span className="text-xs text-muted-foreground/40">
@@ -907,7 +799,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                             {entry.statusText || 'Ikke afleveret'}
                           </div>
                         )}
-                        {entry.status !== 'mangler' && entry.statusText && (
+                        {entry.status === 'afleveret' && entry.statusText && (
                           <div className={cn('mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-medium', STATUS_BADGE_STYLE[entry.status])}>
                             {entry.statusText}
                           </div>
@@ -937,12 +829,6 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                               entry.studentTime !== '0,00' && (
                                 <span>{entry.studentTime} timer</span>
                               )}
-                            {entry.studentTime &&
-                              entry.studentTime !== '0,00' &&
-                              entry.awaiting && (
-                                <span className="size-[3px] rounded-full bg-muted-foreground/40" />
-                              )}
-                            {entry.awaiting && <span>{entry.awaiting}</span>}
                           </div>
                         )}
 
@@ -972,7 +858,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
           {/* ── Submitted ──────────────────────── */}
           {submitted.length > 0 && (
-            <section className="space-y-3 rounded-xl border border-border bg-card p-3">
+            <section className="space-y-3">
               <h2 className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
                 <CheckCircle2 size={14} />
                 Afleveret
@@ -980,7 +866,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                   {submitted.length}
                 </span>
               </h2>
-              <div className="grid gap-2 sm:grid-cols-2 max-sm:grid-cols-1">
+              <div className="flex flex-col gap-[0.625rem] sm:grid sm:grid-cols-2 max-sm:grid-cols-1">
                 {visibleSubmitted.map((entry, idx) => {
                   const hue = getHoldHue(entry.hold);
                   const gradeHue = entry.grade
@@ -992,7 +878,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                     <a
                       key={idx}
                       href={entry.url}
-                      className="flex items-start gap-3 rounded-lg border border-border bg-background p-3 no-underline transition-all animate-[opgaver-slide-up_0.35s_ease_both] hover:-translate-y-px hover:bg-accent/25 hover:shadow-[0_4px_16px_oklch(0_0_0/0.06)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_16px_oklch(0_0_0/0.4)]"
+                      className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3.5 no-underline transition-all animate-[opgaver-slide-up_0.35s_ease_both] hover:-translate-y-[2px] hover:bg-accent/25 hover:shadow-[0_4px_20px_oklch(0_0_0/0.07)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_20px_oklch(0_0_0/0.4)]"
                       style={
                         {
                           '--hold-hue': hue,
@@ -1040,6 +926,21 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                           <span className="mt-1 block text-xs italic text-muted-foreground/70">
                             {entry.gradeExtra}
                           </span>
+                        )}
+                        {entry.status === 'mangler' && (() => {
+                          const eid = getExerciseIdFromUrl(entry.url);
+                          return eid && ignoredMissingIds.has(eid);
+                        })() && (
+                          <button
+                            className="mt-2 inline-flex rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleIgnoreMissing(entry);
+                            }}
+                          >
+                            Vis igen som manglende
+                          </button>
                         )}
                       </div>
                     </a>

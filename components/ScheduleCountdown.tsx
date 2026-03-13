@@ -193,20 +193,20 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'loading') return null;
 
-  const baseCd = "flex flex-col gap-1 rounded-lg border px-2.5 py-1.5 font-sans";
+  const baseCd = "flex flex-col gap-1 rounded-lg border border-border px-2.5 py-1.5 font-sans bg-card";
   const baseTop = "flex items-baseline justify-between gap-1.5";
-  const baseBar = "h-0.5 rounded-sm overflow-hidden bg-[oklch(0.92_0.012_265)] dark:bg-[oklch(0.25_0.004_285)]";
+  const baseBar = "h-0.5 rounded-sm overflow-hidden bg-border";
   const baseFill = "h-full rounded-sm transition-[width] duration-1000 ease-linear";
 
   if (state.type === 'no-classes') {
     const msg = getNoClassesMessage();
     return (
-      <div className={cn(baseCd, "bg-[oklch(0.97_0.012_145)] border-[oklch(0.9_0.03_145)] dark:bg-[oklch(0.17_0.012_145)] dark:border-[oklch(0.24_0.02_145)]")}>
+      <div className={cn(baseCd, "il-cd-done")}>
         <div className={baseTop}>
-          <span className="text-sm font-medium text-[oklch(0.42_0.1_145)] dark:text-[oklch(0.7_0.1_145)]">{msg.text}</span>
+          <span className="il-cd-done-text text-sm font-medium">{msg.text}</span>
           <span className="shrink-0 text-sm">{msg.emoji}</span>
         </div>
-        <div className={baseBar}><div className={baseFill} style={{ width: '100%', background: 'oklch(0.6 0.14 145)' }} /></div>
+        <div className={baseBar}><div className={cn(baseFill, "il-cd-done-fill")} style={{ width: '100%' }} /></div>
       </div>
     );
   }
@@ -217,12 +217,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   if (state.type === 'after-school') {
     const msg = getDoneMessage();
     return (
-      <div className={cn(baseCd, "bg-[oklch(0.97_0.012_145)] border-[oklch(0.9_0.03_145)] dark:bg-[oklch(0.17_0.012_145)] dark:border-[oklch(0.24_0.02_145)]")}>
+      <div className={cn(baseCd, "il-cd-done")}>
         <div className={baseTop}>
-          <span className="text-sm font-medium text-[oklch(0.42_0.1_145)] dark:text-[oklch(0.7_0.1_145)]">{msg.text}</span>
+          <span className="il-cd-done-text text-sm font-medium">{msg.text}</span>
           <span className="shrink-0 text-sm">{msg.emoji}</span>
         </div>
-        <div className={baseBar}><div className={baseFill} style={{ width: '100%', background: 'oklch(0.6 0.14 145)' }} /></div>
+        <div className={baseBar}><div className={cn(baseFill, "il-cd-done-fill")} style={{ width: '100%' }} /></div>
       </div>
     );
   }
@@ -231,19 +231,19 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     const msg = pickMessage(cancelledMessages);
     const nextHue = state.nextHoldCode ? getHoldHue(state.nextHoldCode) : 265;
     return (
-      <div className={cn(baseCd, "bg-[oklch(0.97_0.015_85)] border-[oklch(0.88_0.04_85)] dark:bg-[oklch(0.18_0.015_85)] dark:border-[oklch(0.25_0.02_85)]")}>
+      <div className={cn(baseCd, "il-cd-cancelled")} style={{ '--cd-hue': 85 } as React.CSSProperties}>
         <div className={baseTop}>
-          <span className="text-sm font-medium text-[oklch(0.42_0.1_85)] dark:text-[oklch(0.72_0.1_85)]">{msg.text}</span>
+          <span className="il-cd-cancelled-text text-sm font-medium">{msg.text}</span>
           <span className="shrink-0 text-sm">{msg.emoji}</span>
         </div>
-        <div className="text-xs text-[oklch(0.5_0.04_85)] dark:text-[oklch(0.58_0.03_85)]">
-          <s className="decoration-[oklch(0.6_0.08_25)] dark:decoration-[oklch(0.5_0.08_25)]">{state.label}</s> — fri i {fmt(state.remaining)}
+        <div className="text-xs text-muted-foreground">
+          <s className="decoration-destructive">{state.label}</s> — fri i {fmt(state.remaining)}
         </div>
         {state.nextLabel && state.nextStart != null && (
-          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-[oklch(0.88_0.025_85)] pt-1.5 text-xs dark:border-[oklch(0.27_0.015_85)]">
-            <span className="size-1.5 shrink-0 rounded-full" style={{ background: `oklch(0.55 0.15 ${nextHue})` }} />
-            <span className="min-w-0 flex-1 truncate font-semibold" style={{ color: `oklch(0.4 0.08 ${nextHue})` }}>{state.nextLabel}</span>
-            <span className="shrink-0 tabular-nums text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">kl. {fmtTime(state.nextStart)}</span>
+          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-border pt-1.5 text-xs">
+            <span className="size-1.5 shrink-0 rounded-full il-cd-dot" style={{ '--cd-hue': nextHue } as React.CSSProperties} />
+            <span className="min-w-0 flex-1 truncate font-semibold il-cd-subject" style={{ '--cd-hue': nextHue } as React.CSSProperties}>{state.nextLabel}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">kl. {fmtTime(state.nextStart)}</span>
           </div>
         )}
       </div>
@@ -252,12 +252,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'before-school') {
     return (
-      <div className={cn(baseCd, "bg-[oklch(0.97_0.008_265)] border-[oklch(0.91_0.015_265)] dark:bg-[oklch(0.18_0.004_285)] dark:border-[oklch(0.25_0.004_285)]")}>
+      <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
         <div className={baseTop}>
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight" style={{ color: `oklch(0.38 0.1 ${hue})` }}>{state.label}</span>
-          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-[oklch(0.25_0.03_265)] dark:text-[oklch(0.88_0.003_90)]">{fmt(state.remaining)}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight il-cd-subject">{state.label}</span>
+          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
         </div>
-        <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">kl. {fmtTime(activeBlocks[0]?.start ?? 0)}</div>
+        <div className="text-xs text-muted-foreground">kl. {fmtTime(activeBlocks[0]?.start ?? 0)}</div>
       </div>
     );
   }
@@ -265,13 +265,13 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   if (state.type === 'break') {
     const nextStart = activeBlocks.find(b => b.start > (new Date().getHours() * 60 + new Date().getMinutes()))?.start ?? 0;
     return (
-      <div className={cn(baseCd, "border-dashed border-[oklch(0.91_0.015_265)] bg-[oklch(0.98_0.005_265)] dark:border-[oklch(0.25_0.004_285)] dark:bg-[oklch(0.16_0.004_285)]")}>
+      <div className={cn(baseCd, "border-dashed")} style={{ '--cd-hue': hue } as React.CSSProperties}>
         <div className={baseTop}>
-          <span className="text-sm font-semibold text-[oklch(0.4_0.02_265)] dark:text-[oklch(0.65_0.005_285)]">Pause</span>
-          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-[oklch(0.25_0.03_265)] dark:text-[oklch(0.88_0.003_90)]">{fmt(state.remaining)}</span>
+          <span className="text-sm font-semibold text-muted-foreground">Pause</span>
+          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
         </div>
-        <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">
-          <span style={{ color: `oklch(0.38 0.1 ${hue})`, fontWeight: 600 }}>{state.label}</span>
+        <div className="text-xs text-muted-foreground">
+          <span className="il-cd-subject font-semibold">{state.label}</span>
           {' '}kl. {fmtTime(nextStart)}
         </div>
       </div>
@@ -287,15 +287,15 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   })?.end ?? 0;
 
   return (
-    <div className={cn(baseCd, "bg-[oklch(0.97_0.008_265)] border-[oklch(0.91_0.015_265)] dark:bg-[oklch(0.18_0.004_285)] dark:border-[oklch(0.25_0.004_285)]")}>
+    <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
       <div className={baseTop}>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight" style={{ color: `oklch(0.35 0.1 ${hue})` }}>{state.label}</span>
-        <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight" style={{ color: `oklch(0.35 0.12 ${hue})` }}>{fmt(state.remaining)}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight il-cd-subject">{state.label}</span>
+        <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>
       </div>
       <div className={baseBar}>
-        <div className={baseFill} style={{ width: `${(progress * 100).toFixed(1)}%`, background: `oklch(0.55 0.15 ${hue})` }} />
+        <div className={cn(baseFill, "il-cd-bar")} style={{ width: `${(progress * 100).toFixed(1)}%` }} />
       </div>
-      <div className="text-xs text-[oklch(0.52_0.02_265)] dark:text-[oklch(0.55_0.005_285)]">slutter kl. {fmtTime(endTime)}</div>
+      <div className="text-xs text-muted-foreground">slutter kl. {fmtTime(endTime)}</div>
     </div>
   );
 }

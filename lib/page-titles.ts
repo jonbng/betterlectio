@@ -4,6 +4,7 @@
  */
 
 import { getFullHoldDisplayName } from './hold-mapping';
+import { getCachedUnreadCount } from './unread-messages';
 
 interface TitleConfig {
   /** Base title for the page */
@@ -123,20 +124,17 @@ function getScheduleSubject(): string | null {
 }
 
 /**
- * Count unread messages on the messages page.
- * Looks for unread message icons in the message list.
+ * Get unread message count from the shared cache (updated by BeskederPage / unread-messages module).
+ * Falls back to counting unread icons in the DOM on the beskeder page.
  */
 function countUnreadMessages(): number | null {
-  // Only count on messages page
-  if (!window.location.pathname.toLowerCase().includes('beskeder')) {
-    return null;
+  // Use the shared cache (populated from forside.aspx "N ulæste" count)
+  const schoolMatch = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  if (schoolMatch) {
+    const cached = getCachedUnreadCount(schoolMatch[1]);
+    if (cached !== null && cached > 0) return cached;
   }
-
-  // Count unread message icons (munread.gif)
-  const unreadIcons = document.querySelectorAll('img[src*="munread.gif"]');
-  const count = unreadIcons.length;
-
-  return count > 0 ? count : null;
+  return null;
 }
 
 /**
@@ -344,6 +342,16 @@ export function observeTitleChanges(): void {
     });
     win.__IL_TITLE_OBSERVER__ = observer;
   }
+
+  // Update title when unread count changes (broadcast from BeskederPage)
+  if (win.__IL_TITLE_UNREAD_HANDLER__) {
+    window.removeEventListener('betterlectio:unreadCount', win.__IL_TITLE_UNREAD_HANDLER__);
+  }
+  const onUnreadCount = () => {
+    setTimeout(updatePageTitle, 10);
+  };
+  window.addEventListener('betterlectio:unreadCount', onUnreadCount);
+  win.__IL_TITLE_UNREAD_HANDLER__ = onUnreadCount;
 
   // Also update on navigation (for SPA-like behavior)
   const onPopstate = () => {

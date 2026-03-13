@@ -197,7 +197,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
       <div className="relative shrink-0" ref={colorRef}>
         <button
           type="button"
-          className="hold-color-btn-hue size-[22px] cursor-pointer rounded-full border-2 border-border transition-transform hover:scale-[1.18]"
+          className="size-[22px] cursor-pointer rounded-full border-2 border-border bg-[oklch(0.65_0.18_var(--hold-hue,265))] transition-transform hover:scale-[1.18]"
           style={{ '--hold-hue': mapping.effectiveHue } as React.CSSProperties}
           onClick={() => setShowColors(!showColors)}
           title="Skift farve"
@@ -230,7 +230,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                   key={hue}
                   type="button"
                   className={cn(
-                    'hold-swatch-hue size-6 shrink-0 rounded-full border-2.5 border-transparent transition-all hover:scale-[1.2]',
+                    'size-6 shrink-0 rounded-full border-2.5 border-transparent bg-[oklch(0.65_0.18_var(--swatch-hue,265))] transition-all hover:scale-[1.2]',
                     mapping.colorHue === hue && 'is-active border-foreground',
                   )}
                   style={{ '--swatch-hue': hue } as React.CSSProperties}
@@ -312,7 +312,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
 
             <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/45 px-3 py-2.5">
               <div
-                className="hold-custom-preview-hue size-9 shrink-0 rounded-full border-2 border-border"
+                className="size-9 shrink-0 rounded-full border-2 border-border bg-[oklch(0.65_0.18_var(--custom-hue,265))]"
                 style={{ '--custom-hue': customHue } as React.CSSProperties}
               />
               <div className="font-mono text-sm text-foreground">{customHue}deg</div>

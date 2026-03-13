@@ -321,6 +321,13 @@ function initLayout() {
   root.id = "il-root";
   document.body.appendChild(root);
 
+  // Disable Lectio's Combokeys keyboard shortcuts (o c, o d, alt+x, ?, etc.).
+  // Combokeys binds on document.documentElement in the bubble phase. Stopping
+  // propagation at <body> prevents key events from ever reaching it.
+  for (const evt of ["keydown", "keypress", "keyup"] as const) {
+    document.body.addEventListener(evt, (e) => e.stopPropagation());
+  }
+
   // Render the dashboard layout
   render(<DashboardLayout />, root);
 

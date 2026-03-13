@@ -472,9 +472,9 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   const isBusy = sending || !!uploadingFileName || removingAttachIndex !== null || !!addingRecipientId;
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto max-w-[720px] space-y-3 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* Header */}
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-border pb-4 mb-3">
         <button
           type="button"
           className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
@@ -498,11 +498,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   <span
                     key={r.removePostbackTarget}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2 py-1',
+                      'inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.08] px-2 py-1',
                       removingRecipient === r.removePostbackTarget && 'opacity-60',
                     )}
                   >
-                    <span className="inline-flex size-5 items-center justify-center overflow-hidden rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                    <span className="inline-flex size-5 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
                       {r.contextId && pictureByContextId[r.contextId] ? (
                         <img
                           src={pictureByContextId[r.contextId] as string}
@@ -539,14 +539,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
               className="relative"
             >
               <div className={cn(
-                'relative rounded-lg border border-border transition',
-                recipientPickerOpen && 'border-primary/40 ring-2 ring-primary/15',
+                'relative rounded-lg border border-border bg-muted/30 transition',
+                recipientPickerOpen && 'border-primary/30',
               )}>
                 <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={recipientInputRef}
                   type="text"
-                  className="h-10 w-full rounded-lg border-0 bg-background pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:ring-0"
+                  className="h-10 w-full rounded-lg border-0 bg-transparent pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:ring-0"
                   value={recipientQuery}
                   onInput={(e) => setRecipientQuery((e.target as HTMLInputElement).value)}
                   onFocus={() => setRecipientPickerOpen(true)}
@@ -586,20 +586,20 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       key={option.id}
                       type="button"
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent',
+                        'flex w-full items-center gap-2 rounded-md !border-0 px-2 py-1.5 text-left hover:bg-accent',
                         index === activeSuggestionIndex && 'bg-accent',
                       )}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleAddRecipient(option)}
                       disabled={!!addingRecipientId}
                     >
-                      <span className="inline-flex size-7 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
+                      <span className="inline-flex size-7 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
                         {pictureByContextId[option.id] ? (
                           <img
                             src={pictureByContextId[option.id] as string}
                             alt=""
                             loading="lazy"
-                            className="size-full object-cover object-top"
+                            className="size-full !border-0 object-cover object-top"
                           />
                         ) : (
                           <UserRound size={14} />

@@ -163,12 +163,14 @@ export function toggleReadViaIframe(
 export function deleteThreadViaIframe(
   formState: FormState,
   threadId: string,
+  isDeleted?: boolean,
 ): Promise<SubmitResult<void>> {
   return withMutex(async () => {
     try {
+      const command = isDeleted ? `UNHIDEMESSAGE_${threadId}` : `HIDEMESSAGE_${threadId}`;
       const fields = buildFields(formState, {
         __EVENTTARGET: '__Page',
-        __EVENTARGUMENT: `HIDEMESSAGE_${threadId}`,
+        __EVENTARGUMENT: command,
       });
 
       const doc = await postFormViaHiddenIframe(formState.action, fields);

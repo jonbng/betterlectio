@@ -3,6 +3,7 @@ import { getCachedProfile } from '@/lib/profile-cache';
 import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
+import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 
 const weekendGreetings = [
   'God weekend',
@@ -216,14 +217,22 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
       fetchMissingOpgaver(schoolId).then((missingRaw) => {
         if (isCancelled) return;
         if (missingRaw.length > 0) {
-          const missing: UrgentOpgave[] = missingRaw.map(m => ({
-            title: m.title,
-            hold: m.hold,
-            deadline: m.deadline,
-            url: m.url,
-            isMissing: true,
-          }));
-          setUrgentOpgaver((prev) => mergeUrgentOpgaver(prev, missing));
+          const ignoredIds = loadIgnoredMissingIds(schoolId);
+          const missing: UrgentOpgave[] = missingRaw
+            .filter(m => {
+              const id = getExerciseIdFromUrl(m.url);
+              return !id || !ignoredIds.has(id);
+            })
+            .map(m => ({
+              title: m.title,
+              hold: m.hold,
+              deadline: m.deadline,
+              url: m.url,
+              isMissing: true,
+            }));
+          if (missing.length > 0) {
+            setUrgentOpgaver((prev) => mergeUrgentOpgaver(prev, missing));
+          }
         }
       });
     }, 1500);

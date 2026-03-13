@@ -423,9 +423,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const presets = getPeriodPresets();
 
   return (
-    <div className={cn("mx-auto max-w-[1080px] space-y-4 px-8 pb-12 pt-10 relative isolate before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-z-1 before:h-64 before:rounded-[1.25rem] before:bg-[radial-gradient(circle_at_15%_10%,oklch(0.92_0.05_265/0.55),transparent_56%),radial-gradient(circle_at_85%_0%,oklch(0.89_0.04_220/0.35),transparent_44%)] max-sm:px-4 max-sm:pb-8 max-sm:pt-6", loading && "pointer-events-none opacity-70")}>
+    <div className={cn("mx-auto max-w-[1080px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6", loading && "pointer-events-none opacity-70")}>
       {/* ── Header ─────────────────────────────── */}
-      <div className="mb-6 rounded-2xl border border-[color-mix(in_oklch,var(--border)_88%,oklch(0.88_0.03_265))] bg-[linear-gradient(180deg,color-mix(in_oklch,var(--card)_95%,transparent),var(--card))] px-5 py-4 shadow-[0_20px_40px_oklch(0_0_0/0.06),inset_0_1px_0_oklch(1_0_0/0.4)]">
+      <div className="border-b border-border pb-5 mb-3">
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="text-[2rem] leading-none font-extrabold tracking-[-0.03em] text-foreground max-sm:text-2xl">Fravær</h1>
           {data.studentName && (
@@ -452,7 +452,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {hasMissingReasons && (
-        <section className="mb-5 rounded-2xl border border-[color-mix(in_oklch,oklch(0.82_0.12_50)_52%,var(--border))] bg-[linear-gradient(135deg,oklch(0.985_0.012_50),oklch(0.972_0.018_50)),var(--card)] p-4 shadow-[0_14px_34px_oklch(0.78_0.06_50/0.08)] dark:border-[color-mix(in_oklch,oklch(0.58_0.11_50)_48%,var(--border))] dark:bg-[linear-gradient(135deg,oklch(0.23_0.014_50),oklch(0.26_0.022_50)),var(--card)] dark:shadow-[0_16px_36px_oklch(0_0_0/0.2)]">
+        <section className="mb-5 rounded-xl border border-border bg-card p-4">
           <div>
             <span className="inline-flex items-center gap-1 text-[0.71rem] font-bold tracking-[0.05em] uppercase text-[oklch(0.5_0.14_50)] dark:text-[oklch(0.8_0.11_50)]">
               <AlertTriangle size={13} />
@@ -490,7 +490,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {/* ── Period picker ──────────────────────── */}
-      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border/85 bg-card/96 p-4">
+      <div className="mb-5 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Calendar size={14} className="mr-0.5 shrink-0 text-muted-foreground/50" />
           {presets.map(p => (
@@ -552,7 +552,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* ── Per-hold breakdown ─────────────────── */}
       {data.holds.length > 0 && (
-        <section className="mb-10 space-y-3 rounded-xl border border-border bg-card p-3">
+        <section className="mb-10 space-y-3">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
               <BarChart3 size={16} />
@@ -593,23 +593,23 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                   const hue = getHoldHue(h.hold);
                   return (
                     <tr key={i} className="border-t border-border/50 transition-colors hover:bg-muted/30" style={{ '--hold-hue': hue } as any}>
-                      <td className="flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 font-medium text-foreground">
+                      <td className="flex items-center gap-2 whitespace-nowrap px-3.5 py-4 font-medium text-foreground">
                         <span className="size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
                         {getHoldDisplayName(h.hold)}
                         {getHoldDisplayName(h.hold) !== h.hold && (
                           <span className="ml-1 text-[11px] text-muted-foreground/70">{h.hold}</span>
                         )}
                       </td>
-                      <td>
+                      <td className="px-3.5 py-4">
                         <PctCell pct={h.almOpgjortPct} detail={h.almOpgjortModuler} />
                       </td>
-                      <td>
+                      <td className="px-3.5 py-4">
                         <PctCell pct={h.almAarPct} detail={h.almAarModuler} />
                       </td>
-                      <td>
+                      <td className="px-3.5 py-4">
                         <PctCell pct={h.skrOpgjortPct} detail={h.skrOpgjortTid} />
                       </td>
-                      <td>
+                      <td className="px-3.5 py-4">
                         <PctCell pct={h.skrAarPct} detail={h.skrAarTid} />
                       </td>
                     </tr>
@@ -634,7 +634,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       )}
 
       {/* ── Records section ────────────────────── */}
-      <section className="mb-8 space-y-3 rounded-xl border border-border bg-card p-3">
+      <section className="mb-8 space-y-3">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
             <Clock size={16} />
@@ -843,7 +843,7 @@ function DonutCard({
   const color = absenceColor(pct);
 
   return (
-    <div className="flex items-center gap-5 rounded-2xl border border-border bg-card px-6 py-5 shadow-[0_12px_28px_oklch(0_0_0/0.05)] max-sm:gap-4 max-sm:px-4 max-sm:py-4">
+    <div className="flex items-start gap-5 rounded-2xl border border-border bg-card px-6 py-5 shadow-[0_12px_28px_oklch(0_0_0/0.05)] max-sm:gap-4 max-sm:px-4 max-sm:py-4">
       <div className="relative size-[120px] shrink-0 max-sm:size-[90px]">
         <ResponsiveContainerAny width={120} height={120}>
           <PieChartAny>
@@ -915,7 +915,7 @@ function SubjectDistributionCard({
   } as ChartConfig);
 
   return (
-    <div className="mb-4 rounded-2xl border border-[color-mix(in_oklch,var(--border)_88%,oklch(0.9_0.02_265))] bg-[radial-gradient(circle_at_top_left,oklch(0.97_0.035_265),transparent_42%),linear-gradient(180deg,color-mix(in_oklch,var(--card)_92%,transparent),var(--card))] p-5 shadow-[0_14px_34px_oklch(0_0_0/0.06)] dark:border-[color-mix(in_oklch,var(--border)_82%,oklch(0.36_0.03_265))] dark:bg-[radial-gradient(circle_at_top_left,oklch(0.28_0.03_265/0.55),transparent_42%),linear-gradient(180deg,color-mix(in_oklch,var(--card)_94%,transparent),var(--card))]">
+    <div className="mb-4 rounded-xl border border-border bg-card p-5">
       <div className="mb-4 flex items-start justify-between gap-4 max-sm:flex-col">
         <div className="flex flex-col gap-1">
           <h3 className="text-base font-bold text-foreground">Fordeling af fravær</h3>

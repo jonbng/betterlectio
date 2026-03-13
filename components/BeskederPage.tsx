@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'preact/hooks';
 import {
-  Search, X, Plus, CheckCheck, Trash2, Flag, FlagOff,
+  Search, X, Plus, CheckCheck, Trash2, ArchiveRestore, Flag, FlagOff,
   Mail, MailOpen, Paperclip, ChevronDown, ChevronRight,
   Inbox, Send, Star, Clock, AlertCircle, Users, FolderOpen,
   MoreHorizontal, MailWarning, Check, Minus,
@@ -39,7 +39,7 @@ import { getTeacherName, getTeacherContextCardId, loadTeacherNames, type Teacher
 import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
 import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
 import { cn } from '@/lib/utils';
-
+import { getUnreadCount, getCachedUnreadCount } from '@/lib/unread-messages';
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function normalizePersonLabel(value: string): string {
@@ -131,7 +131,7 @@ function FolderNav({ folders, onSelectFolder }: { folders: BeskedFolder[]; onSel
   });
 
   return (
-    <nav className="mb-4 flex flex-wrap gap-1.5 rounded-xl border border-border bg-card p-2 pb-4">
+    <nav className="flex flex-wrap gap-1.5">
       {sorted.map(folder => (
         <FolderPill key={folder.id} folder={folder} onSelectFolder={onSelectFolder} />
       ))}
@@ -203,7 +203,7 @@ interface ThreadRowProps {
   onToggleSelect: (threadId: string) => void;
   onFlag: (threadId: string) => void;
   onRead: (threadId: string, isRead: boolean) => void;
-  onDelete: (threadId: string) => void;
+  onDelete: (threadId: string, isDeleted: boolean) => void;
   index: number;
   schoolId: string;
   nameIdReady: boolean;
@@ -261,7 +261,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
   const handleDelete = (e: MouseEvent) => {
     e.stopPropagation();
     if (isBusy) return;
-    onDelete(thread.threadId);
+    onDelete(thread.threadId, thread.isDeleted);
   };
 
   const handleCheck = (e: Event) => {
@@ -354,12 +354,17 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
         </button>
         <button
           type="button"
-          className="inline-flex size-6.5 items-center justify-center rounded text-destructive transition-colors hover:bg-[oklch(0.95_0.02_25)] hover:text-[oklch(0.55_0.2_25)] dark:hover:bg-[oklch(0.25_0.04_25)] dark:hover:text-[oklch(0.7_0.16_25)]"
+          className={cn(
+            'inline-flex size-6.5 items-center justify-center rounded transition-colors',
+            thread.isDeleted
+              ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              : 'text-destructive hover:bg-[oklch(0.95_0.02_25)] hover:text-[oklch(0.55_0.2_25)] dark:hover:bg-[oklch(0.25_0.04_25)] dark:hover:text-[oklch(0.7_0.16_25)]',
+          )}
           onClick={handleDelete}
           disabled={isBusy}
-          title="Slet besked"
+          title={thread.isDeleted ? 'Gendan besked' : 'Slet besked'}
         >
-          <Trash2 size={15} />
+          {thread.isDeleted ? <ArchiveRestore size={15} /> : <Trash2 size={15} />}
         </button>
       </div>
     </div>
@@ -452,7 +457,16 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
     [rawThreads, teacherCache],
   );
 
-  const unreadCount = threads.filter(t => t.isUnread).length;
+  const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(() => getCachedUnreadCount(schoolId) ?? 0);
+
+  // Fetch global unread count (from forside "N ulæste")
+  useEffect(() => {
+    let cancelled = false;
+    getUnreadCount(schoolId).then((count) => {
+      if (!cancelled) setGlobalUnreadCount(count);
+    });
+    return () => { cancelled = true; };
+  }, [schoolId]);
 
   // Close bulk menu on outside click
   useEffect(() => {
@@ -650,18 +664,26 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
     });
   }, [formState]);
 
-  const handleDelete = useCallback((threadId: string) => {
+  const handleDelete = useCallback((threadId: string, isDeleted: boolean) => {
     setActionLoading(`delete-${threadId}`);
     setError(null);
 
-    deleteThreadViaIframe(formState, threadId).then((result) => {
+    deleteThreadViaIframe(formState, threadId, isDeleted).then((result) => {
       setActionLoading(null);
       if (result.success) {
         setFormState(result.formState);
-        setRawThreads(prev => prev.filter(t => t.threadId !== threadId));
+        if (isDeleted) {
+          // Restored — toggle isDeleted off
+          setRawThreads(prev => prev.map(t =>
+            t.threadId === threadId ? { ...t, isDeleted: false } : t,
+          ));
+        } else {
+          // Deleted — remove from list
+          setRawThreads(prev => prev.filter(t => t.threadId !== threadId));
+        }
       } else {
         console.warn('[BetterLectio] Delete iframe failed:', result.error);
-        if (result.error.kind === 'session_expired') deleteThreadNative(threadId);
+        if (result.error.kind === 'session_expired') deleteThreadNative(threadId, isDeleted);
         else setError(formatActionError(result.error));
       }
     });
@@ -708,13 +730,13 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   const someSelected = selectedThreads.size > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* ── Header ─────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-border pb-5 mb-3">
         <div className="inline-flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Beskeder</h1>
-          {unreadCount > 0 && (
-            <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{unreadCount}</span>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.03em] text-foreground">Beskeder</h1>
+          {globalUnreadCount > 0 && (
+            <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{globalUnreadCount}</span>
           )}
         </div>
         <button
@@ -731,7 +753,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       <FolderNav folders={folders} onSelectFolder={handleSelectFolder} />
 
       {/* ── Toolbar ────────────────────────────── */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center gap-2">
           {/* Select all */}
           <label className="inline-flex size-8 cursor-pointer items-center justify-center" title="Markér alle">
@@ -820,7 +842,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       )}
 
       {/* ── Folder name label ──────────────────── */}
-      <div className="mb-1.5 inline-flex items-baseline gap-2 rounded-md bg-muted/40 px-3 py-1.5">
+      <div className="mb-1.5 inline-flex items-baseline gap-2">
         <span className="text-sm font-semibold text-foreground">{currentFolderName}</span>
         <span className="text-xs text-muted-foreground">
           {threads.length} {threads.length === 1 ? 'besked' : 'beskeder'}

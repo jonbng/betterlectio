@@ -370,21 +370,21 @@ export function LektierPage({ entries }: LektierPageProps) {
     sum + e.homeworkItems.filter(i => i.fileUrl).length, 0);
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[920px] px-10 pb-16 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4">
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-border pb-5 mb-7">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Lektier</h1>
-          <p className="text-sm text-muted-foreground">De næste 14 dage</p>
+          <h1 className="text-[2.25rem] font-[800] tracking-[-0.03em] text-foreground">Lektier</h1>
+          <p className="mt-1 text-sm text-muted-foreground">De næste 14 dage</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex min-w-20 flex-col rounded-lg border border-border bg-muted/30 px-3 py-2 text-center">
-            <span className="text-lg font-semibold text-foreground">{entries.length}</span>
+        <div className="flex items-center gap-7">
+          <div className="flex min-w-20 flex-col px-3 py-2 text-center">
+            <span className="text-4xl font-[800] text-foreground">{entries.length}</span>
             <span className="text-xs uppercase tracking-wide text-muted-foreground">moduler</span>
           </div>
           {totalFiles > 0 && (
-            <div className="flex min-w-20 flex-col rounded-lg border border-border bg-muted/30 px-3 py-2 text-center">
-              <span className="text-lg font-semibold text-foreground">{totalFiles}</span>
+            <div className="flex min-w-20 flex-col px-3 py-2 text-center">
+              <span className="text-4xl font-[800] text-foreground">{totalFiles}</span>
               <span className="text-xs uppercase tracking-wide text-muted-foreground">filer</span>
             </div>
           )}
@@ -399,7 +399,7 @@ export function LektierPage({ entries }: LektierPageProps) {
           <p className="text-sm text-muted-foreground">Du har ingen lektier de næste 14 dage</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col">
           {days.map((day, dayIdx) => {
             const relative = getRelativeLabel(day.date);
 
@@ -407,16 +407,16 @@ export function LektierPage({ entries }: LektierPageProps) {
               <div
                 key={day.date.toISOString()}
                 className={cn(
-                  'flex items-start gap-3 animate-[lektier-fade-in_0.5s_ease_both] first:mt-0',
+                  'flex items-start gap-8 border-t border-border py-8 first:border-t-0 first:pt-0 animate-[lektier-fade-in_0.5s_ease_both]',
                   relative?.type === 'today' && '[&_.lektier-date-number]:text-[oklch(0.42_0.16_145)] [&_.lektier-date-weekday]:text-[oklch(0.42_0.16_145)] dark:[&_.lektier-date-number]:text-[oklch(0.7_0.14_145)] dark:[&_.lektier-date-weekday]:text-[oklch(0.7_0.14_145)]',
                   relative?.type === 'tomorrow' && '[&_.lektier-date-number]:text-[oklch(0.45_0.18_265)] [&_.lektier-date-weekday]:text-[oklch(0.45_0.18_265)] dark:[&_.lektier-date-number]:text-[oklch(0.72_0.14_265)] dark:[&_.lektier-date-weekday]:text-[oklch(0.72_0.14_265)]',
                 )}
                 style={{ animationDelay: `${dayIdx * 60}ms` }}
               >
                 {/* Date column */}
-                <div className="flex w-[88px] shrink-0 flex-col items-center rounded-xl border border-border bg-card py-3">
-                  <div className="lektier-date-number text-2xl font-bold text-foreground">{day.date.getDate()}</div>
-                  <div className="lektier-date-weekday text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <div className="sticky top-4 flex w-20 shrink-0 flex-col items-center pt-1">
+                  <div className="lektier-date-number text-[2.75rem] font-[800] tracking-[-0.04em] leading-none text-foreground">{day.date.getDate()}</div>
+                  <div className="lektier-date-weekday text-[0.875rem] font-medium uppercase tracking-[0.1em] text-muted-foreground">
                     {DANISH_DAYS[day.date.getDay()].substring(0, 3).toLowerCase()}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -425,12 +425,12 @@ export function LektierPage({ entries }: LektierPageProps) {
                   {relative && (
                     <div
                       className={cn(
-                        'mt-2 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-foreground',
-                        relative.type === 'today' && 'border-[oklch(0.72_0.08_145)] bg-[oklch(0.95_0.06_145)] text-[oklch(0.42_0.16_145)] dark:border-[oklch(0.46_0.08_145)] dark:bg-[oklch(0.26_0.06_145)] dark:text-[oklch(0.7_0.14_145)]',
-                        relative.type === 'tomorrow' && 'border-[oklch(0.72_0.08_265)] bg-[oklch(0.95_0.06_265)] text-[oklch(0.45_0.18_265)] dark:border-[oklch(0.46_0.08_265)] dark:bg-[oklch(0.26_0.06_265)] dark:text-[oklch(0.72_0.14_265)]',
-                        relative.type === 'soon' && 'border-[oklch(0.72_0.08_80)] bg-[oklch(0.95_0.05_80)] text-[oklch(0.44_0.14_80)] dark:border-[oklch(0.46_0.08_80)] dark:bg-[oklch(0.26_0.05_80)] dark:text-[oklch(0.72_0.11_80)]',
-                        relative.type === 'later' && 'border-border bg-muted/40 text-muted-foreground',
-                        relative.type === 'past' && 'border-[oklch(0.78_0.02_25)] bg-[oklch(0.97_0.01_25)] text-[oklch(0.46_0.04_25)]',
+                        'mt-2 rounded-full px-2.5 py-0.5 text-xs font-medium text-foreground',
+                        relative.type === 'today' && 'bg-[oklch(0.95_0.06_145)] text-[oklch(0.42_0.16_145)] dark:bg-[oklch(0.26_0.06_145)] dark:text-[oklch(0.7_0.14_145)]',
+                        relative.type === 'tomorrow' && 'bg-[oklch(0.95_0.06_265)] text-[oklch(0.45_0.18_265)] dark:bg-[oklch(0.26_0.06_265)] dark:text-[oklch(0.72_0.14_265)]',
+                        relative.type === 'soon' && 'bg-[oklch(0.95_0.05_80)] text-[oklch(0.44_0.14_80)] dark:bg-[oklch(0.26_0.05_80)] dark:text-[oklch(0.72_0.11_80)]',
+                        relative.type === 'later' && 'bg-muted/40 text-muted-foreground',
+                        relative.type === 'past' && 'bg-[oklch(0.97_0.01_25)] text-[oklch(0.46_0.04_25)]',
                       )}
                     >
                       {relative.text}
@@ -449,44 +449,37 @@ export function LektierPage({ entries }: LektierPageProps) {
                     return (
                       <div
                         key={idx}
-                        className="overflow-hidden rounded-xl border border-border bg-card transition-colors hover:bg-accent/15 dark:hover:bg-[oklch(0.2_0.004_285)]"
+                        className="overflow-hidden rounded-xl border border-border border-l-4 border-l-[oklch(0.68_0.2_var(--hold-hue,265))] dark:border-l-[oklch(0.58_0.16_var(--hold-hue,265))] bg-card transition-colors hover:bg-accent/15 dark:hover:bg-[oklch(0.2_0.004_285)]"
                         style={{ '--hold-hue': hue } as any}
                       >
-                        <div className="h-0.5 w-full bg-[oklch(0.58_0.16_var(--hold-hue,265))] dark:bg-[oklch(0.68_0.14_var(--hold-hue,265))]" />
                         <div className="space-y-3 p-4">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <a href={entry.activityUrl} className="text-sm font-semibold text-foreground no-underline hover:text-primary">
-                              {entry.module && <span>{entry.module}</span>}
-                              {entry.module && entry.timeRange && <span className="mx-1 text-muted-foreground/60">&middot;</span>}
-                              {entry.timeRange && <span className="text-muted-foreground">{entry.timeRange}</span>}
-                            </a>
-                            <span
-                              className="hold-pill-dynamic rounded-full px-2 py-1 text-xs font-medium"
-                              style={{ '--hold-hue': hue } as any}
-                            >
+                            <a href={entry.activityUrl} className="text-xl font-semibold text-foreground no-underline hover:text-[oklch(0.5_0.16_var(--hold-hue,265))]">
                               {getHoldDisplayName(entry.hold)}
+                              {entry.activityTitle && (
+                                <span className="ml-1.5 text-muted-foreground font-normal">&mdash; {entry.activityTitle}</span>
+                              )}
+                            </a>
+                            <span className="text-xs text-muted-foreground">
+                              {entry.module && <span>{entry.module}</span>}
+                              {entry.module && entry.timeRange && <span className="mx-1">&middot;</span>}
+                              {entry.timeRange && <span>{entry.timeRange}</span>}
                             </span>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-1.5 text-[0.9375rem] text-muted-foreground">
                             {entry.teacherName && <span title={entry.teacherAbbrev}>{entry.teacherName}</span>}
                             {entry.teacherName && entry.room && (
                               <span className="size-[3px] rounded-full bg-muted-foreground/40" />
                             )}
                             {entry.room && <span>{entry.room}</span>}
-                            {entry.activityTitle && (
-                              <>
-                                <span className="text-muted-foreground">&mdash;</span>
-                                <span className="font-medium text-foreground">{entry.activityTitle}</span>
-                              </>
-                            )}
                           </div>
 
                           {hasContent && (
-                            <div className="space-y-3">
+                            <div className="space-y-3 border-t border-border pt-3">
                               {/* Teacher instruction — the most important content */}
                               {entry.note && (
-                                <div className="rounded-md border border-border bg-muted/35 px-3 py-2 text-sm text-foreground dark:border-[oklch(0.34_0.02_285)] dark:bg-[oklch(0.2_0.01_285)]">
+                                <div className="rounded-md border-l-[3px] border-l-[oklch(0.7_0.15_var(--hold-hue,265))] bg-[oklch(0.96_0.025_var(--hold-hue,265))] px-3 py-2.5 text-[0.9375rem] text-foreground dark:border-l-[oklch(0.5_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.22_0.04_var(--hold-hue,265))]">
                                   {entry.note}
                                 </div>
                               )}
@@ -495,11 +488,11 @@ export function LektierPage({ entries }: LektierPageProps) {
                               {contentItems.length > 0 && (
                                 <div className="space-y-2">
                                   {contentItems.map((item, itemIdx) => (
-                                    <div key={itemIdx} className="flex items-start gap-2 rounded-md border border-border/70 bg-background px-2.5 py-2">
+                                    <div key={itemIdx} className="flex items-start gap-2 py-1">
                                       <BookOpen size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
                                       <div className="min-w-0 space-y-1">
                                         {item.activityUrl ? (
-                                          <a href={item.activityUrl} className="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline hover:text-primary dark:hover:text-[oklch(0.78_0.09_265)]">
+                                          <a href={item.activityUrl} className="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline hover:text-[oklch(0.42_0.16_var(--hold-hue,265))]">
                                             <span>{item.text}</span>
                                             <ArrowUpRight size={13} className="text-muted-foreground transition-transform" />
                                           </a>
@@ -519,8 +512,8 @@ export function LektierPage({ entries }: LektierPageProps) {
                               {fileItems.length > 0 && (
                                 <div className="grid gap-2">
                                   {fileItems.map((item, itemIdx) => (
-                                    <a key={itemIdx} href={item.fileUrl!} className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 no-underline transition-colors hover:bg-accent/40 dark:border-[oklch(0.32_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:hover:bg-[oklch(0.24_0.004_285)]">
-                                      <div className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground dark:bg-[oklch(0.24_0.004_285)]">
+                                    <a key={itemIdx} href={item.fileUrl!} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 rounded-md border border-[oklch(0.93_0.02_250)] bg-[oklch(0.975_0.012_250)] px-2.5 py-2 no-underline transition-colors hover:bg-[oklch(0.96_0.025_250)] dark:border-[oklch(0.3_0.02_250)] dark:bg-[oklch(0.2_0.02_250)] dark:hover:bg-[oklch(0.24_0.03_250)]">
+                                      <div className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[oklch(0.93_0.04_250)] text-[oklch(0.5_0.15_250)] dark:bg-[oklch(0.24_0.03_250)] dark:text-[oklch(0.65_0.1_250)]">
                                         <FileText size={18} />
                                       </div>
                                       <div className="min-w-0 flex-1">
@@ -529,7 +522,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                           <span className="block truncate text-xs text-muted-foreground">{item.note}</span>
                                         )}
                                       </div>
-                                      <Download size={16} className="shrink-0 text-muted-foreground" />
+                                      <Download size={16} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                                     </a>
                                   ))}
                                 </div>

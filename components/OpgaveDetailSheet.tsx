@@ -26,6 +26,7 @@ import {
 } from '@/lib/opgave-detail';
 import type { OpgaveDetail } from '@/lib/opgave-detail';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +76,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<SubmissionStatus | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [ignoredMissing, setIgnoredMissing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadDetail = useCallback(async (url: string, useCache = true) => {
@@ -112,6 +114,16 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       setSelectedFile(null);
       setSubmitStatus(null);
       loadDetail(entry.url);
+
+      // Check if this missing assignment is currently ignored
+      if (entry.status === 'mangler') {
+        const eid = getExerciseIdFromUrl(entry.url);
+        if (eid) {
+          setIgnoredMissing(loadIgnoredMissingIds(schoolId).has(eid));
+        }
+      } else {
+        setIgnoredMissing(false);
+      }
     }
   }, [open, entry?.url, loadDetail]);
 
@@ -187,6 +199,22 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
     input.value = '';
   };
 
+  const toggleIgnoreMissing = () => {
+    if (!entry) return;
+    const eid = getExerciseIdFromUrl(entry.url);
+    if (!eid) return;
+
+    const ids = loadIgnoredMissingIds(schoolId);
+    if (ids.has(eid)) ids.delete(eid);
+    else ids.add(eid);
+
+    try {
+      localStorage.setItem(`bl-opgaver-ignored-missing-${schoolId}`, JSON.stringify([...ids]));
+    } catch { /* ignore */ }
+
+    setIgnoredMissing(ids.has(eid));
+  };
+
   if (!open) return null;
 
   const holdHue = entry ? getHoldHue(entry.hold) : 200;
@@ -241,6 +269,14 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   <Clock size={14} />
                   {entry.deadlineText}
                 </span>
+                {entry.status === 'mangler' && getExerciseIdFromUrl(entry.url) && (
+                  <button
+                    className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent cursor-pointer dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
+                    onClick={toggleIgnoreMissing}
+                  >
+                    {ignoredMissing ? 'Vis igen som manglende' : 'Ignorer manglende'}
+                  </button>
+                )}
               </div>
             )}
           </div>

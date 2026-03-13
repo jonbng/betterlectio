@@ -284,7 +284,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
   return (
     <div
       className={cn(
-        'animate-[thread-msg-in_0.3s_ease_both] flex gap-3 border-b border-border/50 py-4 last:border-b-0',
+        'animate-[thread-msg-in_0.3s_ease_both] flex gap-3.5 border-b border-border/50 py-4 last:border-b-0',
         message.isOwnMessage && '-mx-4 rounded-lg border-b-transparent bg-primary/6 px-4',
       )}
       style={{ animationDelay: `${index * 40}ms` } as any}
@@ -345,6 +345,8 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
                       <a
                         href={att.url}
                         download={att.name}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="ml-auto inline-flex size-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         title="Download"
                         onClick={(e) => e.stopPropagation()}
@@ -604,9 +606,9 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const recipientNames = recipients.map((r) => shortName(r.name));
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* ── Header ─────────────────────────────── */}
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-border pb-5 mb-3">
         <button
           type="button"
           className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
@@ -617,7 +619,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         </button>
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold text-foreground">{data.threadSubject}</h1>
+          <h1 className="truncate text-[1.5rem] font-[800] tracking-[-0.03em] text-foreground">{data.threadSubject}</h1>
           <div className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users size={13} className="text-muted-foreground" />
             <span>{recipientNames.join(', ')}</span>
@@ -648,10 +650,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
       {/* ── Reply Area ─────────────────────────── */}
       {replyTargets && (
-        <div className="sticky bottom-0 z-10 py-4 pb-6">
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_-2px_12px_oklch(0_0_0/0.04),0_0_0_1px_oklch(from_var(--border)_l_c_h/0.3)] dark:shadow-[0_-2px_16px_oklch(0_0_0/0.2),0_0_0_1px_oklch(from_var(--border)_l_c_h/0.3)]">
-          <div className="mb-2 inline-flex items-center gap-1.5 border-b border-border/50 px-4 py-3 text-sm font-semibold text-muted-foreground">
-            <Reply size={14} className="text-muted-foreground/60" />
+        <div className="sticky bottom-0 z-10 pt-4 pb-6">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_-4px_16px_oklch(0_0_0/0.06)]">
+          <div className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Reply size={13} className="text-muted-foreground/50" />
             <span>Svar</span>
           </div>
 
@@ -660,6 +662,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             placeholder="Skriv dit svar..."
             onBBCodeChange={(bbcode) => setReplyBody(bbcode)}
             onSubmit={handleSend}
+            className="border-0 rounded-none shadow-none focus-within:ring-0 focus-within:border-0"
           />
 
           {error && (
@@ -771,6 +774,8 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
               <a
                 href={lightboxImage.url}
                 download={lightboxImage.name}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                 title="Download"
               >

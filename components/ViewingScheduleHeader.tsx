@@ -25,57 +25,57 @@ const ENTITY_CONFIG: Record<ScheduleEntityType, {
 }> = {
   student: {
     label: 'Elev',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_250)] dark:bg-[oklch(0.25_0.04_250)]',
+    textClass: 'text-[oklch(0.45_0.15_250)] dark:text-[oklch(0.78_0.1_250)]',
     icon: Users,
     storagePrefix: 'S',
   },
   teacher: {
     label: 'Lærer',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_160)] dark:bg-[oklch(0.25_0.04_160)]',
+    textClass: 'text-[oklch(0.45_0.15_160)] dark:text-[oklch(0.78_0.1_160)]',
     icon: GraduationCap,
     storagePrefix: 'T',
   },
   class: {
     label: 'Klasse',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_300)] dark:bg-[oklch(0.25_0.04_300)]',
+    textClass: 'text-[oklch(0.45_0.15_300)] dark:text-[oklch(0.78_0.1_300)]',
     icon: School,
     storagePrefix: 'K',
   },
   room: {
     label: 'Lokale',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_80)] dark:bg-[oklch(0.25_0.04_80)]',
+    textClass: 'text-[oklch(0.45_0.15_80)] dark:text-[oklch(0.78_0.1_80)]',
     icon: DoorOpen,
     storagePrefix: 'L',
   },
   resource: {
     label: 'Ressource',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-muted dark:bg-muted',
+    textClass: 'text-muted-foreground dark:text-muted-foreground',
     icon: Box,
     storagePrefix: 'R',
   },
   hold: {
     label: 'Hold',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_200)] dark:bg-[oklch(0.25_0.04_200)]',
+    textClass: 'text-[oklch(0.45_0.15_200)] dark:text-[oklch(0.78_0.1_200)]',
     icon: UsersRound,
     storagePrefix: 'H',
   },
   group: {
     label: 'Gruppe',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_350)] dark:bg-[oklch(0.25_0.04_350)]',
+    textClass: 'text-[oklch(0.45_0.15_350)] dark:text-[oklch(0.78_0.1_350)]',
     icon: LayoutGrid,
     storagePrefix: 'G',
   },
   holdelement: {
     label: 'Hold',
-    bgClass: 'bg-accent',
-    textClass: 'text-accent-foreground',
+    bgClass: 'bg-[oklch(0.93_0.04_265)] dark:bg-[oklch(0.25_0.04_265)]',
+    textClass: 'text-[oklch(0.45_0.15_265)] dark:text-[oklch(0.78_0.1_265)]',
     icon: UsersRound,
     storagePrefix: 'H', // Use H for storage since it's a type of hold
   },
@@ -200,7 +200,7 @@ export function ViewingScheduleHeader({
   }, [imageEnlarged]);
 
   return (
-    <div className="rounded-xl border border-border bg-card px-4 py-3">
+    <div className="border-b border-border bg-muted/50 px-4 py-3">
       <div className="flex items-center gap-4">
         <a
           href={backUrl}
@@ -277,7 +277,7 @@ export function ViewingScheduleHeader({
       </div>
 
       {supportsMembersPanel && membersOpen && (
-        <div className="mt-3 rounded-xl border border-border bg-background p-3">
+        <div className="mt-3.5 border-t border-border pt-3.5">
           {membersLoading && (
             <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />

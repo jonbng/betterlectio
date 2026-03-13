@@ -57,6 +57,7 @@ import {
 import { clearLoginState } from '@/lib/profile-cache';
 import { getSettings } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
+import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
@@ -227,6 +228,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const schoolId = schoolInfo.id;
   const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData(schoolId, 'books') ?? true);
   const [hasSps, setHasSps] = useState(() => getCachedPageHasData(schoolId, 'sps') ?? true);
+  const [unreadCount, setUnreadCount] = useState<number>(() => getCachedUnreadCount(schoolId) ?? (hasNotificationDot() ? -1 : 0));
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Get settings for sidebar visibility
@@ -369,6 +371,29 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     };
   }, [schoolId]);
 
+  // Fetch unread message count for sidebar badge
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      getUnreadCount(schoolId).then((count) => {
+        if (!cancelled) setUnreadCount(count);
+      });
+    }, 1200);
+
+    // Listen for live updates from BeskederPage
+    const onBroadcast = (e: Event) => {
+      const count = (e as CustomEvent<{ count: number }>).detail.count;
+      if (!cancelled) setUnreadCount(count);
+    };
+    window.addEventListener('betterlectio:unreadCount', onBroadcast);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener('betterlectio:unreadCount', onBroadcast);
+    };
+  }, [schoolId]);
+
   const isActive = (page: string) => {
     const pageLower = page.toLowerCase();
     if (currentPage === pageLower) return true;
@@ -405,20 +430,32 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-1">
+      <SidebarContent className="px-1 [scrollbar-width:thin]">
         <SidebarGroup className="py-2">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {visibleNavMain.map((item) => (
-                <SidebarMenuItem key={item.page}>
-                  <SidebarMenuButton asChild isActive={isActive(item.page)} tooltip={item.title} className="text-[1rem]! py-2.5! h-auto! rounded-lg! data-[active=true]:bg-sidebar-accent! data-[active=true]:font-medium!">
-                    <a href={`${baseUrl}/${item.page}.aspx`}>
-                      <item.icon className="size-5! opacity-80" />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {visibleNavMain.map((item) => {
+                const showBadge = item.page === 'beskeder2' && unreadCount !== 0;
+                return (
+                  <SidebarMenuItem key={item.page}>
+                    <SidebarMenuButton asChild isActive={isActive(item.page)} tooltip={item.title} className="text-[1rem]! py-2.5! h-auto! rounded-lg! data-[active=true]:bg-sidebar-accent! data-[active=true]:font-medium!">
+                      <a href={`${baseUrl}/${item.page}.aspx`}>
+                        <item.icon className="size-5! opacity-80" />
+                        <span>{item.title}</span>
+                        {showBadge && (
+                          unreadCount > 0 ? (
+                            <data className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold tabular-nums shrink-0" value={unreadCount}>
+                              {unreadCount > 99 ? '99+' : unreadCount}
+                            </data>
+                          ) : (
+                            <data className="ml-auto size-2 rounded-full bg-primary animate-pulse shrink-0" value="0" />
+                          )
+                        )}
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

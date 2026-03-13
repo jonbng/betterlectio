@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
+import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -176,17 +177,23 @@ interface Props {
 export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }: Props) {
   const [entries, setEntries] = useState<ForsideOpgave[]>(initialEntries);
 
-  // Background-fetch missing assignments and merge them in
+  // Background-fetch missing assignments and merge them in (respecting ignored list)
   useEffect(() => {
     fetchMissingOpgaver(schoolId).then((missingRaw) => {
       if (missingRaw.length === 0) return;
+
+      const ignoredIds = loadIgnoredMissingIds(schoolId);
 
       setEntries((prev) => {
         // Build a set of existing URLs for deduplication
         const existingUrls = new Set(prev.map(e => e.url).filter(Boolean));
 
         const newMissing: ForsideOpgave[] = missingRaw
-          .filter(m => !existingUrls.has(m.url))
+          .filter(m => {
+            if (existingUrls.has(m.url)) return false;
+            const id = getExerciseIdFromUrl(m.url);
+            return !id || !ignoredIds.has(id);
+          })
           .map(m => ({
             title: m.title,
             url: m.url,
@@ -239,19 +246,19 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
   if (entries.length === 0) return null;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card">
+    <div className="flex flex-col">
       {/* Header */}
       <a
         href={opgaverPageUrl}
-        className="flex items-center gap-2 border-b border-border px-4 py-3 no-underline transition-colors hover:bg-accent/45"
+        className="flex items-center gap-2 border-b border-border px-3.5 py-[0.6875rem] no-underline transition-colors hover:bg-accent/40"
       >
-        <span className="text-sm font-semibold text-foreground">Opgaver</span>
-        <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{entries.length}</span>
-        <ArrowUpRight size={14} className="ml-auto text-muted-foreground opacity-40 transition-all hover:opacity-80" />
+        <span className="text-[1.0625rem] font-[650] tracking-[-0.01em] text-foreground">Opgaver</span>
+        <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-semibold leading-none text-primary-foreground">{entries.length}</span>
+        <ArrowUpRight size={14} className="ml-auto text-muted-foreground opacity-40 transition-[opacity,transform] hover:opacity-80 group-hover:translate-x-px group-hover:-translate-y-px" />
       </a>
 
       {/* Assignment list */}
-      <div className="flex flex-col p-2">
+      <div className="flex flex-col">
         {entries.map((opgave, i) => {
           const info = getDeadlineInfo(opgave.deadline, opgave.isMissing);
           const hue = getHoldHue(opgave.holdCode);
@@ -262,20 +269,20 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               key={opgave.url || i}
               href={opgave.url}
               className={cn(
-                "relative flex items-center gap-2.5 overflow-hidden rounded-lg border-b border-border/60 bg-card px-3 py-2.5 no-underline transition-colors last:border-b-0 hover:bg-accent/35 animate-in fade-in-0 slide-in-from-bottom-1 duration-300",
+                "relative flex items-center gap-2.5 overflow-hidden border-b border-border px-3.5 py-2.5 no-underline text-foreground cursor-pointer transition-colors last:border-b-0 hover:bg-accent/40",
                 info.urgency === 'missing' && "bg-[oklch(0.97_0.02_25)] hover:bg-[oklch(0.95_0.03_25)] dark:bg-[oklch(0.17_0.02_25)] dark:hover:bg-[oklch(0.2_0.025_25)]",
               )}
-              style={{ animationDelay: `${i * 50}ms`, '--hold-hue': hue } as any}
+              style={{ animationDelay: `${i * 50}ms`, '--hold-hue': hue, '--anim-i': i } as any}
               onClick={(e) => openDetail(e as unknown as MouseEvent, opgave)}
             >
               {/* Urgency bar (bottom) */}
               <div
                 className={cn(
-                  "absolute bottom-0 left-0 h-0.5 rounded-r transition-[width] duration-400",
-                  (info.urgency === 'overdue' || info.urgency === 'missing') && "h-[3px]",
+                  "absolute bottom-0 left-0 h-[2px] rounded-r transition-[width] duration-400",
+                  (info.urgency === 'missing') && "h-[3px]",
                   URGENCY_BAR[info.urgency],
                 )}
-                style={{ width: `${info.progress * 100}%` }}
+                style={{ width: (info.urgency === 'overdue' || info.urgency === 'missing') ? '100%' : `${info.progress * 100}%` }}
               />
 
               {/* Icon */}
@@ -287,19 +294,19 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               </div>
 
               {/* Content */}
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <div className="flex flex-wrap items-baseline gap-1.5">
-                  <span className={cn("text-xs uppercase tracking-wide whitespace-nowrap", URGENCY_DEADLINE[info.urgency], isFirst && (info.urgency === 'overdue' || info.urgency === 'missing' || info.urgency === 'imminent') && "text-sm")}>
+              <div className="min-w-0 flex-1 flex flex-col gap-px">
+                <div className="flex items-baseline gap-[0.3125rem]">
+                  <span className={cn("text-[0.8125rem] leading-[1.3] whitespace-nowrap", URGENCY_DEADLINE[info.urgency], isFirst && (info.urgency === 'overdue' || info.urgency === 'missing' || info.urgency === 'imminent') && "text-[0.875rem]")}>
                     {info.label}
                   </span>
-                  <span className="text-[11px] text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
+                  <span className="text-[0.6875rem] text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
                 </div>
-                <span className="line-clamp-2 text-sm font-medium text-foreground">{opgave.title}</span>
+                <span className="truncate text-[0.75rem] leading-[1.4] text-muted-foreground">{opgave.title}</span>
               </div>
 
               {/* Hold pill */}
               <span
-                className="hold-pill-dynamic shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                className="shrink-0 inline-flex items-center rounded-full px-[0.4375rem] py-0.5 text-[0.625rem] font-semibold leading-[1.5] whitespace-nowrap bg-[oklch(0.95_0.08_var(--hold-hue,235))] text-[oklch(0.5_0.16_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
                 style={{ '--hold-hue': hue } as any}
               >
                 {getHoldDisplayName(opgave.holdCode)}
