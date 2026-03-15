@@ -242,11 +242,22 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
       setTime(new Date());
     }, 1000);
 
+    const onDismiss = (e: Event) => {
+      const id = (e as CustomEvent).detail?.exerciseId;
+      if (!id) return;
+      setUrgentOpgaver((prev) => prev.filter((o) => {
+        const eid = getExerciseIdFromUrl(o.url);
+        return eid !== id;
+      }));
+    };
+    window.addEventListener('betterlectio:dismissMissing', onDismiss);
+
     return () => {
       isCancelled = true;
       if (retryId) clearInterval(retryId);
       clearInterval(clockInterval);
       window.clearTimeout(missingTimer);
+      window.removeEventListener('betterlectio:dismissMissing', onDismiss);
     };
   }, []);
 

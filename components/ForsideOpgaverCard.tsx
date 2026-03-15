@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload, Check, X } from 'lucide-react';
+import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds, addIgnoredMissingId } from '@/lib/opgaver-ignored';
@@ -250,6 +250,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
     if (!id) return;
     addIgnoredMissingId(schoolId, id);
     setEntries((prev) => prev.filter((o) => o !== opgave));
+    window.dispatchEvent(new CustomEvent('betterlectio:dismissMissing', { detail: { exerciseId: id } }));
     requestAnimationFrame(() => {
       window.dispatchEvent(new CustomEvent('betterlectio:relayoutMasonry'));
     });
@@ -265,7 +266,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
         className="flex items-center gap-2 border-b border-border px-3.5 py-[0.6875rem] no-underline transition-colors hover:bg-accent/40"
       >
         <span className="text-[1.0625rem] font-[650] tracking-[-0.01em] text-foreground">Opgaver</span>
-        <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-semibold leading-none text-primary-foreground">{entries.length}</span>
+        <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold leading-none text-primary-foreground">{entries.length}</span>
         <ArrowUpRight size={14} className="ml-auto text-muted-foreground opacity-40 transition-[opacity,transform] hover:opacity-80 group-hover:translate-x-px group-hover:-translate-y-px" />
       </a>
 
@@ -308,40 +309,37 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               {/* Content */}
               <div className="min-w-0 flex-1 flex flex-col gap-px">
                 <div className="flex items-baseline gap-[0.3125rem]">
-                  <span className={cn("text-[0.8125rem] leading-[1.3] whitespace-nowrap", URGENCY_DEADLINE[info.urgency], isFirst && (info.urgency === 'overdue' || info.urgency === 'missing' || info.urgency === 'imminent') && "text-[0.875rem]")}>
+                  <span className={cn("text-sm leading-[1.3] whitespace-nowrap", URGENCY_DEADLINE[info.urgency], isFirst && (info.urgency === 'overdue' || info.urgency === 'missing' || info.urgency === 'imminent') && "text-base")}>
                     {info.label}
                   </span>
-                  <span className="text-[0.6875rem] text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
+                  <span className="text-xs text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
                 </div>
-                <span className="truncate text-[0.75rem] leading-[1.4] text-muted-foreground">{opgave.title}</span>
+                <span className="truncate text-xs leading-[1.4] text-muted-foreground">{opgave.title}</span>
               </div>
 
-              {/* Hold pill + missing actions */}
-              <div className="shrink-0 flex items-center gap-1">
-                {opgave.isMissing && (
-                  <>
-                    <button
-                      title="Markér som set"
-                      className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/40 transition-colors hover:bg-accent hover:text-green-600 dark:hover:text-[oklch(0.72_0.15_145)]"
-                      onClick={(e) => dismissMissing(e as unknown as Event, opgave)}
-                    >
-                      <Check size={12} strokeWidth={2.5} />
-                    </button>
-                    <button
-                      title="Ignorer"
-                      className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/40 transition-colors hover:bg-accent hover:text-destructive dark:hover:text-[oklch(0.72_0.18_25)]"
-                      onClick={(e) => dismissMissing(e as unknown as Event, opgave)}
-                    >
-                      <X size={12} strokeWidth={2.5} />
-                    </button>
-                  </>
-                )}
+              {/* Hold pill + hide button */}
+              <div className="shrink-0 flex items-center gap-1.5">
                 <span
                   className="inline-flex items-center rounded-full px-[0.4375rem] py-0.5 text-[0.625rem] font-semibold leading-[1.5] whitespace-nowrap bg-[oklch(0.95_0.08_var(--hold-hue,235))] text-[oklch(0.5_0.16_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
                   style={{ '--hold-hue': hue } as any}
                 >
                   {getHoldDisplayName(opgave.holdCode)}
                 </span>
+                {opgave.isMissing && (
+                  <button
+                    title="Skjul"
+                    className="inline-flex size-6 items-center justify-center rounded-md opacity-40 transition-opacity hover:opacity-100"
+                    style={{ background: 'none', border: 'none', padding: 0 }}
+                    onClick={(e) => dismissMissing(e as unknown as Event, opgave)}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+                      <path d="M10.733 5.076a10.744 10.744 0 0 1 1.267-.076c7 0 11 8 11 8a18.45 18.45 0 0 1-2.16 3.071" />
+                      <path d="M14.12 14.12a3 3 0 0 1-4.242-4.242" />
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <line x1="2" x2="22" y1="2" y2="22" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </a>
           );

@@ -299,18 +299,18 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
 
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-baseline justify-between gap-2">
-          <span className="truncate text-base font-semibold tracking-tight text-foreground">
+          <span className="truncate text-lg font-semibold tracking-tight text-foreground">
             {shortName(message.senderName)}
           </span>
-          <span className="shrink-0 text-sm text-muted-foreground">{dateStr}</span>
+          <span className="shrink-0 text-base text-muted-foreground">{dateStr}</span>
         </div>
 
         {showTitle && (
-          <div className="mb-1 mt-1 text-base font-medium text-muted-foreground">{message.title}</div>
+          <div className="mb-1 mt-1 text-lg font-medium text-muted-foreground">{message.title}</div>
         )}
 
         <div
-          className="mt-2 wrap-anywhere text-base leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:decoration-2"
+          className="mt-2 wrap-anywhere text-lg leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:decoration-2"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(strippedContent) }}
         />
 
@@ -764,7 +764,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             <div className="flex min-h-11 items-center gap-2 border-t border-border/50 px-3 py-2">
               <FileImage size={15} className="shrink-0 text-[oklch(0.59_0.11_215)]" />
               <div className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium text-foreground">{lightboxImage.name}</span>
+                <span className="block truncate text-sm font-medium text-foreground">{lightboxImage.name}</span>
                 {(lightboxImage.sizeLabel || lightboxImage.ext) && (
                   <span className="block text-xs font-medium uppercase tracking-[0.01em] text-muted-foreground">
                     {lightboxImage.sizeLabel || lightboxImage.ext.toUpperCase()}

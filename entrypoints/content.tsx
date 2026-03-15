@@ -1180,11 +1180,10 @@ function enhanceForsideOpgaver(schoolId: string) {
 
   // Parse data from native DOM before replacing it
   const entries = parseForsideOpgaver(island);
-  if (entries.length === 0) return;
 
   const opgaverPageUrl = `/lectio/${schoolId}/OpgaverElev.aspx`;
 
-  // Clear island and render our custom card
+  // Clear island and render our custom card (even with 0 entries — missing fetch may add some)
   island.classList.add('il-foc-island');
   island.innerHTML = '';
   render(

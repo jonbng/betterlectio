@@ -305,7 +305,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
           >
             <div className="flex flex-col gap-1">
               <h3 className="m-0 text-[0.95rem] font-semibold text-foreground">Brugerdefineret farve</h3>
-              <p className="m-0 text-[0.78rem] text-muted-foreground">
+              <p className="m-0 text-sm text-muted-foreground">
                 Vælg præcis hue (0-359) til dette fag.
               </p>
             </div>
@@ -438,7 +438,7 @@ export function HoldMappingEditor() {
           <Search className="absolute left-3 top-1/2 size-[15px] -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             type="text"
-            className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-[13px] text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             placeholder="Filtrer fag..."
             value={filter}
             onInput={(e) => setFilter((e.target as HTMLInputElement).value)}

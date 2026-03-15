@@ -836,7 +836,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         {entry.note && (
                           <div
                             className={cn(
-                              'mt-2 cursor-pointer rounded-md border-l-[3px] border-l-[oklch(0.75_0.12_var(--hold-hue,235))] bg-[oklch(0.96_0.005_265/0.6)] px-2.5 py-2 text-[13px] leading-6 text-muted-foreground whitespace-pre-line transition-all dark:border-l-[oklch(0.45_0.1_var(--hold-hue,265))] dark:bg-[oklch(0.18_0.004_285/0.6)]',
+                              'mt-2 cursor-pointer rounded-md border-l-[3px] border-l-[oklch(0.75_0.12_var(--hold-hue,235))] bg-[oklch(0.96_0.005_265/0.6)] px-2.5 py-2 text-sm leading-6 text-muted-foreground whitespace-pre-line transition-all dark:border-l-[oklch(0.45_0.1_var(--hold-hue,265))] dark:bg-[oklch(0.18_0.004_285/0.6)]',
                               expandedNotes.has(globalIdx) ? 'line-clamp-none' : 'line-clamp-2',
                             )}
                             onClick={(e) => {
@@ -908,7 +908,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-medium text-foreground transition-colors hover:text-[oklch(0.5_0.16_var(--hold-hue,235))] max-sm:whitespace-normal dark:hover:text-[oklch(0.72_0.12_var(--hold-hue,265))]">
+                        <span className="block truncate text-sm font-medium text-foreground transition-colors hover:text-[oklch(0.5_0.16_var(--hold-hue,235))] max-sm:whitespace-normal dark:hover:text-[oklch(0.72_0.12_var(--hold-hue,265))]">
                           {entry.title}
                         </span>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

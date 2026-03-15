@@ -559,10 +559,8 @@ export function LektierPage({ entries }: LektierPageProps) {
                           <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2">
                             <a
                               href={entry.activityUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               className={cn(
-                                "font-semibold no-underline transition-colors duration-200",
+                                "font-semibold no-underline transition-colors duration-200 cursor-pointer",
                                 isDone
                                   ? "text-base text-muted-foreground line-through decoration-muted-foreground/40"
                                   : "text-xl text-foreground hover:text-[oklch(0.5_0.16_var(--hold-hue,265))]",
@@ -578,7 +576,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                               {entry.module && entry.timeRange && <span className="mx-1">&middot;</span>}
                               {entry.timeRange && <span>{entry.timeRange}</span>}
                               {isDone && (
-                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[oklch(0.95_0.03_145)] px-2 py-0.5 text-[0.6875rem] font-medium text-[oklch(0.45_0.12_145)] dark:bg-[oklch(0.25_0.04_145)] dark:text-[oklch(0.65_0.1_145)]">
+                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[oklch(0.95_0.03_145)] px-2 py-0.5 text-xs font-medium text-[oklch(0.45_0.12_145)] dark:bg-[oklch(0.25_0.04_145)] dark:text-[oklch(0.65_0.1_145)]">
                                   <Check size={10} strokeWidth={3} />
                                   Færdig
                                 </span>
@@ -619,7 +617,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                           <BookOpen size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
                                           <div className="min-w-0 space-y-1">
                                             {item.activityUrl ? (
-                                              <a href={item.activityUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline hover:text-[oklch(0.42_0.16_var(--hold-hue,265))]">
+                                              <a href={item.activityUrl!} className="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline hover:text-[oklch(0.42_0.16_var(--hold-hue,265))]">
                                                 <span>{item.text}</span>
                                                 <ArrowUpRight size={13} className="text-muted-foreground transition-transform" />
                                               </a>

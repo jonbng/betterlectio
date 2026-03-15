@@ -477,14 +477,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       {hasMissingReasons && (
         <section className="mb-5 rounded-xl border border-border bg-card p-4">
           <div>
-            <span className="inline-flex items-center gap-1 text-[0.71rem] font-bold tracking-[0.05em] uppercase text-[oklch(0.5_0.14_50)] dark:text-[oklch(0.8_0.11_50)]">
+            <span className="inline-flex items-center gap-1 text-xs font-bold tracking-[0.05em] uppercase text-[oklch(0.5_0.14_50)] dark:text-[oklch(0.8_0.11_50)]">
               <AlertTriangle size={13} />
               Kræver handling
             </span>
             <p className="mt-1 text-base font-bold leading-tight text-foreground">
               {data.missingReasons.length} registrering{data.missingReasons.length === 1 ? '' : 'er'} mangler fraværsårsag
             </p>
-            <p className="mt-1 text-[0.83rem] text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               Her er dem, der mangler din handling lige nu.
             </p>
           </div>
@@ -501,7 +501,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {hasCollapsedTopMissing && (
             <button
-              className="mt-3 inline-flex items-center justify-center px-3 py-1.5 text-[0.78rem] font-bold text-[oklch(0.45_0.14_50)] hover:underline hover:underline-offset-[0.18rem]"
+              className="mt-3 inline-flex items-center justify-center px-3 py-1.5 text-sm font-bold text-[oklch(0.45_0.14_50)] hover:underline hover:underline-offset-[0.18rem]"
               onClick={() => setShowAllTopMissing((value) => !value)}
             >
               {showAllTopMissing
@@ -597,7 +597,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           />
 
           <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full border-collapse text-[13px]">
+            <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
                   <SortHeader label="Fag" sortKey="hold" current={sortKey} dir={sortDir} onSort={handleSort} />
@@ -610,7 +610,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               <tbody>
                 {visibleHolds.length === 0 && (
                   <tr>
-                    <td className="bg-muted/35 px-3.5 py-4 text-center text-[0.82rem] text-muted-foreground" colSpan={5}>
+                    <td className="bg-muted/35 px-3.5 py-4 text-center text-sm text-muted-foreground" colSpan={5}>
                       Ingen fag med registreret fravær i den valgte periode.
                     </td>
                   </tr>
@@ -818,16 +818,16 @@ function TopMissingReasonCard({
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[0.82rem] font-bold text-foreground">{record.date || record.uge}</span>
+          <span className="text-sm font-bold text-foreground">{record.date || record.uge}</span>
           {record.module && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.72rem] text-muted-foreground">{record.module}</span>
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{record.module}</span>
           )}
-          <span className="text-[0.74rem] font-extrabold" style={{ color: absenceColor(record.fravaerPct) }}>
+          <span className="text-xs font-extrabold" style={{ color: absenceColor(record.fravaerPct) }}>
             {record.fravaerPct}%
           </span>
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.78rem] text-muted-foreground">
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {holdName && (
             <span className="font-bold text-[oklch(0.5_0.1_var(--hold-hue,265))] dark:text-[oklch(0.74_0.1_var(--hold-hue,265))]" style={{ '--hold-hue': hue } as any}>
               {holdName}
@@ -839,12 +839,12 @@ function TopMissingReasonCard({
         </div>
 
         {detailText && (
-          <p className="mt-1.5 text-[0.78rem] leading-relaxed text-muted-foreground">{detailText}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{detailText}</p>
         )}
       </div>
 
       <button
-        className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-full border border-[color-mix(in_oklch,oklch(0.72_0.12_50)_45%,var(--border))] bg-[oklch(0.99_0.006_50/0.9)] px-3 py-1.5 text-[0.74rem] font-bold text-[oklch(0.45_0.14_50)] transition-all hover:-translate-y-px hover:border-[oklch(0.65_0.12_50/0.85)] hover:bg-[oklch(0.995_0.004_50)] dark:border-[oklch(0.58_0.11_50/0.42)] dark:bg-[oklch(0.3_0.018_50/0.9)] dark:text-[oklch(0.86_0.09_50)] max-sm:w-full"
+        className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-full border border-[color-mix(in_oklch,oklch(0.72_0.12_50)_45%,var(--border))] bg-[oklch(0.99_0.006_50/0.9)] px-3 py-1.5 text-xs font-bold text-[oklch(0.45_0.14_50)] transition-all hover:-translate-y-px hover:border-[oklch(0.65_0.12_50/0.85)] hover:bg-[oklch(0.995_0.004_50)] dark:border-[oklch(0.58_0.11_50/0.42)] dark:bg-[oklch(0.3_0.018_50/0.9)] dark:text-[oklch(0.86_0.09_50)] max-sm:w-full"
         onClick={() => onEdit(record)}
       >
         <Edit3 size={13} />
@@ -898,7 +898,7 @@ function DonutCard({
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-[0.9rem] font-semibold text-foreground">{label}</span>
+        <span className="text-sm font-semibold text-foreground">{label}</span>
         {detail && <span className="text-sm text-muted-foreground">{detail}</span>}
         {subLabel && <span className="text-xs text-muted-foreground/80">{subLabel}</span>}
       </div>
@@ -946,11 +946,11 @@ function SubjectDistributionCard({
       <div className="mb-4 flex items-start justify-between gap-4 max-sm:flex-col">
         <div className="flex flex-col gap-1">
           <h3 className="text-base font-bold text-foreground">Fordeling af fravær</h3>
-          <p className="text-[0.8125rem] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Se hvilke fag dit opgjorte fravær fylder mest i.
           </p>
           {topSubject && (
-            <p className="text-[0.8125rem] text-[oklch(0.44_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">
+            <p className="text-sm text-[oklch(0.44_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">
               Mest i <strong>{topSubject.label}</strong> med {formatPct(topSubject.share)}
             </p>
           )}
@@ -1016,7 +1016,7 @@ function SubjectDistributionCard({
 
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-[1.7rem] leading-none font-extrabold tracking-[-0.03em] text-foreground max-sm:text-[1.4rem]">{formatNumber(totalAmount)}</span>
-                <span className="mt-1 text-[0.8rem] font-semibold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">{unitShort}</span>
+                <span className="mt-1 text-sm font-semibold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">{unitShort}</span>
                 <span className="mt-1 text-xs text-muted-foreground">
                   ud af {formatNumber(totalPossible)}
                 </span>
@@ -1094,8 +1094,8 @@ function PctCell({ pct, detail }: { pct: string; detail: string }) {
               style={{ width: `${Math.min(num, 100)}%`, background: color }}
             />
           </span>
-          <span className="text-[0.8125rem] font-semibold" style={{ color }}>{pct}</span>
-          {detail && <span className="text-[0.6875rem] text-muted-foreground/70">{detail}</span>}
+          <span className="text-sm font-semibold" style={{ color }}>{pct}</span>
+          {detail && <span className="text-xs text-muted-foreground/70">{detail}</span>}
         </>
       )}
     </div>
@@ -1126,7 +1126,7 @@ function RecordCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[0.8125rem] font-semibold text-foreground">{record.date || record.uge}</span>
+            <span className="text-sm font-semibold text-foreground">{record.date || record.uge}</span>
             {record.module && (
               <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{record.module}</span>
             )}
@@ -1150,7 +1150,7 @@ function RecordCard({
         </div>
         <div className="shrink-0 flex items-center gap-2">
           {record.fravaerType === 'godskrevet' && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_145)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[oklch(0.55_0.14_145)] dark:bg-[oklch(0.25_0.03_145)] dark:text-[oklch(0.72_0.12_145)]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_145)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.55_0.14_145)] dark:bg-[oklch(0.25_0.03_145)] dark:text-[oklch(0.72_0.12_145)]">
               <CheckCircle2 size={13} />
               Godskrevet
             </span>
@@ -1159,7 +1159,7 @@ function RecordCard({
             <span className="max-w-48 truncate rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{record.aarsag}</span>
           )}
           {isMissing && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_50)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.25_0.03_50)] dark:text-[oklch(0.75_0.12_50)]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_50)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.25_0.03_50)] dark:text-[oklch(0.75_0.12_50)]">
               <AlertTriangle size={12} />
               Mangler årsag
             </span>
