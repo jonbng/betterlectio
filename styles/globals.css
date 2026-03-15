@@ -78,6 +78,27 @@
   --color-sidebar: var(--sidebar);
 }
 
+/* Cross-document view transitions — smooth navigation between Lectio pages.
+   Also declared in hide-flash.css for document_start availability.
+   Animations are paused by hide-flash.content.ts and resumed by content.tsx
+   after the sidebar is ready, so the old snapshot stays on screen until
+   the new page is fully styled. */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -179,6 +200,9 @@
   --ring: oklch(0.72 0.13 235);
   --sidebar-primary: oklch(0.72 0.13 235);
   --sidebar-ring: oklch(0.72 0.13 235);
+  --scrollbar-track: oklch(0.15 0.003 255);
+  --scrollbar-thumb: oklch(0.32 0.004 255);
+  --scrollbar-thumb-hover: oklch(0.4 0.005 255);
 }
 
 :root[data-il-theme="sand"] {
@@ -225,6 +249,9 @@
   --ring: oklch(0.78 0.13 85);
   --sidebar-primary: oklch(0.78 0.13 85);
   --sidebar-ring: oklch(0.78 0.13 85);
+  --scrollbar-track: oklch(0.15 0.004 80);
+  --scrollbar-thumb: oklch(0.32 0.005 80);
+  --scrollbar-thumb-hover: oklch(0.4 0.006 80);
 }
 
 :root[data-il-theme="forest"] {
@@ -271,6 +298,9 @@
   --ring: oklch(0.7 0.13 160);
   --sidebar-primary: oklch(0.7 0.13 160);
   --sidebar-ring: oklch(0.7 0.13 160);
+  --scrollbar-track: oklch(0.15 0.005 160);
+  --scrollbar-thumb: oklch(0.32 0.006 160);
+  --scrollbar-thumb-hover: oklch(0.4 0.007 160);
 }
 
 :root[data-il-theme="pink"] {
@@ -317,37 +347,95 @@
   --ring: oklch(0.71 0.15 15);
   --sidebar-primary: oklch(0.71 0.15 15);
   --sidebar-ring: oklch(0.71 0.15 15);
+  --scrollbar-track: oklch(0.15 0.005 335);
+  --scrollbar-thumb: oklch(0.32 0.006 335);
+  --scrollbar-thumb-hover: oklch(0.4 0.007 335);
 }
 
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button,
+  a {
+    user-select: none;
   }
 
   * {
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
-  *::-webkit-scrollbar {
+  ::-webkit-scrollbar {
     width: 10px;
-    height: 10px;
   }
 
-  *::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0 0 0 / 0.2);
+    border-radius: 6px;
   }
 
-  *::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb);
-    border-radius: 999px;
-    border: 2px solid var(--scrollbar-track);
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0 0 0 / 0.35);
   }
 
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: var(--scrollbar-thumb-hover);
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* ── Lectio content isolation ────────────────────────────────
@@ -371,7 +459,8 @@
 
   /* Keep custom scrollbar styling consistent inside Lectio content */
   #il-original-content :where(*) {
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 }
 
@@ -2463,461 +2552,9 @@
     padding: 0;
   }
 
-  /* ========================================
-     FindSkema Page (FindSkema.aspx) Styles
-     ======================================== */
-
   /* Hide original FindSkema content when our UI is active */
   body.il-findskema #il-original-content {
     display: none !important;
-  }
-
-  /* FindSkema page container */
-  .findskema-page {
-    min-height: 100%;
-    background: var(--background);
-  }
-
-  /* Search container - prominent at top */
-  .findskema-search-container {
-    padding: 2rem 1.5rem;
-    background: linear-gradient(
-      to bottom,
-      var(--muted),
-      transparent
-    );
-  }
-
-  .findskema-search-wrapper {
-    position: relative;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .findskema-search-icon {
-    position: absolute;
-    left: 1.25rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.5rem;
-    height: 1.5rem;
-    color: var(--muted-foreground);
-    pointer-events: none;
-  }
-
-  .findskema-search-input {
-    width: 100%;
-    height: 4rem;
-    padding-left: 3.5rem;
-    padding-right: 5rem;
-    font-size: 1.25rem;
-    border-radius: 1rem;
-    border: 2px solid var(--border);
-    background: var(--background);
-    color: var(--foreground);
-    box-shadow: 0 4px 12px oklch(0 0 0 / 0.05);
-    transition: all 0.2s ease;
-  }
-
-  .findskema-search-input::placeholder {
-    color: var(--muted-foreground);
-  }
-
-  .findskema-search-input:focus {
-    outline: none;
-    border-color: var(--ring);
-    box-shadow:
-      0 4px 12px oklch(0 0 0 / 0.1),
-      0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
-  }
-
-  .findskema-search-input:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .findskema-search-actions {
-    position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .findskema-clear-btn {
-    padding: 0.5rem;
-    color: var(--muted-foreground);
-    border-radius: 0.5rem;
-    transition: all 0.15s ease;
-    cursor: pointer;
-    background: transparent;
-    border: none;
-  }
-
-  .findskema-clear-btn:hover {
-    color: var(--foreground);
-    background: var(--accent);
-  }
-
-  .findskema-shortcut-hint {
-    display: none;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    font-family: ui-monospace, monospace;
-    font-size: 0.75rem;
-    color: var(--muted-foreground);
-    background: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 0.375rem;
-  }
-
-  @media (min-width: 640px) {
-    .findskema-shortcut-hint {
-      display: inline-flex;
-    }
-  }
-
-  .findskema-error {
-    margin-top: 0.75rem;
-    text-align: center;
-    color: var(--destructive);
-    font-size: 0.875rem;
-  }
-
-  /* Filter pills */
-  .findskema-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0 1.5rem 1rem;
-    max-width: 800px;
-    margin: 0 auto;
-    justify-content: center;
-  }
-
-  .findskema-filter-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.5rem 0.875rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 9999px;
-    border: 1px solid var(--border);
-    background: var(--background);
-    color: var(--muted-foreground);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    user-select: none;
-  }
-
-  .findskema-filter-pill:hover {
-    background: var(--muted);
-    color: var(--foreground);
-  }
-
-  .findskema-filter-pill.is-active {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--primary);
-  }
-
-  .findskema-filter-pill.is-active:hover {
-    background: color-mix(in oklch, var(--primary) 90%, black);
-  }
-
-  /* Section styling */
-  .findskema-section {
-    margin-bottom: 1.5rem;
-  }
-
-  .findskema-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  /* Card grid - responsive */
-  .findskema-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 1rem;
-    padding: 0 1.5rem;
-  }
-
-  @media (max-width: 640px) {
-    .findskema-card-grid {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 0.75rem;
-      padding: 0 1rem;
-    }
-
-    .findskema-search-container {
-      padding: 1rem;
-    }
-
-    .findskema-search-input {
-      height: 3.5rem;
-      font-size: 1rem;
-      padding-left: 3rem;
-    }
-
-    .findskema-search-icon {
-      left: 1rem;
-      width: 1.25rem;
-      height: 1.25rem;
-    }
-
-    .findskema-section-header {
-      padding: 0.75rem 1rem;
-    }
-  }
-
-  /* Person card styling - vertical layout */
-  .findskema-person-card {
-    display: flex;
-    flex-direction: column;
-    border-radius: 1rem;
-    border: 1px solid var(--border);
-    background: var(--card);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    color: inherit;
-    overflow: hidden;
-  }
-
-  .findskema-person-card:hover {
-    border-color: var(--ring);
-    box-shadow: 0 8px 24px oklch(0 0 0 / 0.1);
-    transform: translateY(-2px);
-    opacity: 1;
-  }
-
-  /* Image container at top */
-  .findskema-card-image-container {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 3 / 4;
-    background: var(--muted);
-    overflow: hidden;
-  }
-
-  .findskema-card-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top;
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease;
-    opacity: 0;
-  }
-
-  .findskema-card-image.is-loaded {
-    opacity: 1;
-  }
-
-  .findskema-person-card:hover .findskema-card-image.is-loaded {
-    transform: scale(1.05);
-  }
-
-  .findskema-card-fallback {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2.5rem;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    background: var(--muted);
-  }
-
-  .findskema-card-fallback.hidden {
-    display: none;
-  }
-
-  /* Entity card variant (classes, rooms, resources, hold, groups) */
-  .findskema-entity-card {
-    position: relative;
-    aspect-ratio: 1 / 1;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    overflow: hidden;
-  }
-
-  .findskema-entity-bg-icon {
-    position: absolute;
-    top: -10%;
-    right: -10%;
-    width: 70%;
-    height: 70%;
-    color: var(--foreground);
-    opacity: 0.05;
-    transition: all 0.3s ease;
-    pointer-events: none;
-  }
-
-  .findskema-entity-card:hover .findskema-entity-bg-icon {
-    opacity: 0.09;
-    transform: scale(1.05) rotate(-3deg);
-  }
-
-  .findskema-entity-content {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    z-index: 1;
-  }
-
-  .findskema-entity-name {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--foreground);
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-  }
-
-  .findskema-entity-content > .findskema-card-badge {
-    align-self: flex-start;
-  }
-
-  /* Entity type accent colors — subtle left border */
-  .findskema-entity-K { border-left: 3px solid oklch(0.63 0.18 295); }
-  .findskema-entity-L { border-left: 3px solid oklch(0.7 0.16 55); }
-  .findskema-entity-R { border-left: 3px solid oklch(0.65 0.2 350); }
-  .findskema-entity-H { border-left: 3px solid oklch(0.7 0.14 200); }
-  .findskema-entity-G { border-left: 3px solid oklch(0.75 0.14 85); }
-
-  /* Content below image */
-  .findskema-card-content {
-    padding: 0.875rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .findskema-card-name {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--foreground);
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .findskema-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .findskema-card-class {
-    font-size: 0.8125rem;
-    color: var(--muted-foreground);
-  }
-
-  .findskema-card-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-  }
-
-  /* Action buttons - overlay on image */
-  .findskema-card-actions {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
-
-  .findskema-person-card:hover .findskema-card-actions,
-  .findskema-card-actions:has(.is-starred) {
-    opacity: 1;
-  }
-
-  .findskema-star-btn,
-  .findskema-remove-btn {
-    padding: 0.5rem;
-    border-radius: 50%;
-    background: oklch(1 0 0 / 0.9);
-    backdrop-filter: blur(4px);
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    color: var(--muted-foreground);
-    box-shadow: 0 2px 8px oklch(0 0 0 / 0.1);
-  }
-
-  .findskema-star-btn:hover {
-    background: white;
-    color: oklch(0.75 0.16 70); /* amber-500 */
-    transform: scale(1.1);
-  }
-
-  .findskema-star-btn.is-starred {
-    color: oklch(0.75 0.16 70); /* amber-500 */
-    background: white;
-  }
-
-  .findskema-remove-btn:hover {
-    background: white;
-    color: var(--destructive);
-    transform: scale(1.1);
-  }
-
-  /* Empty state */
-  .findskema-empty {
-    padding: 2rem 1.5rem;
-    text-align: center;
-    color: var(--muted-foreground);
-  }
-
-  /* Loading state */
-  .findskema-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    padding: 3rem 1.5rem;
-    color: var(--muted-foreground);
-  }
-
-  .findskema-spinner {
-    width: 2rem;
-    height: 2rem;
-    border: 2px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: findskema-spin 0.8s linear infinite;
-  }
-
-  @keyframes findskema-spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
 
   /* ========================================

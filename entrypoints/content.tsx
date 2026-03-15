@@ -331,184 +331,183 @@ function initLayout() {
   // Render the dashboard layout
   render(<DashboardLayout />, root);
 
-  // Wait for the render and then move the original content into our content area
-  requestAnimationFrame(() => {
-    const contentContainer = document.getElementById("il-lectio-content");
-    if (contentContainer) {
-      // Create a wrapper for the original content
-      const wrapper = document.createElement("div");
-      wrapper.id = "il-original-content";
+  // Preact render() is synchronous — move original content immediately
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (contentContainer) {
+    // Create a wrapper for the original content
+    const wrapper = document.createElement("div");
+    wrapper.id = "il-original-content";
 
-      // Move actual DOM nodes (preserves event handlers and form connections)
-      for (const node of originalNodes) {
-        wrapper.appendChild(node);
-      }
-
-      contentContainer.appendChild(wrapper);
-
-      // Scan DOM for hold codes, register them, and replace with display names
-      scanDOMForHolds(wrapper);
-      const holdReplacements = replaceHoldCodesInDOM(wrapper);
-      if (holdReplacements > 0) {
-        console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
-      }
-
-      const pathnameLower = window.location.pathname.toLowerCase();
-      const isSchedulePage =
-        pathnameLower.includes("skemany.aspx") ||
-        pathnameLower.includes("/skema/skema1dag.aspx") ||
-        pathnameLower.includes("findskema.aspx");
-      const isForsidePage = pathnameLower.includes("forside.aspx");
-
-      // Only run schedule brick transforms on schedule pages.
-      // Running these on lektier can mutate activity bricks we parse.
-      if (isSchedulePage) {
-        // Merge cancelled+replacement brick pairs into combined bricks
-        mergeReplacedBricks();
-
-        // Enhance schedule brick layout with subject hierarchy and hold colors
-        enhanceScheduleBricks();
-
-        // Replace Lectio's cluetip tooltips with custom tooltip cards
-        initBrickTooltips();
-      }
-
-      // Forside contains activity bricks too, but does not need schedule-specific
-      // cancelled/replacement merging logic.
-      if (isForsidePage) {
-        enhanceScheduleBricks();
-        initBrickTooltips();
-      }
-
-      // Reveal the page now that our UI is ready
-      document.documentElement.classList.add("il-ready");
-
-      // Initialize preloading for faster navigation
-      const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1];
-      if (schoolId) {
-        if (settings.behavior.preloading ?? true) {
-          initPreloading(schoolId);
-        }
-
-        // Inject FindSkema page
-        if (
-          (settings.pages.findSkemaRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("findskema.aspx")
-        ) {
-          injectFindSkemaPage(schoolId);
-        }
-
-        // Inject greeting on forside page
-        if (
-          (settings.pages.forsideRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("forside.aspx")
-        ) {
-          injectForsideGreeting(schoolId);
-        }
-
-        // Inject members page UI
-        if (
-          (settings.pages.membersPageCards ?? true) &&
-          window.location.pathname.toLowerCase().includes("members.aspx")
-        ) {
-          injectMembersPage(schoolId);
-        }
-
-        // Inject lektier page UI
-        if (
-          (settings.pages.lektierRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("material_lektieoversigt")
-        ) {
-          injectLektierPage(schoolId);
-        }
-
-        // Inject opgaver page UI
-        if (
-          (settings.pages.opgaverRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("opgaverelev")
-        ) {
-          injectOpgaverPage(schoolId);
-        }
-
-        // Inject beskeder page UI
-        if (
-          (settings.pages.beskederRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("beskeder2.aspx")
-        ) {
-          injectBeskederPage(schoolId);
-        }
-
-        // Inject fravær page redesign
-        if (
-          (settings.pages.fravaerRedesign ?? true) &&
-          /\/subnav\/fravaerelev(_fravaersaarsager)?\.aspx/i.test(
-            window.location.pathname,
-          )
-        ) {
-          injectFravaerPage(schoolId);
-        }
-
-        // Inject "viewing schedule" header when looking at someone else's schedule
-        if (
-          (settings.schedule.viewingScheduleHeader ?? true) &&
-          !isViewingOwnPage()
-        ) {
-          injectViewingScheduleHeader(schoolId);
-
-          // Add body class for entity schedules (non-person types like hold, class, room)
-          // This enables showing the Lectio subnavigation for these pages
-          const viewedEntity = getViewedEntityId();
-          if (
-            viewedEntity &&
-            viewedEntity.type !== "student" &&
-            viewedEntity.type !== "teacher"
-          ) {
-            document.body.classList.add("il-entity-schedule");
-          }
-        }
-
-        // Replace teacher initials with full names in original Lectio DOM
-        loadTeacherNames(schoolId).then(cache => {
-          if (!cache) return;
-          const originalContent = document.getElementById("il-original-content");
-          if (originalContent) {
-            const count = replaceTeacherInitialsInDOM(cache, originalContent);
-            if (count > 0) {
-              console.log(`[BetterLectio] Replaced ${count} teacher initials with full names`);
-            }
-          }
-        });
-      }
-
-      // Set up title observer for dynamic updates (e.g., unread message count)
-      if (settings.visual.cleanPageTitles ?? true) {
-        observeTitleChanges();
-      }
-
-      // Set up schedule table column widths, clean labels, and highlight today
-      injectScheduleColgroup();
-      cleanUpModuleLabels();
-      injectTodayButton();
-      setupWeekendCollapse();
-      if (settings.schedule.todayHighlight ?? true) {
-        highlightTodayInSchedule();
-        if (settings.schedule.currentTimeIndicator ?? true) {
-          injectCurrentTimeIndicator(settings.schedule.currentTimeLabel ?? false);
-        }
-      }
-
-      // Remove redundant tooltip on activity page title
-      removeActivityTitleTooltip();
-
-      // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
-      initUserJotWidget();
-      if (userJotIdentifyPayload) {
-        identifyUserJot(userJotIdentifyPayload);
-      }
-
-      console.log("[BetterLectio] Dashboard layout injected");
+    // Move actual DOM nodes (preserves event handlers and form connections)
+    for (const node of originalNodes) {
+      wrapper.appendChild(node);
     }
-  });
+
+    contentContainer.appendChild(wrapper);
+
+    // Scan DOM for hold codes, register them, and replace with display names
+    scanDOMForHolds(wrapper);
+    const holdReplacements = replaceHoldCodesInDOM(wrapper);
+    if (holdReplacements > 0) {
+      console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
+    }
+
+    const pathnameLower = window.location.pathname.toLowerCase();
+    const isSchedulePage =
+      pathnameLower.includes("skemany.aspx") ||
+      pathnameLower.includes("/skema/skema1dag.aspx") ||
+      pathnameLower.includes("findskema.aspx");
+    const isForsidePage = pathnameLower.includes("forside.aspx");
+
+    // Only run schedule brick transforms on schedule pages.
+    // Running these on lektier can mutate activity bricks we parse.
+    if (isSchedulePage) {
+      // Merge cancelled+replacement brick pairs into combined bricks
+      mergeReplacedBricks();
+
+      // Enhance schedule brick layout with subject hierarchy and hold colors
+      enhanceScheduleBricks();
+
+      // Replace Lectio's cluetip tooltips with custom tooltip cards
+      initBrickTooltips();
+    }
+
+    // Forside contains activity bricks too, but does not need schedule-specific
+    // cancelled/replacement merging logic.
+    if (isForsidePage) {
+      enhanceScheduleBricks();
+      initBrickTooltips();
+    }
+
+    // Reveal the page now that our UI is ready
+    document.documentElement.classList.add("il-ready");
+    document.getElementById('il-nav-blocker')?.remove();
+
+    // Initialize preloading for faster navigation
+    const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1];
+    if (schoolId) {
+      if (settings.behavior.preloading ?? true) {
+        initPreloading(schoolId);
+      }
+
+      // Inject FindSkema page
+      if (
+        (settings.pages.findSkemaRedesign ?? true) &&
+        window.location.pathname.toLowerCase().includes("findskema.aspx")
+      ) {
+        injectFindSkemaPage(schoolId);
+      }
+
+      // Inject greeting on forside page
+      if (
+        (settings.pages.forsideRedesign ?? true) &&
+        window.location.pathname.toLowerCase().includes("forside.aspx")
+      ) {
+        injectForsideGreeting(schoolId);
+      }
+
+      // Inject members page UI
+      if (
+        (settings.pages.membersPageCards ?? true) &&
+        window.location.pathname.toLowerCase().includes("members.aspx")
+      ) {
+        injectMembersPage(schoolId);
+      }
+
+      // Inject lektier page UI
+      if (
+        (settings.pages.lektierRedesign ?? true) &&
+        window.location.pathname.toLowerCase().includes("material_lektieoversigt")
+      ) {
+        injectLektierPage(schoolId);
+      }
+
+      // Inject opgaver page UI
+      if (
+        (settings.pages.opgaverRedesign ?? true) &&
+        window.location.pathname.toLowerCase().includes("opgaverelev")
+      ) {
+        injectOpgaverPage(schoolId);
+      }
+
+      // Inject beskeder page UI
+      if (
+        (settings.pages.beskederRedesign ?? true) &&
+        window.location.pathname.toLowerCase().includes("beskeder2.aspx")
+      ) {
+        injectBeskederPage(schoolId);
+      }
+
+      // Inject fravær page redesign
+      if (
+        (settings.pages.fravaerRedesign ?? true) &&
+        /\/subnav\/fravaerelev(_fravaersaarsager)?\.aspx/i.test(
+          window.location.pathname,
+        )
+      ) {
+        injectFravaerPage(schoolId);
+      }
+
+      // Inject "viewing schedule" header when looking at someone else's schedule
+      if (
+        (settings.schedule.viewingScheduleHeader ?? true) &&
+        !isViewingOwnPage()
+      ) {
+        injectViewingScheduleHeader(schoolId);
+
+        // Add body class for entity schedules (non-person types like hold, class, room)
+        // This enables showing the Lectio subnavigation for these pages
+        const viewedEntity = getViewedEntityId();
+        if (
+          viewedEntity &&
+          viewedEntity.type !== "student" &&
+          viewedEntity.type !== "teacher"
+        ) {
+          document.body.classList.add("il-entity-schedule");
+        }
+      }
+
+      // Replace teacher initials with full names in original Lectio DOM
+      loadTeacherNames(schoolId).then(cache => {
+        if (!cache) return;
+        const originalContent = document.getElementById("il-original-content");
+        if (originalContent) {
+          const count = replaceTeacherInitialsInDOM(cache, originalContent);
+          if (count > 0) {
+            console.log(`[BetterLectio] Replaced ${count} teacher initials with full names`);
+          }
+        }
+      });
+    }
+
+    // Set up title observer for dynamic updates (e.g., unread message count)
+    if (settings.visual.cleanPageTitles ?? true) {
+      observeTitleChanges();
+    }
+
+    // Set up schedule table column widths, clean labels, and highlight today
+    injectScheduleColgroup();
+    cleanUpModuleLabels();
+    injectTodayButton();
+    setupWeekendCollapse();
+    if (settings.schedule.todayHighlight ?? true) {
+      highlightTodayInSchedule();
+      if (settings.schedule.currentTimeIndicator ?? true) {
+        injectCurrentTimeIndicator(settings.schedule.currentTimeLabel ?? false);
+      }
+    }
+
+    // Remove redundant tooltip on activity page title
+    removeActivityTitleTooltip();
+
+    // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
+    initUserJotWidget();
+    if (userJotIdentifyPayload) {
+      identifyUserJot(userJotIdentifyPayload);
+    }
+
+    console.log("[BetterLectio] Dashboard layout injected");
+  }
 }
 
 function removeActivityTitleTooltip() {

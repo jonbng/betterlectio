@@ -1,25 +1,57 @@
-/* Critical CSS injected at document_start via manifest - no JS delay */
-/* This prevents FOUC by hiding the page until our UI is ready */
+/* Critical CSS injected at document_start via manifest — no JS delay */
 
-/* Hide entire document immediately - html exists before body */
+/* ── Prevent white first paint ──────────────────────────────────────────
+   Set html background immediately so the browser's first paint matches
+   the user's theme instead of flashing white. .dark is applied by
+   hide-flash.content.ts at document_start from localStorage. ───────── */
+html {
+  background: oklch(0.985 0.003 265) !important; /* light mode */
+}
+
+html.dark {
+  background: oklch(0.13 0.004 285) !important; /* dark mode */
+  color-scheme: dark; /* prevents browser light-UI defaults */
+}
+
+/* ── Cross-document view transitions ───────────────────────────────────
+   Declared here (document_start CSS) so both old and new pages have it.
+   Only plays on prerendered pages — non-prerendered transitions are
+   skipped via skipTransition() in hide-flash.content.ts. ──────────── */
+@view-transition {
+  navigation: auto;
+}
+
+/* ── Page hiding ───────────────────────────────────────────────────── */
 html:not(.il-ready):not(.il-prerendered) {
   visibility: hidden !important;
 }
 
-/* Reveal when ready */
 html.il-ready,
 html.il-prerendered {
   visibility: visible !important;
 }
 
-/* Body fade-in effect (only after html is visible) */
-html.il-ready body {
-  opacity: 1 !important;
-  transition: opacity 0.1s ease-out !important;
+/* Body starts at opacity:0 for smooth fade-in when .il-ready is set */
+html:not(.il-ready):not(.il-prerendered) body {
+  opacity: 0 !important;
 }
 
-/* Skip transition for prerendered pages */
-html.il-prerendered body {
+/* Fade-in for non-prerendered navigations */
+html.il-ready:not(.il-vt-active) body {
+  opacity: 1 !important;
+  transition: opacity 0.15s ease-out !important;
+}
+
+/* Instant reveal for prerendered pages and view transitions */
+html.il-prerendered body,
+html.il-vt-active body {
   opacity: 1 !important;
   transition: none !important;
+}
+
+/* ── Accessibility ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
 }

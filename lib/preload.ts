@@ -1,13 +1,12 @@
 /**
  * Preloading utilities for faster navigation
  *
- * Conservative approach:
- * 1. Only prerender skema (most used page) on page load
- * 2. Prefetch other pages on hover (200ms delay)
+ * Strategy:
+ * 1. Prerender skema immediately (most used page)
+ * 2. Prerender predicted next pages based on current page
+ * 3. Prerender any same-school link on hover (via speculation rules)
+ * 4. Fall back to <link rel="prefetch"> on Firefox (no speculation rules)
  */
-
-// Track what we've already prefetched to avoid duplicates
-const prefetchedUrls = new Set<string>();
 
 /**
  * Check if the browser supports Speculation Rules API
@@ -17,39 +16,96 @@ export function supportsSpeculationRules(): boolean {
 }
 
 /**
- * Add speculation rules for a single priority URL (skema)
- * Uses conservative prerendering - only one page at a time
+ * Get predicted next pages based on the current page.
+ * Returns relative paths (without /lectio/{schoolId}/ prefix).
  */
-function addSkemaSpeculationRule(skemaUrl: string): void {
-  if (!supportsSpeculationRules()) return;
-  if (prefetchedUrls.has(skemaUrl)) return;
+function getPredictedPages(): string[] {
+  const path = window.location.pathname.toLowerCase();
 
-  // Don't prerender if we're already on skema
-  if (window.location.pathname.includes('skema')) return;
+  if (path.includes('forside.aspx')) {
+    return ['skemany.aspx', 'beskeder2.aspx?mappeid=-70'];
+  }
+  if (path.includes('skema')) {
+    return ['forside.aspx', 'beskeder2.aspx?mappeid=-70'];
+  }
+  if (path.includes('beskeder')) {
+    return ['skemany.aspx', 'forside.aspx'];
+  }
+  if (path.includes('material_lektieoversigt')) {
+    return ['skemany.aspx', 'forside.aspx'];
+  }
+  if (path.includes('opgaverelev')) {
+    return ['skemany.aspx', 'forside.aspx'];
+  }
 
-  prefetchedUrls.add(skemaUrl);
+  // Default: skema + forside are always good bets
+  return ['skemany.aspx', 'forside.aspx'];
+}
 
-  const rules = {
-    prerender: [{
+/**
+ * Inject a <script type="speculationrules"> element.
+ * Chrome/Edge use these to prerender or prefetch pages.
+ */
+function injectSpeculationRules(schoolId: string): void {
+  const baseUrl = `/lectio/${schoolId}`;
+  const onSkema = window.location.pathname.toLowerCase().includes('skema');
+
+  const prerenderList: string[] = [];
+
+  // Always prerender skema immediately (unless already on it)
+  if (!onSkema) {
+    prerenderList.push(`${baseUrl}/skemany.aspx`);
+  }
+
+  // Add predicted pages (skip current page)
+  for (const page of getPredictedPages()) {
+    const url = `${baseUrl}/${page}`;
+    if (!window.location.href.includes(page.split('?')[0])) {
+      prerenderList.push(url);
+    }
+  }
+
+  // Deduplicate
+  const uniqueUrls = [...new Set(prerenderList)];
+
+  const rules: any = { prerender: [] };
+
+  // Immediate prerender for top predictions
+  if (uniqueUrls.length > 0) {
+    rules.prerender.push({
       source: 'list',
-      urls: [skemaUrl],
-      eagerness: 'immediate', // always have skema ready
-    }],
-  };
+      urls: uniqueUrls,
+      eagerness: 'immediate',
+    });
+  }
+
+  // Hover-based prerender for ALL same-school links.
+  // eagerness: "moderate" means Chrome prerenders on hover/pointerdown.
+  // This replaces our custom hover-prefetch JS entirely for Chrome.
+  rules.prerender.push({
+    source: 'document',
+    where: {
+      href_matches: `/lectio/${schoolId}/*`,
+    },
+    eagerness: 'moderate',
+  });
 
   const script = document.createElement('script');
   script.type = 'speculationrules';
   script.textContent = JSON.stringify(rules);
   document.head.appendChild(script);
 
-  console.log('[BetterLectio] Will prerender skema on idle');
+  console.log(
+    `[BetterLectio] Speculation rules: immediate prerender ${uniqueUrls.length} pages, hover prerender all /lectio/${schoolId}/* links`,
+  );
 }
 
 /**
- * Setup hover-based prefetching for links
- * Only fetches when user shows clear intent (200ms hover)
+ * Setup hover-based prefetching for links (Firefox/Safari fallback).
+ * Only fetches when user shows clear intent (200ms hover).
  */
-export function setupHoverPrefetching(): void {
+function setupHoverPrefetching(): void {
+  const prefetchedUrls = new Set<string>();
   let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const handleMouseEnter = (e: Event) => {
@@ -66,19 +122,16 @@ export function setupHoverPrefetching(): void {
     if (href === window.location.href) return;
     if (prefetchedUrls.has(href)) return;
 
-    // 200ms delay to filter accidental hovers and reduce request noise
+    // 200ms delay to filter accidental hovers
     hoverTimeout = setTimeout(() => {
       if (prefetchedUrls.has(href)) return;
       prefetchedUrls.add(href);
 
-      // Use link prefetch (gentler than fetch)
-      const link = document.createElement('link');
-      link.rel = 'prefetch';
-      link.href = href;
-      link.as = 'document';
-      document.head.appendChild(link);
-
-      console.log('[BetterLectio] Prefetching:', href);
+      const prefetchLink = document.createElement('link');
+      prefetchLink.rel = 'prefetch';
+      prefetchLink.href = href;
+      prefetchLink.as = 'document';
+      document.head.appendChild(prefetchLink);
     }, 200);
   };
 
@@ -94,33 +147,25 @@ export function setupHoverPrefetching(): void {
 }
 
 /**
- * Initialize preloading - conservative approach
+ * Initialize preloading
  */
 export function initPreloading(schoolId: string): void {
-  const baseUrl = `/lectio/${schoolId}`;
-  const skemaUrl = `${baseUrl}/skemany.aspx`;
-
-  // Don't prefetch skema if we're already on it
-  const onSkema = window.location.pathname.includes('skema');
-
   if (supportsSpeculationRules()) {
-    // Chrome/Edge: prerender skema immediately
-    if (!onSkema) {
-      addSkemaSpeculationRule(skemaUrl);
+    // Chrome/Edge: use Speculation Rules for immediate + hover prerender
+    injectSpeculationRules(schoolId);
+  } else {
+    // Firefox/Safari: prefetch skema + hover-based prefetch for others
+    const skemaUrl = `/lectio/${schoolId}/skemany.aspx`;
+    if (!window.location.pathname.toLowerCase().includes('skema')) {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = skemaUrl;
+      link.as = 'document';
+      document.head.appendChild(link);
     }
-  } else if (!onSkema && !prefetchedUrls.has(skemaUrl)) {
-    // Firefox/Safari: at least prefetch skema
-    prefetchedUrls.add(skemaUrl);
-    const link = document.createElement('link');
-    link.rel = 'prefetch';
-    link.href = skemaUrl;
-    link.as = 'document';
-    document.head.appendChild(link);
-    console.log('[BetterLectio] Prefetching skema (no speculation rules)');
-  }
 
-  // Hover-based prefetching for everything else
-  setupHoverPrefetching();
+    setupHoverPrefetching();
+  }
 
   console.log('[BetterLectio] Preloading initialized');
 }
