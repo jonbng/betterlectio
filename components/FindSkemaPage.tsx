@@ -396,11 +396,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const showMyTeachers = !showSearchResults && myTeachers.length > 0 && activeFilters.has('T');
 
   return (
-    <div className="findskema-page pb-2">
+    <div className="min-h-full bg-background pb-2">
       {/* Search Section */}
-      <div className="findskema-search-container">
-        <div className="findskema-search-wrapper">
-          <Search className="findskema-search-icon" />
+      <div className="px-6 pt-8 pb-0 max-sm:px-4 max-sm:pt-4">
+        <div className="relative max-w-[800px] mx-auto">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-6 text-muted-foreground pointer-events-none max-sm:left-4 max-sm:size-5" />
           <input
             ref={inputRef}
             type="text"
@@ -408,32 +408,36 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
             placeholder={loading ? 'Indlæser...' : placeholderText}
             disabled={loading || !!error}
-            className="findskema-search-input"
+            className="w-full h-16 pl-14 pr-20 text-xl rounded-2xl border-2 border-border bg-background text-foreground shadow-[0_4px_12px_oklch(0_0_0/0.05)] transition-all duration-200 placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:shadow-[0_4px_12px_oklch(0_0_0/0.1),0_0_0_3px_color-mix(in_oklch,var(--ring)_20%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed max-sm:h-14 max-sm:text-base max-sm:pl-12"
           />
-          <div className="findskema-search-actions">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {query ? (
               <button
                 onClick={() => setQuery('')}
-                className="findskema-clear-btn"
+                className="p-2 text-muted-foreground rounded-lg transition-all duration-150 hover:text-foreground hover:bg-accent"
               >
                 <X className="size-5" />
               </button>
             ) : (
-              <kbd className="findskema-shortcut-hint">
+              <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 font-mono text-xs text-muted-foreground bg-muted border border-border rounded-md">
                 <span>⌘</span>K
               </kbd>
             )}
           </div>
         </div>
-        {error && <p className="findskema-error">{error}</p>}
+        {error && <p className="mt-3 text-center text-destructive text-sm">{error}</p>}
       </div>
 
       {/* Filter Pills */}
-      <div className="findskema-filters">
+      <div className="flex flex-wrap gap-2 px-6 py-4 max-w-[800px] mx-auto justify-center max-sm:px-4">
         <button
           type="button"
           onClick={() => setActiveFilter('all')}
-          className={`findskema-filter-pill ${activeFilter === 'all' ? 'is-active' : ''}`}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-full border transition-all duration-150 select-none ${
+            activeFilter === 'all'
+              ? 'bg-primary text-primary-foreground border-primary hover:bg-[color-mix(in_oklch,var(--primary)_90%,black)]'
+              : 'bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+          }`}
         >
           Alle
         </button>
@@ -442,7 +446,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             key={key}
             type="button"
             onClick={() => setActiveFilter(activeFilter === key ? 'all' : key)}
-            className={`findskema-filter-pill ${activeFilter === key ? 'is-active' : ''}`}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-full border transition-all duration-150 select-none ${
+              activeFilter === key
+                ? 'bg-primary text-primary-foreground border-primary hover:bg-[color-mix(in_oklch,var(--primary)_90%,black)]'
+                : 'bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+            }`}
           >
             <Icon className="size-4" />
             <span>{label}</span>
@@ -452,13 +460,13 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
       {/* Search Results */}
       {showSearchResults && (
-        <section className="findskema-section">
-          <div className="findskema-section-header">
+        <section className="mb-6">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
             <Search className="size-4" />
             <span>Søgeresultater ({filteredItems.length})</span>
           </div>
           {filteredItems.length > 0 ? (
-            <div className="findskema-card-grid">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
               {filteredItems.map(item => {
                 const { displayName, classCode } = parsePersonInfo(item.name);
                 return (
@@ -479,19 +487,19 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
               })}
             </div>
           ) : (
-            <p className="findskema-empty">Ingen resultater fundet</p>
+            <p className="px-6 py-8 text-center text-muted-foreground">Ingen resultater fundet</p>
           )}
         </section>
       )}
 
       {/* Browse Sections */}
       {!showSearchResults && browseSections.map(({ key, label, icon: Icon, items: sectionItems, limit }) => (
-        <section key={key} className="findskema-section">
-          <div className="findskema-section-header">
+        <section key={key} className="mb-6">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
             <Icon className="size-4" />
             <span>{label} (viser {sectionItems.length}{sectionItems.length >= limit ? '+' : ''})</span>
           </div>
-          <div className="findskema-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
             {sectionItems.map(item => {
               const { displayName, classCode } = parsePersonInfo(item.name);
               return (
@@ -516,12 +524,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
       {/* Recents Section */}
       {showRecents && (
-        <section className="findskema-section">
-          <div className="findskema-section-header">
+        <section className="mb-6">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
             <Clock className="size-4" />
             <span>Seneste</span>
           </div>
-          <div className="findskema-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
             {filteredRecents.map(recent => (
               <PersonCard
                 key={recent.id}
@@ -543,12 +551,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
       {/* Starred Section */}
       {showStarred && (
-        <section className="findskema-section">
-          <div className="findskema-section-header">
+        <section className="mb-6">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
             <Star className="size-4" />
             <span>Favoritter</span>
           </div>
-          <div className="findskema-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
             {filteredStarred.map(person => (
               <PersonCard
                 key={person.id}
@@ -578,12 +586,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
       {/* My Teachers Section */}
       {showMyTeachers && (
-        <section className="findskema-section">
-          <div className="findskema-section-header">
+        <section className="mb-6">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
             <GraduationCap className="size-4" />
             <span>Mine lærere</span>
           </div>
-          <div className="findskema-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
             {myTeachers.map(item => {
               const { displayName, classCode } = parsePersonInfo(item.name);
               return (
@@ -608,12 +616,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
       {/* Classmates Section */}
       {showClassmates && (
-        <section className="findskema-section">
-          <div className="findskema-section-header">
+        <section className="mb-6">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
             <Users className="size-4" />
             <span>Klassekammerater ({userProfile?.className})</span>
           </div>
-          <div className="findskema-card-grid">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
             {classmates.map(item => {
               const { displayName, classCode } = parsePersonInfo(item.name);
               return (
@@ -638,8 +646,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
       {/* Loading State */}
       {loading && (
-        <div className="findskema-loading">
-          <div className="findskema-spinner" />
+        <div className="flex flex-col items-center justify-center gap-4 px-6 py-12 text-muted-foreground">
+          <div className="size-8 border-2 border-border border-t-primary rounded-full animate-spin" />
           <span>Indlæser data...</span>
         </div>
       )}

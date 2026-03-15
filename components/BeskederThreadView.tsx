@@ -608,7 +608,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   return (
     <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* ── Header ─────────────────────────────── */}
-      <div className="flex items-center gap-3 border-b border-border pb-5 mb-3">
+      <div className="sticky top-0 z-10 -mx-8 flex items-center gap-3 border-b border-border bg-background/80 px-8 pb-5 pt-5 mb-3 backdrop-blur-md max-sm:-mx-4 max-sm:px-4">
         <button
           type="button"
           className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"

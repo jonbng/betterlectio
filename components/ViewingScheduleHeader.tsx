@@ -4,6 +4,8 @@ import { ArrowLeft, Star, School, DoorOpen, Box, UsersRound, LayoutGrid, Graduat
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
+import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
+import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
 import { PersonCard } from './PersonCard';
 
 interface ViewingScheduleHeaderProps {
@@ -102,7 +104,10 @@ export function ViewingScheduleHeader({
   const TypeIcon = config.icon;
   const hasPicture = type === 'student' || type === 'teacher';
   const membersFetchUrls = getMembersFetchUrlsFromDocument();
-  const supportsMembersPanel = membersFetchUrls.length > 0;
+  const hasSubnavMembers = membersFetchUrls.length > 0;
+  // Students with a class code can show classmates even without subnav members links
+  const isStudentWithClass = type === 'student' && !!subtitle;
+  const supportsMembersPanel = hasSubnavMembers || isStudentWithClass;
 
   // Parse navigation context from URL params (set by FindSkemaPage)
   const urlParams = new URLSearchParams(window.location.search);
@@ -137,7 +142,51 @@ export function ViewingScheduleHeader({
     setMembersError(null);
 
     try {
-      const fetchedMembers = await fetchMembersFromUrls(membersFetchUrls);
+      let urls = membersFetchUrls;
+
+      // For students without subnav members links, resolve class code → klasseid
+      if (urls.length === 0 && isStudentWithClass) {
+        const items = await fetchAvanceretSkemaDropdownItems(schoolId);
+        // Find a stamklasse (SC prefix) whose name matches the student's class code.
+        // Dropdown names are year-based (e.g. "2025x"), but subtitle is grade-based (e.g. "1x").
+        // Transform dropdown names to grade-based for comparison.
+        const classItem = items.find(([itemName, itemId]) => {
+          if (!itemId.startsWith('SC')) return false;
+          if (getFindSkemaTypeKeyFromId(itemId) !== 'K') return false;
+          const raw = itemName.trim();
+          // Try year-based → grade-based transform
+          const yearMatch = raw.match(/^(\d{4})([a-zA-Z](?:\s+\d+)?)$/);
+          if (yearMatch) {
+            const startYear = parseInt(yearMatch[1], 10);
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const schoolStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
+            const grade = schoolStartYear - startYear + 1;
+            if (grade >= 1 && grade <= 3) {
+              return `${grade}${yearMatch[2]}` === subtitle.trim();
+            }
+          }
+          // Fallback: direct match (non-gymnasium schools)
+          return raw === subtitle.trim();
+        });
+        if (classItem) {
+          const klasseId = classItem[1].replace(/^SC/, '');
+          const membersUrl = new URL(
+            `/lectio/${schoolId}/subnav/members.aspx`,
+            window.location.origin,
+          );
+          membersUrl.searchParams.set('klasseid', klasseId);
+          membersUrl.searchParams.set('showstudents', '1');
+          membersUrl.searchParams.set('reporttype', 'withpics');
+          urls = [membersUrl.href];
+        } else {
+          setMembersError('Kunne ikke finde klassen.');
+          setMembersLoading(false);
+          return;
+        }
+      }
+
+      const fetchedMembers = await fetchMembersFromUrls(urls);
       setMembers(fetchedMembers);
     } catch (error) {
       console.error('[BetterLectio] Failed to fetch members', {
@@ -265,10 +314,10 @@ export function ViewingScheduleHeader({
                 onClick={handleToggleMembers}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent aria-expanded:bg-primary/10 aria-expanded:border-primary/40"
                 aria-expanded={membersOpen}
-                title="Vis medlemmer"
+                title={isStudentWithClass && !hasSubnavMembers ? 'Vis klassekammerater' : 'Vis medlemmer'}
               >
                 <Users className="size-4" />
-                <span>Medlemmer</span>
+                <span>{isStudentWithClass && !hasSubnavMembers ? 'Klassekammerater' : 'Medlemmer'}</span>
                 <ChevronDown className={`size-4 transition-transform ${membersOpen ? 'rotate-180' : ''}`} />
               </button>
             )}

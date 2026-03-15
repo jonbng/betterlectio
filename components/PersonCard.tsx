@@ -22,6 +22,15 @@ const TYPE_ICONS: Record<string, typeof School> = {
   G: LayoutGrid,
 };
 
+// Entity type accent border colors
+const ENTITY_BORDER: Record<string, string> = {
+  K: 'border-l-[3px] border-l-[oklch(0.63_0.18_295)]',
+  L: 'border-l-[3px] border-l-[oklch(0.7_0.16_55)]',
+  R: 'border-l-[3px] border-l-[oklch(0.65_0.2_350)]',
+  H: 'border-l-[3px] border-l-[oklch(0.7_0.14_200)]',
+  G: 'border-l-[3px] border-l-[oklch(0.75_0.14_85)]',
+};
+
 // Types that typically have pictures
 const TYPES_WITH_PICTURES = ['S', 'T'];
 
@@ -180,7 +189,7 @@ export function PersonCard({
 
   const handleCardClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.findskema-card-actions')) return;
+    if (target.closest('[data-card-actions]')) return;
     navigateToCard();
   };
 
@@ -193,6 +202,39 @@ export function PersonCard({
   // Show fallback if: no URL yet, error loading, or image hasn't loaded
   const showFallback = !pictureUrl || pictureError || !pictureLoaded;
 
+  // Action buttons (shared between entity and person cards)
+  const actionButtons = (
+    <div
+      data-card-actions
+      className={`absolute top-2 right-2 flex flex-col gap-1 transition-opacity duration-200 ${
+        isStarred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+      }`}
+    >
+      {onRemove && (
+        <button
+          type="button"
+          onClick={handleRemoveClick}
+          className="p-2 rounded-full bg-[oklch(1_0_0/0.9)] backdrop-blur-sm text-muted-foreground shadow-[0_2px_8px_oklch(0_0_0/0.1)] hover:bg-white hover:text-destructive hover:scale-110 transition-all duration-150"
+          title="Fjern fra seneste"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={handleStarClick}
+        className={`p-2 rounded-full backdrop-blur-sm shadow-[0_2px_8px_oklch(0_0_0/0.1)] hover:scale-110 transition-all duration-150 ${
+          isStarred
+            ? 'bg-white text-[oklch(0.75_0.16_70)]'
+            : 'bg-[oklch(1_0_0/0.9)] text-muted-foreground hover:bg-white hover:text-[oklch(0.75_0.16_70)]'
+        }`}
+        title={isStarred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
+      >
+        <Star className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
+      </button>
+    </div>
+  );
+
   // Entity card layout (classes, rooms, resources, hold, groups)
   if (isEntityCard) {
     return (
@@ -203,39 +245,22 @@ export function PersonCard({
         onClick={handleCardClick}
         onKeyDown={handleCardKeyDown}
         aria-label={`Åbn skema for ${name}`}
-        className={`findskema-person-card findskema-entity-card findskema-entity-${type} group`}
+        className={`group flex flex-col rounded-2xl border border-border bg-card cursor-pointer transition-all duration-200 no-underline text-inherit overflow-hidden hover:border-ring hover:shadow-[0_8px_24px_oklch(0_0_0/0.1)] hover:-translate-y-0.5 relative aspect-square p-4 justify-end ${ENTITY_BORDER[type] || ''}`}
       >
         {/* Decorative background icon */}
         {EntityIcon && (
-          <EntityIcon className="findskema-entity-bg-icon" strokeWidth={1} />
+          <EntityIcon
+            className="absolute -top-[10%] -right-[10%] w-[70%] h-[70%] text-foreground opacity-5 transition-all duration-300 pointer-events-none group-hover:opacity-[0.09] group-hover:scale-105 group-hover:-rotate-3"
+            strokeWidth={1}
+          />
         )}
 
-        {/* Action buttons */}
-        <div className="findskema-card-actions">
-          {onRemove && (
-            <button
-              type="button"
-              onClick={handleRemoveClick}
-              className="findskema-remove-btn"
-              title="Fjern fra seneste"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleStarClick}
-            className={`findskema-star-btn ${isStarred ? 'is-starred' : ''}`}
-            title={isStarred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
-          >
-            <Star className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
-          </button>
-        </div>
+        {actionButtons}
 
         {/* Entity content */}
-        <div className="findskema-entity-content">
-          <span className="findskema-entity-name">{name}</span>
-          <span className={`findskema-card-badge ${config.badgeClass}`}>
+        <div className="relative flex flex-col gap-2 z-[1]">
+          <span className="text-xl font-bold text-foreground leading-tight -tracking-[0.01em]">{name}</span>
+          <span className={`self-start text-xs font-semibold px-2 py-0.5 rounded-full ${config.badgeClass}`}>
             {config.label}
           </span>
         </div>
@@ -252,56 +277,38 @@ export function PersonCard({
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       aria-label={`Åbn skema for ${name}`}
-      className="findskema-person-card group"
+      className="group flex flex-col rounded-2xl border border-border bg-card cursor-pointer transition-all duration-200 no-underline text-inherit overflow-hidden hover:border-ring hover:shadow-[0_8px_24px_oklch(0_0_0/0.1)] hover:-translate-y-0.5"
     >
       {/* Large image at top */}
-      <div className="findskema-card-image-container">
+      <div className="relative w-full aspect-[3/4] bg-muted overflow-hidden">
         {pictureUrl && !pictureError && (
           <img
             src={pictureUrl}
             alt={name}
-            className={`findskema-card-image ${pictureLoaded ? 'is-loaded' : ''}`}
+            className={`w-full h-full object-cover object-top transition-all duration-300 ease-out ${
+              pictureLoaded ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
+            }`}
             onLoad={handleImageLoad}
             onError={handleImageError}
           />
         )}
-        <div className={`findskema-card-fallback ${showFallback ? '' : 'hidden'}`}>
+        <div className={`absolute inset-0 flex items-center justify-center text-[2.5rem] font-semibold text-muted-foreground bg-muted ${showFallback ? '' : 'hidden'}`}>
           {initials}
         </div>
 
-        {/* Action buttons overlay */}
-        <div className="findskema-card-actions">
-          {onRemove && (
-            <button
-              type="button"
-              onClick={handleRemoveClick}
-              className="findskema-remove-btn"
-              title="Fjern fra seneste"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleStarClick}
-            className={`findskema-star-btn ${isStarred ? 'is-starred' : ''}`}
-            title={isStarred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
-          >
-            <Star className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
-          </button>
-        </div>
+        {actionButtons}
       </div>
 
       {/* Card content below image */}
-      <div className="findskema-card-content">
-        <span className="findskema-card-name">{name}</span>
-        <div className="findskema-card-meta">
+      <div className="p-3.5 flex flex-col gap-1.5">
+        <span className="text-[0.9375rem] font-semibold text-foreground leading-[1.3] line-clamp-2">{name}</span>
+        <div className="flex items-center gap-2 flex-wrap">
           {classCode && (
-            <span className="findskema-card-badge bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
               {classCode.split(' ')[0]}
             </span>
           )}
-          <span className={`findskema-card-badge ${config.badgeClass}`}>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config.badgeClass}`}>
             {config.label}
           </span>
         </div>

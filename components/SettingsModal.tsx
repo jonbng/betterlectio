@@ -59,7 +59,6 @@ import {
   FlaskConical,
   Copy,
   Check,
-  Moon,
 } from "lucide-react";
 import { DesignPlayground } from "@/components/DesignPlayground";
 
@@ -580,49 +579,74 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   : "Disse farver gælder kun for den aktuelle skole"
               }
             >
-              <div className="flex items-start justify-between gap-4 py-3 px-4">
-                <div className="space-y-0.5">
-                  <Label className="font-medium">Tema</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Vælger både basisfarver og accentfarve
-                  </p>
-                </div>
-                <div className="flex max-w-[300px] flex-wrap justify-end gap-2">
-                  {THEME_PRESETS.map((preset) => (
-                    <Button
-                      key={preset.id}
-                      variant={themeId === preset.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleThemeChange(preset.id)}
+              <div className="px-4 py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="font-medium">Farvetema</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="visual-darkmode" className="text-sm text-muted-foreground cursor-pointer">
+                      Mørk
+                    </Label>
+                    <Switch
+                      id="visual-darkmode"
+                      checked={settings.visual?.darkMode ?? false}
+                      onCheckedChange={(v) => handleSettingChange("visual", "darkMode", v)}
                       className="cursor-pointer"
-                    >
-                      {preset.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-4 py-3 px-4">
-                <div className="flex items-start gap-3 pr-4">
-                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border bg-primary/10 text-primary">
-                    <Moon className="size-4" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="visual-darkmode" className="cursor-pointer font-medium">
-                        Mørk tilstand
-                      </Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Brug mørkt farvetema i BetterLectio.
-                    </p>
+                    />
                   </div>
                 </div>
-                <Switch
-                  id="visual-darkmode"
-                  checked={settings.visual?.darkMode ?? false}
-                  onCheckedChange={(v) => handleSettingChange("visual", "darkMode", v)}
-                  className="cursor-pointer"
-                />
+                <div className="grid grid-cols-5 gap-2">
+                  {THEME_PRESETS.map((preset) => {
+                    const isDark = settings.visual?.darkMode ?? false;
+                    const c = isDark ? preset.colors.dark : preset.colors.light;
+                    const isSelected = themeId === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleThemeChange(preset.id)}
+                        className={`group cursor-pointer rounded-lg border-2 transition-all overflow-hidden ${
+                          isSelected
+                            ? "border-primary ring-2 ring-primary/25 scale-[1.02]"
+                            : "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        {/* Mini UI preview */}
+                        <div
+                          className="flex h-16"
+                          style={{ backgroundColor: c.bg }}
+                        >
+                          {/* Mini sidebar */}
+                          <div
+                            className="w-[30%] flex flex-col gap-1 p-1.5 border-r"
+                            style={{ backgroundColor: c.sidebar, borderColor: `color-mix(in oklch, ${c.sidebar} 70%, ${c.primary} 30%)` }}
+                          >
+                            <div className="h-1.5 w-full rounded-sm" style={{ backgroundColor: c.primary }} />
+                            <div className="h-1 w-[80%] rounded-sm" style={{ backgroundColor: c.accent }} />
+                            <div className="h-1 w-[60%] rounded-sm" style={{ backgroundColor: c.accent }} />
+                          </div>
+                          {/* Mini content area */}
+                          <div className="flex-1 p-1.5 flex flex-col gap-1">
+                            <div className="h-1.5 w-[60%] rounded-sm" style={{ backgroundColor: c.primary, opacity: 0.7 }} />
+                            <div className="h-1 w-full rounded-sm" style={{ backgroundColor: c.accent }} />
+                            <div className="h-1 w-[85%] rounded-sm" style={{ backgroundColor: c.accent }} />
+                            <div className="mt-auto h-2 w-[40%] rounded-sm" style={{ backgroundColor: c.primary }} />
+                          </div>
+                        </div>
+                        {/* Label */}
+                        <div
+                          className="text-[11px] font-medium py-1 text-center border-t"
+                          style={{
+                            backgroundColor: c.sidebar,
+                            borderColor: `color-mix(in oklch, ${c.sidebar} 70%, ${c.primary} 30%)`,
+                            color: isSelected ? c.primary : `color-mix(in oklch, ${c.bg} 30%, ${c.primary} 70%)`,
+                          }}
+                        >
+                          {preset.label}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </SettingsSection>
 
