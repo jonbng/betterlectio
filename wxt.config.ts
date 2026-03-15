@@ -7,7 +7,7 @@ export default defineConfig({
   manifest: {
     name: 'Better Lectio',
     description: 'Gør Lectio pænere og nemmere at bruge — med mørk tilstand, en ny sidebar og bedre beskeder.',
-    version: '0.0.20',
+    version: '0.0.21',
     author: 'Jonathan Bangert <jonathan@bangert.dk>' as any,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
