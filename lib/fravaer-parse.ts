@@ -32,6 +32,8 @@ export interface FravaerTotals {
 export interface FravaerRecord {
   uge: string;
   date: string;
+  /** ISO date string (yyyy-mm-dd) for filtering/sorting */
+  dateISO: string;
   hold: string;
   teacher: string;
   room: string;
@@ -247,6 +249,15 @@ function parseRecordTable(table: HTMLTableElement, out: FravaerRecord[]) {
     const dateMatch = brikText.match(/^(\w+\s+\d+\/\d+)\s*/);
     const date = dateMatch?.[1] || '';
 
+    // Extract full date from tooltip (e.g. "17/9-2025 12:25 til 14:05")
+    const tooltip = activityLink?.getAttribute('data-tooltip') || '';
+    const fullDateMatch = tooltip.match(/^(\d{1,2})\/(\d{1,2})-(\d{4})/);
+    let dateISO = '';
+    if (fullDateMatch) {
+      const [, dd, mm, yyyy] = fullDateMatch;
+      dateISO = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+    }
+
     // Extract hold from context card span
     const holdSpan = activityLink?.querySelector<HTMLElement>(
       'span[data-lectioContextCard^="HE"], span[data-lectiocontextcard^="HE"]'
@@ -303,6 +314,7 @@ function parseRecordTable(table: HTMLTableElement, out: FravaerRecord[]) {
     out.push({
       uge,
       date,
+      dateISO,
       hold,
       teacher,
       room,
@@ -422,6 +434,9 @@ export async function fetchCombinedFravaerData(): Promise<FravaerPageData> {
 
 // ── Period Form Submission ─────────────────────────────────────────────
 
+// Cache form fields from POST responses so subsequent period changes use fresh ViewState
+let cachedOversigtFields: Record<string, string> | null = null;
+
 function extractFormFields(root: Document | Element): Record<string, string> | null {
   const form = root.querySelector<HTMLFormElement>('#aspnetForm');
   if (!form) return null;
@@ -457,21 +472,40 @@ export async function submitPeriodChange(
   start: string,
   end: string
 ): Promise<FravaerPageData | null> {
-  const formData = extractFormFields(document);
+  const oversigtPath = window.location.pathname
+    .replace(/fravaerelev_fravaersaarsager/i, 'fravaerelev');
+  const oversigtUrl = new URL(oversigtPath, window.location.origin).href;
+
+  // Get form fields for the oversigt page specifically
+  let formData: Record<string, string> | null = null;
+  if (cachedOversigtFields) {
+    formData = { ...cachedOversigtFields };
+  } else {
+    // If we're on the oversigt page, extract directly from DOM
+    const isOversigt = /\/subnav\/fravaerelev\.aspx/i.test(window.location.pathname);
+    if (isOversigt) {
+      formData = extractFormFields(document);
+    } else {
+      // We're on fraværsårsager — need to GET oversigt to obtain its form fields
+      try {
+        const resp = await fetch(oversigtUrl, { credentials: 'include' });
+        if (resp.ok) {
+          const html = await resp.text();
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          formData = extractFormFields(doc);
+        }
+      } catch { /* fall through */ }
+    }
+  }
   if (!formData) return null;
 
   // Update period inputs
-  formData['s$m$Content$Content$PeriodePicker$start$$date$tb'] = start;
-  formData['s$m$Content$Content$PeriodePicker$end$$date$tb'] = end;
+  formData['s$m$Content$Content$PeriodePicker$start$_date$tb'] = start;
+  formData['s$m$Content$Content$PeriodePicker$end$_date$tb'] = end;
   formData['__EVENTTARGET'] = 's$m$Content$Content$VisPeriodeBtn';
   formData['__EVENTARGUMENT'] = '';
 
   try {
-    // Always POST to the oversigt URL for table + chart data
-    const oversigtPath = window.location.pathname
-      .replace(/fravaerelev_fravaersaarsager/i, 'fravaerelev');
-    const oversigtUrl = new URL(oversigtPath, window.location.origin).href;
-
     const response = await fetch(oversigtUrl, {
       method: 'POST',
       credentials: 'include',
@@ -485,7 +519,11 @@ export async function submitPeriodChange(
     const oversigtDoc = parser.parseFromString(html, 'text/html');
     const oversigtData = parseOversigt(oversigtDoc);
 
-    // Fetch fraværsårsager for the new period
+    // Cache fresh form fields from POST response for subsequent period changes
+    cachedOversigtFields = extractFormFields(oversigtDoc);
+
+    // Fetch fraværsårsager — this page has no period picker, so always returns all records.
+    // Client-side filtering by period is done in the component.
     const aarsagerPath = oversigtPath.replace(/fravaerelev\.aspx/i, 'fravaerelev_fravaersaarsager.aspx');
     const aarsagerUrl = new URL(aarsagerPath, window.location.origin).href;
 

@@ -684,7 +684,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               </Avatar>
               <div className="grid flex-1 text-left leading-snug">
                 <span className="truncate font-medium text-[0.95rem]!">{userName}</span>
-                <span className="truncate text-[0.8rem] text-muted-foreground/80">{userClass}</span>
+                <span className="truncate text-sm text-muted-foreground/80">{userClass}</span>
               </div>
               <ChevronUp className={`size-4 opacity-40 transition-transform duration-200 ${menuOpen ? '' : 'rotate-180'}`} />
             </button>

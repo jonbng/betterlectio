@@ -365,7 +365,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                         {student.awaiting && (
                           <span
                             className={cn(
-                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                              "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
                               student.awaiting === 'Elev'
                                 ? "border-border bg-muted text-foreground"
                                 : "border-border bg-accent text-accent-foreground",
@@ -555,7 +555,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 text-sm font-medium text-foreground">

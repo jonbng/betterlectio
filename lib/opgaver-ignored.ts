@@ -32,3 +32,14 @@ export function loadIgnoredMissingIds(schoolId: string): Set<string> {
   }
   return new Set();
 }
+
+/** Add an exercise ID to the ignored set in localStorage */
+export function addIgnoredMissingId(schoolId: string, exerciseId: string): void {
+  const ids = loadIgnoredMissingIds(schoolId);
+  ids.add(exerciseId);
+  try {
+    localStorage.setItem(`${MISSING_IGNORED_PREFIX}${schoolId}`, JSON.stringify([...ids]));
+  } catch {
+    // ignore storage errors
+  }
+}

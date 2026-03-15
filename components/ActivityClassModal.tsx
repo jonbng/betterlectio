@@ -315,7 +315,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
               {detail.note ? (
                 <section className="mb-8 last:mb-0">
-                  <h3 className="mb-3.5 flex items-center gap-2 text-[0.8rem] font-bold uppercase tracking-[0.08em] text-muted-foreground">Note</h3>
+                  <h3 className="mb-3.5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Note</h3>
                   <div className="rounded-r-[0.625rem] border-l-[3px] px-[1.15rem] py-4 text-base leading-[1.65] text-foreground whitespace-pre-wrap bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] border-l-[oklch(0.58_0.12_var(--accent-hue,265))] dark:border-l-[oklch(0.5_0.08_var(--accent-hue,265))]">
                     {detail.note}
                   </div>
@@ -324,7 +324,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
               {detail.homework.length > 0 ? (
                 <section className="mb-8 last:mb-0">
-                  <h3 className="mb-3.5 flex items-center gap-2 text-[0.8rem] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                  <h3 className="mb-3.5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
                     Lektier
                     <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
                       {detail.homework.length}
@@ -340,7 +340,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
               {(detail.otherContent?.length ?? 0) > 0 ? (
                 <section className="mb-8 last:mb-0">
-                  <h3 className="mb-3.5 flex items-center gap-2 text-[0.8rem] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                  <h3 className="mb-3.5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
                     Øvrigt indhold
                     <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
                       {detail.otherContent.length}
@@ -356,7 +356,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
               {detail.related.length > 0 ? (
                 <section className="mb-8 last:mb-0">
-                  <h3 className="mb-3.5 flex items-center gap-2 text-[0.8rem] font-bold uppercase tracking-[0.08em] text-muted-foreground">Relateret</h3>
+                  <h3 className="mb-3.5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">Relateret</h3>
                   <div className="flex flex-col gap-2">
                     {detail.related.map((item, index) => (
                       <div key={`${item.label}-${index}`} className="flex items-center justify-between gap-3 rounded-[0.625rem] border border-border px-3.5 py-2.5 text-[0.95rem] leading-[1.35] text-foreground">

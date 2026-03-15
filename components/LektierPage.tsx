@@ -1,4 +1,5 @@
-import { FileText, BookOpen, Download, ArrowUpRight } from 'lucide-react';
+import { useState, useCallback } from 'preact/hooks';
+import { FileText, BookOpen, Download, ArrowUpRight, Check } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +59,31 @@ function getRelativeLabel(date: Date): { text: string; type: 'today' | 'tomorrow
   if (diffDays > 3 && diffDays <= 7) return { text: `om ${diffDays} dage`, type: 'later' };
   if (diffDays < -1) return { text: `${Math.abs(diffDays)} dage siden`, type: 'past' };
   return null;
+}
+
+// ── Done-state persistence ────────────────────────────────────────────
+
+function getLektierStorageKey(): string {
+  const m = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  const schoolId = m ? m[1] : '0';
+  return `il-lektier-done-${schoolId}`;
+}
+
+function loadDoneSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(getLektierStorageKey());
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch { return new Set(); }
+}
+
+function saveDoneSet(done: Set<string>): void {
+  localStorage.setItem(getLektierStorageKey(), JSON.stringify([...done]));
+}
+
+/** Stable key for a lektier entry — activity URL is unique per module. */
+function entryKey(entry: LektierEntry): string {
+  return entry.activityUrl || `${entry.dateText}-${entry.hold}`;
 }
 
 // ── Tooltip parser ─────────────────────────────────────────────────────
@@ -369,6 +395,21 @@ export function LektierPage({ entries }: LektierPageProps) {
   const totalFiles = entries.reduce((sum, e) =>
     sum + e.homeworkItems.filter(i => i.fileUrl).length, 0);
 
+  const [doneSet, setDoneSet] = useState<Set<string>>(loadDoneSet);
+
+  const toggleDone = useCallback((key: string) => {
+    setDoneSet(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      saveDoneSet(next);
+      return next;
+    });
+  }, []);
+
+  const doneCount = entries.filter(e => doneSet.has(entryKey(e))).length;
+  const totalCount = entries.length;
+  const progressPct = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+
   return (
     <div className="mx-auto max-w-[920px] px-10 pb-16 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
       {/* Header */}
@@ -378,6 +419,38 @@ export function LektierPage({ entries }: LektierPageProps) {
           <p className="mt-1 text-sm text-muted-foreground">De næste 14 dage</p>
         </div>
         <div className="flex items-center gap-7">
+          {/* Progress ring */}
+          {totalCount > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2">
+              <div className="relative size-11">
+                <svg className="size-11 -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18" cy="18" r="15"
+                    fill="none"
+                    stroke="oklch(0.92 0.01 265)"
+                    strokeWidth="3"
+                    className="dark:stroke-[oklch(0.25_0.01_285)]"
+                  />
+                  <circle
+                    cx="18" cy="18" r="15"
+                    fill="none"
+                    stroke="oklch(0.55 0.15 145)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progressPct * 0.9425} 94.25`}
+                    className="transition-all duration-500 ease-out dark:stroke-[oklch(0.65_0.13_145)]"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
+                  {doneCount}
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-foreground">{doneCount}/{totalCount}</span>
+                <span className="text-xs text-muted-foreground">færdige</span>
+              </div>
+            </div>
+          )}
           <div className="flex min-w-20 flex-col px-3 py-2 text-center">
             <span className="text-4xl font-[800] text-foreground">{entries.length}</span>
             <span className="text-xs uppercase tracking-wide text-muted-foreground">moduler</span>
@@ -445,18 +518,58 @@ export function LektierPage({ entries }: LektierPageProps) {
                     const contentItems = entry.homeworkItems.filter(i => !i.fileUrl);
                     const fileItems = entry.homeworkItems.filter(i => i.fileUrl);
                     const hasContent = contentItems.length > 0 || entry.note || fileItems.length > 0;
+                    const key = entryKey(entry);
+                    const isDone = doneSet.has(key);
 
                     return (
                       <div
                         key={idx}
-                        className="overflow-hidden rounded-xl border border-border border-l-4 border-l-[oklch(0.68_0.2_var(--hold-hue,265))] dark:border-l-[oklch(0.58_0.16_var(--hold-hue,265))] bg-card transition-colors hover:bg-accent/15 dark:hover:bg-[oklch(0.2_0.004_285)]"
+                        className={cn(
+                          "overflow-hidden rounded-xl border border-border border-l-4 bg-card transition-all duration-300 ease-out",
+                          isDone
+                            ? "border-l-[oklch(0.78_0.1_145)] dark:border-l-[oklch(0.45_0.1_145)] opacity-60 hover:opacity-80"
+                            : "border-l-[oklch(0.68_0.2_var(--hold-hue,265))] dark:border-l-[oklch(0.58_0.16_var(--hold-hue,265))] hover:bg-accent/15 dark:hover:bg-[oklch(0.2_0.004_285)]",
+                        )}
                         style={{ '--hold-hue': hue } as any}
                       >
-                        <div className="space-y-3 p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <a href={entry.activityUrl} className="text-xl font-semibold text-foreground no-underline hover:text-[oklch(0.5_0.16_var(--hold-hue,265))]">
+                        {/* Always-visible header row */}
+                        <div className="flex items-center gap-3 p-4">
+                          <button
+                            type="button"
+                            onClick={() => toggleDone(key)}
+                            aria-label={isDone ? 'Markér som ikke færdig' : 'Markér som færdig'}
+                            className={cn(
+                              "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
+                              isDone
+                                ? "border-[oklch(0.55_0.15_145)] bg-[oklch(0.55_0.15_145)] dark:border-[oklch(0.6_0.13_145)] dark:bg-[oklch(0.6_0.13_145)]"
+                                : "border-[oklch(0.8_0.03_var(--hold-hue,265))] hover:border-[oklch(0.6_0.1_145)] hover:bg-[oklch(0.95_0.03_145)] dark:border-[oklch(0.35_0.02_285)] dark:hover:border-[oklch(0.5_0.1_145)] dark:hover:bg-[oklch(0.25_0.04_145)]",
+                            )}
+                          >
+                            <Check
+                              size={14}
+                              strokeWidth={3}
+                              className={cn(
+                                "transition-all duration-200",
+                                isDone
+                                  ? "scale-100 opacity-100 text-white"
+                                  : "scale-0 opacity-0 text-[oklch(0.55_0.15_145)] group-hover/check:scale-75 group-hover/check:opacity-40",
+                              )}
+                            />
+                          </button>
+                          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2">
+                            <a
+                              href={entry.activityUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                "font-semibold no-underline transition-colors duration-200",
+                                isDone
+                                  ? "text-base text-muted-foreground line-through decoration-muted-foreground/40"
+                                  : "text-xl text-foreground hover:text-[oklch(0.5_0.16_var(--hold-hue,265))]",
+                              )}
+                            >
                               {getHoldDisplayName(entry.hold)}
-                              {entry.activityTitle && (
+                              {!isDone && entry.activityTitle && (
                                 <span className="ml-1.5 text-muted-foreground font-normal">&mdash; {entry.activityTitle}</span>
                               )}
                             </a>
@@ -464,71 +577,87 @@ export function LektierPage({ entries }: LektierPageProps) {
                               {entry.module && <span>{entry.module}</span>}
                               {entry.module && entry.timeRange && <span className="mx-1">&middot;</span>}
                               {entry.timeRange && <span>{entry.timeRange}</span>}
+                              {isDone && (
+                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[oklch(0.95_0.03_145)] px-2 py-0.5 text-[0.6875rem] font-medium text-[oklch(0.45_0.12_145)] dark:bg-[oklch(0.25_0.04_145)] dark:text-[oklch(0.65_0.1_145)]">
+                                  <Check size={10} strokeWidth={3} />
+                                  Færdig
+                                </span>
+                              )}
                             </span>
                           </div>
+                        </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5 text-[0.9375rem] text-muted-foreground">
-                            {entry.teacherName && <span title={entry.teacherAbbrev}>{entry.teacherName}</span>}
-                            {entry.teacherName && entry.room && (
-                              <span className="size-[3px] rounded-full bg-muted-foreground/40" />
-                            )}
-                            {entry.room && <span>{entry.room}</span>}
-                          </div>
+                        {/* Collapsible content — grid row trick for smooth height animation */}
+                        <div
+                          className="grid transition-[grid-template-rows] duration-300 ease-out"
+                          style={{ gridTemplateRows: isDone ? '0fr' : '1fr' }}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="space-y-3 px-4 pb-4 pt-0">
+                              <div className="flex flex-wrap items-center gap-1.5 pl-9 text-[0.9375rem] text-muted-foreground">
+                                {entry.teacherName && <span title={entry.teacherAbbrev}>{entry.teacherName}</span>}
+                                {entry.teacherName && entry.room && (
+                                  <span className="size-[3px] rounded-full bg-muted-foreground/40" />
+                                )}
+                                {entry.room && <span>{entry.room}</span>}
+                              </div>
 
-                          {hasContent && (
-                            <div className="space-y-3 border-t border-border pt-3">
-                              {/* Teacher instruction — the most important content */}
-                              {entry.note && (
-                                <div className="rounded-md border-l-[3px] border-l-[oklch(0.7_0.15_var(--hold-hue,265))] bg-[oklch(0.96_0.025_var(--hold-hue,265))] px-3 py-2.5 text-[0.9375rem] text-foreground dark:border-l-[oklch(0.5_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.22_0.04_var(--hold-hue,265))]">
-                                  {entry.note}
-                                </div>
-                              )}
-
-                              {/* Homework content items (descriptions, readings, linked tasks) */}
-                              {contentItems.length > 0 && (
-                                <div className="space-y-2">
-                                  {contentItems.map((item, itemIdx) => (
-                                    <div key={itemIdx} className="flex items-start gap-2 py-1">
-                                      <BookOpen size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
-                                      <div className="min-w-0 space-y-1">
-                                        {item.activityUrl ? (
-                                          <a href={item.activityUrl} className="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline hover:text-[oklch(0.42_0.16_var(--hold-hue,265))]">
-                                            <span>{item.text}</span>
-                                            <ArrowUpRight size={13} className="text-muted-foreground transition-transform" />
-                                          </a>
-                                        ) : (
-                                          <span className="text-sm text-foreground">{item.text}</span>
-                                        )}
-                                        {item.note && (
-                                          <div className="text-xs text-muted-foreground">{item.note}</div>
-                                        )}
-                                      </div>
+                              {hasContent && (
+                                <div className="space-y-3 border-t border-border pt-3 pl-9">
+                                  {/* Teacher instruction */}
+                                  {entry.note && (
+                                    <div className="rounded-md border-l-[3px] border-l-[oklch(0.7_0.15_var(--hold-hue,265))] bg-[oklch(0.96_0.025_var(--hold-hue,265))] px-3 py-2.5 text-[0.9375rem] text-foreground dark:border-l-[oklch(0.5_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.22_0.04_var(--hold-hue,265))]">
+                                      {entry.note}
                                     </div>
-                                  ))}
-                                </div>
-                              )}
+                                  )}
 
-                              {/* File attachments */}
-                              {fileItems.length > 0 && (
-                                <div className="grid gap-2">
-                                  {fileItems.map((item, itemIdx) => (
-                                    <a key={itemIdx} href={item.fileUrl!} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 rounded-md border border-[oklch(0.93_0.02_250)] bg-[oklch(0.975_0.012_250)] px-2.5 py-2 no-underline transition-colors hover:bg-[oklch(0.96_0.025_250)] dark:border-[oklch(0.3_0.02_250)] dark:bg-[oklch(0.2_0.02_250)] dark:hover:bg-[oklch(0.24_0.03_250)]">
-                                      <div className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[oklch(0.93_0.04_250)] text-[oklch(0.5_0.15_250)] dark:bg-[oklch(0.24_0.03_250)] dark:text-[oklch(0.65_0.1_250)]">
-                                        <FileText size={18} />
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-medium text-foreground">{item.text}</span>
-                                        {item.note && (
-                                          <span className="block truncate text-xs text-muted-foreground">{item.note}</span>
-                                        )}
-                                      </div>
-                                      <Download size={16} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                                    </a>
-                                  ))}
+                                  {/* Homework content items */}
+                                  {contentItems.length > 0 && (
+                                    <div className="space-y-2">
+                                      {contentItems.map((item, itemIdx) => (
+                                        <div key={itemIdx} className="flex items-start gap-2 py-1">
+                                          <BookOpen size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+                                          <div className="min-w-0 space-y-1">
+                                            {item.activityUrl ? (
+                                              <a href={item.activityUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-foreground no-underline hover:text-[oklch(0.42_0.16_var(--hold-hue,265))]">
+                                                <span>{item.text}</span>
+                                                <ArrowUpRight size={13} className="text-muted-foreground transition-transform" />
+                                              </a>
+                                            ) : (
+                                              <span className="text-sm text-foreground">{item.text}</span>
+                                            )}
+                                            {item.note && (
+                                              <div className="text-xs text-muted-foreground">{item.note}</div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* File attachments */}
+                                  {fileItems.length > 0 && (
+                                    <div className="grid gap-2">
+                                      {fileItems.map((item, itemIdx) => (
+                                        <a key={itemIdx} href={item.fileUrl!} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 rounded-md border border-[oklch(0.93_0.02_250)] bg-[oklch(0.975_0.012_250)] px-2.5 py-2 no-underline transition-colors hover:bg-[oklch(0.96_0.025_250)] dark:border-[oklch(0.3_0.02_250)] dark:bg-[oklch(0.2_0.02_250)] dark:hover:bg-[oklch(0.24_0.03_250)]">
+                                          <div className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[oklch(0.93_0.04_250)] text-[oklch(0.5_0.15_250)] dark:bg-[oklch(0.24_0.03_250)] dark:text-[oklch(0.65_0.1_250)]">
+                                            <FileText size={18} />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-medium text-foreground">{item.text}</span>
+                                            {item.note && (
+                                              <span className="block truncate text-xs text-muted-foreground">{item.note}</span>
+                                            )}
+                                          </div>
+                                          <Download size={16} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     );

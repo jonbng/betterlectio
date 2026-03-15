@@ -1645,7 +1645,7 @@
   }
 
   body.il-forside #il-original-content .il-brick-room {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     padding: 0.03125rem 0.21875rem;
   }
 
@@ -2111,7 +2111,7 @@
     right: calc(100% + 8px);
     top: 50%;
     transform: translateY(-50%);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: oklch(0.63 0.21 25);
     white-space: nowrap;

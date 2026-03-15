@@ -206,7 +206,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
         </button>
         {showColors && (
           <div className="absolute left-[calc(100%+8px)] top-1/2 z-50 -translate-y-1/2 rounded-xl border border-border bg-popover p-2 shadow-lg">
-            <div className="mb-2 pl-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Vælg farve</div>
+            <div className="mb-2 pl-0.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vælg farve</div>
             <div className="flex w-[182px] flex-wrap gap-1">
               <button
                 type="button"
@@ -287,7 +287,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
             )}
           </button>
         )}
-        <span className="truncate pl-px font-mono text-[11px] text-muted-foreground">{mapping.codeLabel}</span>
+        <span className="truncate pl-px font-mono text-xs text-muted-foreground">{mapping.codeLabel}</span>
       </div>
 
       {showCustomModal && (
@@ -451,7 +451,7 @@ export function HoldMappingEditor() {
         <div className="flex flex-col overflow-visible rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-2.5">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fag</span>
-            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{subjects.length}</span>
+            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-semibold text-muted-foreground">{subjects.length}</span>
           </div>
           <div className="flex flex-col [&>*+*]:border-t [&>*+*]:border-border/60">
             {subjects.map((mapping) => (
@@ -470,7 +470,7 @@ export function HoldMappingEditor() {
         <div className="flex flex-col overflow-visible rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-2.5">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Særlige hold</span>
-            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{overrides.length}</span>
+            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-semibold text-muted-foreground">{overrides.length}</span>
           </div>
           <div className="flex flex-col [&>*+*]:border-t [&>*+*]:border-border/60">
             {overrides.map((mapping) => (

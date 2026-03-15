@@ -634,7 +634,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                         {/* Label */}
                         <div
-                          className="text-[11px] font-medium py-1 text-center border-t"
+                          className="text-xs font-medium py-1 text-center border-t"
                           style={{
                             backgroundColor: c.sidebar,
                             borderColor: `color-mix(in oklch, ${c.sidebar} 70%, ${c.primary} 30%)`,

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
-import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
+import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload, Check, X } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
-import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
+import { getExerciseIdFromUrl, loadIgnoredMissingIds, addIgnoredMissingId } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -243,6 +243,18 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
     );
   };
 
+  const dismissMissing = (e: Event, opgave: ForsideOpgave) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = getExerciseIdFromUrl(opgave.url);
+    if (!id) return;
+    addIgnoredMissingId(schoolId, id);
+    setEntries((prev) => prev.filter((o) => o !== opgave));
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new CustomEvent('betterlectio:relayoutMasonry'));
+    });
+  };
+
   if (entries.length === 0) return null;
 
   return (
@@ -304,13 +316,33 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
                 <span className="truncate text-[0.75rem] leading-[1.4] text-muted-foreground">{opgave.title}</span>
               </div>
 
-              {/* Hold pill */}
-              <span
-                className="shrink-0 inline-flex items-center rounded-full px-[0.4375rem] py-0.5 text-[0.625rem] font-semibold leading-[1.5] whitespace-nowrap bg-[oklch(0.95_0.08_var(--hold-hue,235))] text-[oklch(0.5_0.16_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
-                style={{ '--hold-hue': hue } as any}
-              >
-                {getHoldDisplayName(opgave.holdCode)}
-              </span>
+              {/* Hold pill + missing actions */}
+              <div className="shrink-0 flex items-center gap-1">
+                {opgave.isMissing && (
+                  <>
+                    <button
+                      title="Markér som set"
+                      className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/40 transition-colors hover:bg-accent hover:text-green-600 dark:hover:text-[oklch(0.72_0.15_145)]"
+                      onClick={(e) => dismissMissing(e as unknown as Event, opgave)}
+                    >
+                      <Check size={12} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      title="Ignorer"
+                      className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/40 transition-colors hover:bg-accent hover:text-destructive dark:hover:text-[oklch(0.72_0.18_25)]"
+                      onClick={(e) => dismissMissing(e as unknown as Event, opgave)}
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
+                  </>
+                )}
+                <span
+                  className="inline-flex items-center rounded-full px-[0.4375rem] py-0.5 text-[0.625rem] font-semibold leading-[1.5] whitespace-nowrap bg-[oklch(0.95_0.08_var(--hold-hue,235))] text-[oklch(0.5_0.16_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
+                  style={{ '--hold-hue': hue } as any}
+                >
+                  {getHoldDisplayName(opgave.holdCode)}
+                </span>
+              </div>
             </a>
           );
         })}

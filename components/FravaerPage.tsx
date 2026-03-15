@@ -99,8 +99,23 @@ interface PeriodPreset {
   getRange: () => { start: string; end: string };
 }
 
+/** Lectio date format: dd/mm-yyyy */
 function ddmmyyyy(d: Date): string {
   return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+/** Convert Lectio dd/mm-yyyy to HTML date input yyyy-mm-dd */
+function lectioToISO(lectio: string): string {
+  const m = lectio.match(/^(\d{2})\/(\d{2})-(\d{4})$/);
+  if (!m) return '';
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+/** Convert HTML date input yyyy-mm-dd to Lectio dd/mm-yyyy */
+function isoToLectio(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  return `${m[3]}/${m[2]}-${m[1]}`;
 }
 
 function getPeriodPresets(): PeriodPreset[] {
@@ -371,6 +386,10 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
   // ── Records filtering ─────────────────────────────────────────────
 
+  // Convert current Lectio period (dd/mm-yyyy) to ISO for date comparison
+  const periodStartISO = lectioToISO(periodStart);
+  const periodEndISO = lectioToISO(periodEnd);
+
   const allRecords = showOnlyMissing
     ? data.missingReasons
     : [...data.missingReasons, ...data.records].filter((record, index, records) =>
@@ -379,6 +398,10 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const queryLower = recordSearch.toLowerCase().trim();
 
   const filteredRecords = allRecords.filter(r => {
+    // Client-side period filter (fraværsårsager page has no server-side period filter)
+    if (r.dateISO && periodStartISO && periodEndISO) {
+      if (r.dateISO < periodStartISO || r.dateISO > periodEndISO) return false;
+    }
     if (selectedHold && r.hold !== selectedHold) return false;
     if (queryLower) {
       const searchIn = `${r.hold} ${r.date} ${r.teacher} ${r.aarsag} ${r.note} ${r.bemaerkning} ${r.module}`.toLowerCase();
@@ -506,19 +529,23 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
-            type="text"
-            className="h-9 min-w-[130px] rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:min-w-[104px]"
-            value={periodStart}
-            onInput={(e) => setPeriodStart((e.target as HTMLInputElement).value)}
-            placeholder="dd/mm-yyyy"
+            type="date"
+            className="h-9 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            value={lectioToISO(periodStart)}
+            onInput={(e) => {
+              const iso = (e.target as HTMLInputElement).value;
+              if (iso) setPeriodStart(isoToLectio(iso));
+            }}
           />
           <span className="text-sm text-muted-foreground">&ndash;</span>
           <input
-            type="text"
-            className="h-9 min-w-[130px] rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:min-w-[104px]"
-            value={periodEnd}
-            onInput={(e) => setPeriodEnd((e.target as HTMLInputElement).value)}
-            placeholder="dd/mm-yyyy"
+            type="date"
+            className="h-9 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            value={lectioToISO(periodEnd)}
+            onInput={(e) => {
+              const iso = (e.target as HTMLInputElement).value;
+              if (iso) setPeriodEnd(isoToLectio(iso));
+            }}
           />
           <button
             className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
@@ -597,7 +624,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                         <span className="size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
                         {getHoldDisplayName(h.hold)}
                         {getHoldDisplayName(h.hold) !== h.hold && (
-                          <span className="ml-1 text-[11px] text-muted-foreground/70">{h.hold}</span>
+                          <span className="ml-1 text-xs text-muted-foreground/70">{h.hold}</span>
                         )}
                       </td>
                       <td className="px-3.5 py-4">
@@ -621,7 +648,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {zeroAbsenceHolds.length > 0 && (
             <button
-              className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-[0.8rem] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={() => setShowZeroAbsenceHolds((value) => !value)}
             >
               {showZeroAbsenceHolds ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -872,7 +899,7 @@ function DonutCard({
       </div>
       <div className="flex flex-col gap-1">
         <span className="text-[0.9rem] font-semibold text-foreground">{label}</span>
-        {detail && <span className="text-[0.8rem] text-muted-foreground">{detail}</span>}
+        {detail && <span className="text-sm text-muted-foreground">{detail}</span>}
         {subLabel && <span className="text-xs text-muted-foreground/80">{subLabel}</span>}
       </div>
     </div>

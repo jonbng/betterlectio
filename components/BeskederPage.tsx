@@ -90,7 +90,7 @@ function FolderPill({ folder, isChild, onSelectFolder }: FolderPillProps) {
     'px-3 py-1.5',
     'hover:border-muted-foreground hover:bg-muted hover:text-foreground',
     folder.isSelected && 'border-primary bg-primary text-primary-foreground font-semibold',
-    isChild && 'px-2.5 py-1 text-[11px]',
+    isChild && 'px-2.5 py-1 text-xs',
     folder.isExpandable && 'pr-2',
   );
 
@@ -305,13 +305,13 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
       {/* Content */}
       <div className="min-w-0 flex-1 pr-17">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
-          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-sm text-foreground", thread.isUnread ? "font-semibold" : "font-medium")}>
+          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-base text-foreground", thread.isUnread ? "font-semibold" : "font-medium")}>
             {getPersonLabel(thread.latestSender)}
           </span>
-          <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">{dateDisplay}</span>
+          <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">{dateDisplay}</span>
         </div>
         <div className="mt-0.5 inline-flex items-center gap-1.5">
-          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-sm text-foreground/85", thread.isUnread && "font-semibold text-foreground")}>{thread.subject}</span>
+          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-base text-foreground/85", thread.isUnread && "font-semibold text-foreground")}>{thread.subject}</span>
           {thread.hasAttachment && (
             <Paperclip size={13} className="shrink-0 text-muted-foreground/70" />
           )}
@@ -320,7 +320,7 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
           )}
         </div>
         <div className="mt-0.5 flex items-center">
-          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-[11px] leading-tight text-muted-foreground">
+          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-base leading-tight text-muted-foreground">
             Til: {getPersonLabel(thread.recipients)}
           </span>
         </div>
