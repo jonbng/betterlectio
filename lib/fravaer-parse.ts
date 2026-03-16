@@ -51,9 +51,10 @@ export interface FravaerRecord {
 }
 
 export interface FravaerWarning {
-  hold: string;
+  dato: string;
+  initialer: string;
   type: string;
-  message: string;
+  note: string;
 }
 
 export interface FravaerPeriod {
@@ -166,11 +167,12 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
     const warnRows = Array.from(warningTable.querySelectorAll('tr'));
     for (const row of warnRows) {
       const wCells = Array.from(row.querySelectorAll('td'));
-      if (wCells.length >= 2) {
+      if (wCells.length >= 3) {
         warnings.push({
-          hold: wCells[0].textContent?.trim() || '',
-          type: wCells[1]?.textContent?.trim() || '',
-          message: wCells[2]?.textContent?.trim() || '',
+          dato: wCells[0].textContent?.trim() || '',
+          initialer: wCells[1]?.textContent?.trim() || '',
+          type: wCells[2]?.textContent?.trim() || '',
+          note: wCells[3]?.textContent?.trim() || '',
         });
       }
     }

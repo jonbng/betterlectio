@@ -1,5 +1,6 @@
 import { parseFormTokens, doPostBack } from './beskeder-parser';
 import { getCachedProfile } from './profile-cache';
+import { isFeatureEnabled } from './settings-storage';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -525,7 +526,15 @@ const BETTERLECTIO_SIGNATURE =
  * Returns true when the signature should be skipped — i.e. the only recipient
  * is a single teacher (context card ID starts with "T").
  */
-export function shouldSkipSignature(doc: Document = document): boolean {
+export function shouldSkipSignature(doc: Document = document, recipientContextIds?: string[]): boolean {
+  // User setting to always disable signature
+  if (isFeatureEnabled('behavior', 'disableSignature')) return true;
+
+  // If caller provides recipient context IDs directly (e.g. compose view), use those
+  if (recipientContextIds) {
+    return recipientContextIds.some((id) => id.startsWith('T'));
+  }
+
   const profile = getCachedProfile();
   const ownName = (profile?.fullName || profile?.name || '').trim().toLowerCase();
 
@@ -542,8 +551,7 @@ export function shouldSkipSignature(doc: Document = document): boolean {
   if (readMode) {
     const spans = Array.from(readMode.querySelectorAll('span[data-lectioContextCard]'));
     const filtered = spans.filter((span) => !isOwnRecipient((span.textContent || '').trim()));
-    return filtered.length === 1
-      && (filtered[0].getAttribute('data-lectioContextCard') || '').startsWith('T');
+    return filtered.some((span) => (span.getAttribute('data-lectioContextCard') || '').startsWith('T'));
   }
 
   // Compose view (editable recipients table)
@@ -551,17 +559,8 @@ export function shouldSkipSignature(doc: Document = document): boolean {
     's_m_Content_Content_MessageThreadCtrl_ThreadRecipientsGV',
   ) as HTMLTableElement | null;
   if (table && !table.querySelector('.noRecord')) {
-    const cards = table.querySelectorAll('[data-lectioContextCard]');
-    if (cards.length === 1 && (cards[0].getAttribute('data-lectioContextCard') || '').startsWith('T')) {
-      return true;
-    }
-    // Fallback: if no context cards in table, count rows
-    if (cards.length === 0) {
-      const rows = table.querySelectorAll('tr');
-      // Single recipient row — check if name looks like a teacher (has abbreviation pattern)
-      // Can't reliably detect teacher without context card, so don't skip
-      return false;
-    }
+    const cards = Array.from(table.querySelectorAll('[data-lectioContextCard]'));
+    return cards.some((card) => (card.getAttribute('data-lectioContextCard') || '').startsWith('T'));
   }
 
   return false;

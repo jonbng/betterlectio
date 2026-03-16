@@ -2,6 +2,18 @@ import { postFormViaHiddenIframe } from './iframe-post';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
+export interface GroupMember {
+  name: string;
+  contextCardId: string; // e.g. "S72721772775"
+  removePostbackTarget: string | null; // __EVENTTARGET for removing this member
+  removePostbackArgument: string | null; // __EVENTARGUMENT for removing this member (e.g. "DEL$1")
+}
+
+export interface AvailableGroupStudent {
+  name: string;
+  value: string; // the <option> value for the dropdown
+}
+
 export interface OpgaveDetail {
   sourceUrl: string;
   title: string;
@@ -31,6 +43,9 @@ export interface OpgaveDetail {
     documentUrl: string;
   }[];
   hasSubmissionForm: boolean;
+  hasGroupForm: boolean;
+  groupMembers: GroupMember[];
+  availableGroupStudents: AvailableGroupStudent[];
   formTokens: {
     action: string;
     viewStateX: string;
@@ -264,6 +279,48 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
     }
   }
 
+  // Group submission
+  const groupMembersTable = doc.querySelector('#m_Content_groupMembersGV');
+  const groupMembers: GroupMember[] = [];
+  if (groupMembersTable) {
+    const rows = groupMembersTable.querySelectorAll('tr');
+    for (const row of rows) {
+      if (row.querySelector('th')) continue;
+      const nameSpan = row.querySelector('[data-lectiocontextcard]');
+      if (!nameSpan) continue;
+      const contextCardId = nameSpan.getAttribute('data-lectiocontextcard') || '';
+      const name = nameSpan.textContent?.trim() || '';
+      // Remove button is in the noprint td - look for a postback link
+      // e.g. href="javascript:__doPostBack('m$Content$groupMembersGV','DEL$1')"
+      const actionCell = row.querySelector('td.noprint');
+      const removeLink = actionCell?.querySelector('a[href*="doPostBack"], a[onclick*="doPostBack"]');
+      let removePostbackTarget: string | null = null;
+      let removePostbackArgument: string | null = null;
+      if (removeLink) {
+        const raw = removeLink.getAttribute('href') || removeLink.getAttribute('onclick') || '';
+        const pbMatch = raw.match(/__doPostBack\('([^']+)'\s*,\s*'([^']*)'\)/);
+        if (pbMatch) {
+          removePostbackTarget = pbMatch[1];
+          removePostbackArgument = pbMatch[2];
+        }
+      }
+      groupMembers.push({ name, contextCardId, removePostbackTarget, removePostbackArgument });
+    }
+  }
+
+  const groupAddDropdown = doc.querySelector('#m_Content_groupStudentAddDD');
+  const availableGroupStudents: AvailableGroupStudent[] = [];
+  if (groupAddDropdown) {
+    for (const option of groupAddDropdown.querySelectorAll('option')) {
+      const opt = option as HTMLOptionElement;
+      availableGroupStudents.push({
+        name: opt.textContent?.trim() || '',
+        value: opt.value,
+      });
+    }
+  }
+  const hasGroupForm = !!doc.querySelector('#m_Content_showAddToGroupPanel') && availableGroupStudents.length > 0;
+
   // Submission form
   const hasSubmissionForm = !!doc.querySelector('#m_Content_ElectronicHandInPanel');
 
@@ -294,6 +351,9 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
     students,
     entries,
     hasSubmissionForm,
+    hasGroupForm,
+    groupMembers,
+    availableGroupStudents,
     formTokens: {
       action: action ? new URL(action, new URL(pageUrl, origin)).href : '',
       viewStateX,
@@ -361,6 +421,54 @@ export async function submitComment(
     parsed.entries.length > detail.entries.length
     || parsed.entries.some(entry => entry.comment.trim() === trimmedComment)
   );
+}
+
+// ── Group management ────────────────────────────────────────────────────
+
+export async function addGroupMember(
+  detail: OpgaveDetail,
+  studentValue: string,
+): Promise<OpgaveDetail | null> {
+  if (!detail.formTokens.action) throw new Error('Missing form action');
+
+  const fields = { ...detail.formTokens.hiddenFields };
+  fields.__EVENTTARGET = 'm$Content$groupStudentAddBtn';
+  fields.__EVENTARGUMENT = '';
+  fields.__VIEWSTATEX = detail.formTokens.viewStateX;
+  fields.__VIEWSTATE = detail.formTokens.viewState;
+  fields.__VIEWSTATEENCRYPTED = detail.formTokens.viewStateEncrypted;
+  fields.__EVENTVALIDATION = detail.formTokens.eventValidation;
+  fields['m$Content$groupStudentAddDD'] = studentValue;
+
+  const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
+  if (!doc.querySelector('#m_Content_NameLbl')) return null;
+
+  const parsed = parseDetail(doc, detail.sourceUrl);
+  setCachedDetail(detail.sourceUrl, parsed);
+  return parsed;
+}
+
+export async function removeGroupMember(
+  detail: OpgaveDetail,
+  postbackTarget: string,
+  postbackArgument: string,
+): Promise<OpgaveDetail | null> {
+  if (!detail.formTokens.action) throw new Error('Missing form action');
+
+  const fields = { ...detail.formTokens.hiddenFields };
+  fields.__EVENTTARGET = postbackTarget;
+  fields.__EVENTARGUMENT = postbackArgument;
+  fields.__VIEWSTATEX = detail.formTokens.viewStateX;
+  fields.__VIEWSTATE = detail.formTokens.viewState;
+  fields.__VIEWSTATEENCRYPTED = detail.formTokens.viewStateEncrypted;
+  fields.__EVENTVALIDATION = detail.formTokens.eventValidation;
+
+  const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
+  if (!doc.querySelector('#m_Content_NameLbl')) return null;
+
+  const parsed = parseDetail(doc, detail.sourceUrl);
+  setCachedDetail(detail.sourceUrl, parsed);
+  return parsed;
 }
 
 export async function uploadFileAndSubmit(

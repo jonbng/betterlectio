@@ -38,6 +38,14 @@
     theme: theme,
   });
 
+  // Pick up any identify payload stashed before this script loaded.
+  // Queued after init so the SDK processes init first.
+  const pending = window.__IL_USERJOT_PENDING_IDENTIFY__;
+  if (pending && typeof pending.id === "string" && pending.id.trim()) {
+    window.uj.identify(pending);
+    window.__IL_USERJOT_PENDING_IDENTIFY__ = null;
+  }
+
   window.addEventListener(identifyEvent, (event) => {
     const payload = event?.detail;
     if (!payload || typeof payload.id !== "string" || !payload.id.trim()) {

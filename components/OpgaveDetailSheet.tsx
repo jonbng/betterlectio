@@ -11,9 +11,13 @@ import {
   Loader2,
   ExternalLink,
   User,
+  Users,
   GraduationCap,
   Clock,
   FileText,
+  Plus,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -21,10 +25,13 @@ import {
   getCachedDetail,
   invalidateDetailCache,
   submitComment,
+  addGroupMember,
+  removeGroupMember,
   type SubmissionStatus,
   uploadFileAndSubmit,
 } from '@/lib/opgave-detail';
-import type { OpgaveDetail } from '@/lib/opgave-detail';
+import type { OpgaveDetail, AvailableGroupStudent } from '@/lib/opgave-detail';
+import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { sanitizeHtml } from '@/lib/sanitize-html';
@@ -77,6 +84,8 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const [submitStatus, setSubmitStatus] = useState<SubmissionStatus | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [ignoredMissing, setIgnoredMissing] = useState(false);
+  const [groupAdding, setGroupAdding] = useState(false);
+  const [groupRemoving, setGroupRemoving] = useState<string | null>(null); // contextCardId being removed
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadDetail = useCallback(async (url: string, useCache = true) => {
@@ -197,6 +206,42 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       setSelectedFile(file);
     }
     input.value = '';
+  };
+
+  const handleAddGroupMember = async (studentValue: string) => {
+    if (!detail) return;
+    setGroupAdding(true);
+    try {
+      const updated = await addGroupMember(detail, studentValue);
+      if (updated) {
+        setDetail(updated);
+        toast.success('Gruppemedlem tilføjet');
+      } else {
+        toast.error('Kunne ikke tilføje gruppemedlem');
+      }
+    } catch {
+      toast.error('Der opstod en fejl');
+    } finally {
+      setGroupAdding(false);
+    }
+  };
+
+  const handleRemoveGroupMember = async (postbackTarget: string, postbackArgument: string, contextCardId: string) => {
+    if (!detail) return;
+    setGroupRemoving(contextCardId);
+    try {
+      const updated = await removeGroupMember(detail, postbackTarget, postbackArgument);
+      if (updated) {
+        setDetail(updated);
+        toast.success('Gruppemedlem fjernet');
+      } else {
+        toast.error('Kunne ikke fjerne gruppemedlem');
+      }
+    } catch {
+      toast.error('Der opstod en fejl');
+    } finally {
+      setGroupRemoving(null);
+    }
   };
 
   const toggleIgnoreMissing = () => {
@@ -347,6 +392,48 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                     </a>
                   ))}
                 </div>
+              )}
+
+              {/* Group members */}
+              {(detail.groupMembers.length > 0 || detail.hasGroupForm) && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                      <Users size={16} />
+                      Gruppeaflevering
+                      <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                        {detail.groupMembers.length}
+                      </span>
+                    </h3>
+
+                    {/* Current members */}
+                    <div className="space-y-2">
+                      {detail.groupMembers.map((member) => (
+                        <GroupMemberRow
+                          key={member.contextCardId}
+                          member={member}
+                          schoolId={schoolId}
+                          removing={groupRemoving === member.contextCardId}
+                          onRemove={member.removePostbackTarget
+                            ? () => handleRemoveGroupMember(member.removePostbackTarget!, member.removePostbackArgument!, member.contextCardId)
+                            : undefined
+                          }
+                        />
+                      ))}
+                    </div>
+
+                    {/* Add member */}
+                    {detail.hasGroupForm && (
+                      <GroupStudentPicker
+                        students={detail.availableGroupStudents}
+                        schoolId={schoolId}
+                        adding={groupAdding}
+                        onAdd={handleAddGroupMember}
+                      />
+                    )}
+                  </div>
+                </>
               )}
 
               <Separator />
@@ -561,6 +648,268 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <div className="mt-1 text-base font-medium text-foreground">
         {value}
       </div>
+    </div>
+  );
+}
+
+// ── Group member with picture ──────────────────────────────────────────
+
+function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32 }: {
+  contextCardId: string;
+  name: string;
+  schoolId: string;
+  size?: number;
+}) {
+  const [pictureUrl, setPictureUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!contextCardId) return;
+    const cached = getCachedPictureUrl(contextCardId);
+    if (cached !== undefined) {
+      setPictureUrl(cached);
+      return;
+    }
+    fetchPictureUrl(contextCardId, schoolId).then(setPictureUrl);
+  }, [contextCardId, schoolId]);
+
+  const initials = name
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('');
+
+  return (
+    <div
+      className="shrink-0 overflow-hidden rounded-full bg-muted"
+      style={{ width: size, height: size }}
+    >
+      {pictureUrl ? (
+        <img
+          src={pictureUrl}
+          alt=""
+          className="size-full object-cover object-top"
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex size-full items-center justify-center text-xs font-medium text-muted-foreground">
+          {initials}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupMemberRow({ member, schoolId, removing, onRemove }: {
+  member: import('@/lib/opgave-detail').GroupMember;
+  schoolId: string;
+  removing: boolean;
+  onRemove?: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
+      <GroupMemberAvatar
+        contextCardId={member.contextCardId}
+        name={member.name}
+        schoolId={schoolId}
+      />
+      <span className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
+        {member.name}
+      </span>
+      {onRemove && (
+        <button
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          onClick={onRemove}
+          disabled={removing}
+          aria-label={`Fjern ${member.name}`}
+        >
+          {removing ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Group student picker with pictures ────────────────────────────────
+
+function GroupStudentPicker({ students, schoolId, adding, onAdd }: {
+  students: AvailableGroupStudent[];
+  schoolId: string;
+  adding: boolean;
+  onAdd: (value: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const filtered = search
+    ? students.filter((s) =>
+        s.name.toLowerCase().includes(search.toLowerCase()),
+      )
+    : students;
+
+  // Reset highlight when filter changes
+  useEffect(() => {
+    setHighlightIndex(0);
+  }, [search]);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [isOpen]);
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (!isOpen || !listRef.current) return;
+    const items = listRef.current.children;
+    if (items[highlightIndex]) {
+      (items[highlightIndex] as HTMLElement).scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightIndex, isOpen]);
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault();
+        setIsOpen(true);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightIndex((i) => Math.max(i - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (filtered[highlightIndex]) {
+          onAdd(filtered[highlightIndex].value);
+          setIsOpen(false);
+          setSearch('');
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setIsOpen(false);
+        break;
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 transition-colors",
+          adding ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-accent/20",
+          isOpen && "border-ring ring-2 ring-ring/20",
+        )}
+        onClick={() => {
+          if (!adding) {
+            setIsOpen(!isOpen);
+            if (!isOpen) setTimeout(() => inputRef.current?.focus(), 0);
+          }
+        }}
+      >
+        {adding ? (
+          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+        ) : (
+          <Plus size={16} className="text-muted-foreground" />
+        )}
+        {isOpen ? (
+          <input
+            ref={inputRef}
+            className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+            placeholder="Søg efter elev..."
+            value={search}
+            onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+            onKeyDown={handleKeyDown}
+          />
+        ) : (
+          <span className="text-base text-muted-foreground">
+            {adding ? 'Tilføjer...' : 'Tilføj gruppemedlem'}
+          </span>
+        )}
+        {!adding && (
+          <ChevronDown size={16} className={cn(
+            "ml-auto text-muted-foreground transition-transform",
+            isOpen && "rotate-180",
+          )} />
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+          <div ref={listRef}>
+            {filtered.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-muted-foreground">Ingen elever fundet</div>
+            ) : (
+              filtered.map((student, i) => (
+                <GroupStudentOption
+                  key={student.value}
+                  student={student}
+                  schoolId={schoolId}
+                  highlighted={i === highlightIndex}
+                  onSelect={() => {
+                    onAdd(student.value);
+                    setIsOpen(false);
+                    setSearch('');
+                  }}
+                  onHover={() => setHighlightIndex(i)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover }: {
+  student: AvailableGroupStudent;
+  schoolId: string;
+  highlighted: boolean;
+  onSelect: () => void;
+  onHover: () => void;
+}) {
+  // Extract student context card ID from the dropdown value
+  // The value is the student's numeric ID. Context card IDs for students are S + numeric ID.
+  const contextCardId = `S${student.value}`;
+
+  return (
+    <div
+      className={cn(
+        "flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors",
+        highlighted ? "bg-accent" : "hover:bg-accent/50",
+      )}
+      onClick={onSelect}
+      onMouseEnter={onHover}
+    >
+      <GroupMemberAvatar
+        contextCardId={contextCardId}
+        name={student.name}
+        schoolId={schoolId}
+        size={28}
+      />
+      <span className="min-w-0 flex-1 truncate text-base text-foreground">
+        {student.name}
+      </span>
     </div>
   );
 }

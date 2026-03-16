@@ -2,11 +2,13 @@ import { render } from "preact";
 import { AppSidebar } from "@/components/AppSidebar";
 import { FindSkemaPage } from "@/components/FindSkemaPage";
 import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
+import { ProfilePage } from "@/components/ProfilePage";
 import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
 import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver } from "@/components/OpgaverPage";
 import { BeskederPage, parseBeskederFromDOM } from "@/components/BeskederPage";
+import { newMessage } from "@/lib/beskeder-parser";
 import { BeskederThreadView } from "@/components/BeskederThreadView";
 import { BeskederComposePage, enhanceComposeForm } from "@/components/BeskederCompose";
 import {
@@ -18,6 +20,7 @@ import {
 import { FravaerPage } from "@/components/FravaerPage";
 import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
 import { ForsideOpgaverCard, parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
+import { ForsideSchedulePanel, fetchScheduleWeek } from "@/components/ForsideScheduleCard";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { initPreloading } from "@/lib/preload";
@@ -36,6 +39,7 @@ import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cac
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
+import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -488,7 +492,12 @@ function initLayout() {
       // Set up schedule table column widths, clean labels, and highlight today
       injectScheduleColgroup();
       cleanUpModuleLabels();
+      // Inject "I dag" button into native toolbar (needed for current-week detection)
       injectTodayButton();
+      // Replace native schedule toolbar with custom Preact component on skemany
+      if (window.location.pathname.toLowerCase().includes("skemany.aspx")) {
+        injectScheduleToolbar();
+      }
       setupWeekendCollapse();
       if (settings.schedule.todayHighlight ?? true) {
         highlightTodayInSchedule();
@@ -583,13 +592,14 @@ function injectCurrentTimeIndicator(showTimeLabel: boolean) {
   const container = todayCell.querySelector(".s2skemabrikcontainer");
   if (!container) return;
 
-  // Reset previous indicator/interval before creating a new one
+  // Reset previous indicator/interval/calibration before creating a new one
   const existing = container.querySelector('#il-time-indicator');
   if (existing) existing.remove();
   if (timeIndicatorIntervalId !== null) {
     window.clearInterval(timeIndicatorIntervalId);
     timeIndicatorIntervalId = null;
   }
+  timeCalibration = null;
 
   // Create the time indicator line
   const indicator = document.createElement("div");
@@ -604,27 +614,91 @@ function injectCurrentTimeIndicator(showTimeLabel: boolean) {
   timeIndicatorIntervalId = window.setInterval(updateTimeIndicatorPosition, 60000);
 }
 
+// Cached calibration data for the time indicator (derived from DOM once)
+let timeCalibration: { startMinutes: number; endMinutes: number; startEm: number; emPerMin: number } | null = null;
+
+function calibrateTimeMapping() {
+  // Read module positions and times from the schedule's info column.
+  // s2module-bg has top + height (em), s2module-info has top + time text.
+  const infoColumn = document.querySelector<HTMLElement>(
+    ".s2skema td:first-child .s2skemabrikcontainer",
+  );
+  if (!infoColumn) return null;
+
+  const moduleBgs = infoColumn.querySelectorAll<HTMLElement>(".s2module-bg");
+  const moduleInfos = infoColumn.querySelectorAll<HTMLElement>(".s2module-info");
+
+
+  if (moduleInfos.length < 2 || moduleBgs.length < 1) return null;
+
+  // Extract start time + top em from each module-info
+  const modules: { startMin: number; endMin: number; topEm: number }[] = [];
+  moduleInfos.forEach((mod) => {
+    const topMatch = mod.style.top?.match(/([\d.]+)em/);
+    // textContent strips <br> and " - " can become concatenated, e.g. "8:109:50"
+    const timeMatch = mod.textContent?.match(/(\d{1,2}):(\d{2})\s*-?\s*(\d{1,2}):(\d{2})/);
+    if (topMatch && timeMatch) {
+      modules.push({
+        topEm: parseFloat(topMatch[1]),
+        startMin: parseInt(timeMatch[1]) * 60 + parseInt(timeMatch[2]),
+        endMin: parseInt(timeMatch[3]) * 60 + parseInt(timeMatch[4]),
+      });
+    }
+  });
+
+  if (modules.length < 2) return null;
+
+  const first = modules[0];
+  const last = modules[modules.length - 1];
+
+  // Derive linear em/min rate from first and last module start positions
+  const emPerMin = (last.topEm - first.topEm) / (last.startMin - first.startMin);
+
+  // Compute end boundary: last module's end time extrapolated from the rate.
+  // Also try reading the last s2module-bg's top+height for a precise end em.
+  const lastBg = moduleBgs[moduleBgs.length - 1];
+  const lastBgTop = parseFloat(lastBg?.style.top?.match(/([\d.]+)/)?.[1] ?? "0");
+  const lastBgHeight = parseFloat(lastBg?.style.height?.match(/([\d.]+)/)?.[1] ?? "0");
+  const endEm = lastBgTop + lastBgHeight;
+  // Derive end minutes from em position
+  const endMinutes = first.startMin + (endEm - first.topEm) / emPerMin;
+
+  const result = {
+    startMinutes: first.startMin,
+    endMinutes: Math.round(endMinutes),
+    startEm: first.topEm,
+    emPerMin,
+  };
+
+  return result;
+}
+
 function updateTimeIndicatorPosition() {
   const indicator = document.getElementById("il-time-indicator");
   if (!indicator) return;
 
+  // Calibrate once from DOM
+  if (!timeCalibration) {
+    timeCalibration = calibrateTimeMapping();
+  }
+  // Fallback to hardcoded values if DOM parsing fails
+  const cal = timeCalibration ?? {
+    startMinutes: 490,
+    endMinutes: 1200,
+    startEm: 0.636,
+    emPerMin: 0.0636,
+  };
+
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // Schedule runs from 8:10 (490 min) to 20:00 (1200 min)
-  const startMinutes = 490;
-  const endMinutes = 1200;
-
   // Hide if outside schedule hours
-  if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
+  if (currentMinutes < cal.startMinutes || currentMinutes > cal.endMinutes) {
     indicator.style.display = "none";
     return;
   }
 
-  // Calculate position using linear mapping
-  // 8:10 (490 min) -> 0.636em, 20:00 (1200 min) -> 45.818em
-  // Rate: (45.818 - 0.636) / (1200 - 490) = 0.0636 em/min
-  const topEm = 0.636 + (currentMinutes - startMinutes) * 0.0636;
+  const topEm = cal.startEm + (currentMinutes - cal.startMinutes) * cal.emPerMin;
 
   indicator.style.display = "";
   indicator.style.top = `${topEm}em`;
@@ -708,6 +782,27 @@ function injectTodayButton() {
   } else {
     toolbar.appendChild(wrapper);
   }
+}
+
+function injectScheduleToolbar() {
+  const nativeToolbar = document.querySelector(
+    "#il-original-content .display-grid-skemany > .ls-std-rowblock",
+  );
+  if (!nativeToolbar) return;
+
+  // Parse data from the native toolbar before hiding it
+  const data = parseScheduleToolbar(nativeToolbar);
+  if (!data) return;
+
+  // Hide native toolbar (keep in DOM so print commands still work)
+  (nativeToolbar as HTMLElement).style.display = "none";
+
+  // Create container and render our component
+  const container = document.createElement("div");
+  container.id = "il-schedule-toolbar";
+  nativeToolbar.parentElement!.insertBefore(container, nativeToolbar);
+
+  render(<ScheduleToolbar data={data} />, container);
 }
 
 function setupWeekendCollapse() {
@@ -1163,6 +1258,9 @@ function injectForsideGreeting(schoolId: string) {
   // Replace native opgaver card with custom component
   enhanceForsideOpgaver(schoolId);
 
+  // Hide native schedule island and inject side panel with full schedule
+  enhanceForsideSchedule(schoolId);
+
   // Apply masonry layout to dashboard cards
   applyMasonryLayout();
 
@@ -1190,6 +1288,204 @@ function enhanceForsideOpgaver(schoolId: string) {
     <ForsideOpgaverCard initialEntries={entries} opgaverPageUrl={opgaverPageUrl} schoolId={schoolId} />,
     island,
   );
+}
+
+function enhanceForsideSchedule(schoolId: string) {
+  // Hide the native schedule island from the masonry layout
+  const islandContent = document.getElementById('s_m_Content_Content_skemaIsland_pa');
+  if (islandContent) {
+    const island = islandContent.closest<HTMLElement>('.lf-island');
+    if (island) {
+      island.style.display = 'none';
+    }
+  }
+
+  // Create a side panel container next to the main content
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const panel = document.createElement("div");
+  panel.id = "il-forside-schedule-panel";
+  panel.className = "w-[30rem] shrink-0 flex flex-col overflow-hidden max-md:hidden pr-4 py-4";
+  // Inner card with rounding and border
+  const inner = document.createElement("div");
+  inner.className = "flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm";
+  panel.appendChild(inner);
+  // Insert after il-lectio-content (as a sibling inside SidebarInset)
+  contentContainer.parentElement?.appendChild(panel);
+
+  // Fetch schedule from SkemaNy.aspx and render the panel
+  fetchScheduleWeek(schoolId).then((weekData) => {
+    if (!weekData || weekData.days.length === 0) return;
+
+    const enhanceBricks = (container: HTMLElement) => {
+      // Wrap in #il-original-content context temporarily so CSS selectors work
+      container.querySelectorAll<HTMLElement>('.s2skemabrik.s2bgbox.s2brik').forEach((brick) => {
+        if (brick.style.display === 'none') return;
+
+        const innerContainer = brick.querySelector<HTMLElement>('.s2skemabrikInnerContainer');
+        if (!innerContainer || innerContainer.classList.contains('il-enhanced')) return;
+
+        const content = innerContainer.querySelector<HTMLElement>('.s2skemabrikcontent');
+        if (!content) return;
+
+        // Detect narrow bricks
+        const inlineWidth = brick.style.width;
+        if (inlineWidth && parseFloat(inlineWidth) < 8) {
+          brick.classList.add('il-narrow');
+        }
+
+        const holdSpan = content.querySelector<HTMLElement>('span[data-lectiocontextcard^="HE"]');
+        const teacherSpan = content.querySelector<HTMLElement>('span[data-lectiocontextcard^="T"]');
+        const topicSpan = content.querySelector<HTMLElement>('span[style*="word-wrap"]') ||
+          content.querySelector<HTMLElement>('span[style*="white-space"]');
+        const icons = innerContainer.querySelector<HTMLElement>('.s2skemabrikIcons');
+
+        const holdCode = holdSpan?.getAttribute('title') || holdSpan?.textContent?.trim() || '';
+        const holdDisplayName = holdCode ? getHoldDisplayName(holdCode) : '';
+        const hasMappedHoldTitle = holdCode ? hasHoldMapping(holdCode) : false;
+        const topicText = topicSpan?.textContent?.trim() || '';
+
+        // Extract room
+        const contentText = content.textContent || '';
+        const firstLine = contentText.split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+        const dotParts = firstLine.split('•').map(s => s.trim()).filter(Boolean);
+        let room = '';
+        if (dotParts.length >= 3) {
+          let lastPart = dotParts[dotParts.length - 1];
+          if (topicText && lastPart.endsWith(topicText)) {
+            lastPart = lastPart.slice(0, -topicText.length).replace(/\s*-\s*$/, '');
+          }
+          room = lastPart;
+        }
+
+        // Apply hold color
+        const hue = holdCode ? getHoldHue(holdCode) : 265;
+        brick.style.setProperty('--brick-hue', String(hue));
+
+        // Mark enhanced and rebuild content
+        innerContainer.classList.add('il-enhanced');
+        innerContainer.textContent = '';
+
+        // Header: subject + room
+        const header = document.createElement('div');
+        header.className = 'il-brick-header';
+
+        let topicUsedAsSubject = false;
+        if (hasMappedHoldTitle) {
+          if (holdSpan) {
+            holdSpan.textContent = holdDisplayName || holdCode;
+            holdSpan.classList.add('il-brick-subject');
+            header.appendChild(holdSpan);
+          } else if (holdDisplayName) {
+            const subjectLabel = document.createElement('span');
+            subjectLabel.className = 'il-brick-subject';
+            subjectLabel.textContent = holdDisplayName;
+            header.appendChild(subjectLabel);
+          }
+        } else if (topicText) {
+          const subjectLabel = document.createElement('span');
+          subjectLabel.className = 'il-brick-subject';
+          subjectLabel.textContent = topicText;
+          header.appendChild(subjectLabel);
+          topicUsedAsSubject = true;
+        } else if (holdSpan) {
+          holdSpan.classList.add('il-brick-subject');
+          header.appendChild(holdSpan);
+        } else if (holdCode) {
+          const subjectLabel = document.createElement('span');
+          subjectLabel.className = 'il-brick-subject';
+          subjectLabel.textContent = holdCode;
+          header.appendChild(subjectLabel);
+        }
+
+        if (room) {
+          const roomBadge = document.createElement('span');
+          roomBadge.className = 'il-brick-room';
+          roomBadge.textContent = room;
+          header.appendChild(roomBadge);
+        }
+
+        if (brick.classList.contains('s2cancelled')) {
+          const badge = document.createElement('span');
+          badge.className = 'il-brick-cancelled-badge';
+          badge.textContent = 'Aflyst';
+          header.appendChild(badge);
+        }
+
+        if (brick.classList.contains('s2changed') && !brick.classList.contains('s2cancelled')) {
+          const badge = document.createElement('span');
+          badge.className = 'il-brick-changed-badge';
+          badge.textContent = 'Ændret';
+          header.appendChild(badge);
+        }
+
+        innerContainer.appendChild(header);
+
+        // Meta: teacher
+        if (teacherSpan) {
+          const meta = document.createElement('div');
+          meta.className = 'il-brick-meta';
+          meta.appendChild(teacherSpan);
+          innerContainer.appendChild(meta);
+        }
+
+        // Topic
+        if (topicSpan && !topicUsedAsSubject && topicText) {
+          const topicDiv = document.createElement('div');
+          topicDiv.className = 'il-brick-topic';
+          topicDiv.textContent = topicText;
+          innerContainer.appendChild(topicDiv);
+        }
+
+        // Icons
+        if (icons && icons.children.length > 0) {
+          icons.className = 'il-brick-icons';
+          innerContainer.appendChild(icons);
+        }
+      });
+
+      // Intercept brick clicks for activity modal
+      container.querySelectorAll<HTMLAnchorElement>('.s2skemabrik.s2brik[href]').forEach((brick) => {
+        brick.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const href = brick.getAttribute('href') || '';
+          const activityUrl = href.startsWith('/') ? `${window.location.origin}${href}` : href;
+          window.dispatchEvent(
+            new CustomEvent('betterlectio:openActivityModal', {
+              detail: { url: activityUrl },
+            }),
+          );
+        });
+      });
+
+      // Scan holds, replace teacher initials, init hovercards
+      scanDOMForHolds(container);
+      initBrickTooltips(container);
+      loadTeacherNames(schoolId).then(cache => {
+        if (!cache) return;
+        replaceTeacherInitialsInDOM(cache, container);
+      });
+    };
+
+    const scheduleSettings = getSettings().schedule || {};
+    const showTimeIndicator = scheduleSettings.currentTimeIndicator ?? true;
+    const showTimeLabel = scheduleSettings.currentTimeLabel ?? false;
+
+    const renderTarget = panel.querySelector('.rounded-2xl') || panel;
+    render(
+      <ForsideSchedulePanel
+        initialWeekData={weekData}
+        schoolId={schoolId}
+        onBricksInjected={enhanceBricks}
+        showTimeIndicator={showTimeIndicator}
+        showTimeLabel={showTimeLabel}
+      />,
+      renderTarget,
+    );
+
+  });
 }
 
 function applyMasonryLayout() {
@@ -1274,6 +1570,7 @@ function applyMasonryLayout() {
 
     // Make container relative for absolute positioning
     container.style.position = "relative";
+    container.style.marginTop = "1rem";
 
     // Initial layout after a frame to ensure styles are applied
     requestAnimationFrame(() => {
@@ -1314,18 +1611,36 @@ function injectViewingScheduleHeader(schoolId: string) {
   // Insert at the beginning of the content container
   contentContainer.insertBefore(headerContainer, contentContainer.firstChild);
 
+  // Use ProfilePage for students only, ViewingScheduleHeader for teachers and other types
+  const isPersonType =
+    viewedEntity.type === "student";
+
   const renderHeader = (headerName: string) => {
-    render(
-      <ViewingScheduleHeader
-        name={headerName}
-        subtitle={viewedEntity.subtitle}
-        pictureUrl={viewedEntity.pictureUrl}
-        type={viewedEntity.type}
-        schoolId={schoolId}
-        entityId={viewedEntity.id}
-      />,
-      headerContainer,
-    );
+    if (isPersonType) {
+      render(
+        <ProfilePage
+          name={headerName}
+          subtitle={viewedEntity.subtitle}
+          pictureUrl={viewedEntity.pictureUrl}
+          type={viewedEntity.type}
+          schoolId={schoolId}
+          entityId={viewedEntity.id}
+        />,
+        headerContainer,
+      );
+    } else {
+      render(
+        <ViewingScheduleHeader
+          name={headerName}
+          subtitle={viewedEntity.subtitle}
+          pictureUrl={viewedEntity.pictureUrl}
+          type={viewedEntity.type}
+          schoolId={schoolId}
+          entityId={viewedEntity.id}
+        />,
+        headerContainer,
+      );
+    }
   };
 
   // Render immediately with extracted name, then refine teacher names from cache.
@@ -1401,6 +1716,22 @@ function injectBeskederPage(schoolId: string) {
   if (isComposeState()) {
     injectBeskederCompose(schoolId);
     return;
+  }
+
+  // Check for compose-to signal from ProfilePage "Skriv besked" button
+  const composeToRaw = sessionStorage.getItem('bl-compose-to');
+  if (composeToRaw) {
+    try {
+      const composeTo = JSON.parse(composeToRaw);
+      if (composeTo?.contextId && composeTo?.name) {
+        // Hide original Lectio DOM while postback reloads into compose state
+        document.body.classList.add("il-beskeder-page-active");
+        newMessage();
+        return;
+      }
+    } catch {
+      sessionStorage.removeItem('bl-compose-to');
+    }
   }
 
   // Default: thread list

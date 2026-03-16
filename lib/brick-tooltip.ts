@@ -860,13 +860,15 @@ function cancelHide() {
 
 // ── Initialization ─────────────────────────────────────
 
-export function initBrickTooltips() {
+export function initBrickTooltips(container?: HTMLElement) {
   // Copy data-tooltip to our own data attribute.
   // Keep the original attribute intact because Lectio's cluetip callback
   // reads it lazily on hover; removing it causes runtime errors in Lectio.
-  const bricks = document.querySelectorAll<HTMLElement>(
-    "#il-original-content .s2skemabrik[data-tooltip]",
-  );
+  const root = container || document;
+  const selector = container
+    ? ".s2skemabrik[data-tooltip]"
+    : "#il-original-content .s2skemabrik[data-tooltip]";
+  const bricks = root.querySelectorAll<HTMLElement>(selector);
 
   bricks.forEach((brick) => {
     const raw = brick.getAttribute("data-tooltip");

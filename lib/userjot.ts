@@ -39,16 +39,31 @@ export function initUserJotWidget(): void {
   script.dataset.identifyEvent = USERJOT_IDENTIFY_EVENT;
   script.dataset.setThemeEvent = USERJOT_SET_THEME_EVENT;
 
+  // Stash pending identify payload so the bootstrap script can pick it up
+  // synchronously — the CustomEvent from identifyUserJot() may fire before
+  // the bootstrap script loads and registers its listener.
+  (window as any).__IL_USERJOT_PENDING_IDENTIFY__ = null;
+
   (document.documentElement || document.body).appendChild(script);
+}
+
+/**
+ * Queue an identify payload. If the bootstrap script hasn't loaded yet,
+ * stash it on window so the script can pick it up synchronously on load.
+ */
+function dispatchOrStashIdentify(payload: UserJotIdentifyPayload): void {
+  // Try dispatching the event (works if bootstrap already loaded)
+  const event = new CustomEvent<UserJotIdentifyPayload>(USERJOT_IDENTIFY_EVENT, {
+    detail: payload,
+  });
+  // Also stash so bootstrap can pick it up if it loads later
+  (window as any).__IL_USERJOT_PENDING_IDENTIFY__ = payload;
+  window.dispatchEvent(event);
 }
 
 export function identifyUserJot(payload: UserJotIdentifyPayload): void {
   if (!payload.id.trim()) return;
-  window.dispatchEvent(
-    new CustomEvent<UserJotIdentifyPayload>(USERJOT_IDENTIFY_EVENT, {
-      detail: payload,
-    }),
-  );
+  dispatchOrStashIdentify(payload);
 }
 
 export function setUserJotTheme(theme: UserJotTheme): void {

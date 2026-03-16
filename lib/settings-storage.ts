@@ -38,6 +38,7 @@ const BehaviorSettingsSchema = z.object({
   messagesAutoRedirect: z.boolean().default(true),
   continueToLastSchool: z.boolean().default(true),
   preloading: z.boolean().default(true),
+  disableSignature: z.boolean().default(false),
 });
 
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting

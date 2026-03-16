@@ -460,20 +460,6 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
         </p>
       </div>
 
-      {/* ── Warnings banner ────────────────────── */}
-      {data.warnings.length > 0 && (
-        <div className="mb-6 flex gap-3 rounded-xl border border-[oklch(0.90_0.06_50)] bg-[oklch(0.97_0.02_50)] px-4 py-3 text-sm text-[oklch(0.45_0.12_50)] dark:border-[oklch(0.35_0.06_50)] dark:bg-[oklch(0.25_0.03_50)] dark:text-[oklch(0.80_0.10_50)]">
-          <AlertTriangle size={16} />
-          <div className="flex flex-col gap-1 leading-relaxed">
-            {data.warnings.map((w, i) => (
-              <div key={i}>
-                <strong>{w.hold}</strong> {w.type}: {w.message}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {hasMissingReasons && (
         <section className="mb-5 rounded-xl border border-border bg-card p-4">
           <div>
@@ -778,6 +764,33 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           </button>
         )}
       </section>
+
+      {/* ── Bemærkninger (samtaler etc.) ────────── */}
+      {data.warnings.length > 0 && (
+        <section className="rounded-xl border border-border bg-card p-4">
+          <span className="inline-flex items-center gap-1 text-xs font-bold tracking-[0.05em] uppercase text-muted-foreground">
+            <Info size={13} />
+            Bemærkninger
+          </span>
+          <div className="mt-3 grid gap-2.5">
+            {data.warnings.map((w, i) => (
+              <div
+                key={i}
+                className="rounded-xl border border-border/75 bg-background/82 px-4 py-3 dark:bg-background/60"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-foreground">{w.dato}</span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">{w.type}</span>
+                  <span className="text-xs text-muted-foreground">{w.initialer}</span>
+                </div>
+                {w.note && (
+                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{w.note}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Edit Sheet ─────────────────────────── */}
       <FravaerEditSheet

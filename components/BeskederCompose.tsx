@@ -144,6 +144,31 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     };
   }, [schoolId]);
 
+  // Auto-add recipient from ProfilePage "Skriv besked" flow
+  useEffect(() => {
+    if (recipientDirectoryLoading) return;
+    const raw = sessionStorage.getItem('bl-compose-to');
+    if (!raw) return;
+    sessionStorage.removeItem('bl-compose-to');
+
+    try {
+      const { contextId, name: recipientName } = JSON.parse(raw);
+      if (!contextId || !recipientName) return;
+
+      // Find matching option from directory, or create a synthetic one
+      const match = recipientOptions.find((o) => o.id === contextId);
+      const option: ComposeRecipientOption = match || {
+        id: contextId,
+        name: recipientName,
+        type: contextId.replace(/[0-9].*$/, ''),
+        searchText: '',
+      };
+      handleAddRecipient(option);
+    } catch {
+      // Invalid JSON, already cleared
+    }
+  }, [recipientDirectoryLoading, recipientOptions]);
+
   // Hide native attach panel (we use our own file upload button)
   useEffect(() => {
     if (data.attachPanelEl) {
@@ -309,7 +334,10 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       finalBody = editorSyncRef.current();
     }
 
-    const skipSig = shouldSkipSignature();
+    const contextIds = recipientsWithContext
+      .map((r) => r.contextId)
+      .filter((id): id is string => id !== null);
+    const skipSig = shouldSkipSignature(document, contextIds);
 
     sendMessageViaIframe(
       formState,
@@ -329,7 +357,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         setError(formatSendError(result.error));
       }
     });
-  }, [sending, title, bodyBBCode, formState, sendTarget, titleFieldName, bodyFieldName, schoolId]);
+  }, [sending, title, bodyBBCode, formState, sendTarget, titleFieldName, bodyFieldName, schoolId, recipientsWithContext]);
 
   const handleRemoveRecipient = useCallback((targetAndArg: string) => {
     // Format: "eventTarget:eventArgument" (e.g. "s$m$...GV:DEL$0")
@@ -723,7 +751,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md border-0 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               onClick={handleSend}
               disabled={isBusy}
               title="Send (Ctrl+Enter)"

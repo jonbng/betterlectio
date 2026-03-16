@@ -995,6 +995,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       case "advanced":
         return (
           <div className="space-y-6">
+            <SettingsSection title="Beskeder" description="Besked-relaterede indstillinger">
+              <FeatureToggle
+                id="behavior-signature"
+                label="Deaktiver 'Sendt med BetterLectio' signatur"
+                description="Fjern BetterLectio-signaturen fra beskeder"
+                enabled={settings.behavior?.disableSignature ?? false}
+                onChange={(v) => handleSettingChange('behavior', 'disableSignature', v)}
+              />
+            </SettingsSection>
+
             <SettingsSection title="Cache" description="Administrer lokalt gemt data">
               <div className="flex items-center justify-between py-3 px-4">
                 <div className="space-y-0.5">
