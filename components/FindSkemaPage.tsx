@@ -25,6 +25,7 @@ import { fetchAvanceretSkemaDropdownItems } from '../lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
 import { getMyTeacherIds } from '../lib/my-teachers';
 import { getFullHoldDisplayName } from '../lib/hold-mapping';
+import { classGroupsMatch, transformYearBasedClassName, transformYearBasedHoldName } from '../lib/class-name';
 
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
@@ -51,51 +52,6 @@ const TYPE_TO_PREFIX: Record<string, string> = {
 };
 
 const ALL_FILTER_KEYS = ['S', 'T', 'K', 'L', 'R', 'H', 'G'];
-
-/**
- * Convert a Lectio class name like "2025x" or "2025x 05" to grade-based format like "1x" or "1x 05".
- * School year starts in August, so:
- *   - Nov 2025: "2025x" → grade 1 → "1x", "2024a" → grade 2 → "2a"
- *   - Jan 2025: "2024x" → grade 1 → "1x" (school year started Aug 2024)
- */
-function transformClassName(name: string): { displayName: string; grade: number } | null {
-  // Only match standard gymnasium pattern: year + single letter + optional space+digits
-  // e.g. "2025x", "2025a", "2025x 05" — NOT "2025gf1", "2025g4", grundforløb, etc.
-  const match = name.match(/^(\d{4})([a-zA-Z](?:\s+\d+)?)$/);
-  if (!match) return null;
-
-  const startYear = parseInt(match[1], 10);
-  if (startYear < 2000 || startYear > 2100) return null;
-
-  const rest = match[2]; // e.g. "x", "x 05", "a"
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed, 7 = August
-  const schoolStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-  const grade = schoolStartYear - startYear + 1;
-
-  if (grade < 1 || grade > 3) return null; // Only transform active gymnasium classes (1-3)
-
-  return { displayName: `${grade}${rest}`, grade };
-}
-
-/**
- * Transform the class prefix in a hold name, e.g. "2025x HI" → "1x HI".
- * Returns null if the name doesn't start with a year-based class prefix.
- */
-function transformHoldName(name: string): string | null {
-  // Match: year + single letter + space + rest (the subject part)
-  const match = name.match(/^(\d{4}[a-zA-Z])\s+(.+)$/);
-  if (!match) return null;
-
-  const classPrefix = match[1]; // "2025x"
-  const rest = match[2]; // "HI", "Ty 4", "sa"
-
-  const transformed = transformClassName(classPrefix);
-  if (!transformed) return null;
-
-  return `${transformed.displayName} ${rest}`;
-}
 
 function getBrowseLimit(typeKey: string, singleFilter: boolean): number {
   if (singleFilter) {
@@ -176,7 +132,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
             // Transform class names from year-based to grade-based (e.g. "2025x" → "1x")
             if (type === 'K') {
-              const transformed = transformClassName(rawName);
+              const transformed = transformYearBasedClassName(rawName);
               if (transformed) {
                 return {
                   name: transformed.displayName,
@@ -192,7 +148,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
             // Transform class prefix in hold names (e.g. "2025x HI" → "1x HI")
             if (type === 'H') {
-              const transformedHold = transformHoldName(rawName) ?? rawName;
+              const transformedHold = transformYearBasedHoldName(rawName) ?? rawName;
               const displayName = getFullHoldDisplayName(transformedHold);
               return {
                 name: displayName,
@@ -319,10 +275,9 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
     return items.filter(item => {
       if (item.type !== 'S') return false;
-      // Extract class from name: "Name (1x 05)" -> "1x"
-      const match = item.name.match(/\((\d+[a-z])\s*\d*\)$/i);
-      if (!match) return false;
-      return match[1].toLowerCase() === userClass;
+      const { classCode } = parsePersonInfo(item.name);
+      if (!classCode) return false;
+      return classGroupsMatch(classCode, userClass);
     });
   }, [items, userProfile?.className]);
 
@@ -413,6 +368,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {query ? (
               <button
+                type="button"
                 onClick={() => setQuery('')}
                 className="p-2 text-muted-foreground rounded-lg transition-all duration-150 hover:text-foreground hover:bg-accent"
               >

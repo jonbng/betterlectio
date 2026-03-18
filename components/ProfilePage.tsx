@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
+  ArrowUpRight,
   Star,
   Mail,
   Cake,
+  FileText,
   Instagram,
   GraduationCap,
+  LayoutGrid,
   Users,
   BookOpen,
   Calendar,
@@ -19,6 +22,7 @@ import type { ScheduleEntityType } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
 import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
+import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name';
 import { PersonCard } from './PersonCard';
 import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
@@ -30,6 +34,20 @@ interface ProfilePageProps {
   type: ScheduleEntityType;
   schoolId: string;
   entityId: string;
+}
+
+type MembersTab = 'klassekammerater' | 'laerere' | 'holdgrupper' | 'dokumenter';
+
+interface MembersTabState {
+  loading: boolean;
+  error: string | null;
+  items: Member[] | null;
+}
+
+interface HoldGroupItem {
+  id: string;
+  name: string;
+  href: string;
 }
 
 // ── Example profile data (hardcoded for specific users) ─────────────────
@@ -74,10 +92,49 @@ function extractHoldCodesFromDOM(root: Document | Element): Set<string> {
     const tooltip = el.getAttribute('data-tooltip') || '';
     const holdLine = tooltip.match(/^Hold:\s*(.+)$/m);
     if (holdLine) {
-      holdLine[1].split(',').map(h => h.trim()).filter(Boolean).forEach(h => holds.add(h));
+      holdLine[1].split(',').map(h => h.trim()).filter(Boolean).forEach(h => {
+        holds.add(h);
+      });
     }
   });
   return holds;
+}
+
+function parseHoldGroupItemsFromDOM(doc: Document = document): HoldGroupItem[] {
+  const container = doc.querySelector('#s_m_Content_Content_holdElementLinkList, #m_Content_Content_holdElementLinkList');
+  if (!container) {
+    return [];
+  }
+
+  const items = new Map<string, HoldGroupItem>();
+  container.querySelectorAll<HTMLAnchorElement>('a[href*="type=holdelement"]').forEach((link) => {
+    const name = link.textContent?.trim() || '';
+    const href = new URL(link.getAttribute('href') || '', window.location.origin).toString();
+    const url = new URL(href);
+    const holdElementId = url.searchParams.get('holdelementid') || name;
+    if (!name || items.has(holdElementId)) {
+      return;
+    }
+
+    items.set(holdElementId, {
+      id: holdElementId,
+      name,
+      href,
+    });
+  });
+
+  return [...items.values()].sort((a, b) => a.name.localeCompare(b.name, 'da'));
+}
+
+function getSubnavUrlByLabel(label: string, doc: Document = document): string | null {
+  const link = [...doc.querySelectorAll<HTMLAnchorElement>('#s_m_HeaderContent_subnavigator_navigatortbl a, #m_HeaderContent_subnavigator_navigatortbl a')]
+    .find(anchor => anchor.textContent?.trim() === label);
+
+  if (!link) {
+    return null;
+  }
+
+  return new URL(link.getAttribute('href') || '', window.location.origin).toString();
 }
 
 /** Fetch a schedule page and extract hold codes from it */
@@ -120,8 +177,12 @@ async function fetchMyHoldCodes(schoolId: string): Promise<Set<string>> {
   ]);
 
   const all = new Set(currentHolds);
-  prevHolds.forEach(h => all.add(h));
-  nextHolds.forEach(h => all.add(h));
+  prevHolds.forEach(h => {
+    all.add(h);
+  });
+  nextHolds.forEach(h => {
+    all.add(h);
+  });
   return all;
 }
 
@@ -183,18 +244,32 @@ export function ProfilePage({
 }: ProfilePageProps) {
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [starred, setStarred] = useState(() => isPersonStarred(entityId));
-  const [activeTab, setActiveTab] = useState<'skema' | 'klassekammerater'>('skema');
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [membersError, setMembersError] = useState<string | null>(null);
-  const [members, setMembers] = useState<Member[] | null>(null);
+  const isDocumentsPage = /\/dokumentoversigt\.aspx$/i.test(window.location.pathname);
+  const requestedTab = new URLSearchParams(window.location.search).get('bl-profile-tab');
+  const initialTab = (() => {
+    if (isDocumentsPage) return 'dokumenter' as const;
+    if (requestedTab === 'klassekammerater' || requestedTab === 'laerere' || requestedTab === 'holdgrupper') {
+      return requestedTab;
+    }
+    return 'skema' as const;
+  })();
+  const [activeTab, setActiveTab] = useState<'skema' | MembersTab>(initialTab);
+  const [membersByTab, setMembersByTab] = useState<Record<MembersTab, MembersTabState>>({
+    klassekammerater: { loading: false, error: null, items: null },
+    laerere: { loading: false, error: null, items: null },
+    holdgrupper: { loading: false, error: null, items: null },
+    dokumenter: { loading: false, error: null, items: null },
+  });
   const [, setMembersRerenderNonce] = useState(0);
-  const membersFetchedRef = useRef(false);
+  const classIdRef = useRef<string | null>(null);
+  const [holdGroups, setHoldGroups] = useState<HoldGroupItem[]>([]);
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
   const exampleProfile = getExampleProfile(entityId);
   const hasBetterLectio = exampleProfile !== null;
   const displayName = exampleProfile?.displayName || name;
   const firstName = displayName.split(' ')[0];
+  const canEnlargePicture = Boolean(pictureUrl && hasBetterLectio);
 
   // Navigation context
   const urlParams = new URLSearchParams(window.location.search);
@@ -210,6 +285,39 @@ export function ProfilePage({
   const hasSubnavMembers = membersFetchUrls.length > 0;
   const isStudentWithClass = type === 'student' && !!subtitle;
   const supportsMembersPanel = hasSubnavMembers || isStudentWithClass;
+  const supportsTeacherTab = isStudentWithClass;
+  const supportsHoldGroupsTab = type === 'student';
+  const documentsUrl = getSubnavUrlByLabel('Dokumenter');
+  const scheduleUrl = getSubnavUrlByLabel('Skema') || getScheduleUrl(entityId, schoolId, { name: displayName });
+  const supportsDocumentsTab = Boolean(documentsUrl);
+
+  function buildProfileTabUrl(tab: 'skema' | MembersTab): string | undefined {
+    if (!scheduleUrl) {
+      return undefined;
+    }
+
+    const url = new URL(scheduleUrl, window.location.origin);
+    if (tab === 'skema') {
+      url.searchParams.delete('bl-profile-tab');
+    } else {
+      url.searchParams.set('bl-profile-tab', tab);
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
+
+  useEffect(() => {
+    if (!supportsHoldGroupsTab) {
+      return;
+    }
+
+    const parse = () => {
+      setHoldGroups(parseHoldGroupItemsFromDOM());
+    };
+
+    parse();
+    const timer = window.setTimeout(parse, 250);
+    return () => window.clearTimeout(timer);
+  }, [supportsHoldGroupsTab]);
 
   // Mutual holds — compare viewed person's schedule with our own
   const [mutualHolds, setMutualHolds] = useState<string[]>([]);
@@ -273,61 +381,124 @@ export function ProfilePage({
   useEffect(() => {
     const originalContent = document.getElementById('il-original-content');
     if (!originalContent) return;
-    originalContent.style.display = activeTab === 'skema' ? '' : 'none';
-  }, [activeTab]);
+    const shouldShowOriginalContent = activeTab === 'skema' || (isDocumentsPage && activeTab === 'dokumenter');
+    originalContent.style.display = shouldShowOriginalContent ? '' : 'none';
+  }, [activeTab, isDocumentsPage]);
 
-  // Fetch members when switching to klassekammerater tab
   useEffect(() => {
-    if (activeTab !== 'klassekammerater' || !supportsMembersPanel || membersFetchedRef.current) return;
-    membersFetchedRef.current = true;
+    if (!isDocumentsPage) {
+      return;
+    }
 
-    setMembersLoading(true);
-    setMembersError(null);
-
-    (async () => {
-      try {
-        let urls = membersFetchUrls;
-
-        if (urls.length === 0 && isStudentWithClass) {
-          const items = await fetchAvanceretSkemaDropdownItems(schoolId);
-          const classItem = items.find(([itemName, itemId]) => {
-            if (!itemId.startsWith('SC')) return false;
-            if (getFindSkemaTypeKeyFromId(itemId) !== 'K') return false;
-            const raw = itemName.trim();
-            const yearMatch = raw.match(/^(\d{4})([a-zA-Z](?:\s+\d+)?)$/);
-            if (yearMatch) {
-              const startYear = parseInt(yearMatch[1], 10);
-              const now = new Date();
-              const currentYear = now.getFullYear();
-              const schoolStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
-              const grade = schoolStartYear - startYear + 1;
-              if (grade >= 1 && grade <= 3) return `${grade}${yearMatch[2]}` === subtitle!.trim();
-            }
-            return raw === subtitle!.trim();
-          });
-          if (classItem) {
-            const klasseId = classItem[1].replace(/^SC/, '');
-            const membersUrl = new URL(`/lectio/${schoolId}/subnav/members.aspx`, window.location.origin);
-            membersUrl.searchParams.set('klasseid', klasseId);
-            membersUrl.searchParams.set('showstudents', '1');
-            membersUrl.searchParams.set('reporttype', 'withpics');
-            urls = [membersUrl.href];
-          } else {
-            setMembersError('Kunne ikke finde klassen.');
-            setMembersLoading(false);
-            return;
-          }
+    const hideNewestDocumentsNode = () => {
+      document.querySelectorAll<HTMLElement>('#il-original-content .TreeNode-title').forEach(title => {
+        if (title.textContent?.trim() !== 'Nyeste dokumenter') {
+          return;
         }
 
-        const fetchedMembers = await fetchMembersFromUrls(urls);
-        setMembers(fetchedMembers);
-      } catch {
-        setMembersError('Kunne ikke hente medlemmer lige nu.');
-      } finally {
-        setMembersLoading(false);
+        const node = title.closest('[lec-role="treeviewnodecontainer"]') as HTMLElement | null;
+        if (node) {
+          node.style.display = 'none';
+        }
+      });
+    };
+
+    hideNewestDocumentsNode();
+    const timer = window.setTimeout(hideNewestDocumentsNode, 250);
+    return () => window.clearTimeout(timer);
+  }, [isDocumentsPage]);
+
+  async function resolveClassId(): Promise<string | null> {
+    if (classIdRef.current) {
+      return classIdRef.current;
+    }
+
+    const items = await fetchAvanceretSkemaDropdownItems(schoolId);
+    const classItem = items.find(([itemName, itemId]) => {
+      if (!itemId.startsWith('SC')) return false;
+      if (getFindSkemaTypeKeyFromId(itemId) !== 'K') return false;
+      const raw = itemName.trim();
+      const transformed = transformYearBasedClassName(raw);
+      if (transformed) {
+        return classGroupsMatch(transformed.displayName, subtitle!.trim());
       }
-    })();
-  }, [activeTab, supportsMembersPanel]);
+      return classGroupsMatch(raw, subtitle!.trim()) || raw === subtitle!.trim();
+    });
+
+    if (!classItem) {
+      return null;
+    }
+
+    classIdRef.current = classItem[1].replace(/^SC/, '');
+    return classIdRef.current;
+  }
+
+  function setMembersTabState(tab: MembersTab, next: Partial<MembersTabState>) {
+    setMembersByTab(prev => ({
+      ...prev,
+      [tab]: {
+        ...prev[tab],
+        ...next,
+      },
+    }));
+  }
+
+  async function fetchMembersForTab(tab: MembersTab) {
+    const currentState = membersByTab[tab];
+    if (tab === 'holdgrupper' || tab === 'dokumenter') {
+      return;
+    }
+
+    if (currentState.loading || currentState.items || (!supportsMembersPanel && tab === 'klassekammerater') || (!supportsTeacherTab && tab === 'laerere')) {
+      return;
+    }
+
+    setMembersTabState(tab, { loading: true, error: null });
+
+    try {
+      let urls: string[] = [];
+
+      if (tab === 'klassekammerater') {
+        urls = getMembersFetchUrlsFromDocument(document, { showStudents: true, showTeachers: false });
+      } else {
+        urls = getMembersFetchUrlsFromDocument(document, { showStudents: false, showTeachers: true });
+      }
+
+      if (urls.length === 0 && isStudentWithClass) {
+        const klasseId = await resolveClassId();
+        if (!klasseId) {
+          setMembersTabState(tab, {
+            loading: false,
+            error: tab === 'laerere' ? 'Kunne ikke finde klassens lærere.' : 'Kunne ikke finde klassen.',
+          });
+          return;
+        }
+
+        const membersUrl = new URL(`/lectio/${schoolId}/subnav/members.aspx`, window.location.origin);
+        membersUrl.searchParams.set('klasseid', klasseId);
+        membersUrl.searchParams.set(tab === 'laerere' ? 'showteachers' : 'showstudents', '1');
+        membersUrl.searchParams.set('reporttype', 'withpics');
+        urls = [membersUrl.href];
+      }
+
+      const fetchedMembers = await fetchMembersFromUrls(urls);
+      const filteredMembers = fetchedMembers.filter(member => (tab === 'laerere' ? member.type === 'T' : member.type === 'S'));
+      setMembersTabState(tab, { loading: false, error: null, items: filteredMembers });
+    } catch {
+      setMembersTabState(tab, {
+        loading: false,
+        error: tab === 'laerere' ? 'Kunne ikke hente lærere lige nu.' : 'Kunne ikke hente medlemmer lige nu.',
+      });
+    }
+  }
+
+  // Fetch members when switching tabs
+  useEffect(() => {
+    if (activeTab === 'skema' || activeTab === 'holdgrupper' || activeTab === 'dokumenter') {
+      return;
+    }
+    void fetchMembersForTab(activeTab);
+  }, [activeTab, supportsMembersPanel, supportsTeacherTab]);
 
   const handleToggleStar = () => {
     const newStarred = toggleStarred({
@@ -340,8 +511,9 @@ export function ProfilePage({
   };
 
   const handleMemberStarToggle = (memberId: string) => {
-    if (!members) return;
-    const member = members.find(entry => entry.id === memberId);
+    const currentMembers = activeTab === 'skema' ? null : membersByTab[activeTab].items;
+    if (!currentMembers) return;
+    const member = currentMembers.find(entry => entry.id === memberId);
     if (!member) return;
     const fullName = `${member.firstName} ${member.lastName}`.trim();
     toggleStarred({ id: member.id, name: fullName, classCode: member.classCode, type: member.type });
@@ -359,11 +531,12 @@ export function ProfilePage({
     });
   };
 
-  const sortedMembers = members
-    ? [...members].sort((a, b) => {
-        if (a.type === 'T' && b.type !== 'T') return -1;
-        if (a.type !== 'T' && b.type === 'T') return 1;
-        return 0;
+  const currentMembers = activeTab === 'skema' ? null : membersByTab[activeTab].items;
+  const sortedMembers = currentMembers
+    ? [...currentMembers].sort((a, b) => {
+        const nameA = `${a.firstName} ${a.lastName}`.trim();
+        const nameB = `${b.firstName} ${b.lastName}`.trim();
+        return nameA.localeCompare(nameB, 'da');
       })
     : [];
 
@@ -379,6 +552,8 @@ export function ProfilePage({
 
   const messageHref = `/lectio/${schoolId}/beskeder2.aspx?mappeid=-70`;
   const membersLabel = isStudentWithClass && !hasSubnavMembers ? 'Klassekammerater' : 'Medlemmer';
+  const activeMembersState = activeTab === 'skema' || activeTab === 'holdgrupper' ? null : membersByTab[activeTab];
+  const activeMembersLabel = activeTab === 'laerere' ? 'Lærere' : membersLabel;
 
   return (
     <div className="bg-card">
@@ -397,16 +572,18 @@ export function ProfilePage({
       <div className="px-6 pt-3 pb-4">
         <div className="flex gap-6 items-start">
           {/* Picture — larger for BL users, smaller for non-BL */}
-          <div
+          <button
+            type="button"
+            disabled={!canEnlargePicture}
             className={cn(
               'shrink-0 rounded-2xl overflow-hidden',
               hasBetterLectio
                 ? 'w-[90px] h-[120px] ring-2 ring-border shadow-lg'
                 : 'w-[60px] h-[80px] ring-1 ring-border/60',
-              pictureUrl && hasBetterLectio ? 'cursor-pointer hover:ring-primary/40 transition-all' : '',
+              canEnlargePicture ? 'cursor-pointer hover:ring-primary/40 transition-all' : '',
               !pictureUrl ? 'bg-muted flex items-center justify-center' : '',
             )}
-            onClick={() => pictureUrl && hasBetterLectio && setImageEnlarged(true)}
+            onClick={() => canEnlargePicture && setImageEnlarged(true)}
           >
             {pictureUrl ? (
               <img src={pictureUrl} alt={displayName} className="w-full h-full object-cover object-top" />
@@ -418,7 +595,7 @@ export function ProfilePage({
                 {firstName.charAt(0).toUpperCase()}
               </span>
             )}
-          </div>
+          </button>
 
           {/* Info */}
           <div className="flex-1 min-w-0 flex flex-col gap-3">
@@ -527,19 +704,50 @@ export function ProfilePage({
       <div className="border-t border-border px-6 flex items-center">
         {/* Tabs (left) */}
         <div className="flex">
-          <TabButton
-            active={activeTab === 'skema'}
-            onClick={() => setActiveTab('skema')}
-            icon={Calendar}
-            label="Skema"
-          />
+            <TabButton
+              active={activeTab === 'skema'}
+              onClick={() => setActiveTab('skema')}
+              href={isDocumentsPage ? buildProfileTabUrl('skema') : undefined}
+              icon={Calendar}
+              label="Skema"
+            />
           {supportsMembersPanel && (
             <TabButton
               active={activeTab === 'klassekammerater'}
               onClick={() => setActiveTab('klassekammerater')}
+              href={isDocumentsPage ? buildProfileTabUrl('klassekammerater') : undefined}
               icon={Users}
               label={membersLabel}
-              count={members?.length}
+              count={membersByTab.klassekammerater.items?.length}
+            />
+          )}
+          {supportsTeacherTab && (
+            <TabButton
+              active={activeTab === 'laerere'}
+              onClick={() => setActiveTab('laerere')}
+              href={isDocumentsPage ? buildProfileTabUrl('laerere') : undefined}
+              icon={GraduationCap}
+              label="Lærere"
+              count={membersByTab.laerere.items?.length}
+            />
+          )}
+          {supportsHoldGroupsTab && (
+            <TabButton
+              active={activeTab === 'holdgrupper'}
+              onClick={() => setActiveTab('holdgrupper')}
+              href={isDocumentsPage ? buildProfileTabUrl('holdgrupper') : undefined}
+              icon={LayoutGrid}
+              label="Hold & grupper"
+              count={holdGroups.length || undefined}
+            />
+          )}
+          {supportsDocumentsTab && (
+            <TabButton
+              active={activeTab === 'dokumenter'}
+              onClick={() => setActiveTab('dokumenter')}
+              href={documentsUrl ?? undefined}
+              icon={FileText}
+              label="Dokumenter"
             />
           )}
         </div>
@@ -585,28 +793,28 @@ export function ProfilePage({
       </div>
 
       {/* Members content */}
-      {activeTab === 'klassekammerater' && supportsMembersPanel && (
+      {activeTab !== 'skema' && ((activeTab === 'klassekammerater' && supportsMembersPanel) || (activeTab === 'laerere' && supportsTeacherTab)) && (
         <div className="px-6 py-5">
-          {membersLoading && (
+          {activeMembersState?.loading && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              <span>Henter {membersLabel.toLowerCase()}...</span>
+              <span>Henter {activeMembersLabel.toLowerCase()}...</span>
             </div>
           )}
 
-          {!membersLoading && membersError && (
+          {!activeMembersState?.loading && activeMembersState?.error && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-              {membersError}
+              {activeMembersState.error}
             </div>
           )}
 
-          {!membersLoading && !membersError && members && members.length === 0 && (
+          {!activeMembersState?.loading && !activeMembersState?.error && activeMembersState?.items && activeMembersState.items.length === 0 && (
             <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
-              Ingen {membersLabel.toLowerCase()} fundet.
+              Ingen {activeMembersLabel.toLowerCase()} fundet.
             </div>
           )}
 
-          {!membersLoading && !membersError && members && members.length > 0 && (
+          {!activeMembersState?.loading && !activeMembersState?.error && activeMembersState?.items && activeMembersState.items.length > 0 && (
             <div className="findskema-card-grid">
               {sortedMembers.map(member => {
                 const fullName = `${member.firstName} ${member.lastName}`.trim();
@@ -630,17 +838,78 @@ export function ProfilePage({
         </div>
       )}
 
+      {activeTab === 'holdgrupper' && supportsHoldGroupsTab && (
+        <div className="px-6 py-5">
+          {holdGroups.length === 0 ? (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-muted-foreground">
+              Ingen hold eller grupper fundet.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {holdGroups.map(item => {
+                const hue = getHoldHue(item.name);
+                const displayName = getFullHoldDisplayName(item.name) || item.name;
+
+                return (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    className="group rounded-2xl border border-border bg-gradient-to-br from-background via-background to-muted/40 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl"
+                        style={{
+                          backgroundColor: `oklch(0.95 0.06 ${hue})`,
+                          color: `oklch(0.45 0.14 ${hue})`,
+                        }}
+                      >
+                        <LayoutGrid className="size-4" />
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-foreground">{displayName}</div>
+                            {displayName !== item.name && (
+                              <div className="mt-1 truncate text-xs text-muted-foreground">{item.name}</div>
+                            )}
+                          </div>
+
+                          <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+
       {/* Enlarged profile picture overlay */}
       {imageEnlarged && pictureUrl && (
         <div
+          role="dialog"
+          aria-modal="true"
           className="fixed inset-0 bg-black/60 z-100 flex items-center justify-center cursor-pointer backdrop-blur-sm"
-          onClick={() => setImageEnlarged(false)}
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setImageEnlarged(false);
+            }
+          }}
+          onKeyDown={event => {
+            if (event.key === 'Escape') {
+              setImageEnlarged(false);
+            }
+          }}
         >
           <img
             src={pictureUrl}
             alt={name}
             className="max-w-[80vw] max-h-[80vh] rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
           />
         </div>
       )}
@@ -653,27 +922,27 @@ export function ProfilePage({
 function TabButton({
   active,
   onClick,
+  href,
   icon: Icon,
   label,
   count,
 }: {
   active: boolean;
   onClick: () => void;
+  href?: string;
   icon: typeof Calendar;
   label: string;
   count?: number;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
-        active
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground',
-      )}
-    >
+  const className = cn(
+    'relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
+    active
+      ? 'text-foreground'
+      : 'text-muted-foreground hover:text-foreground',
+  );
+
+  const content = (
+    <>
       <Icon className="size-4" />
       <span>{label}</span>
       {count != null && (
@@ -687,6 +956,31 @@ function TabButton({
       {active && (
         <span className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full bg-primary" />
       )}
+    </>
+  );
+
+  if (href) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          onClick();
+          window.location.href = href;
+        }}
+        className={className}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={className}
+    >
+      {content}
     </button>
   );
 }

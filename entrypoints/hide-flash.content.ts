@@ -6,6 +6,9 @@ import '@/styles/hide-flash.css';
 
 const LOGIN_STATE_KEY = 'il-login-state';
 const SETTINGS_KEY = 'il-feature-settings';
+const BL_SETTINGS_KEY = 'bl-feature-settings';
+const SCHOOL_THEME_KEY = 'bl-school-themes-v1';
+const LEGACY_SCHOOL_THEME_KEY = 'il-school-themes-v1';
 
 /**
  * Intercept Lectio's CSS and wrap it in @layer lectio { }.
@@ -85,15 +88,47 @@ function interceptLectioCSS() {
   });
 }
 
-function isFoucPreventionEnabled(): boolean {
+function getStoredSettings(): Record<string, any> | null {
   try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    if (!stored) return true; // Default to enabled
-    const settings = JSON.parse(stored);
-    // Navigate to visual.foucPrevention, default to true
-    return settings?.visual?.foucPrevention ?? true;
+    const stored = localStorage.getItem(BL_SETTINGS_KEY) ?? localStorage.getItem(SETTINGS_KEY);
+    if (!stored) return null;
+    return JSON.parse(stored);
   } catch {
-    return true; // Default to enabled on error
+    return null;
+  }
+}
+
+function isFoucPreventionEnabled(): boolean {
+  const settings = getStoredSettings();
+  if (!settings) return true; // Default to enabled
+  return settings?.visual?.foucPrevention ?? true;
+}
+
+/**
+ * Apply dark mode class and theme attribute at document_start
+ * so the page never flashes the wrong theme during navigation.
+ */
+function applyThemeEarly(): void {
+  const settings = getStoredSettings();
+  const isDark = settings?.visual?.darkMode ?? false;
+
+  document.documentElement.classList.toggle('dark', isDark);
+
+  // Apply theme preset from school-scoped storage
+  const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1];
+  if (schoolId) {
+    try {
+      const themeStored = localStorage.getItem(SCHOOL_THEME_KEY) ?? localStorage.getItem(LEGACY_SCHOOL_THEME_KEY);
+      if (themeStored) {
+        const themeMap = JSON.parse(themeStored);
+        const themeId = themeMap[schoolId]?.themeId;
+        if (themeId && typeof themeId === 'string') {
+          document.documentElement.dataset.ilTheme = themeId;
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
   }
 }
 
@@ -145,6 +180,9 @@ export default defineContentScript({
     // (including login/print) so Lectio's styles never pollute our cascade
     interceptLectioCSS();
 
+    // Apply dark mode + theme preset immediately so pages never flash the wrong theme
+    applyThemeEarly();
+
     // Skip for print pages - reveal immediately
     if (window.location.pathname.includes('print.aspx')) {
       document.documentElement.classList.add('il-ready');
@@ -175,6 +213,9 @@ export default defineContentScript({
     if (document.prerendering) {
       (window as any).__IL_PRERENDERED__ = true;
       document.documentElement.classList.add('il-prerendered');
+      // Re-apply theme when prerendered page activates — settings may have
+      // changed between prerender time and activation time
+      document.addEventListener('prerenderingchange', () => applyThemeEarly(), { once: true });
       return;
     }
 

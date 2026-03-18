@@ -114,14 +114,18 @@ Content Scripts (inject into lectio.dk pages)
 | File | Purpose |
 |------|---------|
 | `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections |
+| `ProfilePage.tsx` | Student profile header with tabbed schedule, classmates, teachers, hold/group membership, and fetched native documents views built from Lectio DOM + subnav pages |
 | `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
+| `lib/class-name.ts` | Shared class-name transforms/matchers for both letter-based and numeric class codes (`1x`, `1.4`, year-based dropdown names) |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
 | `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params + shared in-flight/TTL-cached dropdown loader |
 | `lib/findskema-types.ts` | Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE`) to filter types |
 
 **Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
+
+**Class Code Note:** Schools can use both letter-based grade codes (`1x`) and numeric ones (`1.4`). FindSkema/member resolution should normalize both through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x` or `2025.4`.
 
 ### Schedule & Activities
 
@@ -141,6 +145,12 @@ Content Scripts (inject into lectio.dk pages)
 | `OpgaverPage.tsx` | Urgency-first cards with 4-tier visual urgency, relative Danish deadlines, color-coded grade badges, hold filters |
 | `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (posts via ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage caching with 5-min TTL, session expiry detection) |
 | `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)` fetch+parse, `submitComment(detail, comment)` POST with tokens, `uploadFileAndSubmit(detail, file, comment, schoolId)`, `getCachedDetail`/`invalidateDetailCache` school-scoped localStorage cache |
+
+### Grades
+
+| File | Purpose |
+|------|---------|
+| `KaraktererPage.tsx` | Grade report redesign: subject cards grouped by hold with big color-coded grade numbers (7-step scale hue mapping), teacher notes inline, summary bar with weighted average + grade distribution, collapsible diploma lines/protocol/remarks sections. Includes `parseKaraktererFromDOM()` parser for all 5 native tables. |
 
 ### Hold/Subject Mapping
 
@@ -169,7 +179,8 @@ Content Scripts (inject into lectio.dk pages)
 | File | Purpose |
 |------|---------|
 | `ForsideGreeting.tsx` | Time-based greeting, live clock, Danish date formatting |
-| `ForsideOpgaverCard.tsx` | Custom opgaver card with urgency-driven design, progress bars |
+| `ForsideDashboard.tsx` | Redesigned forside dashboard with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides only the 4 specific original cards, renders 2-col grid with priority indicators, hold colors, urgency bars, sender avatars, relative times |
+| `ForsideOpgaverCard.tsx` | Forside opgaver parser (reused by ForsideDashboard) |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
 | `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |
 

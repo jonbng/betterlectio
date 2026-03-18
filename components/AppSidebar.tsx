@@ -18,7 +18,6 @@ import {
   ChevronRight,
   Search,
   ListChecks,
-  IdCard,
   CalendarDays,
   Users,
   GraduationCap as Teacher,
@@ -30,6 +29,8 @@ import {
   FileSearch,
   BookMarked,
   Settings,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -55,9 +56,10 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { clearLoginState } from '@/lib/profile-cache';
-import { getSettings } from '@/lib/settings-storage';
+import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
+import { setUserJotTheme } from '@/lib/userjot';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
@@ -214,11 +216,17 @@ const calendarItems = [
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const WELCOME_STORAGE_KEY = "bl-welcome-popup-seen-v1";
   const LEGACY_WELCOME_STORAGE_KEY = "il-welcome-popup-seen-v1";
+
+  // Get settings early — must be before any useState that references it
+  const settings = getSettings();
+  const sidebarSettings = settings.sidebar ?? {};
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [findSkemaOpen, setFindSkemaOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => settings.visual?.darkMode ?? false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
@@ -230,10 +238,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [hasSps, setHasSps] = useState(() => getCachedPageHasData(schoolId, 'sps') ?? true);
   const [unreadCount, setUnreadCount] = useState<number>(() => getCachedUnreadCount(schoolId) ?? (hasNotificationDot() ? -1 : 0));
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Get settings for sidebar visibility
-  const settings = getSettings();
-  const sidebarSettings = settings.sidebar ?? {};
 
   // Filter nav items based on settings (default to true if setting is undefined)
   const visibleNavMain = navMain.filter(item => sidebarSettings[item.settingKey] ?? true);
@@ -563,7 +567,32 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             <ScheduleCountdown schoolId={schoolId} />
           </div>
         )}
-        <SidebarSeparator className="mb-3 opacity-50" />
+        <SidebarSeparator className="mb-2 opacity-50" />
+        {/* Quick actions row */}
+        <div className="flex items-center gap-1 px-2 mb-2">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors"
+            title="Indstillinger"
+          >
+            <Settings className="size-[1.1rem]" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !isDark;
+              setIsDark(next);
+              updateSetting('visual', 'darkMode', next);
+              document.documentElement.classList.toggle('dark', next);
+              setUserJotTheme(next ? 'dark' : 'light');
+            }}
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors"
+            title={isDark ? 'Skift til lys tilstand' : 'Skift til mørk tilstand'}
+          >
+            {isDark ? <Sun className="size-[1.1rem]" /> : <Moon className="size-[1.1rem]" />}
+          </button>
+        </div>
         <div className="relative" ref={menuRef}>
             {/* Dropdown menu - positioned above the trigger */}
             {menuOpen && (
@@ -591,13 +620,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   >
                     <User className="size-[1.1rem] opacity-70" />
                     Profil
-                  </a>
-                  <a
-                    href={`${baseUrl}/digitaltStudiekort.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
-                  >
-                    <IdCard className="size-[1.1rem] opacity-70" />
-                    Studiekort
                   </a>
                   {hasSps && (
                     <a

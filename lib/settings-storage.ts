@@ -29,6 +29,8 @@ const PagesSettingsSchema = z.object({
   opgaverRedesign: z.boolean().default(true),
   fravaerRedesign: z.boolean().default(true),
   beskederRedesign: z.boolean().default(true),
+  karaktererRedesign: z.boolean().default(true),
+  profilRedesign: z.boolean().default(true),
   loginPageRedesign: z.boolean().default(true), // requires reload
 });
 

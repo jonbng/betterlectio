@@ -70,6 +70,32 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function parseAbsencePercent(absence: string): number | null {
+  const normalized = absence.replace(/\s|\u00a0/g, '').replace(',', '.');
+  if (!normalized) return null;
+
+  const match = normalized.match(/(\d+(?:\.\d+)?)%?/);
+  if (!match) return null;
+
+  const parsed = Number.parseFloat(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasAssignmentFravaer(entry: Pick<OpgaveEntry, 'status' | 'absence' | 'statusText'>): boolean {
+  if (entry.status !== 'mangler') return false;
+
+  const absencePercent = parseAbsencePercent(entry.absence);
+  if (absencePercent !== null && absencePercent > 0) return true;
+
+  return /frav[æa]r/i.test(entry.statusText);
+}
+
+function getAssignmentFravaerLabel(entry: Pick<OpgaveEntry, 'absence'>): string {
+  const absencePercent = parseAbsencePercent(entry.absence);
+  if (absencePercent === null) return 'Fravær registreret';
+  return `Fravær ${String(absencePercent).replace('.', ',')} %`;
+}
+
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -263,6 +289,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   if (!open) return null;
 
   const holdHue = entry ? getHoldHue(entry.hold) : 200;
+  const hasFravaer = entry ? hasAssignmentFravaer(entry) : false;
   const submitLabel =
     submitStatus === 'uploading'
       ? 'Uploader fil...'
@@ -289,6 +316,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       >
         {/* Close button */}
         <button
+          type="button"
           className="absolute right-5 top-5 z-10 inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
           onClick={() => onOpenChange(false)}
           aria-label="Luk"
@@ -314,8 +342,15 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   <Clock size={15} />
                   {entry.deadlineText}
                 </span>
+                {hasFravaer && (
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.72_0.14_25/0.5)] bg-[oklch(0.95_0.03_25)] px-2.5 py-1 text-sm font-semibold text-[oklch(0.42_0.16_25)] dark:border-[oklch(0.58_0.18_25/0.35)] dark:bg-[oklch(0.28_0.03_25/0.75)] dark:text-[oklch(0.79_0.12_25)]">
+                    <AlertTriangle size={14} />
+                    {getAssignmentFravaerLabel(entry)}
+                  </span>
+                )}
                 {entry.status === 'mangler' && getExerciseIdFromUrl(entry.url) && (
                   <button
+                    type="button"
                     className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent cursor-pointer dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
                     onClick={toggleIgnoreMissing}
                   >
@@ -337,6 +372,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
               <p className="text-sm text-foreground">{error}</p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
+                  type="button"
                   className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent cursor-pointer"
                   onClick={() => entry && loadDetail(entry.url, false)}
                 >
@@ -556,7 +592,8 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 />
 
                 {/* File drop zone */}
-                <div
+                <button
+                  type="button"
                   className={cn(
                     "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-colors hover:bg-accent/20",
                     dragOver && "border-ring bg-accent/30",
@@ -567,6 +604,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleFileDrop}
                   onClick={() => !selectedFile && fileInputRef.current?.click()}
+                  disabled={submitting}
                 >
                   {selectedFile ? (
                     <div className="flex items-center gap-2">
@@ -578,6 +616,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                         {formatFileSize(selectedFile.size)}
                       </span>
                       <button
+                        type="button"
                         className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                       >
@@ -590,17 +629,18 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                       <span>Vælg fil eller træk hertil</span>
                     </div>
                   )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    disabled={submitting}
-                  />
-                </div>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  disabled={submitting}
+                />
 
                 {/* Send button */}
                 <button
+                  type="button"
                   className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                   disabled={submitting || (!comment.trim() && !selectedFile)}
                   onClick={handleSubmit}
@@ -718,6 +758,7 @@ function GroupMemberRow({ member, schoolId, removing, onRemove }: {
       </span>
       {onRemove && (
         <button
+          type="button"
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           onClick={onRemove}
           disabled={removing}
@@ -812,25 +853,19 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd }: {
 
   return (
     <div ref={containerRef} className="relative">
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 transition-colors",
-          adding ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-accent/20",
-          isOpen && "border-ring ring-2 ring-ring/20",
-        )}
-        onClick={() => {
-          if (!adding) {
-            setIsOpen(!isOpen);
-            if (!isOpen) setTimeout(() => inputRef.current?.focus(), 0);
-          }
-        }}
-      >
-        {adding ? (
-          <Loader2 size={16} className="animate-spin text-muted-foreground" />
-        ) : (
-          <Plus size={16} className="text-muted-foreground" />
-        )}
-        {isOpen ? (
+      {isOpen ? (
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 transition-colors",
+            adding ? "cursor-not-allowed opacity-70" : "hover:bg-accent/20",
+            "border-ring ring-2 ring-ring/20",
+          )}
+        >
+          {adding ? (
+            <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          ) : (
+            <Plus size={16} className="text-muted-foreground" />
+          )}
           <input
             ref={inputRef}
             className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
@@ -839,18 +874,36 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd }: {
             onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
             onKeyDown={handleKeyDown}
           />
-        ) : (
+          {!adding && (
+            <ChevronDown size={16} className="ml-auto rotate-180 text-muted-foreground transition-transform" />
+          )}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={cn(
+            "flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 text-left transition-colors",
+            adding ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-accent/20",
+          )}
+          onClick={() => {
+            if (!adding) {
+              setIsOpen(true);
+              setTimeout(() => inputRef.current?.focus(), 0);
+            }
+          }}
+          disabled={adding}
+        >
+          {adding ? (
+            <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          ) : (
+            <Plus size={16} className="text-muted-foreground" />
+          )}
           <span className="text-base text-muted-foreground">
             {adding ? 'Tilføjer...' : 'Tilføj gruppemedlem'}
           </span>
-        )}
-        {!adding && (
-          <ChevronDown size={16} className={cn(
-            "ml-auto text-muted-foreground transition-transform",
-            isOpen && "rotate-180",
-          )} />
-        )}
-      </div>
+          {!adding && <ChevronDown size={16} className="ml-auto text-muted-foreground transition-transform" />}
+        </button>
+      )}
 
       {/* Dropdown */}
       {isOpen && (
@@ -893,9 +946,10 @@ function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover 
   const contextCardId = `S${student.value}`;
 
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        "flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors",
+        "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition-colors",
         highlighted ? "bg-accent" : "hover:bg-accent/50",
       )}
       onClick={onSelect}
@@ -910,7 +964,7 @@ function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover 
       <span className="min-w-0 flex-1 truncate text-base text-foreground">
         {student.name}
       </span>
-    </div>
+    </button>
   );
 }
 

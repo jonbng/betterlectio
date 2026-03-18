@@ -68,46 +68,91 @@ export default defineContentScript({
   main() {
     if (!isSessionRenewEnabled()) return;
 
+    const isSessionDialog = (dialog: HTMLElement): boolean => {
+      const text = (dialog.textContent || '').replace(/\s+/g, ' ').trim();
+      return (
+        text.includes('Din session udløber snart') ||
+        text.includes('Klik herunder for at forlænge sessionen') ||
+        text.includes('Din session er udløbet') ||
+        text.includes('Klik herunder for at genindlæse siden') ||
+        text.includes('Sessionsudløb') ||
+        text.includes('Session udløbet')
+      );
+    };
+
+    const handleDialog = (dialog: HTMLElement) => {
+      if (!isSessionDialog(dialog)) return;
+
+      const text = (dialog.textContent || '').replace(/\s+/g, ' ').trim();
+
+      if (text.includes('Din session udløber snart')) {
+        const dialogEl = dialog;
+        if (dialogEl.dataset.ilRenewHandled === '1') return;
+        dialogEl.dataset.ilRenewHandled = '1';
+
+        const renewButton = Array.from(dialog.querySelectorAll('button')).find((button) =>
+          /forlæng session/i.test(button.textContent || ''),
+        ) as HTMLButtonElement | undefined;
+
+        renewSession().then((renewed) => {
+          if (renewed) {
+            renewButton?.click();
+            dialog.remove();
+            console.log('[BetterLectio] Session warning suppressed after successful renewal');
+          } else {
+            dialogEl.dataset.ilRenewHandled = '0';
+            console.warn('[BetterLectio] Session renewal failed; keeping warning dialog');
+          }
+        });
+        return;
+      }
+
+      if (text.includes('Din session er udløbet')) {
+        dialog.remove();
+        console.log('[BetterLectio] Session timeout suppressed, reloading');
+        location.reload();
+      }
+    };
+
+    const scanDialogs = (root: ParentNode) => {
+      root.querySelectorAll?.('.ui-dialog').forEach((dialog) => {
+        if (dialog instanceof HTMLElement) handleDialog(dialog);
+      });
+
+      if (root instanceof HTMLElement && root.classList.contains('ui-dialog')) {
+        handleDialog(root);
+      }
+    };
+
     // Popup suppression: watch for jQuery UI dialogs SessionHelper appends to body
     const setupObserver = () => {
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
-          for (const node of mutation.addedNodes) {
-            if (!(node instanceof HTMLElement)) continue;
-
-            const dialog = node.classList.contains('ui-dialog')
-              ? node
-              : node.querySelector?.('.ui-dialog');
-
-            if (!dialog) continue;
-
-            const text = dialog.textContent || '';
-
-            if (text.includes('Din session udløber snart')) {
-              // Keep the native warning visible until renewal is confirmed.
-              // This preserves a manual fallback if ping fails.
-              const dialogEl = dialog as HTMLElement;
-              if (dialogEl.dataset.ilRenewHandled === '1') continue;
-              dialogEl.dataset.ilRenewHandled = '1';
-              renewSession().then((renewed) => {
-                if (renewed) {
-                  dialog.remove();
-                  console.log('[BetterLectio] Session warning suppressed after successful renewal');
-                } else {
-                  dialogEl.dataset.ilRenewHandled = '0';
-                  console.warn('[BetterLectio] Session renewal failed; keeping warning dialog');
-                }
-              });
-            } else if (text.includes('Din session er udløbet')) {
-              dialog.remove();
-              console.log('[BetterLectio] Session timeout suppressed, reloading');
-              location.reload();
+          if (mutation.type === 'childList') {
+            for (const node of mutation.addedNodes) {
+              if (node instanceof HTMLElement) scanDialogs(node);
             }
+            continue;
+          }
+
+          if (
+            mutation.type === 'attributes' &&
+            mutation.target instanceof HTMLElement &&
+            mutation.target.classList.contains('ui-dialog')
+          ) {
+            handleDialog(mutation.target);
           }
         }
       });
 
-      observer.observe(document.body, { childList: true });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'aria-hidden'],
+      });
+
+      scanDialogs(document.body);
     };
 
     if (document.body) {

@@ -788,6 +788,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 onChange={(v) => handleSettingChange('pages', 'beskederRedesign', v)}
               />
               <FeatureToggle
+                id="pages-karakterer"
+                label="Karakterer redesign"
+                description="Moderne kortvisning med farvekodede karakterer og noter"
+                enabled={settings.pages?.karaktererRedesign ?? true}
+                onChange={(v) => handleSettingChange('pages', 'karaktererRedesign', v)}
+              />
+              <FeatureToggle
+                id="pages-profil"
+                label="Profil redesign"
+                description="Samlet profilside med studiekort og aktive sessioner"
+                enabled={settings.pages?.profilRedesign ?? true}
+                onChange={(v) => handleSettingChange('pages', 'profilRedesign', v)}
+              />
+              <FeatureToggle
                 id="pages-login"
                 label="Login side redesign"
                 description="Moderne skolevalg med søgning"

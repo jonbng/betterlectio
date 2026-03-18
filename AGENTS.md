@@ -25,6 +25,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 ### Components
 - `components/AppSidebar.tsx` - Sidebar navigation with collapsible sections
 - `components/FindSkemaPage.tsx` - FindSkema redesign with fuzzy search, starred/recents, person cards
+- `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views sourced from Lectio DOM + subnav fetches
 - `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`)
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
 - `components/LektierPage.tsx` - Day-grouped homework cards
@@ -38,7 +39,9 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/SettingsModal.tsx` - Settings modal (appearance, behavior, sidebar, fag, about)
 - `components/ScheduleCountdown.tsx` - Sidebar countdown widget
 - `components/ForsideGreeting.tsx` - Time-based greeting, live clock
-- `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design
+- `components/ForsideDashboard.tsx` - Redesigned forside dashboard: 4 cards (aktuel info, lektier, opgaver, beskeder) parsed from native DOM, 2-col grid layout with priority indicators, hold colors, urgency bars, relative times
+- `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design (parser reused by ForsideDashboard)
+- `components/KaraktererPage.tsx` - Grade report redesign: subject cards with big color-coded grades, teacher notes inline, summary bar, collapsible diploma/protocol/remarks sections, DOM parser
 - `components/DesignPlayground.tsx` - Design system playground from Settings
 - `components/settings/HoldMappingEditor.tsx` - Subject names/colors + hold exceptions UI
 
@@ -51,6 +54,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content + cache
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
 - `lib/hold-mapping.ts` - Shared subject mappings, per-hold exceptions, ignored non-academic groups, fresh-start resets
+- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with letter or numeric suffixes (e.g. `1x`, `1.4`)
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
 - `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
 - `lib/findskema-types.ts` - Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to filter types
@@ -133,6 +137,8 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 **Beskeder safety:** For non-idempotent iframe-post actions (send/reply/delete), do not auto-fallback to native postback on uncertain/parse errors — this can duplicate side effects. Show a refresh/retry prompt instead.
 
 **FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms. Real AvanceretSkema IDs use `SC*` for stamklasser, `RO*` for lokaler, `RE*` for ressourcer, `HE*` for hold, `GE*` for grupper. Always map by actual ID prefixes.
+
+**Class name parsing:** Do not assume grade-based class codes always end in a letter (`1x`, `2a`). Some schools use numeric suffixes like `1.4` / `2.4`. Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across both formats.
 
 **Lectio Modernizer:** The "Lectio Modernizer" section in `globals.css` restyles native Lectio elements with modern design. Add new overrides to this section under `@layer components`. Key targets: `table.lf-grid`, `.buttonfilled`/`.buttonoutlined`/`.buttonfilledtonal`, `input`/`select`/`textarea`, `.s2skemabrik`, `.lf-island`.
 

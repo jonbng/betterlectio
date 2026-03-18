@@ -7,6 +7,11 @@ export interface Member {
   pictureUrl: string | null;
 }
 
+interface MembersFetchUrlOptions {
+  showStudents?: boolean;
+  showTeachers?: boolean;
+}
+
 function normalizeMembersUrl(href: string): string {
   const url = new URL(href, window.location.origin);
   url.searchParams.set('reporttype', 'withpics');
@@ -28,13 +33,50 @@ function getMembersLinksFromSubnav(doc: Document): HTMLAnchorElement[] {
   );
 }
 
-export function getMembersFetchUrlsFromDocument(doc: Document = document): string[] {
+export function getMembersFetchUrlsFromDocument(
+  doc: Document = document,
+  options?: MembersFetchUrlOptions,
+): string[] {
   const links = getMembersLinksFromSubnav(doc);
   if (links.length === 0) {
     return [];
   }
 
   const normalizedLinks = links.map((link) => normalizeMembersUrl(link.href));
+  const requestedStudents = options?.showStudents;
+  const requestedTeachers = options?.showTeachers;
+
+  if (requestedStudents != null || requestedTeachers != null) {
+    const exactMatches = normalizedLinks.filter((href) => {
+      const url = new URL(href);
+      const showsStudents = url.searchParams.get('showstudents') === '1';
+      const showsTeachers = url.searchParams.get('showteachers') === '1';
+
+      if (requestedStudents != null && showsStudents !== requestedStudents) {
+        return false;
+      }
+      if (requestedTeachers != null && showsTeachers !== requestedTeachers) {
+        return false;
+      }
+      return true;
+    });
+
+    if (exactMatches.length > 0) {
+      return dedupeUrls(exactMatches);
+    }
+
+    const combinedLink = normalizedLinks.find((href) => {
+      const url = new URL(href);
+      return url.searchParams.get('showteachers') === '1' && url.searchParams.get('showstudents') === '1';
+    });
+
+    if (combinedLink) {
+      return [combinedLink];
+    }
+
+    return [];
+  }
+
   const combinedLink = normalizedLinks.find((href) => {
     const url = new URL(href);
     return url.searchParams.get('showteachers') === '1' && url.searchParams.get('showstudents') === '1';

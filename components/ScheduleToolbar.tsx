@@ -144,7 +144,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
   }, [menuOpen, closeMenu]);
 
   return (
-    <div className="flex items-center justify-between gap-3 py-2 mb-2">
+    <div className="flex items-center justify-between gap-3 px-2 pt-3 pb-2 mb-2">
       {/* Left: week nav + view controls */}
       <div className="flex items-center gap-3">
         {/* Week navigator */}

@@ -19,7 +19,11 @@ import {
 } from "@/lib/beskeder-thread-parser";
 import { FravaerPage } from "@/components/FravaerPage";
 import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
-import { ForsideOpgaverCard, parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
+import { KaraktererPage, parseKaraktererFromDOM } from "@/components/KaraktererPage";
+import { ProfilPage } from "@/components/ProfilPage";
+import { parseProfilFromDOM } from "@/lib/profil-parser";
+import { parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
+import { ForsideDashboard, parseAktuelInfo, parseLektier, parseBeskeder } from "@/components/ForsideDashboard";
 import { ForsideSchedulePanel, fetchScheduleWeek } from "@/components/ForsideScheduleCard";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -67,7 +71,9 @@ function replaceFavicon() {
   // Remove existing favicons
   document
     .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')
-    .forEach((el) => el.remove());
+    .forEach((el) => {
+      el.remove();
+    });
 
   // Add our favicon
   const favicon = document.createElement("link");
@@ -250,6 +256,22 @@ function initLayout() {
   ) {
     window.location.href = window.location.pathname + "?mappeid=-70";
     return;
+  }
+
+  // Viewing someone else's documents does not work on Lectio's
+  // "Nyeste dokumenter" pseudo-folder (`__5`). Bounce to their
+  // regular root documents folder instead.
+  if (
+    /\/dokumentoversigt\.aspx$/i.test(window.location.pathname) &&
+    !isViewingOwnPage()
+  ) {
+    const url = new URL(window.location.href);
+    const folderId = url.searchParams.get("folderid");
+    if (folderId?.endsWith("__5")) {
+      url.searchParams.set("folderid", folderId.slice(0, -1));
+      window.location.replace(url.toString());
+      return;
+    }
   }
 
   // Update login state and profile cache
@@ -452,6 +474,22 @@ function initLayout() {
           injectFravaerPage(schoolId);
         }
 
+        // Inject karakterer page UI
+        if (
+          (settings.pages.karaktererRedesign ?? true) &&
+          window.location.pathname.toLowerCase().includes("grade_report.aspx")
+        ) {
+          injectKaraktererPage(schoolId);
+        }
+
+        // Inject profil page UI
+        if (
+          (settings.pages.profilRedesign ?? true) &&
+          window.location.pathname.toLowerCase().includes("studentindstillinger.aspx")
+        ) {
+          injectProfilPage(schoolId);
+        }
+
         // Inject "viewing schedule" header when looking at someone else's schedule
         if (
           (settings.schedule.viewingScheduleHeader ?? true) &&
@@ -494,9 +532,15 @@ function initLayout() {
       cleanUpModuleLabels();
       // Inject "I dag" button into native toolbar (needed for current-week detection)
       injectTodayButton();
-      // Replace native schedule toolbar with custom Preact component on skemany
+      // Replace native schedule toolbar with custom Preact component
+      // Show on own schedule and non-student entities (hold, lærere, grupper, etc.)
+      // Only skip for other students' schedules (they get ProfilePage instead)
       if (window.location.pathname.toLowerCase().includes("skemany.aspx")) {
-        injectScheduleToolbar();
+        const viewedForToolbar = getViewedEntityId();
+        const isOtherStudent = viewedForToolbar && viewedForToolbar.type === 'student' && !isViewingOwnPage();
+        if (!isOtherStudent) {
+          injectScheduleToolbar();
+        }
       }
       setupWeekendCollapse();
       if (settings.schedule.todayHighlight ?? true) {
@@ -757,8 +801,25 @@ function injectTodayButton() {
   const url = new URL(window.location.href);
   url.searchParams.delete("week");
 
-  // Check if we're already on the current week (no week param in URL)
-  const isCurrentWeek = !new URLSearchParams(window.location.search).has("week");
+  // Compute current ISO week param (WWYYYY) to compare against URL
+  const now = new Date();
+  const tmp = new Date(now.getTime());
+  tmp.setHours(0, 0, 0, 0);
+  tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
+  const week1 = new Date(tmp.getFullYear(), 0, 4);
+  const weekNum =
+    1 +
+    Math.round(
+      ((tmp.getTime() - week1.getTime()) / 86400000 -
+        3 +
+        ((week1.getDay() + 6) % 7)) /
+        7,
+    );
+  const currentWeekParam = `${weekNum}${tmp.getFullYear()}`;
+
+  // Current week if no ?week= param, or if it matches the computed current week
+  const urlWeek = new URLSearchParams(window.location.search).get("week");
+  const isCurrentWeek = !urlWeek || urlWeek === currentWeekParam;
 
   // Create a .buttonlink wrapper to match Lectio's view buttons
   const wrapper = document.createElement("span");
@@ -1255,38 +1316,80 @@ function injectForsideGreeting(schoolId: string) {
   // Render the greeting component
   render(<ForsideGreeting schoolId={schoolId} />, greetingContainer);
 
-  // Replace native opgaver card with custom component
-  enhanceForsideOpgaver(schoolId);
+  // Parse data from the 4 native cards before hiding them
+  injectForsideDashboard(schoolId, contentContainer);
 
   // Hide native schedule island and inject side panel with full schedule
   enhanceForsideSchedule(schoolId);
 
-  // Apply masonry layout to dashboard cards
+  // Apply masonry layout to remaining dashboard cards
   applyMasonryLayout();
 
   console.log("[BetterLectio] Forside greeting injected");
 }
 
-function enhanceForsideOpgaver(schoolId: string) {
-  const table = document.querySelector<HTMLTableElement>(
-    '#s_m_Content_Content_ElevOpgaveAfleveringerDBB',
-  );
-  if (!table) return;
+/** IDs of the 4 specific forside cards to parse and replace */
+const FORSIDE_CARD_IDS = [
+  's_m_Content_Content_AktuelInformationIsland_pa',
+  's_m_Content_Content_LektierIsland_pa',
+  's_m_Content_Content_ElevOpgaveAfleveringerIsland_pa',
+  's_m_Content_Content_kommIsland_pa',
+] as const;
 
-  const island = table.closest<HTMLElement>('.lf-island');
-  if (!island) return;
+function injectForsideDashboard(schoolId: string, contentContainer: HTMLElement) {
+  // ── Parse all 4 cards from native DOM ──
 
-  // Parse data from native DOM before replacing it
-  const entries = parseForsideOpgaver(island);
+  // Aktuel Information
+  const aktuelIsland = document.getElementById('s_m_Content_Content_AktuelInformationIsland_pa');
+  const aktuelInfo = aktuelIsland ? parseAktuelInfo(aktuelIsland) : [];
 
-  const opgaverPageUrl = `/lectio/${schoolId}/OpgaverElev.aspx`;
+  // Lektier
+  const lektierIsland = document.getElementById('s_m_Content_Content_LektierIsland_pa');
+  const lektier = lektierIsland ? parseLektier(lektierIsland) : [];
 
-  // Clear island and render our custom card (even with 0 entries — missing fetch may add some)
-  island.classList.add('il-foc-island');
-  island.innerHTML = '';
+  // Opgaver
+  const opgaverIsland = document.getElementById('s_m_Content_Content_ElevOpgaveAfleveringerIsland_pa');
+  const opgaver = opgaverIsland ? parseForsideOpgaver(opgaverIsland) : [];
+
+  // Beskeder
+  const beskederIsland = document.getElementById('s_m_Content_Content_kommIsland_pa');
+  const { entries: beskeder, unreadCount } = beskederIsland
+    ? parseBeskeder(beskederIsland)
+    : { entries: [], unreadCount: 0 };
+
+  // ── Hide ONLY these 4 specific cards ──
+  for (const id of FORSIDE_CARD_IDS) {
+    const islandContent = document.getElementById(id);
+    if (islandContent) {
+      const island = islandContent.closest<HTMLElement>('.lf-island');
+      if (island) {
+        island.style.display = 'none';
+      }
+    }
+  }
+
+  // ── Inject redesigned dashboard ──
+  const dashboardContainer = document.createElement("div");
+  dashboardContainer.id = "il-forside-dashboard";
+
+  // Insert after the greeting
+  const greeting = document.getElementById("il-forside-greeting");
+  if (greeting?.nextSibling) {
+    contentContainer.insertBefore(dashboardContainer, greeting.nextSibling);
+  } else {
+    contentContainer.appendChild(dashboardContainer);
+  }
+
   render(
-    <ForsideOpgaverCard initialEntries={entries} opgaverPageUrl={opgaverPageUrl} schoolId={schoolId} />,
-    island,
+    <ForsideDashboard
+      aktuelInfo={aktuelInfo}
+      lektier={lektier}
+      opgaver={opgaver}
+      beskeder={beskeder}
+      unreadCount={unreadCount}
+      schoolId={schoolId}
+    />,
+    dashboardContainer,
   );
 }
 
@@ -1872,4 +1975,42 @@ async function injectFravaerPage(schoolId: string) {
     console.error("[BetterLectio] Failed to load fravær page:", err);
     fravaerContainer.innerHTML = '<div class="il-fravaer-initial-loading"><span>Kunne ikke hente fraværsdata. Prøv at genindlæse siden.</span></div>';
   }
+}
+
+function injectKaraktererPage(_schoolId: string) {
+  const data = parseKaraktererFromDOM();
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const container = document.createElement("div");
+  container.id = "il-karakterer-page";
+  contentContainer.appendChild(container);
+
+  document.body.classList.add("il-karakterer-page-active");
+
+  render(<KaraktererPage data={data} />, container);
+
+  console.log(
+    "[BetterLectio] Karakterer page injected with",
+    data.grades.length,
+    "grade entries",
+  );
+}
+
+function injectProfilPage(schoolId: string) {
+  const data = parseProfilFromDOM();
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const container = document.createElement("div");
+  container.id = "il-profil-page";
+  contentContainer.appendChild(container);
+
+  document.body.classList.add("il-profil-page-active");
+
+  render(<ProfilPage data={data} schoolId={schoolId} />, container);
+
+  console.log("[BetterLectio] Profil page injected");
 }

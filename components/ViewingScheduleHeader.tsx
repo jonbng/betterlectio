@@ -6,6 +6,7 @@ import type { ScheduleEntityType } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
 import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
+import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name';
 import { PersonCard } from './PersonCard';
 
 interface ViewingScheduleHeaderProps {
@@ -154,20 +155,12 @@ export function ViewingScheduleHeader({
           if (!itemId.startsWith('SC')) return false;
           if (getFindSkemaTypeKeyFromId(itemId) !== 'K') return false;
           const raw = itemName.trim();
-          // Try year-based → grade-based transform
-          const yearMatch = raw.match(/^(\d{4})([a-zA-Z](?:\s+\d+)?)$/);
-          if (yearMatch) {
-            const startYear = parseInt(yearMatch[1], 10);
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const schoolStartYear = now.getMonth() >= 7 ? currentYear : currentYear - 1;
-            const grade = schoolStartYear - startYear + 1;
-            if (grade >= 1 && grade <= 3) {
-              return `${grade}${yearMatch[2]}` === subtitle.trim();
-            }
+          const transformed = transformYearBasedClassName(raw);
+          if (transformed) {
+            return classGroupsMatch(transformed.displayName, subtitle.trim());
           }
           // Fallback: direct match (non-gymnasium schools)
-          return raw === subtitle.trim();
+          return classGroupsMatch(raw, subtitle.trim()) || raw === subtitle.trim();
         });
         if (classItem) {
           const klasseId = classItem[1].replace(/^SC/, '');
@@ -370,17 +363,21 @@ export function ViewingScheduleHeader({
 
       {/* Enlarged profile picture overlay */}
       {imageEnlarged && pictureUrl && (
-        <div
-          className="fixed inset-0 bg-black/60 z-100 flex items-center justify-center cursor-pointer backdrop-blur-sm"
-          onClick={() => setImageEnlarged(false)}
+        <button
+          type="button"
+          className="fixed inset-0 z-100 flex cursor-pointer items-center justify-center border-0 bg-black/60 p-0 backdrop-blur-sm"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setImageEnlarged(false);
+            }
+          }}
         >
           <img
             src={pictureUrl}
             alt={name}
             className="max-w-[80vw] max-h-[80vh] rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
           />
-        </div>
+        </button>
       )}
     </div>
   );

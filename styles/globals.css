@@ -625,7 +625,9 @@ html {
       .il-beskeder-page-active,
       .il-lektier-page-active,
       .il-opgaver-page-active,
-      .il-members-page-active
+      .il-members-page-active,
+      .il-karakterer-page-active,
+      .il-profil-page-active
     ) #il-original-content {
     flex: 0 0 auto;
     min-height: 0;
@@ -1799,6 +1801,8 @@ html {
     max-width: 100%;
     box-sizing: border-box;
     background: transparent;
+    height: fit-content !important;
+    min-height: 0 !important;
   }
 
   /* Add horizontal padding to content table on forside */
@@ -2727,6 +2731,50 @@ html {
 
   #il-opgaver-page {
     padding: 0;
+  }
+
+  /* ========================================
+     Karakterer Page (grade_report.aspx) Styles
+     ======================================== */
+
+  /* Hide original content when karakterer redesign is active */
+  body.il-karakterer-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-karakterer-page-active #il-original-content,
+  body.il-karakterer-page-active #il-original-content #masterContent,
+  body.il-karakterer-page-active #il-original-content #aspnetForm,
+  body.il-karakterer-page-active #il-original-content .ls-master-container1,
+  body.il-karakterer-page-active #il-original-content .ls-master-container2,
+  body.il-karakterer-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-karakterer-page-active #il-original-content .outerContentFrame,
+  body.il-karakterer-page-active #il-original-content .ls-content-container,
+  body.il-karakterer-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  /* ========================================
+     Profil Page (studentIndstillinger.aspx) Styles
+     ======================================== */
+
+  /* Hide original content when profil redesign is active */
+  body.il-profil-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-profil-page-active #il-original-content,
+  body.il-profil-page-active #il-original-content #masterContent,
+  body.il-profil-page-active #il-original-content #aspnetForm,
+  body.il-profil-page-active #il-original-content .ls-master-container1,
+  body.il-profil-page-active #il-original-content .ls-master-container2,
+  body.il-profil-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-profil-page-active #il-original-content .outerContentFrame,
+  body.il-profil-page-active #il-original-content .ls-content-container,
+  body.il-profil-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
   }
 
   /* ========================================

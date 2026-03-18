@@ -36,10 +36,16 @@ import {
   type SubmitError,
 } from '@/lib/beskeder-submit';
 import { getTeacherName, getTeacherContextCardId, loadTeacherNames, type TeacherCache } from '@/lib/teacher-cache';
-import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
+import {
+  ensureNameIdCache,
+  fetchPictureUrl,
+  getCachedPictureUrl,
+  getPersonScheduleUrlFromMessage,
+  lookupContextCardIdByName,
+} from '@/lib/findskema-storage';
 import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
 import { cn } from '@/lib/utils';
-import { getUnreadCount, getCachedUnreadCount } from '@/lib/unread-messages';
+import { getUnreadCount, getCachedUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function normalizePersonLabel(value: string): string {
@@ -201,6 +207,7 @@ interface ThreadRowProps {
   thread: BeskedThread;
   isSelected: boolean;
   onToggleSelect: (threadId: string) => void;
+  onOpen: (thread: BeskedThread) => void;
   onFlag: (threadId: string) => void;
   onRead: (threadId: string, isRead: boolean) => void;
   onDelete: (threadId: string, isDeleted: boolean) => void;
@@ -221,9 +228,19 @@ function formatActionError(error: SubmitError): string {
   return 'Kunne ikke bekræfte handlingen. Opdatér siden for at undgå dubletter.';
 }
 
-function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelete, index, schoolId, nameIdReady, actionLoading }: ThreadRowProps) {
+function ThreadRow({ thread, isSelected, onToggleSelect, onOpen, onFlag, onRead, onDelete, index, schoolId, nameIdReady, actionLoading }: ThreadRowProps) {
   const [showActions, setShowActions] = useState(false);
   const isBusy = actionIsLoading(actionLoading, thread.threadId);
+  const latestSenderScheduleUrl = getPersonScheduleUrlFromMessage(
+    thread.latestSender.contextCardId,
+    getPersonLabel(thread.latestSender),
+    schoolId,
+  );
+  const recipientsScheduleUrl = getPersonScheduleUrlFromMessage(
+    thread.recipients.contextCardId,
+    getPersonLabel(thread.recipients),
+    schoolId,
+  );
 
   const rowClass = cn(
     'animate-[beskeder-row-in_0.25s_ease-out_both] relative flex cursor-pointer items-center gap-3 border-b border-border/70 px-3 py-2.5 transition-colors last:border-b-0',
@@ -237,13 +254,13 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
     const target = e.target as HTMLElement;
     if (target.closest('[data-row-actions]') ||
         target.closest('[data-row-check]')) return;
-    openThread(thread.threadId);
+    onOpen(thread);
   };
 
   const handleOpenByKeyboard = (e: KeyboardEvent) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
-    openThread(thread.threadId);
+    onOpen(thread);
   };
 
   const handleFlag = (e: MouseEvent) => {
@@ -270,6 +287,20 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
     toggleThreadCheckbox(thread.ctlIndex, !isSelected);
   };
 
+  const handlePersonNavigate = (e: MouseEvent, url: string | null) => {
+    if (!url) return;
+    e.stopPropagation();
+    window.location.href = url;
+  };
+
+  const handlePersonNavigateByKeyboard = (e: KeyboardEvent, url: string | null) => {
+    if (!url) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = url;
+  };
+
   const dateDisplay = formatRelativeDate(thread.dateText, thread.date);
 
   return (
@@ -284,30 +315,51 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
       style={{ animationDelay: `${index * 30}ms` } as any}
     >
       {/* Checkbox */}
-      <label data-row-check className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center" onClick={(e) => e.stopPropagation()}>
+      <div data-row-check className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={handleCheck}
+          onClick={(e) => e.stopPropagation()}
           className="peer sr-only"
         />
         <span className="inline-flex size-4 items-center justify-center rounded-[4px] border border-border bg-background transition-colors peer-checked:border-primary peer-checked:bg-primary">
           <Check size={12} className="text-primary-foreground opacity-0 transition-opacity peer-checked:opacity-100" />
         </span>
-      </label>
+      </div>
 
       {/* Unread indicator */}
       {thread.isUnread && <div className="absolute left-1 size-1.5 shrink-0 rounded-full bg-primary" />}
 
       {/* Avatar */}
-      <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} />
+      <button
+        type="button"
+        className={cn('shrink-0 rounded-full transition-transform hover:scale-[1.03]', !latestSenderScheduleUrl && 'cursor-default')}
+        onClick={(e) => handlePersonNavigate(e, latestSenderScheduleUrl)}
+        onKeyDown={(e) => handlePersonNavigateByKeyboard(e, latestSenderScheduleUrl)}
+        disabled={!latestSenderScheduleUrl}
+        title={latestSenderScheduleUrl ? `Vis ${getPersonLabel(thread.latestSender)}s skema` : undefined}
+      >
+        <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} />
+      </button>
 
       {/* Content */}
       <div className="min-w-0 flex-1 pr-17">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
-          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-base text-foreground", thread.isUnread ? "font-semibold" : "font-medium")}>
+          <button
+            type="button"
+            className={cn(
+              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base text-foreground transition-colors hover:text-primary',
+              thread.isUnread ? 'font-semibold' : 'font-medium',
+              !latestSenderScheduleUrl && 'cursor-default hover:text-foreground',
+            )}
+            onClick={(e) => handlePersonNavigate(e, latestSenderScheduleUrl)}
+            onKeyDown={(e) => handlePersonNavigateByKeyboard(e, latestSenderScheduleUrl)}
+            disabled={!latestSenderScheduleUrl}
+            title={latestSenderScheduleUrl ? `Vis ${getPersonLabel(thread.latestSender)}s skema` : undefined}
+          >
             {getPersonLabel(thread.latestSender)}
-          </span>
+          </button>
           <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">{dateDisplay}</span>
         </div>
         <div className="mt-0.5 inline-flex items-center gap-1.5">
@@ -320,9 +372,19 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onFlag, onRead, onDelet
           )}
         </div>
         <div className="mt-0.5 flex items-center">
-          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-base leading-tight text-muted-foreground">
+          <button
+            type="button"
+            className={cn(
+              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-tight text-muted-foreground transition-colors hover:text-primary',
+              !recipientsScheduleUrl && 'cursor-default hover:text-muted-foreground',
+            )}
+            onClick={(e) => handlePersonNavigate(e, recipientsScheduleUrl)}
+            onKeyDown={(e) => handlePersonNavigateByKeyboard(e, recipientsScheduleUrl)}
+            disabled={!recipientsScheduleUrl}
+            title={recipientsScheduleUrl ? `Vis ${getPersonLabel(thread.recipients)}s skema` : undefined}
+          >
             Til: {getPersonLabel(thread.recipients)}
-          </span>
+          </button>
         </div>
       </div>
 
@@ -459,14 +521,23 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
 
   const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(() => getCachedUnreadCount(schoolId) ?? 0);
 
+  const setSyncedGlobalUnreadCount = useCallback((next: number | ((current: number) => number)) => {
+    setGlobalUnreadCount((current) => {
+      const resolved = typeof next === 'function' ? (next as (value: number) => number)(current) : next;
+      const normalized = Math.max(0, resolved);
+      broadcastUnreadCount(schoolId, normalized);
+      return normalized;
+    });
+  }, [schoolId]);
+
   // Fetch global unread count (from forside "N ulæste")
   useEffect(() => {
     let cancelled = false;
     getUnreadCount(schoolId).then((count) => {
-      if (!cancelled) setGlobalUnreadCount(count);
+      if (!cancelled) setSyncedGlobalUnreadCount(count);
     });
     return () => { cancelled = true; };
-  }, [schoolId]);
+  }, [schoolId, setSyncedGlobalUnreadCount]);
 
   // Close bulk menu on outside click
   useEffect(() => {
@@ -569,6 +640,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   }, [formState]);
 
   const handleMarkAllRead = useCallback(() => {
+    const unreadInView = rawThreads.filter((thread) => thread.isUnread).length;
     setActionLoading('markAllRead');
     setError(null);
 
@@ -577,13 +649,16 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       if (result.success) {
         setFormState(result.formState);
         setRawThreads(result.data.threads);
+        if (unreadInView > 0) {
+          setSyncedGlobalUnreadCount((count) => count - unreadInView);
+        }
       } else {
         console.warn('[BetterLectio] Mark all read iframe failed:', result.error);
         if (result.error.kind === 'session_expired') markAllReadNative();
         else setError(formatActionError(result.error));
       }
     });
-  }, [formState]);
+  }, [formState, rawThreads, setSyncedGlobalUnreadCount]);
 
   const handleToggleSelect = useCallback((threadId: string) => {
     setSelectedThreads(prev => {
@@ -642,10 +717,12 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   }, [formState, rawThreads]);
 
   const handleRead = useCallback((threadId: string, currentlyRead: boolean) => {
+    const delta = currentlyRead ? 1 : -1;
     // Optimistic update
     setRawThreads(prev => prev.map(t =>
       t.threadId === threadId ? { ...t, isRead: !currentlyRead, isUnread: currentlyRead } : t,
     ));
+    setSyncedGlobalUnreadCount((count) => count + delta);
     setActionLoading(`read-${threadId}`);
     setError(null);
 
@@ -660,13 +737,30 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         setRawThreads(prev => prev.map(t =>
           t.threadId === threadId ? { ...t, isRead: currentlyRead, isUnread: !currentlyRead } : t,
         ));
+        setSyncedGlobalUnreadCount((count) => count - delta);
       }
     });
-  }, [formState]);
+  }, [formState, setSyncedGlobalUnreadCount]);
+
+  const handleOpenThread = useCallback((thread: BeskedThread) => {
+    if (thread.isUnread) {
+      setRawThreads((prev) => prev.map((item) =>
+        item.threadId === thread.threadId ? { ...item, isRead: true, isUnread: false } : item,
+      ));
+      setSyncedGlobalUnreadCount((count) => count - 1);
+    }
+    openThread(thread.threadId);
+  }, [setSyncedGlobalUnreadCount]);
 
   const handleDelete = useCallback((threadId: string, isDeleted: boolean) => {
+    const thread = rawThreads.find((item) => item.threadId === threadId);
+    const unreadDelta = thread?.isUnread ? (isDeleted ? 1 : -1) : 0;
+
     setActionLoading(`delete-${threadId}`);
     setError(null);
+    if (unreadDelta !== 0) {
+      setSyncedGlobalUnreadCount((count) => count + unreadDelta);
+    }
 
     deleteThreadViaIframe(formState, threadId, isDeleted).then((result) => {
       setActionLoading(null);
@@ -685,9 +779,12 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         console.warn('[BetterLectio] Delete iframe failed:', result.error);
         if (result.error.kind === 'session_expired') deleteThreadNative(threadId, isDeleted);
         else setError(formatActionError(result.error));
+        if (unreadDelta !== 0) {
+          setSyncedGlobalUnreadCount((count) => count - unreadDelta);
+        }
       }
     });
-  }, [formState]);
+  }, [formState, rawThreads, setSyncedGlobalUnreadCount]);
 
   const handleSearch = (e: Event) => {
     e.preventDefault();
@@ -861,14 +958,15 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           {threads.map((thread, idx) => (
-            <ThreadRow
-              key={thread.threadId}
-              thread={thread}
-              isSelected={selectedThreads.has(thread.threadId)}
-              onToggleSelect={handleToggleSelect}
-              onFlag={handleFlag}
-              onRead={handleRead}
-              onDelete={handleDelete}
+              <ThreadRow
+                key={thread.threadId}
+                thread={thread}
+                isSelected={selectedThreads.has(thread.threadId)}
+                onToggleSelect={handleToggleSelect}
+                onOpen={handleOpenThread}
+                onFlag={handleFlag}
+                onRead={handleRead}
+                onDelete={handleDelete}
               index={idx}
               schoolId={schoolId}
               nameIdReady={nameIdReady}

@@ -466,7 +466,9 @@ export async function ensureNameIdCache(schoolId: string, onReady?: () => void):
     }
     nameIdCacheLoading.delete(schoolId);
     const callbacks = nameIdCacheCallbacks.get(schoolId) || [];
-    callbacks.forEach((cb) => cb());
+    callbacks.forEach((cb) => {
+      cb();
+    });
     nameIdCacheCallbacks.delete(schoolId);
   }
 }
@@ -496,4 +498,22 @@ export function lookupContextCardIdByName(name: string, schoolId: string): strin
   }
 
   return null;
+}
+
+export function getPersonScheduleUrlFromMessage(
+  contextCardId: string | null | undefined,
+  name: string,
+  schoolId: string,
+): string | null {
+  const trimmedName = name.trim();
+  if (!trimmedName) return null;
+
+  const normalizedContextCardId = contextCardId?.trim() || '';
+  const resolvedId =
+    (normalizedContextCardId.startsWith('S') || normalizedContextCardId.startsWith('T'))
+      ? normalizedContextCardId
+      : lookupContextCardIdByName(trimmedName, schoolId);
+
+  if (!resolvedId) return null;
+  return getScheduleUrl(resolvedId, schoolId, { name: trimmedName });
 }

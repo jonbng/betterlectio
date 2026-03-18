@@ -84,6 +84,8 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   bk: 'Billedkunst',
   re: 'Religion',
   fr: 'Fransk',
+  frb: 'Fransk',
+  frf: 'Fransk',
   sp: 'Spansk',
   fi: 'Filosofi',
   ps: 'Psykologi',
@@ -103,6 +105,11 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   srp: 'Studieretningsprojekt',
   sro: 'Studieretningsopgave',
   ks: 'Kultur- og samfundsfag',
+  ti: 'Teknologi',
+  ih: 'Idéhistorie',
+  st: 'Studievejledning',
+  kt: 'Klassens time',
+  ff: 'Fælles fagligt',
   tek: 'Teknologi',
   as: 'Astronomi',
   mat: 'Matematik',
@@ -137,6 +144,9 @@ const SUBJECT_DEFAULT_HUES: Record<string, number> = {
   [normalizeKey('Filosofi')]: 272,
   [normalizeKey('Psykologi')]: 312,
   [normalizeKey('Idéhistorie')]: 300,
+  [normalizeKey('Studievejledning')]: 286,
+  [normalizeKey('Klassens time')]: 24,
+  [normalizeKey('Fælles fagligt')]: 172,
   [normalizeKey('Kultur- og samfundsfag')]: 186,
   [normalizeKey('Oldtidskundskab')]: 40,
 
@@ -303,7 +313,7 @@ function saveStore(store: HoldMappingStore): void {
 // ── Classification ─────────────────────────────────────────────────────
 
 function looksLikeAcademicPrefix(prefix: string): boolean {
-  return /^\d+(?:[a-zæøå]+(?:\d+[a-zæøå]*)?)$/i.test(prefix);
+  return /^\d+(?:[a-zæøå]+(?:\d+[a-zæøå]*)?|\.\d+)$/i.test(prefix);
 }
 
 function isIgnoredHold(holdCode: string): boolean {
@@ -313,6 +323,10 @@ function isIgnoredHold(holdCode: string): boolean {
 
 function lookupSubjectAbbrev(abbrev: string): string | null {
   return SUBJECT_DICTIONARY[abbrev.toLocaleLowerCase('da')] ?? null;
+}
+
+function stripSubjectLevelSuffix(token: string): string {
+  return token.replace(/-[a-zæøå]+$/i, '');
 }
 
 function lookupSubjectName(value: string): string | null {
@@ -325,6 +339,18 @@ function getSubjectKey(subjectName: string): string {
 
 function getDefaultSubjectHue(subjectKey: string): number {
   return SUBJECT_DEFAULT_HUES[subjectKey] ?? hashToHue(subjectKey);
+}
+
+function isAutoDetectableSubjectSuffix(subjectToken: string, suffix: string): boolean {
+  if (suffix === '' || /^\d+$/.test(suffix)) {
+    return true;
+  }
+
+  if (subjectToken.toLocaleLowerCase('da') === 'st') {
+    return /^[a-zæøå]{1,4}$/i.test(suffix);
+  }
+
+  return false;
 }
 
 function analyzeHold(holdCode: string): HoldDescriptor {
@@ -404,13 +430,14 @@ function analyzeHold(holdCode: string): HoldDescriptor {
     };
   }
 
-  const subjectName = lookupSubjectAbbrev(subjectToken);
+  const normalizedSubjectToken = stripSubjectLevelSuffix(subjectToken);
+  const subjectName = lookupSubjectAbbrev(normalizedSubjectToken);
   const trimmedSuffix = suffix.trim();
-  if (subjectName && (trimmedSuffix === '' || /^\d+$/.test(trimmedSuffix))) {
+  if (subjectName && isAutoDetectableSubjectSuffix(normalizedSubjectToken, trimmedSuffix)) {
     return {
       holdCode: normalizedHoldCode,
       prefix,
-      subjectToken,
+      subjectToken: normalizedSubjectToken,
       suffix,
       classification: 'subject',
       subjectKey: getSubjectKey(subjectName),
@@ -589,7 +616,7 @@ export function hasHoldMapping(holdCode: string): boolean {
 
 /**
  * Get a full hold label with class prefix preserved.
- * "1x MA" -> "1x Matematik", "1g Ty 4" -> "1g Tysk 4"
+ * "1x MA" -> "1x Matematik", "1g Ty 4" -> "1g Tysk 4", "2.4 EN" -> "2.4 Engelsk"
  */
 export function getFullHoldDisplayName(holdCode: string): string {
   const store = loadStore();

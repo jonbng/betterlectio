@@ -22,9 +22,15 @@ import {
   type AttachedFile,
   type ReplyFormTargets,
 } from '@/lib/beskeder-submit';
-import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
+import {
+  ensureNameIdCache,
+  fetchPictureUrl,
+  getCachedPictureUrl,
+  getPersonScheduleUrlFromMessage,
+} from '@/lib/findskema-storage';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
+import { fetchUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 import { cn } from '@/lib/utils';
 
 /** Extract short display name: "Jonathan Arthur Hojer Bangert(k) (1x 17)" → "Jonathan Bangert" */
@@ -272,6 +278,11 @@ interface MessageItemProps {
 
 function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: MessageItemProps) {
   const strippedContent = stripSignatures(message.content);
+  const personScheduleUrl = getPersonScheduleUrlFromMessage(
+    message.senderContextCardId,
+    message.senderName,
+    schoolId,
+  );
 
   // Check if message title adds info beyond "Re: <subject>"
   const showTitle =
@@ -299,9 +310,22 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
 
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-baseline justify-between gap-2">
-          <span className="truncate text-lg font-semibold tracking-tight text-foreground">
-            {shortName(message.senderName)}
-          </span>
+          {personScheduleUrl ? (
+            <button
+              type="button"
+              className="truncate text-left text-lg font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+              onClick={() => {
+                window.location.href = personScheduleUrl;
+              }}
+              title={`Vis ${shortName(message.senderName)}s skema`}
+            >
+              {shortName(message.senderName)}
+            </button>
+          ) : (
+            <span className="truncate text-lg font-semibold tracking-tight text-foreground">
+              {shortName(message.senderName)}
+            </span>
+          )}
           <span className="shrink-0 text-base text-muted-foreground">{dateStr}</span>
         </div>
 
@@ -446,6 +470,22 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       notifyRef.current.appendChild(data.replyForm.notifyDropdownEl);
     }
   }, []);
+
+  useEffect(() => {
+    void ensureNameIdCache(schoolId);
+  }, [schoolId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchUnreadCount(schoolId).then((count) => {
+      if (!cancelled) broadcastUnreadCount(schoolId, count);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -603,7 +643,11 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     window.location.href = `${window.location.origin}/lectio/${sid}/beskeder2.aspx?mappeid=-70`;
   };
 
-  const recipientNames = recipients.map((r) => shortName(r.name));
+  const recipientEntries = recipients.map((recipient) => ({
+    ...recipient,
+    shortLabel: shortName(recipient.name),
+    scheduleUrl: getPersonScheduleUrlFromMessage(recipient.contextCardId, recipient.name, schoolId),
+  }));
 
   return (
     <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
@@ -622,7 +666,29 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
           <h1 className="truncate text-[1.5rem] font-[800] tracking-[-0.03em] text-foreground">{data.threadSubject}</h1>
           <div className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users size={13} className="text-muted-foreground" />
-            <span>{recipientNames.join(', ')}</span>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              {recipientEntries.map((recipient, index) => (
+                recipient.scheduleUrl ? (
+                  <button
+                    key={`${recipient.contextCardId}-${recipient.name}-${index}`}
+                    type="button"
+                    className="truncate text-left transition-colors hover:text-primary"
+                    onClick={() => {
+                      window.location.href = recipient.scheduleUrl!;
+                    }}
+                    title={`Vis ${recipient.shortLabel}s skema`}
+                  >
+                    {recipient.shortLabel}
+                    {index < recipientEntries.length - 1 ? ',' : ''}
+                  </button>
+                ) : (
+                  <span key={`${recipient.contextCardId}-${recipient.name}-${index}`} className="truncate">
+                    {recipient.shortLabel}
+                    {index < recipientEntries.length - 1 ? ',' : ''}
+                  </span>
+                )
+              ))}
+            </div>
           </div>
         </div>
 
