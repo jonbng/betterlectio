@@ -4,35 +4,28 @@ import { fetchQrUrl } from '@/lib/profil-parser';
 export async function triggerSupabaseAuth(
   schoolId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  // 1. Fetch QR code + profile data from Lectio (single page fetch)
-  const authData = await fetchQrUrl(schoolId);
-  if (!authData) {
+  // 1. Fetch QR code URL from Lectio
+  const qrUrl = await fetchQrUrl(schoolId);
+  if (!qrUrl) {
     return { success: false, error: 'Kunne ikke hente QR URL fra Lectio.' };
   }
 
   // 2. Parse userId and qrId from URL
-  const url = new URL(authData.qrUrl);
+  const url = new URL(qrUrl);
   const userId = url.searchParams.get('userId');
   const qrId = url.searchParams.get('QrId');
   if (!userId || !qrId) {
     return { success: false, error: 'Ugyldigt QR URL format.' };
   }
 
-  // 3. POST to edge function to verify and get magic link
+  // 3. POST to edge function — server verifies QR, extracts profile, returns magic link
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/verify-lectio-auth`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      qrId,
-      userId,
-      schoolId,
-      // Profile data extracted from the same Lectio page fetch
-      name: authData.profile.name || undefined,
-      pictureUrl: authData.profile.pictureUrl || undefined,
-    }),
+    body: JSON.stringify({ qrId, userId }),
   });
 
   if (!resp.ok) {

@@ -28,30 +28,90 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const qrId = String(body.qrId ?? '');
     const userId = String(body.userId ?? '');
-    const schoolId = String(body.schoolId ?? '');
-    const name = body.name ? String(body.name) : null;
-    const pictureUrl = body.pictureUrl ? String(body.pictureUrl) : null;
 
     // Validate required fields
-    if (!qrId || !userId || !schoolId) {
-      return jsonResponse({ error: 'Missing required fields: qrId, userId, schoolId' }, 400);
+    if (!qrId || !userId) {
+      return jsonResponse({ error: 'Missing required fields: qrId, userId' }, 400);
     }
 
     // Validate formats
     if (!UUID_RE.test(qrId)) {
       return jsonResponse({ error: 'Invalid qrId format' }, 400);
     }
-    if (!NUMERIC_RE.test(userId) || !NUMERIC_RE.test(schoolId)) {
-      return jsonResponse({ error: 'userId and schoolId must be numeric' }, 400);
+    if (!NUMERIC_RE.test(userId)) {
+      return jsonResponse({ error: 'userId must be numeric' }, 400);
     }
 
-    // The qrId is a server-generated UUID that only an authenticated Lectio
-    // session can produce (via the "Vis QR kode" postback). It's one-time use
-    // and expires after 90 seconds, so we can't verify it by fetching the URL
-    // (that would consume it). The UUID itself serves as proof of identity —
-    // brute-forcing a 128-bit UUID within a 90s window is not practical.
+    // ── Step 1: Login via QR code URL ──────────────────────────────────
+    const qrLoginUrl = `https://www.lectio.dk/lectio/94/LandingPageQrCode.aspx?userId=${userId}&QrId=${qrId}`;
+    const qrResp = await fetch(qrLoginUrl, { redirect: 'manual' });
 
-    // Create admin Supabase client
+    if (qrResp.status !== 303) {
+      return jsonResponse({ error: 'QR code invalid or expired' }, 401);
+    }
+
+    // Extract schoolId from Location header: /lectio/{schoolId}/UserSetup.aspx
+    const location = qrResp.headers.get('Location') || '';
+    const schoolMatch = location.match(/\/lectio\/(\d+)\//);
+    if (!schoolMatch) {
+      return jsonResponse({ error: 'Could not determine school from QR redirect' }, 500);
+    }
+    const schoolId = schoolMatch[1];
+
+    // Extract session cookies from Set-Cookie headers
+    const cookies: string[] = [];
+    for (const [key, value] of qrResp.headers.entries()) {
+      if (key.toLowerCase() === 'set-cookie') {
+        const cookiePart = value.split(';')[0];
+        if (cookiePart) cookies.push(cookiePart);
+      }
+    }
+    // Also check getSetCookie() for multiple Set-Cookie headers
+    if (typeof (qrResp.headers as any).getSetCookie === 'function') {
+      for (const raw of (qrResp.headers as any).getSetCookie()) {
+        const cookiePart = raw.split(';')[0];
+        if (cookiePart && !cookies.includes(cookiePart)) cookies.push(cookiePart);
+      }
+    }
+    const cookieHeader = cookies.join('; ');
+
+    if (!cookieHeader) {
+      return jsonResponse({ error: 'No session cookies received from QR login' }, 500);
+    }
+
+    // ── Step 2: Fetch student profile from digitaltStudiekort.aspx ─────
+    const studiekortUrl = `https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`;
+    const studiekortResp = await fetch(studiekortUrl, {
+      headers: { Cookie: cookieHeader },
+      redirect: 'follow',
+    });
+    const html = await studiekortResp.text();
+
+    // Parse name: strip "(k)" or similar suffix
+    const nameMatch = html.match(/id="s_m_Content_Content_StudentName"[^>]*>([^<]+)</);
+    let name: string | null = null;
+    if (nameMatch) {
+      name = nameMatch[1].replace(/\([^)]*\)\s*$/, '').trim();
+    }
+
+    // Parse birthday: "Fødselsdag: D/M-YYYY (N år)" → "YYYY-MM-DD"
+    let birthdate: string | null = null;
+    const bdayMatch = html.match(/id="s_m_Content_Content_StudentBirthday"[^>]*>[^:]*:\s*(\d{1,2})\/(\d{1,2})-(\d{4})/);
+    if (bdayMatch) {
+      const day = bdayMatch[1].padStart(2, '0');
+      const month = bdayMatch[2].padStart(2, '0');
+      const year = bdayMatch[3];
+      birthdate = `${year}-${month}-${day}`;
+    }
+
+    // Parse picture URL
+    let pictureUrl: string | null = null;
+    const picMatch = html.match(/id="s_m_Content_Content_StudPic"[^>]*src="([^"]+)"/);
+    if (picMatch) {
+      pictureUrl = new URL(picMatch[1], 'https://www.lectio.dk').toString();
+    }
+
+    // ── Step 3: Generate magic link & upsert student ───────────────────
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -59,7 +119,6 @@ Deno.serve(async (req: Request) => {
 
     const email = `${schoolId}-${userId}@betterlectio.dk`;
 
-    // Generate magic link (creates user if they don't exist)
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email,
@@ -70,24 +129,22 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Failed to generate login link' }, 500);
     }
 
-    // Upsert student record (non-blocking — don't fail auth if this errors)
-    const authUserId = data.user?.id;
-    if (authUserId) {
-      try {
-        const studentRecord: Record<string, unknown> = {
-          id: authUserId,
-          school_id: parseInt(schoolId, 10),
-          has_extension: true,
-        };
-        if (name) studentRecord.name = name;
-        if (pictureUrl) studentRecord.lectio_pfp_url = pictureUrl;
+    // Upsert student record (non-blocking)
+    try {
+      const studentRecord: Record<string, unknown> = {
+        id: userId,
+        school_id: parseInt(schoolId, 10),
+        has_extension: true,
+      };
+      if (name) studentRecord.name = name;
+      if (birthdate) studentRecord.birthdate = birthdate;
+      if (pictureUrl) studentRecord.lectio_pfp_url = pictureUrl;
 
-        await supabaseAdmin
-          .from('students')
-          .upsert(studentRecord, { onConflict: 'id' });
-      } catch (e) {
-        console.warn('Failed to upsert student record:', e);
-      }
+      await supabaseAdmin
+        .from('students')
+        .upsert(studentRecord, { onConflict: 'school_id,id' });
+    } catch (e) {
+      console.warn('Failed to upsert student record:', e);
     }
 
     return jsonResponse({ tokenHash: data.properties.hashed_token });

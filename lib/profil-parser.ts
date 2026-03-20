@@ -147,27 +147,14 @@ export async function fetchStudiekortData(schoolId: string): Promise<StudiekortD
 
 // ── QR code (studentIndstillinger.aspx postback) ──────────────────
 
-export interface QrAuthData {
-  qrUrl: string;
-  /** Profile data extracted from the same page fetch (no extra request). */
-  profile: {
-    name: string | null;
-    pictureUrl: string | null;
-  };
-}
-
-/** Fetch the QR URL by triggering the "Vis QR kode" postback.
- *  Also extracts profile data from the same page response. */
-export async function fetchQrUrl(schoolId: string): Promise<QrAuthData | null> {
+/** Fetch the QR URL by triggering the "Vis QR kode" postback. */
+export async function fetchQrUrl(schoolId: string): Promise<string | null> {
   const pageUrl = `${window.location.origin}/lectio/${schoolId}/indstillinger/studentIndstillinger.aspx`;
 
   const getResp = await fetch(pageUrl, { credentials: 'include' });
   const html = await getResp.text();
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-
-  // Extract profile data from the page we already fetched
-  const profile = extractProfileFromSettingsPage(doc, schoolId);
 
   const form = doc.getElementById('aspnetForm') as HTMLFormElement | null;
   if (!form) return null;
@@ -198,8 +185,7 @@ export async function fetchQrUrl(schoolId: string): Promise<QrAuthData | null> {
     if (m) {
       const imageUrl = m[1] || m[2];
       if (imageUrl) {
-        const qrUrl = await decodeQrImage(imageUrl);
-        return qrUrl ? { qrUrl, profile } : null;
+        return await decodeQrImage(imageUrl);
       }
     }
   }
@@ -207,36 +193,10 @@ export async function fetchQrUrl(schoolId: string): Promise<QrAuthData | null> {
   // Fallback: img in .qrKode-container
   const src = postDoc.querySelector('.qrKode-container img')?.getAttribute('src');
   if (src && src !== 'about:blank') {
-    const qrUrl = await decodeQrImage(src);
-    return qrUrl ? { qrUrl, profile } : null;
+    return await decodeQrImage(src);
   }
 
   return null;
-}
-
-/** Extract student name and picture URL from the studentIndstillinger.aspx DOM. */
-function extractProfileFromSettingsPage(
-  doc: Document,
-  schoolId: string,
-): { name: string | null; pictureUrl: string | null } {
-  // Name from title: "Eleven Jonathan Arthur Hojer Bangert(k), 1x - Profil"
-  const titleEl = doc.getElementById('s_m_HeaderContent_MainTitle');
-  const titleSpan = titleEl?.querySelector('.ls-hidden-smallscreen');
-  const titleText = titleSpan?.textContent?.trim() || '';
-  const titleMatch = titleText.match(/^Eleven\s+(.+?)(?:\([^)]*\))?,\s*\S+\s*-\s*$/);
-  const name = titleMatch?.[1]?.trim() || null;
-
-  // Picture from header image: src="/lectio/94/GetImage.aspx?pictureid=..."
-  const picEl = doc.getElementById('s_m_HeaderContent_picctrlthumbimage') as HTMLImageElement | null;
-  const picSrc = picEl?.getAttribute('src');
-  let pictureUrl: string | null = null;
-  if (picSrc) {
-    const url = new URL(picSrc, `https://www.lectio.dk/lectio/${schoolId}/`);
-    url.searchParams.set('fullsize', '1');
-    pictureUrl = url.toString();
-  }
-
-  return { name, pictureUrl };
 }
 
 /** Decode a QR code image (URL or data URI) and return its text content. */

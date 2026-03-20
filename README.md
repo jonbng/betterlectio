@@ -110,4 +110,4 @@ Name inspired by [BetterLectio](https://github.com/BetterLectio).
 
 ## License
 
-MIT
+GPLv3
