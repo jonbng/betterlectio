@@ -26,6 +26,36 @@ function getSchoolId(): string | null {
 
 let renewInFlight: Promise<boolean> | null = null;
 
+function getLastAuthenticatedPageLoadValue(): number | null {
+  const match = document.cookie.match(/LastAuthenticatedPageLoad2=(\d+)/);
+  if (!match) return null;
+
+  const value = Number.parseInt(match[1], 10);
+  return Number.isFinite(value) ? value : null;
+}
+
+function wasSessionRenewed(previousValue: number | null): boolean {
+  const nextValue = getLastAuthenticatedPageLoadValue();
+  if (nextValue === null) return false;
+  if (previousValue === null) return true;
+  return nextValue > previousValue;
+}
+
+function setDialogHidden(dialog: HTMLElement, hidden: boolean) {
+  dialog.style.visibility = hidden ? 'hidden' : '';
+  dialog.style.pointerEvents = hidden ? 'none' : '';
+}
+
+function clickElement(element: HTMLElement) {
+  element.dispatchEvent(
+    new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    }),
+  );
+}
+
 async function renewSession(): Promise<boolean> {
   if (renewInFlight) return renewInFlight;
 
@@ -89,21 +119,39 @@ export default defineContentScript({
         const dialogEl = dialog;
         if (dialogEl.dataset.ilRenewHandled === '1') return;
         dialogEl.dataset.ilRenewHandled = '1';
+        setDialogHidden(dialogEl, true);
+
+        const previousAuth = getLastAuthenticatedPageLoadValue();
 
         const renewButton = Array.from(dialog.querySelectorAll('button')).find((button) =>
           /forlæng session/i.test(button.textContent || ''),
         ) as HTMLButtonElement | undefined;
 
-        renewSession().then((renewed) => {
-          if (renewed) {
-            renewButton?.click();
+        if (renewButton) clickElement(renewButton);
+
+        window.setTimeout(() => {
+          if (!dialogEl.isConnected) return;
+
+          const renewedByNativeHandler = wasSessionRenewed(previousAuth);
+          if (renewedByNativeHandler) {
             dialog.remove();
-            console.log('[BetterLectio] Session warning suppressed after successful renewal');
-          } else {
-            dialogEl.dataset.ilRenewHandled = '0';
-            console.warn('[BetterLectio] Session renewal failed; keeping warning dialog');
+            console.log('[BetterLectio] Session warning auto-confirmed');
+            return;
           }
-        });
+
+          renewSession().then((renewed) => {
+            const didRenew = renewed || wasSessionRenewed(previousAuth);
+            if (didRenew) {
+              dialog.remove();
+              console.log('[BetterLectio] Session warning suppressed after successful renewal');
+            } else {
+              dialogEl.dataset.ilRenewHandled = '0';
+              setDialogHidden(dialogEl, false);
+              console.warn('[BetterLectio] Session renewal failed; keeping warning dialog');
+            }
+          });
+        }, 750);
+
         return;
       }
 

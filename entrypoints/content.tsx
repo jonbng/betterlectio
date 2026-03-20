@@ -278,6 +278,14 @@ function initLayout() {
   updateLoginState();
   updateProfileCache();
 
+  // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
+  if (schoolId) {
+    import('@/lib/supabase-session').then(({ ensureSupabaseSession, initAuthStateListener }) => {
+      initAuthStateListener();
+      void ensureSupabaseSession(schoolId);
+    }).catch(() => {});
+  }
+
   // Update page title to cleaner format
   if (settings.visual.cleanPageTitles ?? true) {
     updatePageTitle();

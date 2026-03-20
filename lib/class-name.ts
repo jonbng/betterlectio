@@ -1,9 +1,9 @@
 const YEAR_BASED_CLASS_SUFFIX = String.raw`(?:[A-Za-z]|\.\d+)`;
 const GRADE_BASED_CLASS_SUFFIX = String.raw`(?:[A-Za-z]|\.\d+)`;
 
-const YEAR_BASED_CLASS_RE = new RegExp(`^(\\d{4})(${YEAR_BASED_CLASS_SUFFIX})(?:\\s+(\\d+))?$`);
-const GRADE_BASED_CLASS_RE = new RegExp(`^(\\d+${GRADE_BASED_CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
-const YEAR_BASED_HOLD_RE = new RegExp(`^(\\d{4}${YEAR_BASED_CLASS_SUFFIX})\\s+(.+)$`);
+const YEAR_BASED_CLASS_RE = new RegExp(`^([A-Za-z]*)(\\d{4})(${YEAR_BASED_CLASS_SUFFIX})(?:\\s+(\\d+))?$`);
+const GRADE_BASED_CLASS_RE = new RegExp(`^([A-Za-z]*\\d+${GRADE_BASED_CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
+const YEAR_BASED_HOLD_RE = new RegExp(`^([A-Za-z]*\\d{4}${YEAR_BASED_CLASS_SUFFIX})\\s+(.+)$`);
 
 function getCurrentSchoolStartYear(now: Date): number {
   const currentYear = now.getFullYear();
@@ -20,16 +20,17 @@ export function transformYearBasedClassName(name: string, now: Date = new Date()
   const match = trimmed.match(YEAR_BASED_CLASS_RE);
   if (!match) return null;
 
-  const startYear = parseInt(match[1], 10);
+  const letterPrefix = match[1];
+  const startYear = parseInt(match[2], 10);
   if (startYear < 2000 || startYear > 2100) return null;
 
   const grade = getCurrentSchoolStartYear(now) - startYear + 1;
   if (grade < 1 || grade > 3) return null;
 
-  const suffix = match[2];
-  const studentNumber = match[3] ? ` ${match[3]}` : '';
+  const suffix = match[3];
+  const studentNumber = match[4] ? ` ${match[4]}` : '';
   return {
-    displayName: `${grade}${suffix}${studentNumber}`,
+    displayName: `${letterPrefix}${grade}${suffix}${studentNumber}`,
     grade,
   };
 }

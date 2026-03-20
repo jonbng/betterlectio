@@ -97,7 +97,9 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   it: 'Informatik',
   de: 'Design',
   bt: 'Bioteknologi',
+  bro: 'Brobygning',
   er: 'Erhvervsøkonomi',
+  eø: 'Erhvervsøkonomi',
   ng: 'Naturgeografi',
   if: 'Idéhistorie',
   ap: 'Almen sprogforståelse',
@@ -106,21 +108,28 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   sro: 'Studieretningsopgave',
   ks: 'Kultur- og samfundsfag',
   ti: 'Teknologi',
+  tk: 'Teknikfag',
   ih: 'Idéhistorie',
   st: 'Studievejledning',
   kt: 'Klassens time',
   ff: 'Fælles fagligt',
   tek: 'Teknologi',
   as: 'Astronomi',
+  kit: 'Kommunikation/IT',
   mat: 'Matematik',
+  pro: 'Programmering',
   fys: 'Fysik',
+  pu: 'Produktudvikling',
   sam: 'Samfundsfag',
+  skr: 'Skriftlige opgaver',
+  ss: 'Statistik',
   bio: 'Biologi',
   geo: 'Geografi',
   inf: 'Informatik',
   his: 'Historie',
   dan: 'Dansk',
   eng: 'Engelsk',
+  vø: 'Virksomhedsøkonomi',
 };
 
 const SUBJECT_NAME_LOOKUP = new Map<string, string>();
@@ -169,6 +178,14 @@ const SUBJECT_DEFAULT_HUES: Record<string, number> = {
   [normalizeKey('Dramatik')]: 25,
   [normalizeKey('Idræt')]: 118,
   [normalizeKey('Erhvervsøkonomi')]: 65,
+  [normalizeKey('Virksomhedsøkonomi')]: 72,
+  [normalizeKey('Statistik')]: 225,
+  [normalizeKey('Teknikfag')]: 210,
+  [normalizeKey('Kommunikation/IT')]: 305,
+  [normalizeKey('Programmering')]: 242,
+  [normalizeKey('Produktudvikling')]: 22,
+  [normalizeKey('Skriftlige opgaver')]: 12,
+  [normalizeKey('Brobygning')]: 155,
 
   [normalizeKey('Almen sprogforståelse')]: 48,
   [normalizeKey('Almen studieforberedelse')]: 188,
@@ -313,7 +330,7 @@ function saveStore(store: HoldMappingStore): void {
 // ── Classification ─────────────────────────────────────────────────────
 
 function looksLikeAcademicPrefix(prefix: string): boolean {
-  return /^\d+(?:[a-zæøå]+(?:\d+[a-zæøå]*)?|\.\d+)$/i.test(prefix);
+  return /^[a-zæøå]*\d+(?:[a-zæøå]+(?:\d+[a-zæøå]*)?|\.\d+)$/i.test(prefix);
 }
 
 function isIgnoredHold(holdCode: string): boolean {

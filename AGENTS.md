@@ -54,7 +54,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content + cache
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
 - `lib/hold-mapping.ts` - Shared subject mappings, per-hold exceptions, ignored non-academic groups, fresh-start resets
-- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with letter or numeric suffixes (e.g. `1x`, `1.4`)
+- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with letter or numeric suffixes (e.g. `1x`, `1.4`, `L2d`)
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
 - `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
 - `lib/findskema-types.ts` - Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to filter types
@@ -138,7 +138,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 
 **FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms. Real AvanceretSkema IDs use `SC*` for stamklasser, `RO*` for lokaler, `RE*` for ressourcer, `HE*` for hold, `GE*` for grupper. Always map by actual ID prefixes.
 
-**Class name parsing:** Do not assume grade-based class codes always end in a letter (`1x`, `2a`). Some schools use numeric suffixes like `1.4` / `2.4`. Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across both formats.
+**Class name parsing:** Do not assume grade-based class codes always end in a letter (`1x`, `2a`). Some schools use numeric suffixes like `1.4` / `2.4`, and others use a letter prefix like `L2d` (letter prefix + grade + suffix). Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across all formats.
 
 **Lectio Modernizer:** The "Lectio Modernizer" section in `globals.css` restyles native Lectio elements with modern design. Add new overrides to this section under `@layer components`. Key targets: `table.lf-grid`, `.buttonfilled`/`.buttonoutlined`/`.buttonfilledtonal`, `input`/`select`/`textarea`, `.s2skemabrik`, `.lf-island`.
 

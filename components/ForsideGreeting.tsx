@@ -4,6 +4,7 @@ import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
+import { getSession } from '@/lib/supabase';
 
 const weekendGreetings = [
   'God weekend',
@@ -176,6 +177,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   const [firstName, setFirstName] = useState<string>('');
   const [cancelledCount, setCancelledCount] = useState(0);
   const [urgentOpgaver, setUrgentOpgaver] = useState<UrgentOpgave[]>([]);
+  const [cloudConnected, setCloudConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -206,6 +208,13 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
       }, 1500);
       retryId = id;
     }
+
+    // Check Supabase auth state (delayed so auto-auth has time to complete)
+    const authTimer = window.setTimeout(() => {
+      getSession().then(s => {
+        if (!isCancelled) setCloudConnected(s !== null);
+      }).catch(() => {});
+    }, 2000);
 
     // Check for urgent opgaver from forside DOM (only ~3 upcoming visible in widget)
     const localUrgent = getUrgentOpgaver();
@@ -257,6 +266,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
       if (retryId) clearInterval(retryId);
       clearInterval(clockInterval);
       window.clearTimeout(missingTimer);
+      window.clearTimeout(authTimer);
       window.removeEventListener('betterlectio:dismissMissing', onDismiss);
     };
   }, []);
@@ -265,7 +275,19 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   const hasMissing = urgentOpgaver.some(o => o.isMissing);
 
   return (
-    <div className="px-8 pt-12 pb-8">
+    <div className="px-8 pt-12 pb-8 relative">
+      {cloudConnected !== null && (
+        <div
+          className="absolute top-4 right-8 flex items-center gap-1.5 text-[0.6rem] font-medium select-none"
+          style={{ color: cloudConnected ? 'oklch(0.55 0.08 145)' : 'oklch(0.55 0.03 285)' }}
+        >
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: cloudConnected ? 'oklch(0.6 0.15 145)' : 'oklch(0.5 0.03 285)' }}
+          />
+          {cloudConnected ? 'Synkroniseret' : 'Offline'}
+        </div>
+      )}
       <div className="flex flex-col gap-3">
         <p className="text-base font-medium text-muted-foreground uppercase tracking-[0.2em]">
           {formatDate(time)}

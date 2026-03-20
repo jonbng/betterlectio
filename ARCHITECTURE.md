@@ -117,7 +117,7 @@ Content Scripts (inject into lectio.dk pages)
 | `ProfilePage.tsx` | Student profile header with tabbed schedule, classmates, teachers, hold/group membership, and fetched native documents views built from Lectio DOM + subnav pages |
 | `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
-| `lib/class-name.ts` | Shared class-name transforms/matchers for both letter-based and numeric class codes (`1x`, `1.4`, year-based dropdown names) |
+| `lib/class-name.ts` | Shared class-name transforms/matchers for letter-based, numeric, and letter-prefixed class codes (`1x`, `1.4`, `L2d`, year-based dropdown names) |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
 | `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params + shared in-flight/TTL-cached dropdown loader |
@@ -125,7 +125,7 @@ Content Scripts (inject into lectio.dk pages)
 
 **Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
 
-**Class Code Note:** Schools can use both letter-based grade codes (`1x`) and numeric ones (`1.4`). FindSkema/member resolution should normalize both through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x` or `2025.4`.
+**Class Code Note:** Schools can use letter-based grade codes (`1x`), numeric ones (`1.4`), or letter-prefixed ones (`L2d`). FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025.4`, or `L2025d`.
 
 ### Schedule & Activities
 

@@ -9,5 +9,5 @@
     },
     "skipLibCheck": true
   },
-  "exclude": ["lectio-scripts", "lectio-html", "node_modules"]
+  "exclude": ["lectio-scripts", "lectio-html", "node_modules", "supabase"]
 }

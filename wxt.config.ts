@@ -13,7 +13,10 @@ export default defineConfig({
     action: {
       default_title: 'Better Lectio',
     },
-    permissions: ['activeTab'],
+    permissions: ['activeTab', 'storage'],
+    host_permissions: [
+      `${process.env.VITE_SUPABASE_URL || 'https://*.supabase.co'}/*`,
+    ],
     web_accessible_resources: [
       {
         resources: ['assets/*', 'vendor/userjot/**', 'userjot-bootstrap.js'],

@@ -4,7 +4,6 @@ import {
   Monitor,
   Smartphone,
   Shield,
-  QrCode,
   IdCard,
   Save,
   Clock,
@@ -353,6 +352,8 @@ function SessionsCard({
     </div>
   );
 }
+
+// ── BetterLectio Konto Card ─────────────────────────────────────────────
 
 // ── Main Component ──────────────────────────────────────────────────────
 
