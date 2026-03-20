@@ -194,6 +194,13 @@ export type Database = {
             referencedRelation: "homework_entries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "student_homework_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
         ]
       }
       student_lessoncontrols: {
@@ -229,6 +236,13 @@ export type Database = {
             referencedRelation: "lesson_mappings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "student_lessoncontrols_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
         ]
       }
       student_lessons: {
@@ -252,6 +266,13 @@ export type Database = {
             referencedRelation: "lessons"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "student_lessons_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
         ]
       }
       students: {
@@ -264,6 +285,8 @@ export type Database = {
           has_extension: boolean
           id: string
           instagram: string | null
+          lectio_first_name: string | null
+          lectio_last_name: string | null
           lectio_pfp_url: string | null
           name: string | null
           school_id: number
@@ -277,6 +300,8 @@ export type Database = {
           has_extension?: boolean
           id: string
           instagram?: string | null
+          lectio_first_name?: string | null
+          lectio_last_name?: string | null
           lectio_pfp_url?: string | null
           name?: string | null
           school_id: number
@@ -290,6 +315,8 @@ export type Database = {
           has_extension?: boolean
           id?: string
           instagram?: string | null
+          lectio_first_name?: string | null
+          lectio_last_name?: string | null
           lectio_pfp_url?: string | null
           name?: string | null
           school_id?: number
@@ -359,7 +386,15 @@ export type Database = {
           updated_at?: string
           week_key?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "week_sync_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

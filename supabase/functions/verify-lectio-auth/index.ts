@@ -104,9 +104,9 @@ Deno.serve(async (req: Request) => {
       birthdate = `${year}-${month}-${day}`;
     }
 
-    // Parse picture URL
+    // Parse picture URL (src appears before id in the HTML)
     let pictureUrl: string | null = null;
-    const picMatch = html.match(/id="s_m_Content_Content_StudPic"[^>]*src="([^"]+)"/);
+    const picMatch = html.match(/src="([^"]+)"[^>]*id="s_m_Content_Content_StudPic"/);
     if (picMatch) {
       pictureUrl = new URL(picMatch[1], 'https://www.lectio.dk').toString();
     }
@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
 
       await supabaseAdmin
         .from('students')
-        .upsert(studentRecord, { onConflict: 'school_id,id' });
+        .upsert(studentRecord, { onConflict: 'id' });
     } catch (e) {
       console.warn('Failed to upsert student record:', e);
     }
