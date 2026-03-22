@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
+import { captureException } from '@/lib/posthog';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -200,7 +201,8 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       } else {
         toast.error('Kunne ikke sende indlæg');
       }
-    } catch {
+    } catch (err) {
+      captureException(err, undefined, { source: 'opgave-submit' });
       toast.error('Der opstod en fejl ved afsendelse');
     } finally {
       setSubmitting(false);

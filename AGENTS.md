@@ -64,6 +64,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/members-fetch.ts` - Fetch/parse `members.aspx` for klasse/holdelement
 - `lib/schedule-cache.ts` - Today's schedule cache (45min TTL)
 - `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
+- `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers
 - `lib/school-storage.ts` - Last school persistence
 - `styles/globals.css` - Main styles, Lectio modernizer, page-specific styling
 
@@ -75,6 +76,26 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `src/commands/asp.ts` - `lectio asp` command (inspect, postback, field)
 - `src/lib/keepalive.ts` - Session keepalive daemon
 - `src/commands/keepalive.ts` - `lectio keepalive` command
+
+## Analytics (PostHog)
+
+Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightweight server-style event capture that works in both content scripts and MV3 service workers.
+
+**Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Pre-login events use a persistent anonymous UUID stored in `browser.storage.local` (extension-scoped, works in service workers, survives site data clears). Never build the ID string manually.
+
+**Identify:** On each page load (content.tsx), `identify()` sets person properties: `name`, `school_id`, `school_name`, `class_name`, `extension_version`, `lectio_version`. PostHog auto-wraps as `$set`, so never wrap in `$set` yourself.
+
+**Events (free-tier minimal):**
+- `extension loaded` (content.tsx) — DAU, school, page. Props: `school_id`, `page`, `extension_version`
+- `user logged in` (LoginPage) — MitID login frequency. Props: `school_id`, `school_name`, `method`
+- `supabase auth succeeded/failed` (background.ts) — Supabase auth tracking
+- `captureException` — error tracking from anywhere
+
+**Adding new events:** Be conservative — we're on PostHog's free tier. Import `{ capture, getDistinctId }` from `@/lib/posthog`. For pre-login contexts, use `getAnonDistinctId()` (async). All calls are try/catch wrapped.
+
+**Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`.
+
+**Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Host permission for `https://eu.i.posthog.com/*` in manifest.
 
 ## Architecture
 Content scripts inject a custom Preact UI that wraps the original Lectio DOM. The original DOM is **moved** (not cloned) to preserve event handlers and functionality.

@@ -5,6 +5,7 @@
 // contains new tokens, so operations are serialized via a mutex.
 
 import { postFormViaHiddenIframe, parseFormTokensFromDoc, isSessionExpired } from './iframe-post';
+import { captureException } from './posthog';
 import {
   parseFoldersFromDOM,
   parseThreadsFromDOM,
@@ -86,6 +87,7 @@ function handleError(err: unknown): SubmitResult<never> {
       return { success: false, error: { kind: 'timeout' } };
     }
   }
+  captureException(err, undefined, { source: 'beskeder-submit' });
   const msg = err instanceof Error ? err.message : String(err);
   return { success: false, error: { kind: 'unknown', message: msg } };
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { X, Clock, Star, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
 import { PersonCard } from './PersonCard';
 import { getCachedProfile } from '../lib/profile-cache';
+
 import { getSettings } from '../lib/settings-storage';
 import {
   getStarredPeople,
@@ -286,6 +287,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     const searchItem = items.find(i => i.id === id);
     const recentItem = recents.find(r => r.id === id);
     const starredItem = starred.find(s => s.id === id);
+    const wasStarred = isPersonStarred(id);
 
     if (searchItem) {
       const { displayName, classCode } = parsePersonInfo(searchItem.name);
@@ -311,7 +313,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       });
     }
     setStarred(getStarredPeople());
-  }, [items, recents, starred]);
+
+  }, [items, recents, starred, schoolId]);
 
   // Handle removing from recents
   const handleRemoveRecent = useCallback((id: string) => {

@@ -2,6 +2,8 @@
 // Parses both "Oversigt" and "Fraværsårsager" pages from Lectio DOM.
 // Supports fetch-and-parse for combining data from both pages.
 
+import { captureException } from './posthog';
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface FravaerHoldEntry {
@@ -355,7 +357,7 @@ async function fetchOtherPage(currentPath: string): Promise<Document | null> {
     const parser = new DOMParser();
     return parser.parseFromString(html, 'text/html');
   } catch (err) {
-    console.error('[BetterLectio] Failed to fetch other fravær page:', err);
+    captureException(err, undefined, { source: 'fravaer-parse', action: 'fetch-other-page' });
     return null;
   }
 }
@@ -556,7 +558,7 @@ export async function submitPeriodChange(
       chartImageUrl: oversigtData.chartImageUrl || null,
     };
   } catch (err) {
-    console.error('[BetterLectio] Failed to submit period change:', err);
+    captureException(err, undefined, { source: 'fravaer-parse', action: 'submit-period-change' });
     return null;
   }
 }
@@ -655,7 +657,7 @@ export async function fetchEditFormData(editUrl: string): Promise<FravaerEditFor
       formFields,
     };
   } catch (err) {
-    console.error('[BetterLectio] Failed to fetch edit form:', err);
+    captureException(err, undefined, { source: 'fravaer-parse', action: 'fetch-edit-form' });
     return null;
   }
 }
@@ -684,7 +686,7 @@ export async function submitEditReason(
 
     return response.ok;
   } catch (err) {
-    console.error('[BetterLectio] Failed to submit edit reason:', err);
+    captureException(err, undefined, { source: 'fravaer-parse', action: 'submit-edit-reason' });
     return false;
   }
 }

@@ -44,6 +44,7 @@ import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName,
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
+import { capture, identify, getDistinctId, getAnonDistinctId, captureException } from "@/lib/posthog";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -294,6 +295,28 @@ function initLayout() {
 
   // Set cached profile data on window for AppSidebar to use
   const cachedProfile = getCachedProfile();
+  const pageProps = {
+    school_id: schoolId,
+    page: window.location.pathname.split('/').pop()?.split('?')[0] ?? 'unknown',
+    extension_version: browser.runtime.getManifest().version,
+  };
+
+  // Identify and capture extension loaded event
+  if (cachedProfile?.studentId) {
+    const phDistinctId = getDistinctId(cachedProfile.studentId);
+    identify(phDistinctId, {
+      name: cachedProfile.fullName || cachedProfile.name,
+      school_id: cachedProfile.schoolId,
+      school_name: cachedProfile.schoolName,
+      class_name: cachedProfile.className,
+      extension_version: browser.runtime.getManifest().version,
+      lectio_version: getLectioVersionForUserJot(),
+    });
+    capture('extension loaded', phDistinctId, pageProps);
+  } else {
+    getAnonDistinctId().then(id => capture('extension loaded', id, pageProps));
+  }
+
   let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
   if (cachedProfile) {
     (window as any).__IL_CACHED_PROFILE__ = cachedProfile;

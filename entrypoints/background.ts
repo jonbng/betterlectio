@@ -7,6 +7,7 @@ import type {
   TableName,
 } from '@/lib/supabase/messages';
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
+import { capture, getDistinctId } from '@/lib/posthog';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -261,11 +262,16 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }):
         await setFailures({ count: 0, lastAttempt: 0 });
         await browser.storage.local.remove(REAUTH_KEY);
         const { data: newData } = await supabase.auth.getSession();
+        capture('supabase auth succeeded', getDistinctId(qrData.userId));
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
       }
       const failures = await getFailures();
       await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
       console.warn('[BetterLectio] Auto Supabase auth failed:', result.error);
+      capture('supabase auth failed', getDistinctId(qrData.userId), {
+        error: result.error,
+        failure_count: failures.count + 1,
+      });
       return { ok: false, error: result.error };
     } finally {
       await clearLock();

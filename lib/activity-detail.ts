@@ -1,3 +1,5 @@
+import { captureException } from './posthog';
+
 export interface ActivityTabLink {
   label: string;
   url: string;
@@ -605,11 +607,17 @@ async function fetchActivityDoc(url: string, init?: RequestInit): Promise<{ doc:
 }
 
 export async function fetchActivityDetail(url: string, signal?: AbortSignal): Promise<ActivityDetail> {
-  const absolute = new URL(url, window.location.origin).href;
-  const { doc, url: resolvedUrl } = await fetchActivityDoc(absolute, { signal });
-  const detail = parseActivityDetail(doc, resolvedUrl);
-  setCachedActivityDetail(resolvedUrl, detail);
-  return detail;
+  try {
+    const absolute = new URL(url, window.location.origin).href;
+    const { doc, url: resolvedUrl } = await fetchActivityDoc(absolute, { signal });
+    const detail = parseActivityDetail(doc, resolvedUrl);
+    setCachedActivityDetail(resolvedUrl, detail);
+    return detail;
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
+    captureException(err, undefined, { source: 'activity-detail', url });
+    throw err;
+  }
 }
 
 export async function postbackNavigateActivity(

@@ -1,4 +1,5 @@
 import { postFormViaHiddenIframe } from './iframe-post';
+import { captureException } from './posthog';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -368,23 +369,29 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
 // ── Fetch ──────────────────────────────────────────────────────────────
 
 export async function fetchOpgaveDetail(url: string): Promise<OpgaveDetail> {
-  const absoluteUrl = new URL(url, window.location.origin).href;
-  const response = await fetch(absoluteUrl, { credentials: 'include' });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch: ${response.status}`);
-  }
-  const html = await response.text();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+  try {
+    const absoluteUrl = new URL(url, window.location.origin).href;
+    const response = await fetch(absoluteUrl, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status}`);
+    }
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
 
-  // Check for session expiry - if there's no title element, page is likely a login redirect
-  if (!doc.querySelector('#m_Content_NameLbl')) {
-    throw new Error('SESSION_EXPIRED');
-  }
+    // Check for session expiry - if there's no title element, page is likely a login redirect
+    if (!doc.querySelector('#m_Content_NameLbl')) {
+      throw new Error('SESSION_EXPIRED');
+    }
 
-  const detail = parseDetail(doc, absoluteUrl);
-  setCachedDetail(url, detail);
-  return detail;
+    const detail = parseDetail(doc, absoluteUrl);
+    setCachedDetail(url, detail);
+    return detail;
+  } catch (err) {
+    if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
+    captureException(err, undefined, { source: 'opgave-detail', url });
+    throw err;
+  }
 }
 
 // ── Submission ─────────────────────────────────────────────────────────

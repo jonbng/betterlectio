@@ -16,6 +16,7 @@ export default defineConfig({
     permissions: ['activeTab', 'storage'],
     host_permissions: [
       `${process.env.VITE_SUPABASE_URL || 'https://*.supabase.co'}/*`,
+      'https://eu.i.posthog.com/*',
     ],
     web_accessible_resources: [
       {
@@ -75,6 +76,9 @@ export default defineConfig({
   vite: () => ({
     plugins: [tailwindcss()],
     resolve: {
+      // Use posthog-node's edge build (no Node.js-specific APIs like async_hooks)
+      // so it works in browser extension content scripts and service workers.
+      conditions: ['edge', 'edge-light', 'workerd', 'browser', 'import', 'module', 'default'],
       alias: {
         '@': path.resolve(__dirname, './'),
         'react': 'preact/compat',

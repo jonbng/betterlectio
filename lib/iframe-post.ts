@@ -4,6 +4,8 @@
 // reloading the page. The iframe receives the server response, which we
 // parse back into a Document for further processing.
 
+import { captureException } from './posthog';
+
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEBUG_IFRAME_POST = false;
 
@@ -80,6 +82,7 @@ export async function postFormViaHiddenIframe(
       } catch (err) {
         clearTimeout(timeout);
         cleanup();
+        captureException(err, undefined, { source: 'iframe-post' });
         reject(err);
       }
     });

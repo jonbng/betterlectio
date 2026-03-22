@@ -24,6 +24,7 @@
 | shadcn/ui + Radix UI | Component system + accessible primitives |
 | Lucide + Tabler Icons | Icon libraries |
 | @dnd-kit, @tanstack/react-table, recharts, sonner, zod, next-themes | DnD, tables, charts, toasts, validation, theming |
+| PostHog (posthog-node edge build) | Product analytics + error tracking |
 | **Bun** | Package manager and runtime |
 
 ---
@@ -192,6 +193,7 @@ Content Scripts (inject into lectio.dk pages)
 | `lib/school-storage.ts` | Last school persistence for quick login |
 | `lib/page-titles.ts` | Clean page titles with unread message badge, MutationObserver |
 | `lib/preload.ts` | Speculation Rules API + hover-based prefetching |
+| `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}` (raw elevid). Identify sends name, school, class. `flushAt:1` for short-lived contexts. All calls silently caught. |
 | `lib/utils.ts` | Helper functions (`cn()`) |
 
 ---
