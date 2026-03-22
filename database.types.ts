@@ -149,16 +149,19 @@ export type Database = {
       schools: {
         Row: {
           created_at: string
+          display_name: string | null
           id: number
           name: string
         }
         Insert: {
           created_at?: string
+          display_name?: string | null
           id?: number
           name: string
         }
         Update: {
           created_at?: string
+          display_name?: string | null
           id?: number
           name?: string
         }
