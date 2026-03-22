@@ -44,7 +44,7 @@ import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName,
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
-import { capture, identify, getDistinctId, getAnonDistinctId, captureException } from "@/lib/posthog";
+import { capture, captureOncePerSession, identifyIfNeeded, getDistinctId, getAnonDistinctId, captureException, aliasAnonToIdentified } from "@/lib/posthog";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -304,7 +304,7 @@ function initLayout() {
   // Identify and capture extension loaded event
   if (cachedProfile?.studentId) {
     const phDistinctId = getDistinctId(cachedProfile.studentId);
-    identify(phDistinctId, {
+    identifyIfNeeded(phDistinctId, {
       name: cachedProfile.fullName || cachedProfile.name,
       school_id: cachedProfile.schoolId,
       school_name: cachedProfile.schoolName,
@@ -312,9 +312,10 @@ function initLayout() {
       extension_version: browser.runtime.getManifest().version,
       lectio_version: getLectioVersionForUserJot(),
     });
-    capture('extension loaded', phDistinctId, pageProps);
+    captureOncePerSession('extension loaded', phDistinctId, pageProps);
+    aliasAnonToIdentified(phDistinctId);
   } else {
-    getAnonDistinctId().then(id => capture('extension loaded', id, pageProps));
+    getAnonDistinctId().then(id => captureOncePerSession('extension loaded', id, pageProps));
   }
 
   let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;

@@ -312,7 +312,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
 
       {/* Panel */}
       <div
-        className="absolute right-0 top-0 bottom-0 w-[92%] max-w-xl overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300"
+        className="absolute right-0 top-0 bottom-0 flex w-[92%] max-w-xl flex-col overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300"
         role="dialog"
         aria-label={entry?.title || 'Opgavedetaljer'}
       >

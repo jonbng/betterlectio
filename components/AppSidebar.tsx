@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { reset as resetPostHog } from '@/lib/posthog';
 import {
   Calendar,
   FileText,
@@ -666,6 +667,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     onClick={(e) => {
                       e.preventDefault();
                       clearLoginState();
+                      resetPostHog();
                       const logoutUrl = new URL(`${baseUrl}/logout.aspx`, window.location.origin).href;
                       fetch(logoutUrl, { credentials: 'include' })
                         .catch(() => {

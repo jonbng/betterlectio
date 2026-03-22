@@ -119,7 +119,30 @@ export function capture(
 }
 
 /**
+ * Link the anonymous (pre-login) ID to the real distinct ID so PostHog
+ * merges pre-login events into the identified person.
+ * Safe to call multiple times — it only fires the alias once per browser.
+ */
+export async function aliasAnonToIdentified(distinctId: string): Promise<void> {
+  try {
+    const ALIAS_KEY = 'bl-posthog-aliased';
+    const prev = localStorage.getItem(ALIAS_KEY);
+    if (prev === distinctId) return; // already linked in this browser
+
+    const anonId = await getOrCreateAnonId();
+    if (anonId === distinctId) return; // shouldn't happen, but guard
+
+    getClient().alias({ distinctId, alias: anonId });
+    localStorage.setItem(ALIAS_KEY, distinctId);
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
  * Identify a user with optional properties.
+ * Prefer `identifyIfNeeded` in hot paths (e.g. every page load) to avoid
+ * redundant identify calls on every navigation.
  */
 export function identify(
   distinctId: string,
@@ -127,6 +150,70 @@ export function identify(
 ): void {
   try {
     getClient().identify({ distinctId, properties });
+  } catch {
+    // Non-critical
+  }
+}
+
+const SESSION_IDENTIFY_KEY = 'bl-posthog-identified';
+
+/**
+ * Identify only when the user or their properties have changed this session.
+ * Stores a hash of distinctId + properties in sessionStorage so we skip
+ * redundant identify calls on every Lectio page navigation.
+ */
+export function identifyIfNeeded(
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
+  try {
+    const fingerprint = JSON.stringify({ distinctId, ...properties });
+    const prev = sessionStorage.getItem(SESSION_IDENTIFY_KEY);
+    if (prev === fingerprint) return;
+
+    getClient().identify({ distinctId, properties });
+    sessionStorage.setItem(SESSION_IDENTIFY_KEY, fingerprint);
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
+ * Reset PostHog state on logout.
+ * Clears the session identify cache so the next login triggers a fresh identify.
+ */
+export function reset(): void {
+  try {
+    // Clear identify + once-per-session capture keys
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith('bl-posthog-')) sessionStorage.removeItem(key);
+    }
+    getClient().reset();
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
+ * Capture an event at most once per browser session.
+ * Useful for events like "extension loaded" that shouldn't fire on every page navigation.
+ */
+export function captureOncePerSession(
+  event: string,
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
+  try {
+    const key = `bl-posthog-once:${event}`;
+    if (sessionStorage.getItem(key)) return;
+
+    getClient().capture({
+      distinctId,
+      event,
+      properties: { ...getAutoProperties(), ...properties },
+    });
+    sessionStorage.setItem(key, '1');
   } catch {
     // Non-critical
   }
