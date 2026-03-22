@@ -1,20 +1,22 @@
-import type { SupabaseMessage, SupabaseResponse } from '@/lib/supabase-messages';
+// Content-script auth orchestration.
+// Fetches QR data from Lectio (needs page cookies), then delegates
+// all Supabase operations to the background script.
+
+import type { SupabaseMessage, SupabaseResponse } from './messages';
 import { fetchQrUrl } from '@/lib/profil-parser';
 
-function sendSupabaseMessage(msg: SupabaseMessage): Promise<SupabaseResponse> {
+function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
   return browser.runtime.sendMessage(msg);
 }
 
 /**
  * Ensures a valid Supabase session exists. Runs silently — never throws.
- * Fetches QR data from Lectio (needs page cookies), then delegates all
- * Supabase operations to the background script to avoid Firefox
- * cross-compartment Promise errors.
+ * Safe to call fire-and-forget from any content script.
  */
 export async function ensureSupabaseSession(schoolId: string): Promise<void> {
   try {
     // Quick check: is session already valid?
-    const check = await sendSupabaseMessage({ type: 'bl-supabase-get-session' });
+    const check = await send({ type: 'bl-sb:auth:session' });
     if (check.ok && check.session?.expires_at && check.session.expires_at > Date.now() / 1000 + 300) {
       return;
     }
@@ -35,8 +37,8 @@ export async function ensureSupabaseSession(schoolId: string): Promise<void> {
     }
 
     // Send QR data to background for Supabase auth
-    const result = await sendSupabaseMessage({
-      type: 'bl-supabase-ensure-session',
+    const result = await send({
+      type: 'bl-sb:auth:ensure',
       schoolId,
       qrData: { qrId, userId },
     });

@@ -4,7 +4,7 @@ import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
-import { getSession } from '@/lib/supabase';
+import { getSession } from '@/lib/supabase/client';
 
 const weekendGreetings = [
   'God weekend',

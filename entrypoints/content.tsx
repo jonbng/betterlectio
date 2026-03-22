@@ -282,7 +282,7 @@ function initLayout() {
   // All Supabase operations run in the background script to avoid Firefox
   // cross-compartment Promise errors.
   if (schoolId) {
-    import('@/lib/supabase-session').then(({ ensureSupabaseSession }) => {
+    import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
       void ensureSupabaseSession(schoolId);
     }).catch(() => {});
   }

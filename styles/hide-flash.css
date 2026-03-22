@@ -6,6 +6,11 @@ html:not(.il-ready):not(.il-prerendered) {
   visibility: hidden !important;
 }
 
+/* Dark background while hidden so navigation flash is dark, not white */
+html.dark:not(.il-ready):not(.il-prerendered) {
+  background-color: oklch(0.145 0.005 285) !important;
+}
+
 /* Reveal when ready */
 html.il-ready,
 html.il-prerendered {
