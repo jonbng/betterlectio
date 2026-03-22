@@ -279,9 +279,10 @@ function initLayout() {
   updateProfileCache();
 
   // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
+  // All Supabase operations run in the background script to avoid Firefox
+  // cross-compartment Promise errors.
   if (schoolId) {
-    import('@/lib/supabase-session').then(({ ensureSupabaseSession, initAuthStateListener }) => {
-      initAuthStateListener();
+    import('@/lib/supabase-session').then(({ ensureSupabaseSession }) => {
       void ensureSupabaseSession(schoolId);
     }).catch(() => {});
   }
@@ -399,6 +400,9 @@ function initLayout() {
       if (isSchedulePage) {
         // Merge cancelled+replacement brick pairs into combined bricks
         mergeReplacedBricks();
+
+        // Layout overlapping bricks side-by-side at equal widths
+        layoutOverlappingBricks();
 
         // Enhance schedule brick layout with subject hierarchy and hold colors
         enhanceScheduleBricks();
@@ -561,6 +565,9 @@ function initLayout() {
       // Remove redundant tooltip on activity page title
       removeActivityTitleTooltip();
 
+      // Inject dark mode into CKEditor iframes (activity/elevfeedback pages)
+      initCKEditorDarkMode();
+
       // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
       initUserJotWidget();
       if (userJotIdentifyPayload) {
@@ -586,6 +593,50 @@ function removeActivityTitleTooltip() {
   if (activityNote) {
     activityNote.removeAttribute("title");
   }
+}
+
+/** Inject dark mode styles into CKEditor iframe bodies */
+function initCKEditorDarkMode() {
+  if (!document.documentElement.classList.contains("dark")) return;
+
+  const darkCSS = `
+    body {
+      background: oklch(0.16 0.004 285) !important;
+      color: oklch(0.93 0.003 90) !important;
+      caret-color: oklch(0.93 0.003 90) !important;
+    }
+    body a { color: oklch(0.65 0.16 265) !important; }
+  `;
+
+  function injectIntoEditor(iframe: HTMLIFrameElement) {
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || doc.getElementById("bl-cke-dark")) return;
+      const style = doc.createElement("style");
+      style.id = "bl-cke-dark";
+      style.textContent = darkCSS;
+      doc.head.appendChild(style);
+    } catch {
+      /* cross-origin — ignore */
+    }
+  }
+
+  // Watch for CKEditor iframes appearing (they're injected after page load)
+  const observer = new MutationObserver(() => {
+    document.querySelectorAll<HTMLIFrameElement>(".cke_wysiwyg_frame").forEach((iframe) => {
+      if (iframe.contentDocument?.getElementById("bl-cke-dark")) return;
+      iframe.addEventListener("load", () => injectIntoEditor(iframe), { once: true });
+      // Also try immediately (iframe may already be loaded)
+      injectIntoEditor(iframe);
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also handle already-existing editors
+  document.querySelectorAll<HTMLIFrameElement>(".cke_wysiwyg_frame").forEach((iframe) => {
+    iframe.addEventListener("load", () => injectIntoEditor(iframe), { once: true });
+    injectIntoEditor(iframe);
+  });
 }
 
 function highlightTodayInSchedule() {
@@ -1001,6 +1052,90 @@ function cleanUpModuleLabels() {
 }
 
 /**
+ * Detect overlapping schedule bricks and lay them out side-by-side at half width.
+ * Runs after mergeReplacedBricks so hidden cancelled bricks are excluded.
+ */
+function layoutOverlappingBricks() {
+  const containers = document.querySelectorAll<HTMLElement>(
+    "#il-original-content .s2skemabrikcontainer",
+  );
+
+  containers.forEach((container) => {
+    const bricks = Array.from(
+      container.querySelectorAll<HTMLElement>(".s2skemabrik.s2bgbox"),
+    ).filter((b) => b.style.display !== "none");
+
+    if (bricks.length < 2) return;
+
+    // Parse each brick's vertical extent
+    const parsed = bricks.map((brick) => {
+      const top = parseFloat(brick.style.top) || 0;
+      const height = parseFloat(brick.style.height) || 0;
+      return { brick, top, bottom: top + height };
+    });
+
+    // Build overlap groups using interval overlap detection
+    // A brick overlaps another if their vertical ranges intersect
+    const visited = new Set<number>();
+    const groups: (typeof parsed)[] = [];
+
+    for (let i = 0; i < parsed.length; i++) {
+      if (visited.has(i)) continue;
+
+      const group = [parsed[i]];
+      visited.add(i);
+
+      // Find all bricks that overlap with any brick in this group
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let j = 0; j < parsed.length; j++) {
+          if (visited.has(j)) continue;
+          const b = parsed[j];
+          // Check if b overlaps with any brick already in the group
+          const overlaps = group.some(
+            (g) => b.top < g.bottom && b.bottom > g.top,
+          );
+          if (overlaps) {
+            group.push(b);
+            visited.add(j);
+            changed = true;
+          }
+        }
+      }
+
+      if (group.length > 1) {
+        groups.push(group);
+      }
+    }
+
+    // Layout each overlap group side-by-side
+    for (const group of groups) {
+      // Sort by original left position so the leftmost brick stays left
+      group.sort(
+        (a, b) =>
+          (parseFloat(a.brick.style.left) || 0) -
+          (parseFloat(b.brick.style.left) || 0),
+      );
+
+      const n = group.length;
+      for (let i = 0; i < n; i++) {
+        const { brick } = group[i];
+        // Calculate position: divide available width evenly
+        // Container width is roughly 100%, subtract padding
+        const widthPct = 100 / n;
+        const leftPct = widthPct * i;
+
+        brick.style.width = `calc(${widthPct}% - 1.1em)`;
+        brick.style.maxWidth = `calc(${widthPct}% - 1.1em)`;
+        brick.style.left = `calc(${leftPct}% + 0.55em)`;
+        brick.classList.add("il-narrow");
+      }
+    }
+  });
+}
+
+/**
  * Find cancelled+replacement brick pairs in the same time slot and merge them.
  * The cancelled brick is hidden, the replacement expands to full width,
  * and a subtle note shows what was replaced.
@@ -1012,7 +1147,7 @@ function mergeReplacedBricks() {
 
   containers.forEach((container) => {
     const bricks = Array.from(
-      container.querySelectorAll<HTMLElement>(".s2skemabrik.s2brik"),
+      container.querySelectorAll<HTMLElement>(".s2skemabrik.s2bgbox"),
     );
 
     // Group bricks by their top position (same time slot)
@@ -1050,8 +1185,8 @@ function mergeReplacedBricks() {
       // Hide the cancelled brick
       cancelled.style.display = "none";
 
-      // Expand replacement to full width (use the standard full-width values)
-      replacement.style.width = "13.82em";
+      // Expand replacement to full width
+      replacement.style.width = "calc(100% - 1.1em)";
       replacement.style.left = "0.55em";
 
       // Store info for the enhancement pass
@@ -1064,7 +1199,7 @@ function mergeReplacedBricks() {
 
 function enhanceScheduleBricks() {
   const bricks = document.querySelectorAll<HTMLElement>(
-    "#il-original-content .s2skemabrik.s2bgbox.s2brik",
+    "#il-original-content .s2skemabrik.s2bgbox",
   );
   const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? true;
 
@@ -1083,17 +1218,20 @@ function enhanceScheduleBricks() {
     );
     if (!content) return;
 
-    // Detect narrow bricks (side-by-side overlap, ~half width)
-    const inlineWidth = brick.style.width;
-    if (inlineWidth && parseFloat(inlineWidth) < 8) {
-      brick.classList.add("il-narrow");
+    // Detect narrow bricks (side-by-side overlap) — set by layoutOverlappingBricks()
+    // or from inline width for forside bricks not processed by the overlap layout
+    if (!brick.classList.contains("il-narrow")) {
+      const inlineWidth = brick.style.width;
+      if (inlineWidth && parseFloat(inlineWidth) < 8) {
+        brick.classList.add("il-narrow");
+      }
     }
 
     // Extract components from the original DOM
     const holdSpan = content.querySelector<HTMLElement>(
       'span[data-lectiocontextcard^="HE"]',
     );
-    const teacherSpan = content.querySelector<HTMLElement>(
+    const teacherSpans = content.querySelectorAll<HTMLElement>(
       'span[data-lectiocontextcard^="T"]',
     );
     // Schedule page uses word-wrap, forside uses white-space:nowrap for topic
@@ -1227,16 +1365,19 @@ function enhanceScheduleBricks() {
     }
 
     // ── Meta: teacher, time ──
-    if (teacherSpan || timeline) {
+    if (teacherSpans.length > 0 || timeline) {
       const meta = document.createElement("div");
       meta.className = "il-brick-meta";
 
-      if (teacherSpan) {
-        meta.appendChild(teacherSpan);
-      }
+      teacherSpans.forEach((span, idx) => {
+        if (idx > 0) {
+          meta.appendChild(document.createTextNode(", "));
+        }
+        meta.appendChild(span);
+      });
 
       if (timeline) {
-        if (teacherSpan) {
+        if (teacherSpans.length > 0) {
           meta.appendChild(document.createTextNode(" \u00B7 "));
         }
         timeline.style.display = "inline";
@@ -1431,7 +1572,7 @@ function enhanceForsideSchedule(schoolId: string) {
 
     const enhanceBricks = (container: HTMLElement) => {
       // Wrap in #il-original-content context temporarily so CSS selectors work
-      container.querySelectorAll<HTMLElement>('.s2skemabrik.s2bgbox.s2brik').forEach((brick) => {
+      container.querySelectorAll<HTMLElement>('.s2skemabrik.s2bgbox').forEach((brick) => {
         if (brick.style.display === 'none') return;
 
         const innerContainer = brick.querySelector<HTMLElement>('.s2skemabrikInnerContainer');
@@ -1557,7 +1698,7 @@ function enhanceForsideSchedule(schoolId: string) {
       });
 
       // Intercept brick clicks for activity modal
-      container.querySelectorAll<HTMLAnchorElement>('.s2skemabrik.s2brik[href]').forEach((brick) => {
+      container.querySelectorAll<HTMLAnchorElement>('.s2skemabrik.s2bgbox[href]').forEach((brick) => {
         brick.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();

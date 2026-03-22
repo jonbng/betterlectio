@@ -100,13 +100,13 @@ const GRADE_COLUMN_SHORT: Record<string, string> = {
 
 function getGradeHue(grade: string): number {
   switch (grade.trim()) {
-    case '12': return 145;
-    case '10': return 145;
-    case '7':  return 210;
-    case '4':  return 50;
-    case '02': return 40;
-    case '00': return 25;
-    case '-3': return 0;
+    case '12': return 145;  // green – exceptional
+    case '10': return 160;  // teal – very good
+    case '7':  return 210;  // blue – above average
+    case '4':  return 250;  // indigo – average
+    case '02': return 50;   // orange – below average
+    case '00': return 25;   // red-orange – poor
+    case '-3': return 0;    // red – very poor
     default:   return 210;
   }
 }
@@ -115,8 +115,8 @@ function getGradeChroma(grade: string): number {
   switch (grade.trim()) {
     case '12': return 0.18;
     case '10': return 0.14;
-    case '7':  return 0.01;
-    case '4':  return 0.12;
+    case '7':  return 0.08;
+    case '4':  return 0.08;
     case '02': return 0.10;
     case '00': return 0.14;
     case '-3': return 0.16;
@@ -649,12 +649,12 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
             </table>
           </div>
         </div>
-      ) : (
+      ) : data.diplomaLines.length === 0 && data.protocolLines.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm">Ingen karakterer endnu</p>
         </div>
-      )}
+      ) : null}
 
       {/* Collapsible sections */}
       <div className="space-y-2 pt-2">
@@ -664,6 +664,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
             title="Linjer på bevis"
             icon={FileText}
             count={data.diplomaLines.length}
+            defaultOpen={groups.length === 0}
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -699,7 +700,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
               </table>
             </div>
             {data.diplomaAverage && (
-              <div className="px-4 py-2.5 border-t border-border bg-muted/30 text-sm text-foreground">
+              <div className="px-4 py-2.5 border-t border-border bg-muted/30 text-sm text-foreground whitespace-pre-line">
                 {data.diplomaAverage}
               </div>
             )}
@@ -930,7 +931,17 @@ export function parseKaraktererFromDOM(doc: Document = document): KaraktererData
 
     const avgLabel = doc.getElementById('s_m_Content_Content_DiplomaTypeRepeater_ctl00_GradeAverageLabel');
     if (avgLabel) {
-      diplomaAverage = avgLabel.textContent?.trim() || '';
+      // innerHTML preserves <br> structure; convert <br> to newlines, strip tags and &nbsp;, collapse whitespace
+      diplomaAverage = avgLabel.innerHTML
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&[a-z]+;/gi, '')
+        .replace(/[ \t]+/g, ' ')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean)
+        .join('\n');
     }
   }
 

@@ -236,7 +236,8 @@ function parseTooltipMeta(rawTooltip: string | null): Partial<ActivityMeta> {
   for (let i = cursor; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("Hold: ")) hold = line.slice(6).trim();
-    if (line.startsWith("Lærer: ")) teacher = line.slice(7).trim();
+    if (line.startsWith("Lærere: ")) teacher = line.slice(8).trim();
+    else if (line.startsWith("Lærer: ")) teacher = line.slice(7).trim();
     if (line.startsWith("Lokale: ")) room = line.slice(8).trim();
     if (line === "Lektier:" || line.startsWith("Lektier:")) break;
   }
@@ -256,7 +257,7 @@ function parseMeta(doc: Document): ActivityMeta {
   const desktop = brick?.querySelector(".s2skemabrikcontent.OnlyDesktop");
   const titleEl = brick?.querySelector(".s2skemabrik-std-title");
   const holdEl = brick?.querySelector<HTMLElement>("span[data-lectiocontextcard^='HE']");
-  const teacherEl = brick?.querySelector<HTMLElement>("span[data-lectiocontextcard^='T']");
+  const teacherEls = brick?.querySelectorAll<HTMLElement>("span[data-lectiocontextcard^='T']");
 
   const tooltipMeta = parseTooltipMeta(brick?.getAttribute("data-tooltip") || null);
 
@@ -268,7 +269,10 @@ function parseMeta(doc: Document): ActivityMeta {
   }
 
   const hold = holdEl?.textContent?.trim() || tooltipMeta.hold || "";
-  const teacher = tooltipMeta.teacher || teacherEl?.textContent?.trim() || "";
+  const teacherFromEls = teacherEls && teacherEls.length > 0
+    ? Array.from(teacherEls).map((el) => el.textContent?.trim() || "").filter(Boolean).join(", ")
+    : "";
+  const teacher = tooltipMeta.teacher || teacherFromEls || "";
 
   let room = tooltipMeta.room || "";
   if (!room && desktopText) {

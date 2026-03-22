@@ -18,6 +18,7 @@ import {
   type ActivityHomeworkItem,
   type ActivityRelatedItem,
 } from "./activity-detail";
+import { getCachedTeachers, loadTeacherNames, getTeacherName, type TeacherCache } from "./teacher-cache";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ interface TooltipData {
   date: string;
   time: string; // e.g. "08:10 til 09:50" or "Hele dagen"
   hold: string[];
-  teacher: string;
+  teachers: string[];
   room: string;
   students: string;
   homework: HomeworkItem[];
@@ -50,6 +51,19 @@ let showTimeout: ReturnType<typeof setTimeout> | null = null;
 let activeFetchController: AbortController | null = null;
 /** Tracks which brick we're currently fetching for, to avoid stale updates */
 let fetchingForBrick: HTMLElement | null = null;
+/** Cached teacher name lookup (loaded once from localStorage or network) */
+let teacherCache: TeacherCache | null = null;
+
+function getSchoolId(): string | null {
+  const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  return match ? match[1] : null;
+}
+
+/** Resolve teacher initials to full names using the teacher cache */
+function resolveTeacherNames(initials: string[]): string[] {
+  if (!teacherCache) return initials;
+  return initials.map((abbrev) => getTeacherName(teacherCache, abbrev) || abbrev);
+}
 
 // ── Parsing ────────────────────────────────────────────
 
@@ -61,7 +75,7 @@ function parseTooltip(raw: string): TooltipData {
     date: "",
     time: "",
     hold: [],
-    teacher: "",
+    teachers: [],
     room: "",
     students: "",
     homework: [],
@@ -119,8 +133,13 @@ function parseTooltip(raw: string): TooltipData {
         .map((s) => s.trim())
         .filter(Boolean);
       i++;
-    } else if (line.startsWith("Lærer: ")) {
-      data.teacher = line.slice(7);
+    } else if (line.startsWith("Lærere: ") || line.startsWith("Lærer: ")) {
+      const prefix = line.startsWith("Lærere: ") ? "Lærere: " : "Lærer: ";
+      data.teachers = line
+        .slice(prefix.length)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       i++;
     } else if (line.startsWith("Lokale: ")) {
       data.room = line.slice(8);
@@ -299,13 +318,13 @@ function renderTooltip(data: TooltipData, hue: number): string {
   parts.push("</div>");
 
   // ── Meta section (hold, teacher, room) ──
-  const hasMeta = data.hold.length > 0 || data.teacher || data.room || data.students;
+  const hasMeta = data.hold.length > 0 || data.teachers.length > 0 || data.room || data.students;
   if (hasMeta) {
     parts.push('<div class="px-3 py-[0.4375rem] flex flex-col gap-1">');
 
     if (data.hold.length > 0) {
-      parts.push('<div class="flex items-baseline gap-1.5">');
-      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Hold</span>');
+      parts.push('<div class="flex items-center gap-2.5">');
+      parts.push('<span class="w-[2.75rem] shrink-0 text-left text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Hold</span>');
       parts.push('<div class="flex flex-wrap gap-1">');
       for (const h of data.hold) {
         const holdHue = getHoldHue(h);
@@ -317,24 +336,26 @@ function renderTooltip(data: TooltipData, hue: number): string {
       parts.push("</div></div>");
     }
 
-    if (data.teacher) {
-      parts.push('<div class="flex items-baseline gap-1.5">');
-      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Lærer</span>');
-      parts.push(`<span class="min-w-0 flex-1 text-[0.8125rem] text-foreground/85">${esc(data.teacher)}</span>`);
+    if (data.teachers.length > 0) {
+      const resolved = resolveTeacherNames(data.teachers);
+      const label = data.teachers.length > 1 ? "Lærere" : "Lærer";
+      parts.push('<div class="flex items-center gap-2.5">');
+      parts.push(`<span class="w-[2.75rem] shrink-0 text-left text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">${label}</span>`);
+      parts.push(`<span class="min-w-0 text-[0.8125rem] text-foreground/85">${resolved.map(esc).join(", ")}</span>`);
       parts.push("</div>");
     }
 
     if (data.room) {
-      parts.push('<div class="flex items-baseline gap-1.5">');
-      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Lokale</span>');
-      parts.push(`<span class="min-w-0 flex-1 text-[0.8125rem] font-medium text-foreground/85 tabular-nums">${esc(data.room)}</span>`);
+      parts.push('<div class="flex items-center gap-2.5">');
+      parts.push('<span class="w-[2.75rem] shrink-0 text-left text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Lokale</span>');
+      parts.push(`<span class="min-w-0 text-[0.8125rem] font-medium text-foreground/85 tabular-nums">${esc(data.room)}</span>`);
       parts.push("</div>");
     }
 
     if (data.students) {
-      parts.push('<div class="flex items-baseline gap-1.5">');
-      parts.push('<span class="min-w-[2.75rem] shrink-0 text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Elever</span>');
-      parts.push(`<span class="min-w-0 flex-1 text-[0.75rem] leading-[1.4] text-muted-foreground">${esc(data.students)}</span>`);
+      parts.push('<div class="flex items-center gap-2.5">');
+      parts.push('<span class="w-[2.75rem] shrink-0 text-left text-[0.6875rem] font-medium uppercase tracking-[0.04em] text-muted-foreground">Elever</span>');
+      parts.push(`<span class="min-w-0 text-[0.75rem] leading-[1.4] text-muted-foreground">${esc(data.students)}</span>`);
       parts.push("</div>");
     }
 
@@ -861,6 +882,17 @@ function cancelHide() {
 // ── Initialization ─────────────────────────────────────
 
 export function initBrickTooltips(container?: HTMLElement) {
+  // Eagerly load teacher name cache for full-name display in tooltips
+  const schoolId = getSchoolId();
+  if (schoolId && !teacherCache) {
+    teacherCache = getCachedTeachers(schoolId);
+    if (!teacherCache) {
+      loadTeacherNames(schoolId).then((cache) => {
+        teacherCache = cache;
+      });
+    }
+  }
+
   // Copy data-tooltip to our own data attribute.
   // Keep the original attribute intact because Lectio's cluetip callback
   // reads it lazily on hover; removing it causes runtime errors in Lectio.

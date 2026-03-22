@@ -114,17 +114,23 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     const rawTeacher = detail?.meta.teacher?.trim() || "";
     if (!rawTeacher) return "";
 
-    const fullNameMatch = rawTeacher.match(/^(.+?)\s*\(([^)]+)\)$/);
-    if (fullNameMatch) {
-      return fullNameMatch[1].trim() || rawTeacher;
-    }
+    // Handle comma-separated multiple teachers (e.g. "BRO, ED")
+    const parts = rawTeacher.split(",").map((s) => s.trim()).filter(Boolean);
+    const resolved = parts.map((part) => {
+      const fullNameMatch = part.match(/^(.+?)\s*\(([^)]+)\)$/);
+      if (fullNameMatch) {
+        return fullNameMatch[1].trim() || part;
+      }
 
-    const initialsMatch = rawTeacher.match(/^[A-ZÆØÅ]{1,5}$/);
-    if (initialsMatch && teacherCache) {
-      return getTeacherName(teacherCache, rawTeacher) || rawTeacher;
-    }
+      const initialsMatch = part.match(/^[A-ZÆØÅ]{1,5}$/);
+      if (initialsMatch && teacherCache) {
+        return getTeacherName(teacherCache, part) || part;
+      }
 
-    return rawTeacher;
+      return part;
+    });
+
+    return resolved.join(", ");
   }, [detail?.meta.teacher, teacherCache]);
 
   if (!open || !url) return null;

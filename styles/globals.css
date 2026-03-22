@@ -1517,11 +1517,6 @@ html {
     overflow-x: auto;
   }
 
-  /* Hide the disabled tab button */
-  #il-original-content .ls-tabs4 .lectioTabToolbar {
-    display: none !important;
-  }
-
   /* ========================================
      Activity Page (aktivitetforside2.aspx) Styles
      ======================================== */
@@ -1552,6 +1547,542 @@ html {
   #s_m_Content_Content_tocAndToolbar_ActNoteTB_tb[title] {
     pointer-events: none;
   }
+
+  /* ── Activity page: Tab bar (Indhold / Elevfeedback) ── */
+
+  #il-original-content .ls-tabs4 .lectioTabToolbar {
+    display: flex !important;
+    gap: 0.125rem;
+    padding: 0.25rem;
+    background: var(--muted) !important;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border) !important;
+    width: fit-content;
+  }
+
+  #il-original-content .ls-tabs4 .lectioTabToolbar .button {
+    margin: 0;
+  }
+
+  #il-original-content .ls-tabs4 .lectioTabToolbar a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted-foreground) !important;
+    text-decoration: none !important;
+    border-radius: 0.375rem;
+    transition: all 0.15s ease;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  #il-original-content .ls-tabs4 .lectioTabToolbar a:hover {
+    color: var(--foreground) !important;
+    text-decoration: none !important;
+  }
+
+  /* Active/disabled tab = current page */
+  #il-original-content .ls-tabs4 .lectioTabToolbar a[disabled] {
+    background: var(--background) !important;
+    color: var(--foreground) !important;
+    font-weight: 600;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
+    pointer-events: none;
+  }
+
+  #il-original-content .ls-tabs4 .lectioTabContent {
+    border: none !important;
+    border-radius: 0;
+    background: transparent !important;
+  }
+
+  #il-original-content .ls-tabs4 .lectioTabFooter {
+    display: none;
+  }
+
+  /* ── Activity page: Navigation toolbar ── */
+
+  #il-original-content nav.ls-std-toolbar-filled {
+    background: var(--muted) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  #il-original-content nav.ls-std-toolbar-filled .ls-std-inline-block {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content nav.ls-std-toolbar-filled a {
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content nav.ls-std-toolbar-filled .ls-fonticon {
+    color: var(--muted-foreground) !important;
+  }
+
+  #il-original-content nav.ls-std-toolbar-filled .buttonlink a {
+    color: var(--primary) !important;
+  }
+
+  /* ── Activity page: TOC sidebar ── */
+
+  #il-original-content .ls-tocContainer-outer {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    margin-right: 1rem;
+  }
+
+  #il-original-content .ls-toc-side-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #il-original-content .ls-toc-side-list li {
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    transition: background 0.1s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  #il-original-content .ls-toc-side-list li:hover {
+    background: var(--muted);
+  }
+
+  #il-original-content .ls-toc-side-list li img {
+    width: 1rem;
+    height: 1rem;
+    opacity: 0.6;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  #il-original-content .ls-toc-side-list a {
+    color: var(--foreground) !important;
+    text-decoration: none !important;
+    font-size: 0.8125rem;
+  }
+
+  #il-original-content .ls-toc-side-list a:hover {
+    color: var(--primary) !important;
+  }
+
+  #il-original-content .ls-homework-toc {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  /* Activity header brick in TOC */
+  #il-original-content .ls-toc-side-list .prepend-fonticon-activity {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground) !important;
+  }
+
+  /* ── Activity page: Paper/content area ── */
+
+  #il-original-content .ls-texteditor-paper-container {
+    border: 1px solid var(--border) !important;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    background: var(--card) !important;
+  }
+
+  #il-original-content .ls-paper {
+    background: var(--card) !important;
+    color: var(--foreground) !important;
+    padding: 1.5rem 2rem;
+  }
+
+  /* Section headings like "Lektier" */
+  #il-original-content .ls-paper-section-heading {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--foreground) !important;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border) !important;
+  }
+
+  /* Activity header in paper - make the brick look cleaner */
+  #il-original-content .ls-section-title-heading {
+    margin-bottom: 1rem;
+  }
+
+  #il-original-content .ls-section-title-heading .s2skemabrik {
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  /* ── Activity page: Article content typography ── */
+
+  #il-original-content .ls-acr-display h1 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground) !important;
+    margin: 1rem 0 0.375rem;
+    line-height: 1.5;
+    background-size: 1.125rem;
+    background-position: left center;
+    padding-left: 0;
+  }
+
+  /* First h1 with homework icon background image */
+  #il-original-content .ls-acr-display h1[style*="background-image"] {
+    padding-left: 1.5rem;
+    background-size: 1.125rem;
+    background-repeat: no-repeat;
+    background-position: left 0.125rem;
+  }
+
+  #il-original-content .ls-acr-display h2 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground) !important;
+    margin: 0.875rem 0 0.375rem;
+    line-height: 1.5;
+  }
+
+  #il-original-content .ls-acr-display h3 {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted-foreground) !important;
+    margin: 0.75rem 0 0.375rem;
+    line-height: 1.5;
+  }
+
+  #il-original-content .ls-acr-display p {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--foreground) !important;
+    margin: 0.25rem 0 0.5rem;
+  }
+
+  /* Responsive images in activity content */
+  #il-original-content .ls-acr-display img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  /* Links in activity content */
+  #il-original-content .ls-acr-display a {
+    color: var(--primary) !important;
+    text-decoration: none !important;
+    font-weight: 500;
+  }
+
+  #il-original-content .ls-acr-display a:hover {
+    text-decoration: underline !important;
+  }
+
+  /* ── Activity page: Forløb toolbar ── */
+
+  #il-original-content .ls-texteditor-paper-container .label-normal {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground) !important;
+    font-weight: 500;
+  }
+
+  /* ── Elevfeedback page: TOC sidebar sections ── */
+
+  #il-original-content .ls-tocContainer-inner .ls-std-rowblock-top {
+    border-bottom: 1px solid var(--border) !important;
+    padding-bottom: 0.375rem;
+    margin-bottom: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  #il-original-content .ls-tocContainer-inner .ls-std-rowblock-top h3 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--foreground) !important;
+    margin: 0;
+  }
+
+  /* ── Elevfeedback page: Student section heading ── */
+
+  #il-original-content .ls-section-subgroup-heading {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--foreground) !important;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  /* ── Elevfeedback page: Homework/editor container ── */
+
+  #il-original-content .homeworkContainer.elevindholdContainer {
+    border: 1px solid var(--border) !important;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background: var(--muted) !important;
+    margin-top: 0.5rem;
+  }
+
+  /* ── Elevfeedback page: Paper header ── */
+
+  #il-original-content .ls-paper-header {
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border) !important;
+    background: var(--card) !important;
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content .ls-paper-header .s2skemabrik {
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content .ls-paper-header .s2skemabrikcontent {
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content .ls-paper-header [data-lectiocontextcard] {
+    color: var(--primary) !important;
+  }
+
+  /* ── Elevfeedback page: Info text ── */
+
+  #il-original-content .nb_type_information {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground) !important;
+    padding: 0.75rem 1rem;
+    background: var(--muted) !important;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    border: 1px solid var(--border) !important;
+  }
+
+  /* ── Elevfeedback paper with min-height ── */
+
+  #il-original-content #ElevContentContainer .ls-paper {
+    min-height: auto;
+  }
+
+  /* ── Hide editor toolbar when empty ── */
+
+  #il-original-content .ls-texteditor-toolbarOuterContainer:empty,
+  #il-original-content .ls-texteditor-toolbarContainer:empty {
+    display: none;
+  }
+
+  /* ── CKEditor chrome styling (both light & dark) ── */
+
+  #il-original-content .cke_chrome {
+    border: 1px solid var(--border) !important;
+    border-radius: 0.5rem !important;
+    overflow: hidden;
+    box-shadow: none !important;
+  }
+
+  #il-original-content .cke_inner {
+    background: var(--card) !important;
+  }
+
+  #il-original-content .cke_top {
+    background: var(--muted) !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 0.375rem !important;
+  }
+
+  #il-original-content .cke_bottom {
+    background: var(--muted) !important;
+    border-top: 1px solid var(--border) !important;
+  }
+
+  #il-original-content .cke_contents {
+    background: var(--card) !important;
+  }
+
+  #il-original-content .cke_wysiwyg_frame {
+    background: var(--card) !important;
+  }
+
+  #il-original-content .cke_toolbox,
+  #il-original-content .cke_toolbar {
+    background: transparent !important;
+  }
+
+  #il-original-content .cke_button {
+    border-radius: 0.25rem !important;
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  #il-original-content .cke_button:hover {
+    background: var(--accent) !important;
+    border-color: var(--border) !important;
+  }
+
+  #il-original-content .cke_button_on {
+    background: var(--accent) !important;
+    border-color: var(--border) !important;
+  }
+
+  #il-original-content .cke_combo_button {
+    border-color: var(--border) !important;
+    background: transparent !important;
+    border-radius: 0.25rem !important;
+  }
+
+  #il-original-content .cke_combo_button:hover {
+    background: var(--accent) !important;
+  }
+
+  #il-original-content .cke_toolbar_separator {
+    background-color: var(--border) !important;
+  }
+
+  #il-original-content .cke_path_item {
+    color: var(--muted-foreground) !important;
+  }
+
+  /* ── hiddenButtons (Gem/Læs) bar ── */
+
+  #il-original-content .hiddenButtons {
+    background: var(--muted) !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 0.375rem 0.5rem !important;
+  }
+
+  #il-original-content .hiddenButtons .button a {
+    color: var(--foreground) !important;
+    font-size: 0.8125rem;
+  }
+
+  /* ── Dark mode: CKEditor icons & labels ── */
+
+  .dark #il-original-content .cke_button_icon {
+    filter: invert(0.85) !important;
+  }
+
+  /* Force ALL text inside the CKEditor toolbar to be light in dark mode */
+  .dark #il-original-content .cke_top,
+  .dark #il-original-content .cke_top * {
+    color: var(--foreground) !important;
+  }
+
+  .dark #il-original-content .cke_bottom,
+  .dark #il-original-content .cke_bottom * {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark #il-original-content .cke_button_label,
+  .dark #il-original-content .cke_combo_text,
+  .dark #il-original-content .cke_combo_label,
+  .dark #il-original-content .lctoolbarlabel,
+  .dark #il-original-content .lctoolbarsavestatus {
+    color: var(--foreground) !important;
+  }
+
+  /* Disabled buttons should be dimmer */
+  .dark #il-original-content .cke_button_disabled .cke_button_icon {
+    filter: invert(0.85) !important;
+    opacity: 0.4 !important;
+  }
+
+  .dark #il-original-content .cke_button_disabled,
+  .dark #il-original-content .cke_button_disabled * {
+    color: var(--muted-foreground) !important;
+    opacity: 0.5;
+  }
+
+  .dark #il-original-content .cke_path_item:hover {
+    color: var(--foreground) !important;
+    background: var(--accent) !important;
+  }
+
+  .dark #il-original-content .cke_combo_open {
+    border-color: var(--border) !important;
+  }
+
+  /* CKEditor toolgroup borders */
+  .dark #il-original-content .cke_toolgroup {
+    border-color: var(--border) !important;
+    background: transparent !important;
+  }
+
+  /* CKEditor combo arrow */
+  .dark #il-original-content .cke_combo_arrow {
+    border-top-color: var(--foreground) !important;
+  }
+
+  /* ── texteditor container styling ── */
+
+  #il-original-content .ls-texteditor-container {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+  }
+
+  #il-original-content .ls-texteditor-toolbarOuterContainer {
+    background: var(--card) !important;
+    border-color: var(--border) !important;
+  }
+
+  /* ── Article content fragment ── */
+
+  #il-original-content .lc-display-fragment {
+    background: var(--card) !important;
+    color: var(--foreground) !important;
+  }
+
+  /* ── Activity page header brick dark mode ── */
+
+  .dark #il-original-content .ls-section-title-heading .s2skemabrik {
+    background: var(--muted) !important;
+    color: var(--foreground) !important;
+  }
+
+  .dark #il-original-content .ls-section-title-heading .s2skemabrikcontent {
+    color: var(--foreground) !important;
+  }
+
+  .dark #il-original-content .ls-section-title-heading [data-lectiocontextcard] {
+    color: var(--primary) !important;
+  }
+
+  /* ── Activity page: general dark mode fixes ── */
+
+  .dark #il-original-content .ls-std-toolbar-filled .ls-std-toolbar {
+    background: transparent !important;
+  }
+
+  .dark #il-original-content .ls-std-rowblock {
+    background: transparent !important;
+  }
+
+  /* ── Float fix for content container ── */
+
+  #il-original-content .ls-tocandcontentparent {
+    display: flex;
+    gap: 0;
+  }
+
+  #il-original-content .ls-tocandcontentparent > [style*="float:left"] {
+    flex: 1;
+    min-width: 0;
+    float: none !important;
+  }
+
+  /* CKEditor dark mode icons/labels and texteditor container are handled
+     in the Activity Page section above using CSS variables that auto-adapt. */
 
   /* ========================================
      Forside Page (forside.aspx) Styles
@@ -2293,31 +2824,14 @@ html {
     width: 100% !important;
   }
 
-  /* Adjust schedule bricks to fill their container */
-  #il-original-content .s2skema .s2skemabrik {
+  /* Adjust schedule bricks to fill their container (skip overlapping ones) */
+  #il-original-content .s2skema .s2skemabrik:not(.il-narrow) {
     width: calc(100% - 1.1em) !important;
     max-width: calc(100% - 1.1em) !important;
+  }
+
+  #il-original-content .s2skema .s2skemabrik {
     cursor: pointer;
-  }
-
-  /* Handle overlapping bricks - detect by left position indicating right-side placement */
-  /* Right-side brick (positioned after ~5em means it's sharing space) */
-  #il-original-content .s2skema .s2skemabrik[style*="left:5."] {
-    width: calc(50% - 0.8em) !important;
-    max-width: calc(50% - 0.8em) !important;
-    left: calc(50% + 0.3em) !important;
-  }
-
-  /* Left-side brick when there's overlap (narrow width ~4em instead of ~9em) */
-  #il-original-content .s2skema .s2skemabrik[style*="width:4."] {
-    width: calc(50% - 0.8em) !important;
-    max-width: calc(50% - 0.8em) !important;
-  }
-
-  /* Also catch the old width pattern for other container sizes */
-  #il-original-content .s2skema .s2skemabrik[style*="width:6.73em"] {
-    width: calc(50% - 0.8em) !important;
-    max-width: calc(50% - 0.8em) !important;
   }
 
   /* Content table full width on schedule pages */
@@ -4655,6 +5169,19 @@ html {
     box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
   }
 
+  /* Activity page: dark mode shadow adjustments */
+  .dark #il-original-content .ls-tabs4 .lectioTabToolbar a[disabled] {
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.4);
+  }
+
+  .dark #il-original-content .ls-acr-display img {
+    opacity: 0.9;
+  }
+
+  .dark #il-original-content .ls-texteditor-paper-container {
+    border-color: var(--border) !important;
+  }
+
   /* ── Tooltips ────────────────────────────── */
 
   .dark #il-original-content .ls-tooltip,
@@ -4700,6 +5227,10 @@ html {
 
   .dark .lectioTabContent {
     background-color: var(--lectio-dark-border) !important;
+  }
+
+  .dark .ls-tabs4 .lectioTabContent {
+    background-color: transparent !important;
   }
 
   .dark .ls-island-elevated,
