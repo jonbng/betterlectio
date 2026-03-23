@@ -82,17 +82,16 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 
 Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightweight server-style event capture that works in both content scripts and MV3 service workers.
 
-**Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Pre-login events use a persistent anonymous UUID stored in `browser.storage.local` (extension-scoped, works in service workers, survives site data clears). Never build the ID string manually.
+**Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Never build the ID string manually. **No anonymous tracking** — all PostHog events require an identified user. Pre-login pages (login) do not send analytics.
 
 **Identify:** On each page load (content.tsx), `identify()` sets person properties: `name`, `school_id`, `school_name`, `class_name`, `extension_version`, `lectio_version`. PostHog auto-wraps as `$set`, so never wrap in `$set` yourself.
 
 **Events (free-tier minimal):**
 - `extension loaded` (content.tsx) — DAU, school, page. Props: `school_id`, `page`, `extension_version`
-- `user logged in` (LoginPage) — MitID login frequency. Props: `school_id`, `school_name`, `method`
 - `supabase auth succeeded/failed` (background.ts) — Supabase auth tracking
-- `captureException` — error tracking from anywhere
+- `captureException` — error tracking (only when distinctId is available)
 
-**Adding new events:** Be conservative — we're on PostHog's free tier. Import `{ capture, getDistinctId }` from `@/lib/posthog`. For pre-login contexts, use `getAnonDistinctId()` (async). All calls are try/catch wrapped.
+**Adding new events:** Be conservative — we're on PostHog's free tier. Import `{ capture, getDistinctId }` from `@/lib/posthog`. Only capture events when you have an identified user. All calls are try/catch wrapped.
 
 **Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`.
 

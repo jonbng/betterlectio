@@ -22,6 +22,7 @@
     "build": "wxt build",
     "prebuild:firefox": "npm run vendor:userjot",
     "build:firefox": "wxt build -b firefox",
+    "build:safari": "wxt build -b safari",
     "prezip": "npm run vendor:userjot",
     "zip": "wxt zip",
     "prezip:firefox": "npm run vendor:userjot",

@@ -3,8 +3,6 @@ import { PostHog } from 'posthog-node';
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string;
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
 
-const ANON_ID_KEY = 'bl-posthog-anon-id';
-
 // ── Analytics opt-out ────────────────────────────────────────────────
 // Direct localStorage read to avoid circular dependency with settings-storage.
 
@@ -31,34 +29,6 @@ function getClient(): PostHog {
     flushInterval: 0,
   });
   return _client;
-}
-
-// ── Anonymous ID (extension-scoped via browser.storage.local) ───────
-
-let _cachedAnonId: string | null = null;
-
-/**
- * Get or create a persistent anonymous ID stored in browser.storage.local.
- * Works in both content scripts and MV3 service workers.
- * Falls back to in-memory UUID if storage is unavailable.
- */
-async function getOrCreateAnonId(): Promise<string> {
-  if (_cachedAnonId) return _cachedAnonId;
-  try {
-    const result = await browser.storage.local.get(ANON_ID_KEY);
-    if (result[ANON_ID_KEY]) {
-      _cachedAnonId = result[ANON_ID_KEY] as string;
-      return _cachedAnonId;
-    }
-    const id = crypto.randomUUID();
-    await browser.storage.local.set({ [ANON_ID_KEY]: id });
-    _cachedAnonId = id;
-    return id;
-  } catch {
-    // Fallback: in-memory only (won't persist across navigations)
-    if (!_cachedAnonId) _cachedAnonId = crypto.randomUUID();
-    return _cachedAnonId;
-  }
 }
 
 // ── Auto properties (replaces what posthog-js would capture) ────────
@@ -104,16 +74,8 @@ export function getDistinctId(studentId: string): string {
 }
 
 /**
- * Get or create a persistent anonymous distinct ID.
- * Async because it reads from browser.storage.local.
- * Use on pages where the user isn't identified yet (e.g. login).
- */
-export async function getAnonDistinctId(): Promise<string> {
-  return getOrCreateAnonId();
-}
-
-/**
  * Capture an analytics event.
+ * Only call when you have an identified user (distinctId from getDistinctId).
  */
 export function capture(
   event: string,
@@ -129,28 +91,6 @@ export function capture(
     });
   } catch {
     // Never let analytics errors surface to the user
-  }
-}
-
-/**
- * Link the anonymous (pre-login) ID to the real distinct ID so PostHog
- * merges pre-login events into the identified person.
- * Safe to call multiple times — it only fires the alias once per browser.
- */
-export async function aliasAnonToIdentified(distinctId: string): Promise<void> {
-  try {
-    if (isOptedOut()) return;
-    const ALIAS_KEY = 'bl-posthog-aliased';
-    const prev = localStorage.getItem(ALIAS_KEY);
-    if (prev === distinctId) return; // already linked in this browser
-
-    const anonId = await getOrCreateAnonId();
-    if (anonId === distinctId) return; // shouldn't happen, but guard
-
-    getClient().alias({ distinctId, alias: anonId });
-    localStorage.setItem(ALIAS_KEY, distinctId);
-  } catch {
-    // Non-critical
   }
 }
 
@@ -215,6 +155,7 @@ export function reset(): void {
 /**
  * Capture an event at most once per browser session.
  * Useful for events like "extension loaded" that shouldn't fire on every page navigation.
+ * Only call when you have an identified user.
  */
 export function captureOncePerSession(
   event: string,
@@ -239,16 +180,16 @@ export function captureOncePerSession(
 
 /**
  * Capture an exception/error.
+ * Only captures if a distinctId is provided (no anonymous fallback).
  */
-export async function captureException(
+export function captureException(
   error: unknown,
   distinctId?: string,
   additionalProperties?: Record<string, unknown>,
-): Promise<void> {
+): void {
   try {
-    if (isOptedOut()) return;
-    const id = distinctId ?? await getOrCreateAnonId();
-    getClient().captureException(error, id, additionalProperties);
+    if (isOptedOut() || !distinctId) return;
+    getClient().captureException(error, distinctId, additionalProperties);
   } catch {
     // Non-critical
   }

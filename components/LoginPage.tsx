@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, ArrowRight, X } from "lucide-react";
 import { getLastSchool, saveLastSchool } from "../lib/school-storage";
-import { capture, getAnonDistinctId } from "../lib/posthog";
 
 export interface School {
   id: string;
@@ -90,11 +89,6 @@ export function LoginPage({ schools }: LoginPageProps) {
       name: school.name,
       url: school.url,
     });
-    getAnonDistinctId().then(id => capture('user logged in', id, {
-      school_id: school.id,
-      school_name: school.name,
-      method: 'school_selected',
-    }));
     window.location.href = getScheduleUrl(school.url);
   };
 
@@ -102,11 +96,6 @@ export function LoginPage({ schools }: LoginPageProps) {
     if (lastSchool) {
       // Update timestamp
       saveLastSchool(lastSchool);
-      getAnonDistinctId().then(id => capture('user logged in', id, {
-        school_id: lastSchool.id,
-        school_name: lastSchool.name,
-        method: 'continue_to_last_school',
-      }));
       window.location.href = getScheduleUrl(lastSchool.url);
     }
   };

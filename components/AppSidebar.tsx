@@ -571,6 +571,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarSeparator className="mb-2 opacity-50" />
         {/* Quick actions row */}
         <div className="flex items-center gap-1 px-2 mb-2">
+          <a
+            href={`${baseUrl}/indstillinger/studentIndstillinger.aspx`}
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors"
+            title="Profil"
+          >
+            <User className="size-[1.1rem]" />
+          </a>
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}

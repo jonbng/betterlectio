@@ -303,13 +303,11 @@ export function PersonCard({
 
         {/* BetterLectio badge */}
         {hasBetterLectio && (
-          <div className="absolute bottom-2 right-2 size-5 rounded-full ring-2 ring-white dark:ring-gray-900 shadow-[0_2px_6px_oklch(0_0_0/0.15)] overflow-hidden">
-            <img
-              src={browser.runtime.getURL('/assets/logo-rounded.svg')}
-              alt="BetterLectio"
-              className="size-full"
-            />
-          </div>
+          <img
+            src={browser.runtime.getURL('/assets/logo-rounded.svg')}
+            alt="BetterLectio"
+            className="absolute bottom-2 right-2 size-9 drop-shadow-[0_2px_4px_oklch(0_0_0/0.25)]"
+          />
         )}
       </div>
 

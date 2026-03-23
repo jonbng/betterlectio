@@ -15,11 +15,9 @@ import {
   ChevronRight,
   Loader2,
   UserPlus,
-  Pencil,
 } from 'lucide-react';
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
-import { getLoggedInUserId } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
 import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
@@ -28,12 +26,8 @@ import { PersonCard } from './PersonCard';
 import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/database.types';
-import { useQuery, useMutation } from '@/lib/supabase/hooks';
+import { useQuery } from '@/lib/supabase/hooks';
 import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
-import { Input } from './ui/input';
-import { Checkbox } from './ui/checkbox';
-import { Button } from './ui/button';
-import { Label } from './ui/label';
 
 interface ProfilePageProps {
   name: string;
@@ -188,31 +182,22 @@ export function ProfilePage({
   const [, setMembersRerenderNonce] = useState(0);
   const classIdRef = useRef<string | null>(null);
   const [holdGroups, setHoldGroups] = useState<HoldGroupItem[]>([]);
-  const [editing, setEditing] = useState(false);
-  const [editDescription, setEditDescription] = useState('');
-  const [editInstagram, setEditInstagram] = useState('');
-  const [editShowBirthday, setEditShowBirthday] = useState(false);
+
+  // Invalidate students cache on mount so we get fresh data for this profile
+  useEffect(() => {
+    import('@/lib/supabase/cache').then(({ invalidateTable }) => {
+      invalidateTable(schoolId, 'students');
+    });
+  }, [schoolId, entityId]);
 
   // Supabase student data
-  const { data: student, refetch: refetchStudent } = useQuery<Student>({
+  const { data: student } = useQuery<Student>({
     schoolId,
     table: 'students',
     filters: [{ column: 'id', op: 'eq', value: entityId }],
     single: true,
   });
   const { studentsMap } = useSchoolStudents(schoolId);
-  const loggedInId = getLoggedInUserId();
-  const isOwnProfile = loggedInId === entityId;
-
-  const { mutate: updateProfile, isLoading: saving } = useMutation({
-    table: 'students',
-    method: 'update',
-    schoolId,
-    onSuccess: () => {
-      setEditing(false);
-      refetchStudent();
-    },
-  });
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
   const hasBetterLectio = !!(student?.has_extension || student?.has_app);
@@ -597,106 +582,25 @@ export function ProfilePage({
             </div>
 
             {hasBetterLectio ? (
-              editing ? (
-                /* ── Edit form ── */
-                <div className="flex flex-col gap-4 max-w-md">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="bl-edit-desc" className="text-sm font-medium">Beskrivelse</Label>
-                    <Input
-                      id="bl-edit-desc"
-                      value={editDescription}
-                      onInput={(e) => setEditDescription((e.target as HTMLInputElement).value)}
-                      maxLength={200}
-                      placeholder="Skriv lidt om dig selv..."
-                      className="text-sm"
-                    />
-                    <span className="text-xs text-muted-foreground text-right">{editDescription.length}/200</span>
-                  </div>
+              <>
+                {/* Description */}
+                {student?.description && (
+                  <p className="text-base text-muted-foreground leading-relaxed max-w-xl">
+                    {student.description}
+                  </p>
+                )}
 
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="bl-edit-ig" className="text-sm font-medium">Instagram</Label>
-                    <Input
-                      id="bl-edit-ig"
-                      value={editInstagram}
-                      onInput={(e) => setEditInstagram((e.target as HTMLInputElement).value)}
-                      placeholder="@brugernavn"
-                      className="text-sm"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="bl-edit-bday"
-                      checked={editShowBirthday}
-                      onCheckedChange={(checked: boolean) => setEditShowBirthday(checked === true)}
-                    />
-                    <Label htmlFor="bl-edit-bday" className="text-sm cursor-pointer">Vis fødseldag på profil</Label>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      disabled={saving}
-                      onClick={() => {
-                        updateProfile(
-                          {
-                            description: editDescription || null,
-                            instagram: editInstagram || null,
-                            show_birthday: editShowBirthday,
-                          },
-                          [{ column: 'id', op: 'eq', value: entityId }],
-                        );
-                      }}
-                    >
-                      {saving ? 'Gemmer...' : 'Gem'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={saving}
-                      onClick={() => setEditing(false)}
-                    >
-                      Annuller
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                /* ── View mode ── */
-                <>
-                  {/* Description */}
-                  {student?.description && (
-                    <p className="text-base text-muted-foreground leading-relaxed max-w-xl">
-                      {student.description}
-                    </p>
+                {/* Info chips + mutual holds */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {student?.show_birthday && student?.birthdate && (
+                    <InfoChip icon={Cake} label={formatDanishBirthdate(student.birthdate)} />
                   )}
+                  {student?.instagram && (
+                    <InfoChip icon={Instagram} label={student.instagram} href={`https://instagram.com/${student.instagram.replace('@', '')}`} />
+                  )}
+                  {subtitle && <InfoChip icon={GraduationCap} label={subtitle} />}
 
-                  {/* Info chips + edit button + mutual holds */}
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {student?.show_birthday && student?.birthdate && (
-                      <InfoChip icon={Cake} label={formatDanishBirthdate(student.birthdate)} />
-                    )}
-                    {student?.instagram && (
-                      <InfoChip icon={Instagram} label={student.instagram} href={`https://instagram.com/${student.instagram.replace('@', '')}`} />
-                    )}
-                    {subtitle && <InfoChip icon={GraduationCap} label={subtitle} />}
-
-                    {isOwnProfile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditDescription(student?.description || '');
-                          setEditInstagram(student?.instagram || '');
-                          setEditShowBirthday(student?.show_birthday ?? false);
-                          setEditing(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-muted/60 hover:bg-muted px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Pencil className="size-3.5" />
-                        Rediger profil
-                      </button>
-                    )}
-
-                    {mutualHolds.length > 0 && (
+                  {mutualHolds.length > 0 && (
                       <>
                         <span className="w-px h-5 bg-border" />
                         {isSameClass ? (
@@ -718,7 +622,6 @@ export function ProfilePage({
                     )}
                   </div>
                 </>
-              )
             ) : (
               <div className="flex items-start gap-3 mt-1 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
                 <UserPlus className="size-5 text-muted-foreground/70 shrink-0 mt-0.5" />

@@ -11,6 +11,9 @@ import {
   CalendarClock,
   Trash2,
   Loader2,
+  Sparkles,
+  Instagram,
+  Check,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -20,6 +23,11 @@ import type {
   SessionEntry,
 } from '@/lib/profil-parser';
 import { fetchStudiekortData, fetchSessionsData, deleteSession } from '@/lib/profil-parser';
+import type { Tables } from '@/database.types';
+import { useQuery, useMutation } from '@/lib/supabase/hooks';
+import { getLoggedInUserId } from '@/lib/profile-cache';
+
+type Student = Tables<'students'>;
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -353,7 +361,197 @@ function SessionsCard({
   );
 }
 
-// ── BetterLectio Konto Card ─────────────────────────────────────────────
+// ── BetterLectio Profile Card ────────────────────────────────────────────
+
+function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
+  const loggedInId = getLoggedInUserId();
+
+  const { data: student, isLoading } = useQuery<Student>({
+    schoolId,
+    table: 'students',
+    filters: [{ column: 'id', op: 'eq', value: loggedInId || '' }],
+    single: true,
+    enabled: !!loggedInId,
+  });
+
+  const [description, setDescription] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [showBirthday, setShowBirthday] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const { mutate: updateProfile, isLoading: saving } = useMutation({
+    table: 'students',
+    method: 'update',
+    schoolId,
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  // Sync form fields when student data loads
+  useEffect(() => {
+    if (student) {
+      setDescription(student.description || '');
+      setInstagram(student.instagram || '');
+      setShowBirthday(student.show_birthday ?? false);
+    }
+  }, [student]);
+
+  if (!loggedInId) return null;
+
+  // Not a BetterLectio user yet (no student record or not has_extension)
+  if (!isLoading && !student?.has_extension && !student?.has_app) return null;
+
+  if (isLoading) {
+    return (
+      <div className="relative bg-card border border-border rounded-xl p-5 overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[oklch(0.54_0.2_265)] via-[oklch(0.6_0.18_285)] to-[oklch(0.54_0.2_265)]" />
+        <div className="flex items-center gap-2.5 mb-4">
+          <Sparkles className="w-4.5 h-4.5 text-[oklch(0.54_0.2_265)]" />
+          <h2 className="text-sm font-semibold text-foreground">BetterLectio Profil</h2>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-20 w-full rounded-lg" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-6 w-48 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  const hasChanges =
+    description !== (student?.description || '') ||
+    instagram !== (student?.instagram || '') ||
+    showBirthday !== (student?.show_birthday ?? false);
+
+  return (
+    <div className="relative bg-card border border-border rounded-xl p-5 overflow-hidden">
+      {/* Accent gradient top line */}
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[oklch(0.54_0.2_265)] via-[oklch(0.6_0.18_285)] to-[oklch(0.54_0.2_265)]" />
+
+      <div className="flex items-center gap-2.5 mb-4">
+        <Sparkles className="w-4.5 h-4.5 text-[oklch(0.54_0.2_265)]" />
+        <h2 className="text-sm font-semibold text-foreground">BetterLectio Profil</h2>
+        <span className="text-[0.6rem] text-muted-foreground ml-auto">Synlig for andre på din skole</span>
+      </div>
+
+      <div className="space-y-0 divide-y divide-border/40">
+        {/* Description */}
+        <div className="py-2.5">
+          <label
+            htmlFor="bl-desc"
+            className="text-[0.65rem] uppercase tracking-wider text-muted-foreground font-medium block mb-1"
+          >
+            Beskrivelse
+          </label>
+          <textarea
+            id="bl-desc"
+            value={description}
+            onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
+            maxLength={200}
+            rows={3}
+            placeholder="Skriv lidt om dig selv..."
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-colors resize-none"
+          />
+          <div className="flex justify-end mt-0.5">
+            <span className={cn(
+              'text-[0.6rem] tabular-nums transition-colors',
+              description.length > 180 ? 'text-[oklch(0.55_0.2_25)]' : 'text-muted-foreground/60',
+            )}>
+              {description.length}/200
+            </span>
+          </div>
+        </div>
+
+        {/* Instagram */}
+        <div className="py-2.5">
+          <label
+            htmlFor="bl-ig"
+            className="text-[0.65rem] uppercase tracking-wider text-muted-foreground font-medium block mb-1"
+          >
+            Instagram
+          </label>
+          <div className="relative">
+            <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+            <input
+              id="bl-ig"
+              type="text"
+              value={instagram}
+              onInput={(e) => setInstagram((e.target as HTMLInputElement).value)}
+              placeholder="@brugernavn"
+              className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Show birthday checkbox */}
+        <div className="py-3">
+          <label className="flex items-center gap-3 cursor-pointer group" htmlFor="bl-bday">
+            <button
+              type="button"
+              role="checkbox"
+              id="bl-bday"
+              aria-checked={showBirthday}
+              onClick={() => setShowBirthday(!showBirthday)}
+              className={cn(
+                'flex items-center justify-center w-5 h-5 rounded-md border-2 transition-all shrink-0',
+                showBirthday
+                  ? 'bg-[oklch(0.54_0.2_265)] border-[oklch(0.54_0.2_265)]'
+                  : 'border-border bg-background group-hover:border-muted-foreground/40',
+              )}
+            >
+              {showBirthday && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+            </button>
+            <span className="text-sm text-foreground select-none">Vis fødseldag på profil</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Save button */}
+      <div className="flex justify-end mt-3">
+        <button
+          onClick={() => {
+            updateProfile(
+              {
+                description: description || null,
+                instagram: instagram || null,
+                show_birthday: showBirthday,
+              },
+              [{ column: 'id', op: 'eq', value: loggedInId }],
+            );
+          }}
+          disabled={saving || !hasChanges}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all cursor-pointer disabled:cursor-not-allowed',
+            saved
+              ? 'bg-[oklch(0.45_0.15_145)] text-white'
+              : hasChanges
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-muted text-muted-foreground',
+          )}
+        >
+          {saved ? (
+            <>
+              <Check className="w-4 h-4" />
+              Gemt
+            </>
+          ) : saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Gemmer...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Gem profil
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── Main Component ──────────────────────────────────────────────────────
 
@@ -524,6 +722,9 @@ export function ProfilPage({
           <StudiekortCard data={studiekort} loading={studiekortLoading} />
         </div>
       </div>
+
+      {/* ── BetterLectio Profile ──────────────────────────────── */}
+      <BetterLectioProfileCard schoolId={schoolId} />
 
       {/* ── Sessions ──────────────────────────────────────────── */}
       <SessionsCard sessions={sessions} loading={sessionsLoading} onDelete={handleDeleteSession} />

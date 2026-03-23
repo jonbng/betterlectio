@@ -44,7 +44,7 @@ import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName,
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
-import { capture, captureOncePerSession, identifyIfNeeded, getDistinctId, getAnonDistinctId, captureException, aliasAnonToIdentified } from "@/lib/posthog";
+import { captureOncePerSession, identifyIfNeeded, getDistinctId } from "@/lib/posthog";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -316,9 +316,6 @@ function initLayout() {
       lectio_version: getLectioVersionForUserJot(),
     });
     captureOncePerSession('extension loaded', phDistinctId, pageProps);
-    aliasAnonToIdentified(phDistinctId);
-  } else {
-    getAnonDistinctId().then(id => captureOncePerSession('extension loaded', id, pageProps));
   }
 
   let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
