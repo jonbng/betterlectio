@@ -5,8 +5,10 @@
 import type { SupabaseMessage, SupabaseResponse } from './messages';
 import { fetchQrUrl } from '@/lib/profil-parser';
 
-function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
-  return browser.runtime.sendMessage(msg);
+async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
+  const resp = await browser.runtime.sendMessage(msg);
+  if (!resp) return { ok: false, error: 'Background not ready' };
+  return resp;
 }
 
 /**
@@ -17,7 +19,7 @@ export async function ensureSupabaseSession(schoolId: string): Promise<void> {
   try {
     // Quick check: is session already valid?
     const check = await send({ type: 'bl-sb:auth:session' });
-    if (check.ok && check.session?.expires_at && check.session.expires_at > Date.now() / 1000 + 300) {
+    if (check?.ok && check.session?.expires_at && check.session.expires_at > Date.now() / 1000 + 300) {
       return;
     }
 

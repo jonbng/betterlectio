@@ -289,7 +289,7 @@ function initLayout() {
 
     // Prefetch all school students into cache (for BL badges + profile data)
     import('@/lib/supabase/resources/student').then(({ getStudentsBySchool }) => {
-      getStudentsBySchool(schoolId);
+      getStudentsBySchool(schoolId).catch(() => {});
     }).catch(() => {});
   }
 

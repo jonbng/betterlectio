@@ -71,6 +71,7 @@ export default defineConfig({
       'ARCHITECTURE.md',
       'SOURCE_CODE_REVIEW.md',
       'web-ext.config.ts',
+      'supabase/**',
     ],
   },
   vite: () => ({

@@ -22,8 +22,11 @@ import {
 
 // ── Message sender ──────────────────────────────────────────────────
 
-function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
-  return browser.runtime.sendMessage(msg);
+async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
+  const resp = await browser.runtime.sendMessage(msg);
+  // Firefox can return undefined if background script hasn't loaded yet
+  if (!resp) return { ok: false, error: 'Background not ready' };
+  return resp;
 }
 
 // ── Query / Mutate / RPC ────────────────────────────────────────────
