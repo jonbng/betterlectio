@@ -1,19 +1,6 @@
 // Suppresses Lectio's session timeout dialogs and proactively renews the session.
 // Lets SessionHelper run normally — only intercepts the DOM dialogs it creates.
 
-const SETTINGS_KEY = 'il-feature-settings';
-
-function isSessionRenewEnabled(): boolean {
-  try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    if (!stored) return true;
-    const settings = JSON.parse(stored);
-    return settings?.behavior?.sessionPopupBlocker ?? true;
-  } catch {
-    return true;
-  }
-}
-
 function getSchoolId(): string | null {
   const cookieMatch = document.cookie.match(/BaseSchoolUrl=(\d+)/);
   if (cookieMatch) return cookieMatch[1];
@@ -96,8 +83,6 @@ export default defineContentScript({
   world: 'MAIN',
 
   main() {
-    if (!isSessionRenewEnabled()) return;
-
     const isSessionDialog = (dialog: HTMLElement): boolean => {
       const text = (dialog.textContent || '').replace(/\s+/g, ' ').trim();
       return (

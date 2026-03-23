@@ -54,7 +54,6 @@ import {
   Monitor,
   Calendar,
   PanelLeft,
-  Zap,
   GraduationCap,
   FlaskConical,
   Copy,
@@ -69,10 +68,8 @@ interface SettingsModalProps {
 
 const navItems = [
   { id: "appearance", name: "Udseende", icon: Palette },
-  { id: "behavior", name: "Adfærd", icon: Zap },
   { id: "sidebar", name: "Sidebar", icon: PanelLeft },
   { id: "subjects", name: "Fag", icon: GraduationCap },
-  { id: "design-system", name: "Design System", icon: FlaskConical },
   { id: "advanced", name: "Avanceret", icon: Wrench },
   { id: "about", name: "Om", icon: Info },
 ];
@@ -202,6 +199,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [themeId, setThemeId] = useState<ThemePresetId>(schoolTheme.themeId);
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [supabaseExpiry, setSupabaseExpiry] = useState<number | null>(null);
 
   // Get version info on mount
   useEffect(() => {
@@ -216,6 +215,26 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       setThemeId(preference.themeId);
     }
   }, [open]);
+
+  // Check Supabase auth status when about tab is shown
+  useEffect(() => {
+    if (!open || activeSection !== 'about') return;
+    setSupabaseStatus('loading');
+    browser.runtime.sendMessage({ type: 'bl-sb:auth:session' })
+      .then((resp: any) => {
+        if (resp?.ok && resp.session?.expires_at) {
+          setSupabaseStatus('authenticated');
+          setSupabaseExpiry(resp.session.expires_at);
+        } else {
+          setSupabaseStatus('unauthenticated');
+          setSupabaseExpiry(null);
+        }
+      })
+      .catch(() => {
+        setSupabaseStatus('unauthenticated');
+        setSupabaseExpiry(null);
+      });
+  }, [open, activeSection]);
 
   // Handle escape key and focus trap
   useEffect(() => {
@@ -554,6 +573,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               </Button>
             </div>
 
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                Tjenester
+              </h3>
+              <div className="rounded-lg border bg-muted/30 divide-y divide-border">
+                <div className="py-3 px-4 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">BetterLectio Analytics</span>
+                    <Badge variant={settings.behavior?.analyticsOptOut ? "outline" : "secondary"} className="text-xs">
+                      {settings.behavior?.analyticsOptOut ? "Fravalgt" : "Aktiv"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Anonym brugsstatistik (sideopslag, fejlrapportering). Kan fravælges under Avanceret &gt; Privatliv.
+                  </p>
+                </div>
+                <div className="py-3 px-4 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">BetterLectio Database</span>
+                    <Badge
+                      variant={supabaseStatus === 'authenticated' ? "secondary" : "outline"}
+                      className="text-xs"
+                    >
+                      {supabaseStatus === 'loading' ? "Indlæser..." : supabaseStatus === 'authenticated' ? "Logget ind" : "Ikke logget ind"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Backend til kommende funktioner. Autentificering sker automatisk i baggrunden.
+                    {supabaseStatus === 'authenticated' && supabaseExpiry && (
+                      <> Session udløber {new Date(supabaseExpiry * 1000).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <p className="text-sm text-muted-foreground">
               Udviklet af{" "}
               <a
@@ -650,34 +705,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               </div>
             </SettingsSection>
 
-            <SettingsSection title="Visuelle funktioner">
-              <FeatureToggle
-                id="visual-favicon"
-                label="BetterLectio favicon"
-                description="Erstat Lectios favicon med BetterLectio logoet"
-                enabled={settings.visual?.customFavicon ?? true}
-                onChange={(v) => handleSettingChange('visual', 'customFavicon', v)}
-                requiresReload
-              />
-              <FeatureToggle
-                id="visual-titles"
-                label="Rene sidetitler"
-                description="Moderne sidetitler med ulæste beskeder badge"
-                enabled={settings.visual?.cleanPageTitles ?? true}
-                onChange={(v) => handleSettingChange('visual', 'cleanPageTitles', v)}
-                requiresReload
-              />
-              <FeatureToggle
-                id="visual-fouc"
-                label="Skelet-indlæsning"
-                description="Vis skelet-animation mens siden indlæses"
-                enabled={settings.visual?.foucPrevention ?? true}
-                onChange={(v) => handleSettingChange('visual', 'foucPrevention', v)}
-                requiresReload
-              />
-            </SettingsSection>
-
-            <SettingsSection title="Skema funktioner">
+            <SettingsSection title="Skema">
               <FeatureToggle
                 id="schedule-today"
                 label="Fremhæv i dag"
@@ -688,6 +716,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   (settings.schedule?.currentTimeIndicator ?? true) ||
                   (settings.schedule?.currentTimeLabel ?? false)
                 }
+                requiresReload
               />
               <FeatureToggle
                 id="schedule-time"
@@ -698,6 +727,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 disabled={!(settings.schedule?.todayHighlight ?? true)}
                 disabledReason="Kræver 'Fremhæv i dag' er aktiveret"
                 hasDependent={settings.schedule?.currentTimeLabel ?? false}
+                requiresReload
               />
               <FeatureToggle
                 id="schedule-time-label"
@@ -720,13 +750,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 onChange={(v) => handleSettingChange('schedule', 'countdownBar', v)}
               />
               <FeatureToggle
-                id="schedule-viewing"
-                label="Visningshoved"
-                description="Viser hvem skemaet tilhører når du ser andres skemaer"
-                enabled={settings.schedule?.viewingScheduleHeader ?? true}
-                onChange={(v) => handleSettingChange('schedule', 'viewingScheduleHeader', v)}
-              />
-              <FeatureToggle
                 id="schedule-subject-colors"
                 label="Fagfarver"
                 description="Vis unikke farver for hvert fag. Når slået fra vises blå for normale, grøn for ændrede og rød for aflyste lektioner"
@@ -736,142 +759,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               />
             </SettingsSection>
 
-            <SettingsSection title="Sideredesigns">
-              <FeatureToggle
-                id="pages-findskema"
-                label="FindSkema redesign"
-                description="Fuzzy søgning, filtre, personkort og favoritter"
-                enabled={settings.pages?.findSkemaRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'findSkemaRedesign', v)}
-                hasDependent={(settings.data?.starredPeople ?? false) || (settings.data?.recentSearches ?? false)}
-              />
-              <FeatureToggle
-                id="pages-forside"
-                label="Forside redesign"
-                description="Hilsen, live ur og masonry kortlayout"
-                enabled={settings.pages?.forsideRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'forsideRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-members"
-                label="Medlemsliste kort"
-                description="Viser hold/klasse medlemmer som kort i stedet for tabel"
-                enabled={settings.pages?.membersPageCards ?? true}
-                onChange={(v) => handleSettingChange('pages', 'membersPageCards', v)}
-              />
-              <FeatureToggle
-                id="pages-lektier"
-                label="Lektier redesign"
-                description="Grupperede lektier med kort og dag-sektioner"
-                enabled={settings.pages?.lektierRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'lektierRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-opgaver"
-                label="Opgaver redesign"
-                description="Moderne kortlayout med kommende og afleverede sektioner"
-                enabled={settings.pages?.opgaverRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'opgaverRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-fravaer"
-                label="Fravær redesign"
-                description="Samlet fraværsside med diagrammer, tabel og inline redigering"
-                enabled={settings.pages?.fravaerRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'fravaerRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-beskeder"
-                label="Beskeder redesign"
-                description="Moderne beskedliste med mappenavigation og handlinger"
-                enabled={settings.pages?.beskederRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'beskederRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-karakterer"
-                label="Karakterer redesign"
-                description="Moderne kortvisning med farvekodede karakterer og noter"
-                enabled={settings.pages?.karaktererRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'karaktererRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-profil"
-                label="Profil redesign"
-                description="Samlet profilside med studiekort og aktive sessioner"
-                enabled={settings.pages?.profilRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'profilRedesign', v)}
-              />
-              <FeatureToggle
-                id="pages-login"
-                label="Login side redesign"
-                description="Moderne skolevalg med søgning"
-                enabled={settings.pages?.loginPageRedesign ?? true}
-                onChange={(v) => handleSettingChange('pages', 'loginPageRedesign', v)}
-                requiresReload
-              />
-            </SettingsSection>
-
-          </div>
-        );
-
-      case "behavior":
-        return (
-          <div className="space-y-6">
-            <SettingsSection title="Adfærd">
-              <FeatureToggle
-                id="behavior-session"
-                label="Smart session vedligeholdelse"
-                description="Skjuler session popup og fornyer automatisk din session"
-                enabled={settings.behavior?.sessionPopupBlocker ?? true}
-                onChange={(v) => handleSettingChange('behavior', 'sessionPopupBlocker', v)}
-                requiresReload
-              />
-<FeatureToggle
-                id="behavior-messages"
-                label="Beskeder til Nyeste"
-                description="Åbn beskeder i 'Nyeste' mappe som standard"
-                enabled={settings.behavior?.messagesAutoRedirect ?? true}
-                onChange={(v) => handleSettingChange('behavior', 'messagesAutoRedirect', v)}
-              />
-              <FeatureToggle
-                id="behavior-lastschool"
-                label="Fortsæt til sidst brugte skole"
-                description="Vis knap til hurtigt login på login-siden"
-                enabled={settings.behavior?.continueToLastSchool ?? true}
-                onChange={(v) => handleSettingChange('behavior', 'continueToLastSchool', v)}
-              />
-            </SettingsSection>
-
-            <SettingsSection title="Ydeevne">
-              <FeatureToggle
-                id="behavior-preload"
-                label="Forudindlæsning"
-                description="Forudindlæs sider ved hover for hurtigere navigation"
-                enabled={settings.behavior?.preloading ?? true}
-                onChange={(v) => handleSettingChange('behavior', 'preloading', v)}
-              />
-            </SettingsSection>
-
-            <SettingsSection title="Data">
-              <FeatureToggle
-                id="data-starred"
-                label="Favoritter"
-                description={`Gem favorit-personer til hurtig adgang (${starredCount} gemt)`}
-                enabled={settings.data?.starredPeople ?? false}
-                onChange={(v) => handleSettingChange('data', 'starredPeople', v)}
-                disabled={!(settings.pages?.findSkemaRedesign ?? true)}
-                disabledReason="Kræver FindSkema redesign er aktiveret"
-              />
-              <FeatureToggle
-                id="data-recents"
-                label="Seneste søgninger"
-                description={`Husk dine seneste søgninger (${recentsCount} gemt)`}
-                enabled={settings.data?.recentSearches ?? false}
-                onChange={(v) => handleSettingChange('data', 'recentSearches', v)}
-                disabled={!(settings.pages?.findSkemaRedesign ?? true)}
-                disabledReason="Kræver FindSkema redesign er aktiveret"
-              />
-            </SettingsSection>
           </div>
         );
 
@@ -990,26 +877,44 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       case "subjects":
         return <HoldMappingEditor />;
 
-      case "design-system":
-        return (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Design System Playground</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Se og udforsk alle farver, komponenter og mønstre der bruges i BetterLectio.
-              </p>
-            </div>
-            <Button onClick={() => setPlaygroundOpen(true)} className="cursor-pointer">
-              <FlaskConical className="size-4" />
-              Åbn playground
-            </Button>
-          </div>
-        );
-
       case "advanced":
         return (
           <div className="space-y-6">
-            <SettingsSection title="Beskeder" description="Besked-relaterede indstillinger">
+            <SettingsSection title="Adfærd">
+              <FeatureToggle
+                id="behavior-messages"
+                label="Beskeder til Nyeste"
+                description="Åbn beskeder i 'Nyeste' mappe som standard"
+                enabled={settings.behavior?.messagesAutoRedirect ?? true}
+                onChange={(v) => handleSettingChange('behavior', 'messagesAutoRedirect', v)}
+              />
+              <FeatureToggle
+                id="behavior-lastschool"
+                label="Fortsæt til sidst brugte skole"
+                description="Vis knap til hurtigt login på login-siden"
+                enabled={settings.behavior?.continueToLastSchool ?? true}
+                onChange={(v) => handleSettingChange('behavior', 'continueToLastSchool', v)}
+              />
+            </SettingsSection>
+
+            <SettingsSection title="Data">
+              <FeatureToggle
+                id="data-starred"
+                label="Favoritter"
+                description={`Gem favorit-personer til hurtig adgang (${starredCount} gemt)`}
+                enabled={settings.data?.starredPeople ?? false}
+                onChange={(v) => handleSettingChange('data', 'starredPeople', v)}
+              />
+              <FeatureToggle
+                id="data-recents"
+                label="Seneste søgninger"
+                description={`Husk dine seneste søgninger (${recentsCount} gemt)`}
+                enabled={settings.data?.recentSearches ?? false}
+                onChange={(v) => handleSettingChange('data', 'recentSearches', v)}
+              />
+            </SettingsSection>
+
+            <SettingsSection title="Beskeder">
               <FeatureToggle
                 id="behavior-signature"
                 label="Deaktiver 'Sendt med BetterLectio' signatur"
@@ -1017,6 +922,36 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 enabled={settings.behavior?.disableSignature ?? false}
                 onChange={(v) => handleSettingChange('behavior', 'disableSignature', v)}
               />
+            </SettingsSection>
+
+            <SettingsSection title="Privatliv">
+              <FeatureToggle
+                id="behavior-analytics"
+                label="Fravælg anonym analyse"
+                description="Deaktiver anonym brugsstatistik (sideopslag, fejlrapportering). Ingen persondata deles."
+                enabled={settings.behavior?.analyticsOptOut ?? false}
+                onChange={(v) => handleSettingChange('behavior', 'analyticsOptOut', v)}
+              />
+            </SettingsSection>
+
+            <SettingsSection title="Design System">
+              <div className="flex items-center justify-between py-3 px-4">
+                <div className="space-y-0.5">
+                  <Label className="font-medium">Design System Playground</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Udforsk farver, komponenter og mønstre
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPlaygroundOpen(true)}
+                  className="cursor-pointer"
+                >
+                  <FlaskConical className="size-4" />
+                  Åbn
+                </Button>
+              </div>
             </SettingsSection>
 
             <SettingsSection title="Cache" description="Administrer lokalt gemt data">

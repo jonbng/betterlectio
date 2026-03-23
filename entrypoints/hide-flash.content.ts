@@ -98,12 +98,6 @@ function getStoredSettings(): Record<string, any> | null {
   }
 }
 
-function isFoucPreventionEnabled(): boolean {
-  const settings = getStoredSettings();
-  if (!settings) return true; // Default to enabled
-  return settings?.visual?.foucPrevention ?? true;
-}
-
 /**
  * Apply dark mode class and theme attribute at document_start
  * so the page never flashes the wrong theme during navigation.
@@ -191,12 +185,6 @@ export default defineContentScript({
 
     // Skip for login pages - they have their own UI, don't hide
     if (isLoginPage()) {
-      document.documentElement.classList.add('il-ready');
-      return;
-    }
-
-    // Check if FOUC prevention is disabled in settings
-    if (!isFoucPreventionEnabled()) {
       document.documentElement.classList.add('il-ready');
       return;
     }

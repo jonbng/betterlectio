@@ -289,9 +289,7 @@ function initLayout() {
   }
 
   // Update page title to cleaner format
-  if (settings.visual.cleanPageTitles ?? true) {
-    updatePageTitle();
-  }
+  updatePageTitle();
 
   // Set cached profile data on window for AppSidebar to use
   const cachedProfile = getCachedProfile();
@@ -358,9 +356,7 @@ function initLayout() {
   }
 
   // Replace Lectio's favicon with our logo
-  if (settings.visual.customFavicon ?? true) {
-    replaceFavicon();
-  }
+  replaceFavicon();
 
   // Inject Geist font
   injectFont();
@@ -448,61 +444,40 @@ function initLayout() {
       // Initialize preloading for faster navigation
       const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1];
       if (schoolId) {
-        if (settings.behavior.preloading ?? true) {
-          initPreloading(schoolId);
-        }
+        initPreloading(schoolId);
 
         // Inject FindSkema page
-        if (
-          (settings.pages.findSkemaRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("findskema.aspx")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("findskema.aspx")) {
           injectFindSkemaPage(schoolId);
         }
 
         // Inject greeting on forside page
-        if (
-          (settings.pages.forsideRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("forside.aspx")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("forside.aspx")) {
           injectForsideGreeting(schoolId);
         }
 
         // Inject members page UI
-        if (
-          (settings.pages.membersPageCards ?? true) &&
-          window.location.pathname.toLowerCase().includes("members.aspx")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("members.aspx")) {
           injectMembersPage(schoolId);
         }
 
         // Inject lektier page UI
-        if (
-          (settings.pages.lektierRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("material_lektieoversigt")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("material_lektieoversigt")) {
           injectLektierPage(schoolId);
         }
 
         // Inject opgaver page UI
-        if (
-          (settings.pages.opgaverRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("opgaverelev")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("opgaverelev")) {
           injectOpgaverPage(schoolId);
         }
 
         // Inject beskeder page UI
-        if (
-          (settings.pages.beskederRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("beskeder2.aspx")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("beskeder2.aspx")) {
           injectBeskederPage(schoolId);
         }
 
         // Inject fravær page redesign
         if (
-          (settings.pages.fravaerRedesign ?? true) &&
           /\/subnav\/fravaerelev(_fravaersaarsager)?\.aspx/i.test(
             window.location.pathname,
           )
@@ -511,26 +486,17 @@ function initLayout() {
         }
 
         // Inject karakterer page UI
-        if (
-          (settings.pages.karaktererRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("grade_report.aspx")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("grade_report.aspx")) {
           injectKaraktererPage(schoolId);
         }
 
         // Inject profil page UI
-        if (
-          (settings.pages.profilRedesign ?? true) &&
-          window.location.pathname.toLowerCase().includes("studentindstillinger.aspx")
-        ) {
+        if (window.location.pathname.toLowerCase().includes("studentindstillinger.aspx")) {
           injectProfilPage(schoolId);
         }
 
         // Inject "viewing schedule" header when looking at someone else's schedule
-        if (
-          (settings.schedule.viewingScheduleHeader ?? true) &&
-          !isViewingOwnPage()
-        ) {
+        if (!isViewingOwnPage()) {
           injectViewingScheduleHeader(schoolId);
 
           // Add body class for entity schedules (non-person types like hold, class, room)
@@ -559,9 +525,7 @@ function initLayout() {
       }
 
       // Set up title observer for dynamic updates (e.g., unread message count)
-      if (settings.visual.cleanPageTitles ?? true) {
-        observeTitleChanges();
-      }
+      observeTitleChanges();
 
       // Set up schedule table column widths, clean labels, and highlight today
       injectScheduleColgroup();

@@ -5,6 +5,19 @@ const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
 
 const ANON_ID_KEY = 'bl-posthog-anon-id';
 
+// ── Analytics opt-out ────────────────────────────────────────────────
+// Direct localStorage read to avoid circular dependency with settings-storage.
+
+function isOptedOut(): boolean {
+  try {
+    const stored = localStorage.getItem('bl-feature-settings') ?? localStorage.getItem('il-feature-settings');
+    if (!stored) return false;
+    return JSON.parse(stored)?.behavior?.analyticsOptOut === true;
+  } catch {
+    return false;
+  }
+}
+
 // ── Singleton client ─────────────────────────────────────────────────
 
 let _client: PostHog | null = null;
@@ -108,6 +121,7 @@ export function capture(
   properties?: Record<string, unknown>,
 ): void {
   try {
+    if (isOptedOut()) return;
     getClient().capture({
       distinctId,
       event,
@@ -125,6 +139,7 @@ export function capture(
  */
 export async function aliasAnonToIdentified(distinctId: string): Promise<void> {
   try {
+    if (isOptedOut()) return;
     const ALIAS_KEY = 'bl-posthog-aliased';
     const prev = localStorage.getItem(ALIAS_KEY);
     if (prev === distinctId) return; // already linked in this browser
@@ -149,6 +164,7 @@ export function identify(
   properties?: Record<string, unknown>,
 ): void {
   try {
+    if (isOptedOut()) return;
     getClient().identify({ distinctId, properties });
   } catch {
     // Non-critical
@@ -167,6 +183,7 @@ export function identifyIfNeeded(
   properties?: Record<string, unknown>,
 ): void {
   try {
+    if (isOptedOut()) return;
     const fingerprint = JSON.stringify({ distinctId, ...properties });
     const prev = sessionStorage.getItem(SESSION_IDENTIFY_KEY);
     if (prev === fingerprint) return;
@@ -205,6 +222,7 @@ export function captureOncePerSession(
   properties?: Record<string, unknown>,
 ): void {
   try {
+    if (isOptedOut()) return;
     const key = `bl-posthog-once:${event}`;
     if (sessionStorage.getItem(key)) return;
 
@@ -228,6 +246,7 @@ export async function captureException(
   additionalProperties?: Record<string, unknown>,
 ): Promise<void> {
   try {
+    if (isOptedOut()) return;
     const id = distinctId ?? await getOrCreateAnonId();
     getClient().captureException(error, id, additionalProperties);
   } catch {

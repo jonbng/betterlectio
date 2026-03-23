@@ -91,12 +91,6 @@ async function initLoginPage() {
   const settings = getSettings();
   document.documentElement.classList.toggle("dark", settings.visual?.darkMode ?? false);
 
-  // Check if login page redesign is disabled
-  if (!(settings.pages?.loginPageRedesign ?? true)) {
-    console.log("[BetterLectio] Login page redesign disabled, skipping");
-    return;
-  }
-
   // Check if user is already logged in and should be redirected
   // (only if continueToLastSchool is enabled)
   if ((settings.behavior?.continueToLastSchool ?? true) && await checkAndRedirectIfLoggedIn()) {

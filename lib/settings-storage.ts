@@ -6,9 +6,6 @@ const SETTINGS_VERSION = 1;
 
 // Define nested schemas separately so we can use them for defaults
 const VisualSettingsSchema = z.object({
-  customFavicon: z.boolean().default(true),
-  cleanPageTitles: z.boolean().default(true),
-  foucPrevention: z.boolean().default(true), // requires reload
   darkMode: z.boolean().default(false),
 });
 
@@ -17,30 +14,14 @@ const ScheduleSettingsSchema = z.object({
   currentTimeIndicator: z.boolean().default(true),
   currentTimeLabel: z.boolean().default(false),
   countdownBar: z.boolean().default(true),
-  viewingScheduleHeader: z.boolean().default(true),
   subjectColors: z.boolean().default(true),
 });
 
-const PagesSettingsSchema = z.object({
-  findSkemaRedesign: z.boolean().default(true),
-  forsideRedesign: z.boolean().default(true),
-  membersPageCards: z.boolean().default(true),
-  lektierRedesign: z.boolean().default(true),
-  opgaverRedesign: z.boolean().default(true),
-  fravaerRedesign: z.boolean().default(true),
-  beskederRedesign: z.boolean().default(true),
-  karaktererRedesign: z.boolean().default(true),
-  profilRedesign: z.boolean().default(true),
-  loginPageRedesign: z.boolean().default(true), // requires reload
-});
-
 const BehaviorSettingsSchema = z.object({
-  sessionPopupBlocker: z.boolean().default(true), // requires reload
-  autoRedirectForside: z.boolean().default(true), // requires reload
   messagesAutoRedirect: z.boolean().default(true),
   continueToLastSchool: z.boolean().default(true),
-  preloading: z.boolean().default(true),
   disableSignature: z.boolean().default(false),
+  analyticsOptOut: z.boolean().default(false),
 });
 
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting
@@ -69,7 +50,6 @@ const SidebarSettingsSchema = z.object({
 // Default values for each category - needed because Zod doesn't recursively apply defaults
 const DEFAULT_VISUAL = VisualSettingsSchema.parse({});
 const DEFAULT_SCHEDULE = ScheduleSettingsSchema.parse({});
-const DEFAULT_PAGES = PagesSettingsSchema.parse({});
 const DEFAULT_BEHAVIOR = BehaviorSettingsSchema.parse({});
 const DEFAULT_DATA = DataSettingsSchema.parse({});
 const DEFAULT_SIDEBAR = SidebarSettingsSchema.parse({});
@@ -82,7 +62,6 @@ export const FeatureSettingsSchema = z.object({
   version: z.number().default(SETTINGS_VERSION),
   visual: VisualSettingsSchema.default(DEFAULT_VISUAL),
   schedule: ScheduleSettingsSchema.default(DEFAULT_SCHEDULE),
-  pages: PagesSettingsSchema.default(DEFAULT_PAGES),
   behavior: BehaviorSettingsSchema.default(DEFAULT_BEHAVIOR),
   data: DataSettingsSchema.default(DEFAULT_DATA),
   sidebar: SidebarSettingsSchema.default(DEFAULT_SIDEBAR),
@@ -95,12 +74,8 @@ export type FeatureSettings = z.infer<typeof FeatureSettingsSchema>;
  * These are checked by content scripts that run at document_start.
  */
 export const SETTINGS_REQUIRING_RELOAD = [
-  'visual.customFavicon',
-  'visual.cleanPageTitles',
-  'visual.foucPrevention',
-  'behavior.sessionPopupBlocker',
-  'behavior.autoRedirectForside',
-  'pages.loginPageRedesign',
+  'schedule.todayHighlight',
+  'schedule.currentTimeIndicator',
   'schedule.currentTimeLabel',
   'schedule.subjectColors',
 ] as const;
@@ -109,8 +84,6 @@ export const SETTINGS_REQUIRING_RELOAD = [
  * Feature dependencies - key depends on value being enabled.
  */
 export const FEATURE_DEPENDENCIES: Record<string, string> = {
-  'data.starredPeople': 'pages.findSkemaRedesign',
-  'data.recentSearches': 'pages.findSkemaRedesign',
   'schedule.currentTimeIndicator': 'schedule.todayHighlight',
   'schedule.currentTimeLabel': 'schedule.todayHighlight',
 };
