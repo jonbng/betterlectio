@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { Star, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
 import { fetchPictureUrl, getCachedPictureUrl } from '../lib/findskema-storage';
+import { browser } from 'wxt/browser';
 
 // Type configuration for badge display
 const TYPE_CONFIG: Record<string, { label: string; badgeClass: string }> = {
@@ -46,6 +47,7 @@ interface PersonCardProps {
   onClick?: () => void;
   schoolId: string;
   searchQuery?: string; // If provided, adds from=findskema&q= to href for back navigation
+  hasBetterLectio?: boolean; // Show BetterLectio badge on student cards
 }
 
 export function PersonCard({
@@ -60,6 +62,7 @@ export function PersonCard({
   onClick,
   schoolId,
   searchQuery,
+  hasBetterLectio,
 }: PersonCardProps) {
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.S;
   const isEntityCard = !TYPES_WITH_PICTURES.includes(type);
@@ -297,6 +300,17 @@ export function PersonCard({
         </div>
 
         {actionButtons}
+
+        {/* BetterLectio badge */}
+        {hasBetterLectio && (
+          <div className="absolute bottom-2 right-2 size-5 rounded-full ring-2 ring-white dark:ring-gray-900 shadow-[0_2px_6px_oklch(0_0_0/0.15)] overflow-hidden">
+            <img
+              src={browser.runtime.getURL('/assets/logo-rounded.svg')}
+              alt="BetterLectio"
+              className="size-full"
+            />
+          </div>
+        )}
       </div>
 
       {/* Card content below image */}

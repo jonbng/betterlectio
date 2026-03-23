@@ -293,6 +293,8 @@ export type Database = {
           lectio_pfp_url: string | null
           name: string | null
           school_id: number
+          show_birthday: boolean
+          supabase_id: string
         }
         Insert: {
           birthdate?: string | null
@@ -308,6 +310,8 @@ export type Database = {
           lectio_pfp_url?: string | null
           name?: string | null
           school_id: number
+          show_birthday?: boolean
+          supabase_id: string
         }
         Update: {
           birthdate?: string | null
@@ -323,6 +327,8 @@ export type Database = {
           lectio_pfp_url?: string | null
           name?: string | null
           school_id?: number
+          show_birthday?: boolean
+          supabase_id?: string
         }
         Relationships: [
           {

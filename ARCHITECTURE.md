@@ -89,6 +89,19 @@ Content Scripts (inject into lectio.dk pages)
 - UserJot SDK files are vendored into `public/vendor/userjot/` via `npm run vendor:userjot`.
 - Build/zip scripts run this vendoring step automatically before packaging.
 
+### Supabase Auth & Storage
+
+**Edge function** (`supabase/functions/verify-lectio-auth/index.ts`):
+1. QR login via `LandingPageQrCode.aspx` → extract session cookies + school ID
+2. Fetch student profile from `digitaltStudiekort.aspx` (name, birthdate, picture URL)
+3. `generateLink({ type: 'magiclink' })` → creates/finds auth user, returns `data.user.id`
+4. Download Lectio profile picture (authenticated) → upload to `profile-pictures` storage bucket at `{schoolId}/{userId}.{ext}`
+5. Upsert `students` record with `supabase_id` (auth UID), `lectio_pfp_url` (original), `custom_pfp_url` (Supabase Storage public URL)
+
+**Storage bucket** `profile-pictures`: public, allows jpeg/png/webp/gif, 5MB limit. Pictures are organized as `{schoolId}/{userId}.{ext}`.
+
+**Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
+
 ---
 
 ## Key Components
@@ -114,9 +127,10 @@ Content Scripts (inject into lectio.dk pages)
 
 | File | Purpose |
 |------|---------|
-| `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections |
-| `ProfilePage.tsx` | Student profile header with tabbed schedule, classmates, teachers, hold/group membership, and fetched native documents views built from Lectio DOM + subnav pages |
-| `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params |
+| `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections, BetterLectio badges on students |
+| `ProfilePage.tsx` | Supabase-backed student profile: description, instagram, birthday (if `show_birthday`), custom pfp, inline edit form for own profile. Tabs: schedule, classmates, teachers, hold/groups, documents |
+| `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params, optional BetterLectio badge |
+| `lib/supabase/student-lookup.ts` | Shared `useSchoolStudents` hook (Map for O(1) lookups), `getStudentIdFromPersonId`, `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
 | `lib/class-name.ts` | Shared class-name transforms/matchers for letter-based, numeric, and letter-prefixed class codes (`1x`, `1.4`, `L2d`, year-based dropdown names) |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |

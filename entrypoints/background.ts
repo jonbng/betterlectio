@@ -197,14 +197,14 @@ async function clearLock(): Promise<void> {
   await browser.storage.local.remove(LOCK_KEY);
 }
 
-async function triggerSupabaseAuth(qrId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<{ success: boolean; error?: string }> {
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/verify-lectio-auth`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ qrId, userId }),
+    body: JSON.stringify({ qrId, userId, schoolId }),
   });
 
   if (!resp.ok) {
@@ -229,7 +229,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string): Promise<{ succ
   return { success: true };
 }
 
-async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }): Promise<SupabaseResponse> {
+async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, schoolId?: string): Promise<SupabaseResponse> {
   try {
     const supabase = getSupabase();
     const { data } = await supabase.auth.getSession();
@@ -257,7 +257,7 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }):
 
     await setLock();
     try {
-      const result = await triggerSupabaseAuth(qrData.qrId, qrData.userId);
+      const result = await triggerSupabaseAuth(qrData.qrId, qrData.userId, schoolId);
       if (result.success) {
         await setFailures({ count: 0, lastAttempt: 0 });
         await browser.storage.local.remove(REAUTH_KEY);
@@ -347,7 +347,7 @@ export default defineBackground(() => {
 
       // ── Auth ────────────────────────────────────────────────────
       case 'bl-sb:auth:ensure':
-        ensureSupabaseSession(msg.qrData).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        ensureSupabaseSession(msg.qrData, msg.schoolId).then(sendResponse).catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:auth:session': {

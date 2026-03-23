@@ -10,15 +10,16 @@ import {
   GraduationCap,
   LayoutGrid,
   Users,
-  BookOpen,
   Calendar,
   ChevronLeft,
   ChevronRight,
   Loader2,
   UserPlus,
+  Pencil,
 } from 'lucide-react';
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
+import { getLoggedInUserId } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
 import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
@@ -26,6 +27,13 @@ import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name'
 import { PersonCard } from './PersonCard';
 import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
+import type { Tables } from '@/database.types';
+import { useQuery, useMutation } from '@/lib/supabase/hooks';
+import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
+import { Input } from './ui/input';
+import { Checkbox } from './ui/checkbox';
+import { Button } from './ui/button';
+import { Label } from './ui/label';
 
 interface ProfilePageProps {
   name: string;
@@ -50,54 +58,19 @@ interface HoldGroupItem {
   href: string;
 }
 
-// ── Example profile data (hardcoded for specific users) ─────────────────
-
-interface ExampleProfileData {
-  displayName: string;
-  description: string;
-  birthdate: string;
-  instagram: string;
-  studieretning: string;
-}
-
-const EXAMPLE_PROFILES: Record<string, ExampleProfileData> = {
-  '72721770937': {
-    // Elliott Friedrich
-    displayName: 'Elliott Friedrich',
-    description: 'BetterLectio Founder & Programmør',
-    birthdate: '28. feb 2008',
-    instagram: '@elliottinnz',
-    studieretning: 'Mat/Fys',
-  },
-  '72721772841': {
-    // Jonathan Bangert
-    displayName: 'Jonathan Bangert',
-    description: 'BetterLectio Founder & Programmør',
-    birthdate: '9. jan 2008',
-    instagram: '@jonathan.bangert',
-    studieretning: 'Mat/Fys',
-  },
-};
-
-function getExampleProfile(entityId: string): ExampleProfileData | null {
-  return EXAMPLE_PROFILES[entityId] || null;
-}
+type Student = Tables<'students'>;
 
 // ── Hold extraction helpers ─────────────────────────────────────────────
 
-/** Extract unique hold codes from schedule bricks in a document/element */
-function extractHoldCodesFromDOM(root: Document | Element): Set<string> {
-  const holds = new Set<string>();
-  root.querySelectorAll('[data-tooltip]').forEach(el => {
-    const tooltip = el.getAttribute('data-tooltip') || '';
-    const holdLine = tooltip.match(/^Hold:\s*(.+)$/m);
-    if (holdLine) {
-      holdLine[1].split(',').map(h => h.trim()).filter(Boolean).forEach(h => {
-        holds.add(h);
-      });
-    }
-  });
-  return holds;
+/** Fetch the logged-in user's hold group items from their schedule page */
+async function fetchMyHoldGroupItems(schoolId: string): Promise<Map<string, HoldGroupItem>> {
+  const url = new URL(`/lectio/${schoolId}/SkemaNy.aspx`, window.location.origin).href;
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) return new Map();
+  const html = await res.text();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const items = parseHoldGroupItemsFromDOM(doc);
+  return new Map(items.map(item => [item.id, item]));
 }
 
 function parseHoldGroupItemsFromDOM(doc: Document = document): HoldGroupItem[] {
@@ -137,54 +110,6 @@ function getSubnavUrlByLabel(label: string, doc: Document = document): string | 
   return new URL(link.getAttribute('href') || '', window.location.origin).toString();
 }
 
-/** Fetch a schedule page and extract hold codes from it */
-async function fetchHoldCodesFromUrl(url: string): Promise<Set<string>> {
-  const res = await fetch(url, { credentials: 'include' });
-  if (!res.ok) return new Set();
-  const html = await res.text();
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return extractHoldCodesFromDOM(doc);
-}
-
-/** Get the current user's hold codes by fetching their schedule (current + prev + next week) */
-async function fetchMyHoldCodes(schoolId: string): Promise<Set<string>> {
-  const base = new URL(`/lectio/${schoolId}/SkemaNy.aspx`, window.location.origin).href;
-
-  // Fetch current week first (most important), then prev/next in parallel
-  const currentHolds = await fetchHoldCodesFromUrl(base);
-
-  // Extract prev/next week URLs from the fetched page's nav links
-  // Use week param based on current date
-  const now = new Date();
-  const oneWeek = 7 * 24 * 60 * 60 * 1000;
-  const prevDate = new Date(now.getTime() - oneWeek);
-  const nextDate = new Date(now.getTime() + oneWeek);
-
-  // Lectio week format: WWYYYY (ISO week number + year)
-  function getWeekParam(d: Date): string {
-    // ISO week calculation
-    const tmp = new Date(d.getTime());
-    tmp.setHours(0, 0, 0, 0);
-    tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7));
-    const week1 = new Date(tmp.getFullYear(), 0, 4);
-    const weekNum = 1 + Math.round(((tmp.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
-    return `${weekNum}${tmp.getFullYear()}`;
-  }
-
-  const [prevHolds, nextHolds] = await Promise.all([
-    fetchHoldCodesFromUrl(`${base}?week=${getWeekParam(prevDate)}`).catch(() => new Set<string>()),
-    fetchHoldCodesFromUrl(`${base}?week=${getWeekParam(nextDate)}`).catch(() => new Set<string>()),
-  ]);
-
-  const all = new Set(currentHolds);
-  prevHolds.forEach(h => {
-    all.add(h);
-  });
-  nextHolds.forEach(h => {
-    all.add(h);
-  });
-  return all;
-}
 
 // ── Week navigation helpers ─────────────────────────────────────────────
 
@@ -263,13 +188,38 @@ export function ProfilePage({
   const [, setMembersRerenderNonce] = useState(0);
   const classIdRef = useRef<string | null>(null);
   const [holdGroups, setHoldGroups] = useState<HoldGroupItem[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [editDescription, setEditDescription] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
+  const [editShowBirthday, setEditShowBirthday] = useState(false);
+
+  // Supabase student data
+  const { data: student, refetch: refetchStudent } = useQuery<Student>({
+    schoolId,
+    table: 'students',
+    filters: [{ column: 'id', op: 'eq', value: entityId }],
+    single: true,
+  });
+  const { studentsMap } = useSchoolStudents(schoolId);
+  const loggedInId = getLoggedInUserId();
+  const isOwnProfile = loggedInId === entityId;
+
+  const { mutate: updateProfile, isLoading: saving } = useMutation({
+    table: 'students',
+    method: 'update',
+    schoolId,
+    onSuccess: () => {
+      setEditing(false);
+      refetchStudent();
+    },
+  });
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
-  const exampleProfile = getExampleProfile(entityId);
-  const hasBetterLectio = exampleProfile !== null;
-  const displayName = exampleProfile?.displayName || name;
+  const hasBetterLectio = !!(student?.has_extension || student?.has_app);
+  const displayName = student?.name || name;
   const firstName = displayName.split(' ')[0];
-  const canEnlargePicture = Boolean(pictureUrl && hasBetterLectio);
+  const effectivePictureUrl = student?.custom_pfp_url || student?.lectio_pfp_url || pictureUrl;
+  const canEnlargePicture = Boolean(effectivePictureUrl && hasBetterLectio);
 
   // Navigation context
   const urlParams = new URLSearchParams(window.location.search);
@@ -319,8 +269,8 @@ export function ProfilePage({
     return () => window.clearTimeout(timer);
   }, [supportsHoldGroupsTab]);
 
-  // Mutual holds — compare viewed person's schedule with our own
-  const [mutualHolds, setMutualHolds] = useState<string[]>([]);
+  // Mutual holds — compare viewed person's holdElementLinkList with our own
+  const [mutualHolds, setMutualHolds] = useState<HoldGroupItem[]>([]);
   const [theirTotalHolds, setTheirTotalHolds] = useState(0);
   const mutualFetchedRef = useRef(false);
   useEffect(() => {
@@ -329,23 +279,17 @@ export function ProfilePage({
 
     (async () => {
       try {
-        // Extract viewed person's holds from the current page DOM
-        const originalContent = document.getElementById('il-original-content');
-        if (!originalContent) return;
+        // Extract viewed person's holds from the holdElementLinkList in the current page DOM
+        const theirItems = parseHoldGroupItemsFromDOM(document);
+        if (theirItems.length === 0) return;
+        setTheirTotalHolds(theirItems.length);
 
-        // Wait a tick for DOM to be populated
-        await new Promise(r => setTimeout(r, 300));
+        // Fetch our own holds from our schedule page
+        const myHoldsMap = await fetchMyHoldGroupItems(schoolId);
+        if (myHoldsMap.size === 0) return;
 
-        const theirHolds = extractHoldCodesFromDOM(originalContent);
-        if (theirHolds.size === 0) return;
-        setTheirTotalHolds(theirHolds.size);
-
-        // Fetch our own holds
-        const myHolds = await fetchMyHoldCodes(schoolId);
-        if (myHolds.size === 0) return;
-
-        // Find intersection
-        const mutual = [...theirHolds].filter(h => myHolds.has(h));
+        // Find intersection by holdelementid
+        const mutual = theirItems.filter(item => myHoldsMap.has(item.id));
         if (mutual.length > 0) setMutualHolds(mutual);
       } catch {
         // Silent fail — mutual holds are a nice-to-have
@@ -581,12 +525,12 @@ export function ProfilePage({
                 ? 'w-[90px] h-[120px] ring-2 ring-border shadow-lg'
                 : 'w-[60px] h-[80px] ring-1 ring-border/60',
               canEnlargePicture ? 'cursor-pointer hover:ring-primary/40 transition-all' : '',
-              !pictureUrl ? 'bg-muted flex items-center justify-center' : '',
+              !effectivePictureUrl ? 'bg-muted flex items-center justify-center' : '',
             )}
             onClick={() => canEnlargePicture && setImageEnlarged(true)}
           >
-            {pictureUrl ? (
-              <img src={pictureUrl} alt={displayName} className="w-full h-full object-cover object-top" />
+            {effectivePictureUrl ? (
+              <img src={effectivePictureUrl} alt={displayName} className="w-full h-full object-cover object-top" />
             ) : (
               <span className={cn(
                 'font-semibold text-muted-foreground',
@@ -652,47 +596,134 @@ export function ProfilePage({
               </div>
             </div>
 
-            {hasBetterLectio && exampleProfile ? (
-              <>
-                {/* Description */}
-                <p className="text-base text-muted-foreground leading-relaxed max-w-xl">
-                  {exampleProfile.description}
-                </p>
+            {hasBetterLectio ? (
+              editing ? (
+                /* ── Edit form ── */
+                <div className="flex flex-col gap-4 max-w-md">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="bl-edit-desc" className="text-sm font-medium">Beskrivelse</Label>
+                    <Input
+                      id="bl-edit-desc"
+                      value={editDescription}
+                      onInput={(e) => setEditDescription((e.target as HTMLInputElement).value)}
+                      maxLength={200}
+                      placeholder="Skriv lidt om dig selv..."
+                      className="text-sm"
+                    />
+                    <span className="text-xs text-muted-foreground text-right">{editDescription.length}/200</span>
+                  </div>
 
-                {/* Info chips + mutual holds */}
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <InfoChip icon={Cake} label={exampleProfile.birthdate} />
-                  <InfoChip icon={Instagram} label={exampleProfile.instagram} href={`https://instagram.com/${exampleProfile.instagram.replace('@', '')}`} />
-                  {subtitle && <InfoChip icon={GraduationCap} label={subtitle} />}
-                  <InfoChip icon={BookOpen} label={exampleProfile.studieretning} />
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="bl-edit-ig" className="text-sm font-medium">Instagram</Label>
+                    <Input
+                      id="bl-edit-ig"
+                      value={editInstagram}
+                      onInput={(e) => setEditInstagram((e.target as HTMLInputElement).value)}
+                      placeholder="@brugernavn"
+                      className="text-sm"
+                    />
+                  </div>
 
-                  {mutualHolds.length > 0 && (
-                    <>
-                      <span className="w-px h-5 bg-border" />
-                      {isSameClass ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
-                          <Users className="size-3.5" />
-                          I samme klasse
-                        </span>
-                      ) : (
-                        <>
-                          <span className="text-xs font-semibold text-primary">
-                            Fælles hold
-                          </span>
-                          {mutualHolds.map(hold => (
-                            <MutualHoldPill key={hold} hold={hold} />
-                          ))}
-                        </>
-                      )}
-                    </>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="bl-edit-bday"
+                      checked={editShowBirthday}
+                      onCheckedChange={(checked: boolean) => setEditShowBirthday(checked === true)}
+                    />
+                    <Label htmlFor="bl-edit-bday" className="text-sm cursor-pointer">Vis fødseldag på profil</Label>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      disabled={saving}
+                      onClick={() => {
+                        updateProfile(
+                          {
+                            description: editDescription || null,
+                            instagram: editInstagram || null,
+                            show_birthday: editShowBirthday,
+                          },
+                          [{ column: 'id', op: 'eq', value: entityId }],
+                        );
+                      }}
+                    >
+                      {saving ? 'Gemmer...' : 'Gem'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={saving}
+                      onClick={() => setEditing(false)}
+                    >
+                      Annuller
+                    </Button>
+                  </div>
                 </div>
-              </>
+              ) : (
+                /* ── View mode ── */
+                <>
+                  {/* Description */}
+                  {student?.description && (
+                    <p className="text-base text-muted-foreground leading-relaxed max-w-xl">
+                      {student.description}
+                    </p>
+                  )}
+
+                  {/* Info chips + edit button + mutual holds */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {student?.show_birthday && student?.birthdate && (
+                      <InfoChip icon={Cake} label={formatDanishBirthdate(student.birthdate)} />
+                    )}
+                    {student?.instagram && (
+                      <InfoChip icon={Instagram} label={student.instagram} href={`https://instagram.com/${student.instagram.replace('@', '')}`} />
+                    )}
+                    {subtitle && <InfoChip icon={GraduationCap} label={subtitle} />}
+
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditDescription(student?.description || '');
+                          setEditInstagram(student?.instagram || '');
+                          setEditShowBirthday(student?.show_birthday ?? false);
+                          setEditing(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-muted/60 hover:bg-muted px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Pencil className="size-3.5" />
+                        Rediger profil
+                      </button>
+                    )}
+
+                    {mutualHolds.length > 0 && (
+                      <>
+                        <span className="w-px h-5 bg-border" />
+                        {isSameClass ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 text-primary px-3 py-1 text-sm font-medium">
+                            <Users className="size-3.5" />
+                            I samme klasse
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-xs font-semibold text-primary">
+                              Fælles hold
+                            </span>
+                            {mutualHolds.map(item => (
+                              <MutualHoldPill key={item.id} hold={item.name} />
+                            ))}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </>
+              )
             ) : (
               <div className="flex items-start gap-3 mt-1 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
                 <UserPlus className="size-5 text-muted-foreground/70 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground leading-relaxed">
-                  Det kommer snart at man kan ændre sin profil med navn, billede, beskrivelse og Instagram.
+                  Denne elev har ikke BetterLectio endnu.
                 </div>
               </div>
             )}
@@ -830,6 +861,12 @@ export function ProfilePage({
                     onStarToggle={handleMemberStarToggle}
                     onClick={() => handleMemberClick(member)}
                     schoolId={schoolId}
+                    hasBetterLectio={(() => {
+                      const sid = getStudentIdFromPersonId(member.id);
+                      if (!sid || !studentsMap) return false;
+                      const s = studentsMap.get(sid);
+                      return !!(s?.has_extension || s?.has_app);
+                    })()}
                   />
                 );
               })}
@@ -890,7 +927,7 @@ export function ProfilePage({
 
 
       {/* Enlarged profile picture overlay */}
-      {imageEnlarged && pictureUrl && (
+      {imageEnlarged && effectivePictureUrl && (
         <div
           role="dialog"
           aria-modal="true"
@@ -907,8 +944,8 @@ export function ProfilePage({
           }}
         >
           <img
-            src={pictureUrl}
-            alt={name}
+            src={effectivePictureUrl}
+            alt={displayName}
             className="max-w-[80vw] max-h-[80vh] rounded-xl shadow-2xl object-contain animate-in zoom-in-95 duration-200"
           />
         </div>

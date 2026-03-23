@@ -14,6 +14,7 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NUMERIC_RE = /^\d+$/;
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 BetterLectio/1.0';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -28,6 +29,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const qrId = String(body.qrId ?? '');
     const userId = String(body.userId ?? '');
+    const clientSchoolId = body.schoolId ? String(body.schoolId) : null;
 
     // Validate required fields
     if (!qrId || !userId) {
@@ -43,8 +45,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Step 1: Login via QR code URL ──────────────────────────────────
-    const qrLoginUrl = `https://www.lectio.dk/lectio/94/LandingPageQrCode.aspx?userId=${userId}&QrId=${qrId}`;
-    const qrResp = await fetch(qrLoginUrl, { redirect: 'manual' });
+    const qrSchool = clientSchoolId || '94';
+    const qrLoginUrl = `https://www.lectio.dk/lectio/${qrSchool}/LandingPageQrCode.aspx?userId=${userId}&QrId=${qrId}`;
+    const qrResp = await fetch(qrLoginUrl, { redirect: 'manual', headers: { 'User-Agent': USER_AGENT } });
 
     if (qrResp.status !== 303) {
       return jsonResponse({ error: 'QR code invalid or expired' }, 401);
@@ -79,10 +82,25 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'No session cookies received from QR login' }, 500);
     }
 
-    // ── Step 2: Fetch student profile from digitaltStudiekort.aspx ─────
+    // ── Step 2: Resolve the real elevid ────────────────────────────────
+    // The QR userId is NOT the elevid used in Lectio URLs. Fetch the
+    // schedule page which has data-lectiocontextcard="S{elevid}" on the title.
+    const skemaUrl = `https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`;
+    const skemaResp = await fetch(skemaUrl, {
+      headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
+      redirect: 'follow',
+    });
+    const skemaHtml = await skemaResp.text();
+    const elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
+    if (!elevidMatch) {
+      return jsonResponse({ error: 'Could not determine elevid from authenticated session' }, 500);
+    }
+    const elevid = elevidMatch[1];
+
+    // ── Step 3: Fetch student profile from digitaltStudiekort.aspx ─────
     const studiekortUrl = `https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`;
     const studiekortResp = await fetch(studiekortUrl, {
-      headers: { Cookie: cookieHeader },
+      headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
       redirect: 'follow',
     });
     const html = await studiekortResp.text();
@@ -90,8 +108,13 @@ Deno.serve(async (req: Request) => {
     // Parse name: strip "(k)" or similar suffix
     const nameMatch = html.match(/id="s_m_Content_Content_StudentName"[^>]*>([^<]+)</);
     let name: string | null = null;
+    let firstName: string | null = null;
+    let lastName: string | null = null;
     if (nameMatch) {
       name = nameMatch[1].replace(/\([^)]*\)\s*$/, '').trim();
+      const parts = name.split(/\s+/);
+      firstName = parts[0] || null;
+      lastName = parts.length > 1 ? parts.slice(1).join(' ') : null;
     }
 
     // Parse birthday: "Fødselsdag: D/M-YYYY (N år)" → "YYYY-MM-DD"
@@ -117,7 +140,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const email = `${schoolId}-${userId}@betterlectio.dk`;
+    const email = `${schoolId}-${elevid}@betterlectio.dk`;
 
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
@@ -129,16 +152,62 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Failed to generate login link' }, 500);
     }
 
-    // Upsert student record (non-blocking)
+    // Extract the auth user ID from the generated link
+    const supabaseAuthId = data.user?.id ?? null;
+
+    // ── Step 4: Upload profile picture to Supabase Storage ───────────
+    let storedPfpPath: string | null = null;
+    if (pictureUrl) {
+      try {
+        const picResp = await fetch(pictureUrl, {
+          headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
+        });
+        if (picResp.ok) {
+          const picBlob = await picResp.blob();
+          // Detect extension from content-type, default to jpg
+          const contentType = picResp.headers.get('content-type') || 'image/jpeg';
+          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+          const storagePath = `${schoolId}/${elevid}.${ext}`;
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('profile-pictures')
+            .upload(storagePath, picBlob, {
+              contentType,
+              upsert: true,
+            });
+
+          if (uploadError) {
+            console.warn('Failed to upload profile picture:', uploadError);
+          } else {
+            storedPfpPath = storagePath;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to fetch/upload profile picture:', e);
+      }
+    }
+
+    // ── Step 5: Upsert student record ────────────────────────────────
     try {
       const studentRecord: Record<string, unknown> = {
-        id: userId,
+        id: elevid,
         school_id: parseInt(schoolId, 10),
         has_extension: true,
       };
+      if (supabaseAuthId) studentRecord.supabase_id = supabaseAuthId;
       if (name) studentRecord.name = name;
+      if (firstName) studentRecord.lectio_first_name = firstName;
+      if (lastName) studentRecord.lectio_last_name = lastName;
       if (birthdate) studentRecord.birthdate = birthdate;
-      if (pictureUrl) studentRecord.lectio_pfp_url = pictureUrl;
+      if (storedPfpPath) {
+        const { data: urlData } = supabaseAdmin.storage
+          .from('profile-pictures')
+          .getPublicUrl(storedPfpPath);
+        studentRecord.lectio_pfp_url = urlData.publicUrl;
+      } else if (pictureUrl) {
+        // Fallback to original Lectio URL if storage upload failed
+        studentRecord.lectio_pfp_url = pictureUrl;
+      }
 
       await supabaseAdmin
         .from('students')

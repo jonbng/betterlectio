@@ -286,6 +286,11 @@ function initLayout() {
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
       void ensureSupabaseSession(schoolId);
     }).catch(() => {});
+
+    // Prefetch all school students into cache (for BL badges + profile data)
+    import('@/lib/supabase/resources/student').then(({ getStudentsBySchool }) => {
+      getStudentsBySchool(schoolId);
+    }).catch(() => {});
   }
 
   // Update page title to cleaner format

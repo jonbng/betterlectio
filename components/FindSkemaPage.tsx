@@ -27,6 +27,7 @@ import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
 import { getMyTeacherIds } from '../lib/my-teachers';
 import { getFullHoldDisplayName } from '../lib/hold-mapping';
 import { classGroupsMatch, transformYearBasedClassName, transformYearBasedHoldName } from '../lib/class-name';
+import { useSchoolStudents, getStudentIdFromPersonId } from '../lib/supabase/student-lookup';
 
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
@@ -81,6 +82,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const [recents, setRecents] = useState<RecentPerson[]>([]);
   const [myTeacherIds, setMyTeacherIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+  const { studentsMap } = useSchoolStudents(schoolId);
 
   // Initialize active filter based on searchType prop — single-select or 'all'
   const getInitialFilter = (): string => {
@@ -353,6 +355,13 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const showClassmates = !showSearchResults && classmates.length > 0 && activeFilters.has('S');
   const showMyTeachers = !showSearchResults && myTeachers.length > 0 && activeFilters.has('T');
 
+  const hasBL = (personId: string) => {
+    const sid = getStudentIdFromPersonId(personId);
+    if (!sid || !studentsMap) return false;
+    const s = studentsMap.get(sid);
+    return !!(s?.has_extension || s?.has_app);
+  };
+
   return (
     <div className="min-h-full bg-background pb-2">
       {/* Search Section */}
@@ -441,6 +450,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                     onClick={() => handleCardClick(item)}
                     schoolId={schoolId}
                     searchQuery={query}
+                    hasBetterLectio={hasBL(item.id)}
                   />
                 );
               })}
@@ -474,6 +484,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   onClick={() => handleCardClick(item)}
                   schoolId={schoolId}
                   searchQuery={query}
+                  hasBetterLectio={hasBL(item.id)}
                 />
               );
             })}
@@ -502,6 +513,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 onRemove={handleRemoveRecent}
                 schoolId={schoolId}
                 searchQuery={query}
+                hasBetterLectio={hasBL(recent.id)}
               />
             ))}
           </div>
@@ -537,6 +549,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 }}
                 schoolId={schoolId}
                 searchQuery={query}
+                hasBetterLectio={hasBL(person.id)}
               />
             ))}
           </div>
@@ -566,6 +579,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   onClick={() => handleCardClick(item)}
                   schoolId={schoolId}
                   searchQuery={query}
+                  hasBetterLectio={hasBL(item.id)}
                 />
               );
             })}
@@ -596,6 +610,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   onClick={() => handleCardClick(item)}
                   schoolId={schoolId}
                   searchQuery={query}
+                  hasBetterLectio={hasBL(item.id)}
                 />
               );
             })}

@@ -25,8 +25,8 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 ### Components
 - `components/AppSidebar.tsx` - Sidebar navigation with collapsible sections
 - `components/FindSkemaPage.tsx` - FindSkema redesign with fuzzy search, starred/recents, person cards
-- `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views sourced from Lectio DOM + subnav fetches
-- `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`)
+- `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views. Supabase-backed: shows description, instagram, birthday (if `show_birthday`), BL badge. Own-profile inline edit form for description/instagram/show_birthday.
+- `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`), optional BetterLectio badge
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
 - `components/LektierPage.tsx` - Day-grouped homework cards
 - `components/OpgaverPage.tsx` - Urgency-first assignment cards, relative Danish deadlines, color-coded grades
@@ -65,6 +65,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/schedule-cache.ts` - Today's schedule cache (45min TTL)
 - `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
 - `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers
+- `lib/supabase/student-lookup.ts` - Shared `useSchoolStudents(schoolId)` hook (returns `studentsMap` Map for O(1) lookups), `getStudentIdFromPersonId()`, `formatDanishBirthdate()`
 - `lib/school-storage.ts` - Last school persistence
 - `styles/globals.css` - Main styles, Lectio modernizer, page-specific styling
 
@@ -96,6 +97,16 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`.
 
 **Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Host permission for `https://eu.i.posthog.com/*` in manifest.
+
+## Supabase Auth & Storage
+
+**Edge function:** `supabase/functions/verify-lectio-auth/index.ts` handles QR-code-based auth. Flow: QR login → extract session cookies → fetch student profile from `digitaltStudiekort.aspx` → generate magic link → upload profile picture to storage → upsert student record.
+
+**Auth UID:** The edge function sets `supabase_id` on the `students` table from `data.user.id` returned by `generateLink()`. This links the Lectio student ID to the Supabase auth user.
+
+**Profile picture storage:** Profile pictures are downloaded from Lectio (using session cookies) and uploaded to the `profile-pictures` Supabase Storage bucket at `{schoolId}/{userId}.{ext}`. The public URL is stored in `students.custom_pfp_url`. The original Lectio URL is kept in `students.lectio_pfp_url` as a reference. The bucket is public with allowed mime types (jpeg, png, webp, gif) and 5MB limit.
+
+**Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
 
 ## Architecture
 Content scripts inject a custom Preact UI that wraps the original Lectio DOM. The original DOM is **moved** (not cloned) to preserve event handlers and functionality.
