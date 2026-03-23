@@ -82,28 +82,21 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'No session cookies received from QR login' }, 500);
     }
 
-    // ── Step 2: Resolve the real elevid ────────────────────────────────
-    // The QR userId is NOT the elevid used in Lectio URLs. Fetch the
-    // schedule page which has data-lectiocontextcard="S{elevid}" on the title.
-    const skemaUrl = `https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`;
-    const skemaResp = await fetch(skemaUrl, {
-      headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
-      redirect: 'follow',
-    });
-    const skemaHtml = await skemaResp.text();
+    // ── Step 2: Fetch skema (for elevid) + studiekort (for profile) in parallel
+    const lectioHeaders = { Cookie: cookieHeader, 'User-Agent': USER_AGENT };
+    const [skemaResp, studiekortResp] = await Promise.all([
+      fetch(`https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`, { headers: lectioHeaders, redirect: 'follow' }),
+      fetch(`https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`, { headers: lectioHeaders, redirect: 'follow' }),
+    ]);
+
+    const [skemaHtml, html] = await Promise.all([skemaResp.text(), studiekortResp.text()]);
+
+    // Extract elevid from data-lectioContextCard="S{elevid}" on the schedule page
     const elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
     if (!elevidMatch) {
       return jsonResponse({ error: 'Could not determine elevid from authenticated session' }, 500);
     }
     const elevid = elevidMatch[1];
-
-    // ── Step 3: Fetch student profile from digitaltStudiekort.aspx ─────
-    const studiekortUrl = `https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`;
-    const studiekortResp = await fetch(studiekortUrl, {
-      headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
-      redirect: 'follow',
-    });
-    const html = await studiekortResp.text();
 
     // Parse name: strip "(k)" or similar suffix
     const nameMatch = html.match(/id="s_m_Content_Content_StudentName"[^>]*>([^<]+)</);

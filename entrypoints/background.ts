@@ -162,15 +162,16 @@ function handleUnsubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:unsubscr
 const LOCK_KEY = 'bl-supabase-auth-lock';
 const FAILURES_KEY = 'bl-supabase-auth-failures';
 const REAUTH_KEY = 'bl-supabase-needs-reauth';
-const LOCK_TTL_MS = 120_000;
+const LOCK_TTL_MS = 30_000; // 30s — edge function should finish well within this
 
 interface FailureState { count: number; lastAttempt: number }
 
 function getBackoffMs(failures: number): number {
   if (failures <= 0) return 0;
-  if (failures === 1) return 5 * 60_000;
-  if (failures === 2) return 15 * 60_000;
-  return 60 * 60_000;
+  if (failures === 1) return 15_000;      // 15s
+  if (failures === 2) return 60_000;      // 1 min
+  if (failures === 3) return 5 * 60_000;  // 5 min
+  return 15 * 60_000;                     // 15 min cap
 }
 
 async function getFailures(): Promise<FailureState> {
@@ -253,7 +254,22 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
       }
     }
 
-    if (await isLocked()) return { ok: false, error: 'Lock active.' };
+    // If another auth attempt is in progress, wait for it to finish
+    // instead of immediately giving up (handles page reload during auth)
+    if (await isLocked()) {
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        // Check if the other attempt succeeded
+        const { data: checkData } = await supabase.auth.getSession();
+        if (checkData.session?.expires_at && checkData.session.expires_at > Date.now() / 1000 + 300) {
+          return { ok: true, session: { expires_at: checkData.session.expires_at } };
+        }
+        if (!(await isLocked())) break; // lock released, we can try
+      }
+      if (await isLocked()) {
+        return { ok: false, error: 'Auth in progress' };
+      }
+    }
 
     await setLock();
     try {
@@ -265,13 +281,17 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
         capture('supabase auth succeeded', getDistinctId(qrData.userId));
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
       }
-      const failures = await getFailures();
-      await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
+      // Don't count transient QR errors as failures (race conditions, expired QR)
+      const isTransient = result.error?.includes('QR code') || result.error?.includes('elevid');
+      if (!isTransient) {
+        const failures = await getFailures();
+        await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
+        capture('supabase auth failed', getDistinctId(qrData.userId), {
+          error: result.error,
+          failure_count: failures.count + 1,
+        });
+      }
       console.warn('[BetterLectio] Auto Supabase auth failed:', result.error);
-      capture('supabase auth failed', getDistinctId(qrData.userId), {
-        error: result.error,
-        failure_count: failures.count + 1,
-      });
       return { ok: false, error: result.error };
     } finally {
       await clearLock();
