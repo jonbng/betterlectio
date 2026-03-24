@@ -194,7 +194,22 @@ export function getLoggedInUserId(): string | null {
 export function getViewedEntityId(): { id: string; type: ScheduleEntityType } | null {
   const search = window.location.search;
 
-  // Check all URL parameter types
+  const params = new URLSearchParams(search);
+
+  // Handle generic ?type=X&id=Y format (used by lokale, ressource, gruppe from FindSkema)
+  const typeParam = params.get('type');
+  const genericId = params.get('id');
+  if (typeParam && genericId) {
+    const typeMap: Record<string, ScheduleEntityType> = {
+      lokale: 'room',
+      ressource: 'resource',
+      gruppe: 'group',
+    };
+    const mapped = typeMap[typeParam];
+    if (mapped) return { id: genericId, type: mapped };
+  }
+
+  // Check dedicated URL parameter types
   const patterns: [RegExp, ScheduleEntityType][] = [
     [/elevid=(\d+)/, 'student'],
     [/laererid=(\d+)/, 'teacher'],

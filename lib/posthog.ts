@@ -2,11 +2,13 @@ import { PostHog } from 'posthog-node';
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string;
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
+const IS_DEV = import.meta.env.DEV;
 
 // ── Analytics opt-out ────────────────────────────────────────────────
 // Direct localStorage read to avoid circular dependency with settings-storage.
 
 function isOptedOut(): boolean {
+  if (IS_DEV) return true;
   try {
     const stored = localStorage.getItem('bl-feature-settings') ?? localStorage.getItem('il-feature-settings');
     if (!stored) return false;

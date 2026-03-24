@@ -170,22 +170,41 @@ export function getScheduleUrl(id: string, schoolId: string, options?: ScheduleU
   const prefix2 = id.substring(0, 2);
   const prefix1 = id.charAt(0);
 
+  // Types that use ?type=X&nosubnav=1&id=Y format (Lectio's FindSkema convention)
+  const genericIdMap: Record<string, { typeValue: string; start: number }> = {
+    RO: { typeValue: 'lokale', start: 2 },
+    RE: { typeValue: 'ressource', start: 2 },
+    GE: { typeValue: 'gruppe', start: 2 },
+    // Single-char variants
+    L: { typeValue: 'lokale', start: 1 },
+    R: { typeValue: 'ressource', start: 1 },
+    G: { typeValue: 'gruppe', start: 1 },
+  };
+
+  const genericMatch = genericIdMap[prefix2] || genericIdMap[prefix1];
+  if (genericMatch) {
+    const numericId = id.slice(genericMatch.start);
+    const scheduleUrl = new URL(`/lectio/${schoolId}/SkemaNy.aspx`, window.location.origin);
+    scheduleUrl.searchParams.set('type', genericMatch.typeValue);
+    scheduleUrl.searchParams.set('nosubnav', '1');
+    scheduleUrl.searchParams.set('id', numericId);
+    const trimmedName = options?.name?.trim();
+    if (trimmedName) {
+      scheduleUrl.searchParams.set('name', trimmedName);
+    }
+    return `${scheduleUrl.pathname}${scheduleUrl.search}`;
+  }
+
   const twoCharMap: Record<string, { param: string; start: number; type?: 'stamklasse' | 'holdelement' }> = {
     SC: { param: 'klasseid', start: 2, type: 'stamklasse' },
-    RO: { param: 'lokaleid', start: 2 },
-    RE: { param: 'ressourceid', start: 2 },
     HE: { param: 'holdelementid', start: 2, type: 'holdelement' },
-    GE: { param: 'gruppeid', start: 2 },
   };
 
   const oneCharMap: Record<string, { param: string; start: number; type?: 'stamklasse' | 'holdelement' }> = {
     S: { param: 'elevid', start: 1 },
     T: { param: 'laererid', start: 1 },
-    L: { param: 'lokaleid', start: 1 },
     K: { param: 'klasseid', start: 1, type: 'stamklasse' },
     H: { param: 'holdid', start: 1 },
-    G: { param: 'gruppeid', start: 1 },
-    R: { param: 'ressourceid', start: 1 },
   };
 
   const mapped = twoCharMap[prefix2] || oneCharMap[prefix1] || { param: 'elevid', start: 1 };
