@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { getHoldHue } from '@/lib/hold-mapping';
 import { type ScheduleBlock, getTodaySchedule, getCachedSchedule } from '@/lib/schedule-cache';
+import { getSettings } from '@/lib/settings-storage';
 import { cn } from '@/lib/utils';
 
 // ── State machine ──────────────────────────────────────────────────────
@@ -127,7 +128,11 @@ const cancelledMessages = [
 /** Pick a random message that stays stable for the current page session */
 function pickMessage(messages: { text: string; emoji: string }[]): { text: string; emoji: string } {
   // Use a session-stable index so it doesn't change on every re-render
-  const store = ((window as any).__ilCdMsgIdx ??= {}) as Record<string, number>;
+  const win = window as typeof window & { __ilCdMsgIdx?: Record<string, number> };
+  if (!win.__ilCdMsgIdx) {
+    win.__ilCdMsgIdx = {};
+  }
+  const store = win.__ilCdMsgIdx;
   const key = messages[0].text;
   if (!(key in store)) {
     store[key] = Math.floor(Math.random() * messages.length);
@@ -169,6 +174,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   const [state, setState] = useState<CountdownState>({ type: 'loading' });
   const [loaded, setLoaded] = useState(false);
   const fetchedRef = useRef(false);
+  const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? true;
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -212,7 +218,9 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   }
 
   const activeBlocks = blocks.filter(b => !b.cancelled);
-  const hue = ('holdCode' in state && state.holdCode) ? getHoldHue(state.holdCode) : 265;
+  const hue = ('holdCode' in state && state.holdCode)
+    ? (subjectColorsEnabled ? getHoldHue(state.holdCode) : 265)
+    : 265;
 
   if (state.type === 'after-school') {
     const msg = getDoneMessage();
@@ -229,9 +237,17 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'cancelled-class') {
     const msg = pickMessage(cancelledMessages);
-    const nextHue = state.nextHoldCode ? getHoldHue(state.nextHoldCode) : 265;
+    const cancelledHue = state.holdCode
+      ? (subjectColorsEnabled ? getHoldHue(state.holdCode) : 25)
+      : (subjectColorsEnabled ? 265 : 25);
+    const nextHue = state.nextHoldCode
+      ? (subjectColorsEnabled ? getHoldHue(state.nextHoldCode) : 265)
+      : 265;
     return (
-      <div className={cn(baseCd, "il-cd-cancelled")} style={{ '--cd-hue': 85 } as React.CSSProperties}>
+      <div
+        className={cn(baseCd, "il-cd-cancelled")}
+        style={{ '--cd-hue': cancelledHue, opacity: subjectColorsEnabled ? 0.38 : undefined } as React.CSSProperties}
+      >
         <div className={baseTop}>
           <span className="il-cd-cancelled-text text-sm font-medium">{msg.text}</span>
           <span className="shrink-0 text-sm">{msg.emoji}</span>
