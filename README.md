@@ -103,6 +103,7 @@ bun run zip:firefox  # Firefox
 | Chrome | Supported (Manifest V3) |
 | Firefox | Supported (Manifest V2) |
 | Edge | Should work (untested) |
+| Safari | To be released soon |
 
 ## Acknowledgements
 
