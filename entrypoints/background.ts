@@ -7,7 +7,7 @@ import type {
   TableName,
 } from '@/lib/supabase/messages';
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
-import { capture, identify, getDistinctId, loadOptOutFlag } from '@/lib/posthog';
+import { capture, captureException, identify, getDistinctId, loadOptOutFlag } from '@/lib/posthog';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -28,6 +28,7 @@ const extensionStorage = {
 };
 
 let client: SupabaseClient | null = null;
+let cachedDistinctId: string | null = null;
 
 function getSupabase(): SupabaseClient {
   if (client) return client;
@@ -40,6 +41,54 @@ function getSupabase(): SupabaseClient {
     },
   });
   return client;
+}
+
+async function getCurrentDistinctId(): Promise<string | undefined> {
+  if (cachedDistinctId) return cachedDistinctId;
+
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase.auth.getSession();
+    const supabaseUserId = data.session?.user?.id;
+    if (!supabaseUserId) return undefined;
+
+    const { data: studentRows, error } = await supabase
+      .from('students')
+      .select('id')
+      .eq('supabase_id', supabaseUserId)
+      .limit(1);
+
+    if (error || !studentRows?.length) return undefined;
+
+    cachedDistinctId = getDistinctId(studentRows[0].id);
+    return cachedDistinctId;
+  } catch {
+    return undefined;
+  }
+}
+
+async function captureSupabaseError(
+  error: unknown,
+  context: {
+    action: 'query' | 'mutate' | 'rpc' | 'auth';
+    table?: string;
+    method?: string;
+    fn?: string;
+    schoolId?: string;
+    studentId?: string;
+  },
+): Promise<void> {
+  try {
+    const distinctId = context.studentId ? getDistinctId(context.studentId) : await getCurrentDistinctId();
+    if (!distinctId) return;
+
+    captureException(error, distinctId, {
+      source: 'supabase-background',
+      ...context,
+    });
+  } catch {
+    // Never let analytics errors surface
+  }
 }
 
 // ── Generic query builder ───────────────────────────────────────────
@@ -68,7 +117,7 @@ function applyFilters(
 
 async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }>): Promise<SupabaseResponse> {
   const supabase = getSupabase();
-  let query: any = supabase.from(msg.table).select(msg.select ?? '*');
+  let query: any = supabase.from(String(msg.table)).select(msg.select ?? '*');
   query = applyFilters(query, msg.filters);
   if (msg.order) {
     query = query.order(msg.order.column, { ascending: msg.order.ascending ?? true });
@@ -81,7 +130,13 @@ async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }
   }
 
   const { data, error } = await query;
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    await captureSupabaseError(error, {
+      action: 'query',
+      table: String(msg.table),
+    });
+    return { ok: false, error: error.message };
+  }
   return { ok: true, data };
 }
 
@@ -91,28 +146,49 @@ async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate'
 
   switch (msg.method) {
     case 'insert':
-      query = supabase.from(msg.table).insert(msg.data!);
+      query = supabase.from(String(msg.table)).insert(msg.data!);
       break;
     case 'update':
-      query = applyFilters(supabase.from(msg.table).update(msg.data!), msg.filters);
+      query = applyFilters(supabase.from(String(msg.table)).update(msg.data!), msg.filters);
       break;
     case 'upsert':
-      query = supabase.from(msg.table).upsert(msg.data!);
+      query = supabase.from(String(msg.table)).upsert(msg.data!);
       break;
     case 'delete':
-      query = applyFilters(supabase.from(msg.table).delete(), msg.filters);
+      query = applyFilters(supabase.from(String(msg.table)).delete(), msg.filters);
       break;
   }
 
   const { data, error } = await query.select();
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    await captureSupabaseError(error, {
+      action: 'mutate',
+      table: String(msg.table),
+      method: msg.method,
+    });
+    return { ok: false, error: error.message };
+  }
   return { ok: true, data };
 }
 
 async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): Promise<SupabaseResponse> {
   const supabase = getSupabase();
   const { data, error } = await supabase.rpc(msg.fn as string, msg.args);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    const studentId = typeof msg.args?.p_student_id === 'string' ? msg.args.p_student_id : undefined;
+    const schoolId = typeof msg.args?.p_school_id === 'number'
+      ? String(msg.args.p_school_id)
+      : typeof msg.args?.schoolId === 'string'
+        ? msg.args.schoolId
+        : undefined;
+    await captureSupabaseError(error, {
+      action: 'rpc',
+      fn: String(msg.fn),
+      schoolId,
+      studentId,
+    });
+    return { ok: false, error: error.message };
+  }
   return { ok: true, data };
 }
 
@@ -129,14 +205,14 @@ function handleSubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:subscribe'
   const channel = supabase
     .channel(msg.channel)
     .on(
-      'postgres_changes',
+      'postgres_changes' as any,
       {
         event: msg.event ?? '*',
         schema: 'public',
-        table: msg.table,
+        table: String(msg.table),
         filter: msg.filter,
       },
-      (_payload) => {
+      (_payload: any) => {
         // Invalidate cache for this table — storage.onChanged will notify content scripts
         invalidateTable(msg.schoolId, msg.table).catch(() => {});
       },
@@ -305,6 +381,7 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
         await setFailures({ count: 0, lastAttempt: 0 });
         await browser.storage.local.remove(REAUTH_KEY);
         const { data: newData } = await supabase.auth.getSession();
+        cachedDistinctId = getDistinctId(qrData.userId);
         identify(getDistinctId(qrData.userId), {
           school_id: schoolId,
           extension_version: browser.runtime.getManifest().version,
@@ -319,6 +396,11 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
       if (!isTransient) {
         const failures = await getFailures();
         await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
+        await captureSupabaseError(new Error(result.error ?? 'Unknown auth failure'), {
+          action: 'auth',
+          schoolId,
+          studentId: qrData.userId,
+        });
         identify(getDistinctId(qrData.userId), {
           school_id: schoolId,
           extension_version: browser.runtime.getManifest().version,
@@ -337,6 +419,11 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
   } catch (err) {
     console.warn('[BetterLectio] Auto Supabase auth error:', err);
     await clearLock().catch(() => {});
+    await captureSupabaseError(err, {
+      action: 'auth',
+      schoolId,
+      studentId: qrData?.userId,
+    });
     return { ok: false, error: String(err) };
   }
 }
@@ -348,6 +435,7 @@ function initAuthStateListener(): void {
     const supabase = getSupabase();
     supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
+        cachedDistinctId = null;
         browser.storage.local.set({ [REAUTH_KEY]: true }).catch(() => {});
       }
     });
