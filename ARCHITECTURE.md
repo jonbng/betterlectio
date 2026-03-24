@@ -102,6 +102,8 @@ Content Scripts (inject into lectio.dk pages)
 
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
 
+**Lesson mapping sync v2:** Supabase now has canonical lesson mappings in `school_lesson_mappings` and per-student overrides in `user_lesson_overrides`. Clients normalize raw hold strings into stable `canonical_key` values like `ma`, `srp`, and `kt`, then merge school defaults with user overrides via `get_student_lesson_mappings_v2`. The migration lives in `supabase/migrations/20260324_add_lesson_mapping_v2.sql`; mobile rollout notes live in `docs/mobile-lesson-mapping-migration.md`.
+
 ---
 
 ## Key Components
@@ -171,8 +173,9 @@ Content Scripts (inject into lectio.dk pages)
 
 | File | Purpose |
 |------|---------|
-| `lib/hold-mapping.ts` | Resolve hold codes into shared subject names/colors, per-hold exceptions, ignored non-academic groups. ~40 built-in Danish subjects. School-scoped localStorage. Functions: `getHoldDisplayName(holdCode)`, `getFullHoldDisplayName(holdCode)` (class-prefixed label), `getHoldHue(holdCode)`, `registerHold(holdCode, holdelementId?)`, `scanDOMForHolds(root?)`, `getAllHolds()`, `setHoldDisplayName`/`setHoldColorHue`, `resetAllMappings()`/`clearHoldMappings()` |
-| `settings/HoldMappingEditor.tsx` | Settings UI for subject names/colors + special-hold exceptions |
+| `lib/hold-mapping.ts` | Resolve raw hold codes through canonical lesson keys (`1x MA`, `2.4 MA`, `L2d MA` -> `ma`), shared names/colors, ignored non-academic groups, and legacy localStorage migration. ~40 built-in Danish subjects. School-scoped localStorage. Functions: `getCanonicalHoldKey(holdCode)`, `getHoldDisplayName(holdCode)`, `getFullHoldDisplayName(holdCode)` (class-prefixed label), `getHoldHue(holdCode)`, `registerHold(holdCode)`, `scanDOMForHolds(root?)`, `getAllHolds()`, `setHoldDisplayName`/`setHoldColorHue`, `resetAllMappings()`/`clearHoldMappings()` |
+| `lib/hold-mapping-sync.ts` | Hydrates canonical lesson mappings from Supabase v2, seeds discovered local mappings into `school_lesson_mappings`, and upserts/resets `user_lesson_overrides` for cross-device sync |
+| `settings/HoldMappingEditor.tsx` | Settings UI for canonical lesson-key display names/colors |
 
 ### Beskeder (Messages) System
 

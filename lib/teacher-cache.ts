@@ -29,7 +29,7 @@ export function shortenTeacherDisplayName(
 
   const shortenedParts = [...parts];
   while (shortenedParts.length > 2 && shortenedParts.join(' ').length > maxLength) {
-    shortenedParts.splice(1, 1);
+    shortenedParts.splice(shortenedParts.length - 2, 1);
   }
 
   return shortenedParts.join(' ');

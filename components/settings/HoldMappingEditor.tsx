@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pencil, RotateCcw, Sparkles, Search, Palette, SlidersHorizontal } from 'lucide-react';
+import { toast } from 'sonner';
 import { buttonVariants } from '@/components/ui/button';
+import { hydrateHoldMappingsFromSupabase, syncHoldMappingOverrideToSupabase } from '@/lib/hold-mapping-sync';
 import { cn } from '@/lib/utils';
 import {
   CURATED_HUES,
@@ -40,6 +42,12 @@ function normalizeHue(value: number): number {
   if (!Number.isFinite(value)) return 0;
   const rounded = Math.round(value);
   return ((rounded % 360) + 360) % 360;
+}
+
+function syncErrorMessage(prefix: string, error: unknown): string {
+  const details = error instanceof Error ? error.message : String(error);
+  console.warn(`[BetterLectio] ${prefix}:`, details);
+  return `${prefix}: ${details}`;
 }
 
 // ── Autocomplete input ──────────────────────────────────────────────────
@@ -187,6 +195,9 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
     if (newName !== mapping.displayName) {
       setHoldDisplayName(mapping.id, mapping.kind, newName);
       onUpdate();
+      void syncHoldMappingOverrideToSupabase(mapping.id).catch((error) => {
+        toast.error(syncErrorMessage('Kunne ikke synkronisere fagnavnet', error));
+      });
     }
     setEditing(false);
   };
@@ -219,6 +230,9 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                   setHoldColorHue(mapping.id, mapping.kind, null);
                   setShowColors(false);
                   onUpdate();
+                  void syncHoldMappingOverrideToSupabase(mapping.id).catch((error) => {
+                    toast.error(syncErrorMessage('Kunne ikke synkronisere farven', error));
+                  });
                 }}
                 title="Standardfarve (nulstil)"
               >
@@ -239,6 +253,9 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                     setHoldColorHue(mapping.id, mapping.kind, hue);
                     setShowColors(false);
                     onUpdate();
+                    void syncHoldMappingOverrideToSupabase(mapping.id).catch((error) => {
+                      toast.error(syncErrorMessage('Kunne ikke synkronisere farven', error));
+                    });
                   }}
                 />
               ))}
@@ -291,14 +308,15 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
       </div>
 
       {showCustomModal && (
-        <div
-          className="fixed inset-0 z-220 flex items-center justify-center bg-[oklch(0_0_0/0.45)] p-4 backdrop-blur-[2px]"
-          onClick={() => setShowCustomModal(false)}
-          role="presentation"
-        >
+        <div className="fixed inset-0 z-220 flex items-center justify-center p-4" role="presentation">
+          <button
+            type="button"
+            className="absolute inset-0 bg-[oklch(0_0_0/0.45)] backdrop-blur-[2px]"
+            onClick={() => setShowCustomModal(false)}
+            aria-label="Luk dialog"
+          />
           <div
-            className="flex w-full max-w-[420px] flex-col gap-3 rounded-xl border border-border bg-popover p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            className="relative flex w-full max-w-[420px] flex-col gap-3 rounded-xl border border-border bg-popover p-4 shadow-xl"
             role="dialog"
             aria-modal="true"
             aria-label="Vælg brugerdefineret farve"
@@ -358,6 +376,9 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                   onUpdate();
                   setShowCustomModal(false);
                   setShowColors(false);
+                  void syncHoldMappingOverrideToSupabase(mapping.id).catch((error) => {
+                    toast.error(syncErrorMessage('Kunne ikke synkronisere farven', error));
+                  });
                 }}
               >
                 Standard
@@ -370,6 +391,9 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
                   onUpdate();
                   setShowCustomModal(false);
                   setShowColors(false);
+                  void syncHoldMappingOverrideToSupabase(mapping.id).catch((error) => {
+                    toast.error(syncErrorMessage('Kunne ikke synkronisere farven', error));
+                  });
                 }}
               >
                 Gem farve
@@ -388,6 +412,21 @@ export function HoldMappingEditor() {
   const [filter, setFilter] = useState('');
   const forceUpdate = () => setTick((tick) => tick + 1);
 
+  useEffect(() => {
+    let cancelled = false;
+    void hydrateHoldMappingsFromSupabase().then((changed) => {
+      if (changed && !cancelled) {
+        forceUpdate();
+      }
+    }).catch(() => {
+      // Ignore auth/offline errors; local mappings still work.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const allRows = getAllHolds();
 
   const filteredRows = filter.trim()
@@ -400,12 +439,14 @@ export function HoldMappingEditor() {
       })
     : allRows;
 
-  const subjects = filteredRows.filter((r) => r.kind === 'subject');
-  const overrides = filteredRows.filter((r) => r.kind === 'override');
+  const subjects = filteredRows;
 
   const handleResetAll = () => {
     resetAllMappings();
     forceUpdate();
+    void Promise.all(allRows.map((row) => syncHoldMappingOverrideToSupabase(row.id))).catch((error) => {
+      toast.error(syncErrorMessage('Kunne ikke synkronisere nulstillingen', error));
+    });
   };
 
   if (allRows.length === 0) {
@@ -416,7 +457,7 @@ export function HoldMappingEditor() {
         </div>
         <p className="text-sm font-medium text-foreground">Ingen fag fundet endnu</p>
         <p className="text-sm text-muted-foreground mt-1">
-          Besøg dit skema, opgaver eller lektier for at få dem vist her.
+          Besøg dit skema, opgaver eller lektier for at registrere flere holdnøgler.
         </p>
       </div>
     );
@@ -428,8 +469,8 @@ export function HoldMappingEditor() {
       <div className="flex flex-col gap-3">
         <div>
           <p className="text-sm text-muted-foreground">
-            Klik på et fagnavn for at omdøbe det. Klik på farvecirklen for at vælge farve.
-            Forslag vises mens du skriver.
+            Klik på et fagnavn for at omdøbe den normaliserede holdnøgle. Klik på farvecirklen for at vælge farve.
+            Alle klassevarianter som fx 1x MA og L2d MA samles automatisk under samme nøgle.
           </p>
         </div>
 
@@ -439,18 +480,18 @@ export function HoldMappingEditor() {
           <input
             type="text"
             className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-            placeholder="Filtrer fag..."
+            placeholder="Filtrer fag eller holdnøgle..."
             value={filter}
             onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
           />
         </div>
       </div>
 
-      {/* Subjects section */}
+      {/* Mappings section */}
       {subjects.length > 0 && (
         <div className="flex flex-col overflow-visible rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-2.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fag</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fag og holdnøgler</span>
             <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-semibold text-muted-foreground">{subjects.length}</span>
           </div>
           <div className="flex flex-col [&>*+*]:border-t [&>*+*]:border-border/60">
@@ -465,29 +506,10 @@ export function HoldMappingEditor() {
         </div>
       )}
 
-      {/* Overrides section */}
-      {overrides.length > 0 && (
-        <div className="flex flex-col overflow-visible rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border bg-muted/35 px-4 py-2.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Særlige hold</span>
-            <span className="rounded-full bg-muted/70 px-2 py-0.5 text-xs font-semibold text-muted-foreground">{overrides.length}</span>
-          </div>
-          <div className="flex flex-col [&>*+*]:border-t [&>*+*]:border-border/60">
-            {overrides.map((mapping) => (
-              <HoldRow
-                key={`${mapping.kind}:${mapping.id}`}
-                mapping={mapping}
-                onUpdate={forceUpdate}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* No results */}
       {filteredRows.length === 0 && filter.trim() && (
         <p className="text-sm text-muted-foreground text-center py-8">
-          Ingen fag matcher "{filter}"
+          Ingen fag eller holdnøgler matcher "{filter}"
         </p>
       )}
 

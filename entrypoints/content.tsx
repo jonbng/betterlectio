@@ -41,6 +41,7 @@ import { getSettings } from "@/lib/settings-storage";
 import { applyThemeForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, getFullHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
+import { hydrateHoldMappingsFromSupabase, seedKnownHoldMappingsToSupabase } from "@/lib/hold-mapping-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
@@ -418,6 +419,12 @@ function initLayout() {
       if (holdReplacements > 0) {
         console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
       }
+
+      void hydrateHoldMappingsFromSupabase().then((changed) => {
+        if (!changed) return;
+        replaceHoldCodesInDOM(wrapper, showClassPrefix);
+      }).catch(() => {});
+      void seedKnownHoldMappingsToSupabase().catch(() => {});
 
       const pathnameLower = window.location.pathname.toLowerCase();
       const isSchedulePage =

@@ -43,7 +43,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design (parser reused by ForsideDashboard)
 - `components/KaraktererPage.tsx` - Grade report redesign: subject cards with big color-coded grades, teacher notes inline, summary bar, collapsible diploma/protocol/remarks sections, DOM parser
 - `components/DesignPlayground.tsx` - Design system playground from Settings
-- `components/settings/HoldMappingEditor.tsx` - Subject names/colors + hold exceptions UI
+- `components/settings/HoldMappingEditor.tsx` - Canonical lesson-key editor for subject names/colors (e.g. `1x MA`/`L2d MA` -> `ma`)
 
 ### Libraries
 - `lib/beskeder-thread-parser.ts` - Thread DOM parser, state detection, signature stripping (parsers accept optional `doc: Document`)
@@ -53,7 +53,8 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx, submission API, localStorage cache
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content + cache
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
-- `lib/hold-mapping.ts` - Shared subject mappings, per-hold exceptions, ignored non-academic groups, fresh-start resets
+- `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
+- `lib/hold-mapping-sync.ts` - Supabase v2 hydration + upsert/reset sync bridge for canonical lesson mappings and user overrides
 - `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with letter or numeric suffixes (e.g. `1x`, `1.4`, `L2d`)
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
 - `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
@@ -106,6 +107,8 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Profile picture storage:** Profile pictures are downloaded from Lectio (using session cookies) and uploaded to the `profile-pictures` Supabase Storage bucket at `{schoolId}/{userId}.{ext}`. The public URL is stored in `students.custom_pfp_url`. The original Lectio URL is kept in `students.lectio_pfp_url` as a reference. The bucket is public with allowed mime types (jpeg, png, webp, gif) and 5MB limit.
 
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
+
+**Lesson mapping sync v2:** Canonical lesson mappings now live in Supabase v2 tables `school_lesson_mappings` (school defaults keyed by normalized `canonical_key` like `ma`, `srp`, `kt`) and `user_lesson_overrides` (per-student display/color/icon overrides). A migration lives in `supabase/migrations/20260324_add_lesson_mapping_v2.sql`. Mobile migration notes live in `docs/mobile-lesson-mapping-migration.md`.
 
 ## Architecture
 Content scripts inject a custom Preact UI that wraps the original Lectio DOM. The original DOM is **moved** (not cloned) to preserve event handlers and functionality.

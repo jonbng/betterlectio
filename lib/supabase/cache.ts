@@ -24,7 +24,9 @@ const TABLE_TTL: Partial<Record<TableName, number>> = {
   homework_entries: 10 * 60_000,     // 10 min
   student_homework: 5 * 60_000,      // 5 min (user-mutable)
   lesson_mappings: 60 * 60_000,      // 1 hour
+  school_lesson_mappings: 60 * 60_000,
   student_lessoncontrols: 30 * 60_000,
+  user_lesson_overrides: 5 * 60_000,
   week_sync: 15 * 60_000,
   updates: 5 * 60_000,
 };

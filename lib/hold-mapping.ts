@@ -1,18 +1,11 @@
-// ── Hold Mapping System ─────────────────────────────────────────────────
-// Resolves Lectio hold codes into shared subject mappings, per-hold exceptions,
-// and ignored non-academic groups that should never clutter user settings.
-
 const STORAGE_KEY = 'bl-hold-mappings';
 const LEGACY_STORAGE_KEY = 'il-hold-mappings';
-const STORE_VERSION = 2;
+const STORE_VERSION = 3;
 const UNMAPPED_HUE = 235;
 
-// ── Types ───────────────────────────────────────────────────────────────
-
-export interface SubjectMapping {
-  kind: 'subject';
-  subjectKey: string;
-  subjectAbbrev: string;
+export interface LessonMapping {
+  kind: 'mapping';
+  canonicalKey: string;
   defaultName: string;
   displayName: string;
   autoGuessed: boolean;
@@ -21,21 +14,9 @@ export interface SubjectMapping {
   sampleHoldCode: string | null;
 }
 
-export interface HoldOverride {
-  kind: 'override';
-  holdCode: string;
-  holdelementId: string | null;
-  subjectAbbrev: string | null;
-  defaultName: string;
-  displayName: string;
-  autoGuessed: boolean;
-  colorHue: number | null;
-  icon: string | null;
-}
-
 export interface HoldMappingRow {
   id: string;
-  kind: 'subject' | 'override';
+  kind: 'mapping';
   codeLabel: string;
   displayName: string;
   autoGuessed: boolean;
@@ -45,28 +26,74 @@ export interface HoldMappingRow {
   sortLabel: string;
 }
 
+export interface LessonMappingSnapshot extends LessonMapping {
+  defaultColorHue: number;
+}
+
+export interface SupabaseLessonMappingRow {
+  canonical_key: string;
+  default_color_hue: number | null;
+  default_icon: string | null;
+  default_name: string;
+  override_color_hue: number | null;
+  override_display_name: string | null;
+  override_icon: string | null;
+  display_color_hue: number | null;
+  display_icon: string | null;
+  display_name: string;
+  is_overridden: boolean;
+  mapping_id: string;
+  override_id: string | null;
+  school_id: number;
+  student_id: string | null;
+  updated_at: string;
+}
+
 interface HoldMappingStore {
-  version: 2;
+  version: 3;
   schoolId: string;
-  subjects: Record<string, SubjectMapping>;
-  holdOverrides: Record<string, HoldOverride>;
+  mappings: Record<string, LessonMapping>;
   updatedAt: number;
 }
 
-type HoldClassification = 'ignored' | 'subject' | 'override' | 'fallback';
+interface LegacySubjectMapping {
+  subjectAbbrev?: string;
+  defaultName?: string;
+  displayName?: string;
+  autoGuessed?: boolean;
+  colorHue?: number | null;
+  icon?: string | null;
+  sampleHoldCode?: string | null;
+}
+
+interface LegacyHoldOverride {
+  holdCode?: string;
+  subjectAbbrev?: string | null;
+  defaultName?: string;
+  displayName?: string;
+  autoGuessed?: boolean;
+  colorHue?: number | null;
+  icon?: string | null;
+}
+
+interface LegacyHoldMappingStore {
+  version?: number;
+  schoolId?: string;
+  subjects?: Record<string, LegacySubjectMapping>;
+  holdOverrides?: Record<string, LegacyHoldOverride>;
+  updatedAt?: number;
+}
+
+type HoldClassification = 'ignored' | 'mapping' | 'fallback';
 
 interface HoldDescriptor {
   holdCode: string;
   prefix: string | null;
-  subjectToken: string | null;
   suffix: string;
   classification: HoldClassification;
-  subjectKey: string | null;
-  subjectName: string | null;
+  canonicalKey: string | null;
+  defaultName: string | null;
 }
-
-// ── Subject Dictionary ──────────────────────────────────────────────────
-// Case-insensitive lookup from common Danish subject abbreviations.
 
 const SUBJECT_DICTIONARY: Record<string, string> = {
   hi: 'Historie',
@@ -133,64 +160,67 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
 };
 
 const SUBJECT_NAME_LOOKUP = new Map<string, string>();
-for (const displayName of Object.values(SUBJECT_DICTIONARY)) {
-  SUBJECT_NAME_LOOKUP.set(normalizeKey(displayName), displayName);
+const SUBJECT_CANONICAL_KEY_BY_NAME = new Map<string, string>();
+for (const [alias, displayName] of Object.entries(SUBJECT_DICTIONARY)) {
+  const normalizedName = normalizeKey(displayName);
+  SUBJECT_NAME_LOOKUP.set(normalizedName, displayName);
+  if (!SUBJECT_CANONICAL_KEY_BY_NAME.has(normalizedName)) {
+    SUBJECT_CANONICAL_KEY_BY_NAME.set(normalizedName, alias);
+  }
 }
 
-// Semantic default hues for common subjects.
-// These are used when no user override is set, so "Standard" feels intentional.
 const SUBJECT_DEFAULT_HUES: Record<string, number> = {
-  [normalizeKey('Dansk')]: 8,
-  [normalizeKey('Engelsk')]: 218,
-  [normalizeKey('Tysk')]: 52,
-  [normalizeKey('Fransk')]: 330,
-  [normalizeKey('Spansk')]: 15,
-  [normalizeKey('Latin')]: 358,
+  da: 8,
+  en: 218,
+  ty: 52,
+  fr: 330,
+  sp: 15,
+  la: 358,
 
-  [normalizeKey('Historie')]: 34,
-  [normalizeKey('Religion')]: 285,
-  [normalizeKey('Samfundsfag')]: 200,
-  [normalizeKey('Filosofi')]: 272,
-  [normalizeKey('Psykologi')]: 312,
-  [normalizeKey('Idéhistorie')]: 300,
-  [normalizeKey('Studievejledning')]: 286,
-  [normalizeKey('Klassens time')]: 24,
-  [normalizeKey('Fælles fagligt')]: 172,
-  [normalizeKey('Kultur- og samfundsfag')]: 186,
-  [normalizeKey('Oldtidskundskab')]: 40,
+  hi: 34,
+  re: 285,
+  sa: 200,
+  fi: 272,
+  ps: 312,
+  if: 300,
+  st: 286,
+  kt: 24,
+  ff: 172,
+  ks: 186,
+  ol: 40,
 
-  [normalizeKey('Matematik')]: 235,
-  [normalizeKey('Fysik')]: 248,
-  [normalizeKey('Kemi')]: 175,
-  [normalizeKey('Biologi')]: 132,
-  [normalizeKey('Geografi')]: 95,
-  [normalizeKey('Naturvidenskab')]: 145,
-  [normalizeKey('Naturgeografi')]: 88,
-  [normalizeKey('Bioteknologi')]: 160,
-  [normalizeKey('Astronomi')]: 260,
+  ma: 235,
+  fy: 248,
+  ke: 175,
+  bi: 132,
+  ge: 95,
+  nv: 145,
+  ng: 88,
+  bt: 160,
+  as: 260,
 
-  [normalizeKey('Informatik')]: 248,
-  [normalizeKey('Teknologi')]: 205,
-  [normalizeKey('Design')]: 342,
-  [normalizeKey('Mediefag')]: 318,
-  [normalizeKey('Billedkunst')]: 355,
-  [normalizeKey('Musik')]: 292,
-  [normalizeKey('Dramatik')]: 25,
-  [normalizeKey('Idræt')]: 118,
-  [normalizeKey('Erhvervsøkonomi')]: 65,
-  [normalizeKey('Virksomhedsøkonomi')]: 72,
-  [normalizeKey('Statistik')]: 225,
-  [normalizeKey('Teknikfag')]: 210,
-  [normalizeKey('Kommunikation/IT')]: 305,
-  [normalizeKey('Programmering')]: 242,
-  [normalizeKey('Produktudvikling')]: 22,
-  [normalizeKey('Skriftlige opgaver')]: 12,
-  [normalizeKey('Brobygning')]: 155,
+  it: 248,
+  ti: 205,
+  de: 342,
+  me: 318,
+  bk: 355,
+  mu: 292,
+  dr: 25,
+  id: 118,
+  er: 65,
+  vø: 72,
+  ss: 225,
+  tk: 210,
+  kit: 305,
+  pro: 242,
+  pu: 22,
+  skr: 12,
+  bro: 155,
 
-  [normalizeKey('Almen sprogforståelse')]: 48,
-  [normalizeKey('Almen studieforberedelse')]: 188,
-  [normalizeKey('Studieretningsprojekt')]: 280,
-  [normalizeKey('Studieretningsopgave')]: 300,
+  ap: 48,
+  at: 188,
+  srp: 280,
+  sro: 300,
 };
 
 const IGNORED_HOLD_PATTERNS = [
@@ -214,38 +244,33 @@ const IGNORED_HOLD_PATTERNS = [
   /\bai-udvalg\b/i,
 ];
 
-// ── Curated Color Palette ───────────────────────────────────────────────
-// Hand-picked hues that produce vibrant, distinct oklch colors.
-// Used for default hash assignment and the settings color picker.
 export const CURATED_HUES = [
-  0,    // Red
-  15,   // Coral
-  28,   // Vermilion
-  40,   // Orange
-  52,   // Apricot
-  65,   // Amber
-  80,   // Yellow-green
-  95,   // Lime
-  118,  // Leaf
-  132,  // Green
-  145,  // Emerald
-  160,  // Mint
-  175,  // Teal
-  188,  // Cyan
-  200,  // Sky
-  218,  // Azure
-  235,  // Blue
-  248,  // Cobalt
-  258,  // Indigo
-  280,  // Violet
-  295,  // Purple
-  312,  // Fuchsia
-  330,  // Pink
-  342,  // Magenta rose
-  355,  // Rose
+  0,
+  15,
+  28,
+  40,
+  52,
+  65,
+  80,
+  95,
+  118,
+  132,
+  145,
+  160,
+  175,
+  188,
+  200,
+  218,
+  235,
+  248,
+  258,
+  280,
+  295,
+  312,
+  330,
+  342,
+  355,
 ];
-
-// ── In-memory cache ─────────────────────────────────────────────────────
 
 let cachedStore: HoldMappingStore | null = null;
 
@@ -274,10 +299,98 @@ function createFreshStore(schoolId: string): HoldMappingStore {
   return {
     version: STORE_VERSION,
     schoolId,
-    subjects: {},
-    holdOverrides: {},
+    mappings: {},
     updatedAt: Date.now(),
   };
+}
+
+function getCanonicalKeyForSubjectName(subjectName: string): string | null {
+  return SUBJECT_CANONICAL_KEY_BY_NAME.get(normalizeKey(subjectName)) ?? null;
+}
+
+function resolveCanonicalLesson(value: string): { canonicalKey: string; defaultName: string } | null {
+  const normalizedValue = normalizeKey(value);
+  const subjectNameFromAlias = SUBJECT_DICTIONARY[normalizedValue];
+  if (subjectNameFromAlias) {
+    return {
+      canonicalKey: getCanonicalKeyForSubjectName(subjectNameFromAlias) ?? normalizedValue,
+      defaultName: subjectNameFromAlias,
+    };
+  }
+
+  const subjectNameFromFullName = SUBJECT_NAME_LOOKUP.get(normalizedValue);
+  if (!subjectNameFromFullName) return null;
+
+  return {
+    canonicalKey: getCanonicalKeyForSubjectName(subjectNameFromFullName) ?? normalizedValue,
+    defaultName: subjectNameFromFullName,
+  };
+}
+
+function migrateLegacyStore(parsed: LegacyHoldMappingStore, schoolId: string): HoldMappingStore {
+  const nextStore = createFreshStore(schoolId);
+
+  const upsertMapping = (candidate: Omit<LessonMapping, 'kind' | 'canonicalKey'> & { canonicalKey: string }) => {
+    const existing = nextStore.mappings[candidate.canonicalKey];
+    if (!existing) {
+      nextStore.mappings[candidate.canonicalKey] = {
+        kind: 'mapping',
+        canonicalKey: candidate.canonicalKey,
+        defaultName: candidate.defaultName,
+        displayName: candidate.displayName,
+        autoGuessed: candidate.autoGuessed,
+        colorHue: candidate.colorHue,
+        icon: candidate.icon,
+        sampleHoldCode: candidate.sampleHoldCode,
+      };
+      return;
+    }
+
+    if (!existing.sampleHoldCode && candidate.sampleHoldCode) {
+      existing.sampleHoldCode = candidate.sampleHoldCode;
+    }
+    if (!existing.icon && candidate.icon) {
+      existing.icon = candidate.icon;
+    }
+    if (existing.colorHue === null && candidate.colorHue !== null) {
+      existing.colorHue = candidate.colorHue;
+    }
+    if (!candidate.autoGuessed && existing.autoGuessed) {
+      existing.displayName = candidate.displayName;
+      existing.autoGuessed = false;
+    }
+  };
+
+  for (const mapping of Object.values(parsed.subjects ?? {})) {
+    const resolved = resolveCanonicalLesson(mapping.subjectAbbrev ?? mapping.defaultName ?? mapping.displayName ?? '');
+    if (!resolved) continue;
+    upsertMapping({
+      canonicalKey: resolved.canonicalKey,
+      defaultName: mapping.defaultName ?? resolved.defaultName,
+      displayName: mapping.displayName ?? mapping.defaultName ?? resolved.defaultName,
+      autoGuessed: mapping.autoGuessed ?? true,
+      colorHue: mapping.colorHue ?? null,
+      icon: mapping.icon ?? null,
+      sampleHoldCode: mapping.sampleHoldCode ?? null,
+    });
+  }
+
+  for (const override of Object.values(parsed.holdOverrides ?? {})) {
+    const resolved = resolveCanonicalLesson(override.subjectAbbrev ?? override.holdCode ?? override.defaultName ?? override.displayName ?? '');
+    if (!resolved) continue;
+    upsertMapping({
+      canonicalKey: resolved.canonicalKey,
+      defaultName: resolved.defaultName,
+      displayName: override.displayName ?? override.defaultName ?? resolved.defaultName,
+      autoGuessed: override.autoGuessed ?? true,
+      colorHue: override.colorHue ?? null,
+      icon: override.icon ?? null,
+      sampleHoldCode: override.holdCode ?? null,
+    });
+  }
+
+  nextStore.updatedAt = parsed.updatedAt ?? Date.now();
+  return nextStore;
 }
 
 function loadStore(): HoldMappingStore {
@@ -293,19 +406,22 @@ function loadStore(): HoldMappingStore {
       localStorage.setItem(STORAGE_KEY, raw);
     }
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<HoldMappingStore> & { schoolId?: string; version?: number };
+      const parsed = JSON.parse(raw) as Partial<HoldMappingStore> & LegacyHoldMappingStore;
       if (parsed.schoolId === schoolId) {
-        if (parsed.version === STORE_VERSION && parsed.subjects && parsed.holdOverrides) {
+        if (parsed.version === STORE_VERSION && parsed.mappings) {
           const hydrated: HoldMappingStore = {
             version: STORE_VERSION,
             schoolId,
-            subjects: parsed.subjects,
-            holdOverrides: parsed.holdOverrides,
+            mappings: parsed.mappings,
             updatedAt: parsed.updatedAt ?? Date.now(),
           };
           cachedStore = hydrated;
           return hydrated;
         }
+
+        const migrated = migrateLegacyStore(parsed, schoolId);
+        saveStore(migrated);
+        return migrated;
       }
     }
   } catch {
@@ -327,8 +443,6 @@ function saveStore(store: HoldMappingStore): void {
   }
 }
 
-// ── Classification ─────────────────────────────────────────────────────
-
 function looksLikeAcademicPrefix(prefix: string): boolean {
   return /^[a-zæøå]*\d+(?:[a-zæøå]+(?:\d+[a-zæøå]*)?|\.\d+)$/i.test(prefix);
 }
@@ -338,24 +452,12 @@ function isIgnoredHold(holdCode: string): boolean {
   return IGNORED_HOLD_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
-function lookupSubjectAbbrev(abbrev: string): string | null {
-  return SUBJECT_DICTIONARY[abbrev.toLocaleLowerCase('da')] ?? null;
-}
-
 function stripSubjectLevelSuffix(token: string): string {
   return token.replace(/-[a-zæøå]+$/i, '');
 }
 
-function lookupSubjectName(value: string): string | null {
-  return SUBJECT_NAME_LOOKUP.get(normalizeKey(value)) ?? null;
-}
-
-function getSubjectKey(subjectName: string): string {
-  return normalizeKey(subjectName);
-}
-
-function getDefaultSubjectHue(subjectKey: string): number {
-  return SUBJECT_DEFAULT_HUES[subjectKey] ?? hashToHue(subjectKey);
+function getDefaultHue(canonicalKey: string): number {
+  return SUBJECT_DEFAULT_HUES[canonicalKey] ?? hashToHue(canonicalKey);
 }
 
 function isAutoDetectableSubjectSuffix(subjectToken: string, suffix: string): boolean {
@@ -370,17 +472,50 @@ function isAutoDetectableSubjectSuffix(subjectToken: string, suffix: string): bo
   return false;
 }
 
+function resolveStandaloneSubject(holdCode: string): HoldDescriptor | null {
+  const direct = resolveCanonicalLesson(holdCode);
+  if (direct) {
+    return {
+      holdCode,
+      prefix: null,
+      suffix: '',
+      classification: 'mapping',
+      canonicalKey: direct.canonicalKey,
+      defaultName: direct.defaultName,
+    };
+  }
+
+  const match = holdCode.match(/^(\S+)(.*)$/);
+  if (!match) return null;
+
+  const [, token, suffix] = match;
+  const strippedToken = stripSubjectLevelSuffix(token);
+  const resolved = resolveCanonicalLesson(strippedToken);
+  const trimmedSuffix = suffix.trim();
+  if (!resolved || !isAutoDetectableSubjectSuffix(strippedToken, trimmedSuffix)) {
+    return null;
+  }
+
+  return {
+    holdCode,
+    prefix: null,
+    suffix,
+    classification: 'mapping',
+    canonicalKey: resolved.canonicalKey,
+    defaultName: resolved.defaultName,
+  };
+}
+
 function analyzeHold(holdCode: string): HoldDescriptor {
   const normalizedHoldCode = normalizeWhitespace(holdCode);
   if (!normalizedHoldCode) {
     return {
       holdCode: '',
       prefix: null,
-      subjectToken: null,
       suffix: '',
       classification: 'fallback',
-      subjectKey: null,
-      subjectName: null,
+      canonicalKey: null,
+      defaultName: null,
     };
   }
 
@@ -388,37 +523,25 @@ function analyzeHold(holdCode: string): HoldDescriptor {
     return {
       holdCode: normalizedHoldCode,
       prefix: null,
-      subjectToken: null,
       suffix: '',
       classification: 'ignored',
-      subjectKey: null,
-      subjectName: null,
+      canonicalKey: null,
+      defaultName: null,
     };
   }
 
-  const directSubjectName = lookupSubjectName(normalizedHoldCode);
-  if (directSubjectName) {
-    return {
-      holdCode: normalizedHoldCode,
-      prefix: null,
-      subjectToken: normalizedHoldCode,
-      suffix: '',
-      classification: 'subject',
-      subjectKey: getSubjectKey(directSubjectName),
-      subjectName: directSubjectName,
-    };
-  }
+  const standalone = resolveStandaloneSubject(normalizedHoldCode);
+  if (standalone) return standalone;
 
   const match = normalizedHoldCode.match(/^(\S+)\s+(\S+)(.*)$/);
   if (!match) {
     return {
       holdCode: normalizedHoldCode,
       prefix: null,
-      subjectToken: null,
       suffix: '',
       classification: 'fallback',
-      subjectKey: null,
-      subjectName: null,
+      canonicalKey: null,
+      defaultName: null,
     };
   }
 
@@ -427,73 +550,53 @@ function analyzeHold(holdCode: string): HoldDescriptor {
     return {
       holdCode: normalizedHoldCode,
       prefix,
-      subjectToken,
       suffix,
       classification: 'fallback',
-      subjectKey: null,
-      subjectName: null,
-    };
-  }
-
-  if (isIgnoredHold(`${prefix} ${subjectToken}${suffix}`)) {
-    return {
-      holdCode: normalizedHoldCode,
-      prefix,
-      subjectToken,
-      suffix,
-      classification: 'ignored',
-      subjectKey: null,
-      subjectName: null,
+      canonicalKey: null,
+      defaultName: null,
     };
   }
 
   const normalizedSubjectToken = stripSubjectLevelSuffix(subjectToken);
-  const subjectName = lookupSubjectAbbrev(normalizedSubjectToken);
+  const resolved = resolveCanonicalLesson(normalizedSubjectToken);
   const trimmedSuffix = suffix.trim();
-  if (subjectName && isAutoDetectableSubjectSuffix(normalizedSubjectToken, trimmedSuffix)) {
+  if (resolved && isAutoDetectableSubjectSuffix(normalizedSubjectToken, trimmedSuffix)) {
     return {
       holdCode: normalizedHoldCode,
       prefix,
-      subjectToken: normalizedSubjectToken,
       suffix,
-      classification: 'subject',
-      subjectKey: getSubjectKey(subjectName),
-      subjectName,
+      classification: 'mapping',
+      canonicalKey: resolved.canonicalKey,
+      defaultName: resolved.defaultName,
     };
   }
 
   return {
     holdCode: normalizedHoldCode,
     prefix,
-    subjectToken,
     suffix,
-    classification: 'override',
-    subjectKey: null,
-    subjectName: null,
+    classification: 'fallback',
+    canonicalKey: null,
+    defaultName: null,
   };
 }
 
-function upsertSubjectMapping(
+function upsertMapping(
   store: HoldMappingStore,
-  subjectKey: string,
-  candidate: Omit<SubjectMapping, 'kind' | 'subjectKey'>,
+  canonicalKey: string,
+  candidate: Omit<LessonMapping, 'kind' | 'canonicalKey'>,
 ): boolean {
-  const existing = store.subjects[subjectKey];
+  const existing = store.mappings[canonicalKey];
   if (!existing) {
-    store.subjects[subjectKey] = {
-      kind: 'subject',
-      subjectKey,
+    store.mappings[canonicalKey] = {
+      kind: 'mapping',
+      canonicalKey,
       ...candidate,
     };
     return true;
   }
 
   let changed = false;
-
-  if (!existing.subjectAbbrev || candidate.subjectAbbrev.length < existing.subjectAbbrev.length) {
-    existing.subjectAbbrev = candidate.subjectAbbrev;
-    changed = true;
-  }
 
   if (!existing.sampleHoldCode && candidate.sampleHoldCode) {
     existing.sampleHoldCode = candidate.sampleHoldCode;
@@ -519,200 +622,167 @@ function upsertSubjectMapping(
   return changed;
 }
 
-function upsertHoldOverride(
-  store: HoldMappingStore,
-  holdCode: string,
-  candidate: Omit<HoldOverride, 'kind' | 'holdCode'>,
-): boolean {
-  const existing = store.holdOverrides[holdCode];
-  if (!existing) {
-    store.holdOverrides[holdCode] = {
-      kind: 'override',
-      holdCode,
-      ...candidate,
-    };
-    return true;
+function getDisplayName(store: HoldMappingStore, descriptor: HoldDescriptor): string {
+  if (!descriptor.canonicalKey || !descriptor.defaultName) return descriptor.holdCode;
+  return store.mappings[descriptor.canonicalKey]?.displayName ?? descriptor.defaultName;
+}
+
+function expandHoldLabel(descriptor: HoldDescriptor, displayName: string): string {
+  const trimmedDisplayName = displayName.trim();
+  if (!trimmedDisplayName) return descriptor.holdCode;
+
+  if (!descriptor.prefix && !descriptor.suffix.trim()) {
+    return trimmedDisplayName;
   }
 
+  if (descriptor.prefix) {
+    if (trimmedDisplayName.toLocaleLowerCase('da').startsWith(`${descriptor.prefix.toLocaleLowerCase('da')} `)) {
+      return trimmedDisplayName;
+    }
+    return `${descriptor.prefix} ${trimmedDisplayName}${descriptor.suffix}`;
+  }
+
+  return `${trimmedDisplayName}${descriptor.suffix}`;
+}
+
+export function getCanonicalHoldKey(holdCode: string): string | null {
+  const descriptor = analyzeHold(holdCode);
+  return descriptor.classification === 'mapping' ? descriptor.canonicalKey : null;
+}
+
+export function getLessonMappingSnapshot(canonicalKey: string): LessonMappingSnapshot | null {
+  const store = loadStore();
+  const mapping = store.mappings[canonicalKey];
+  if (!mapping) return null;
+  return {
+    ...mapping,
+    defaultColorHue: getDefaultHue(mapping.canonicalKey),
+  };
+}
+
+export function getAllLessonMappingSnapshots(): LessonMappingSnapshot[] {
+  const store = loadStore();
+  return Object.values(store.mappings)
+    .map((mapping) => ({
+      ...mapping,
+      defaultColorHue: getDefaultHue(mapping.canonicalKey),
+    }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'da'));
+}
+
+export function applySupabaseLessonMappings(rows: SupabaseLessonMappingRow[]): boolean {
+  const store = loadStore();
   let changed = false;
 
-  if (!existing.holdelementId && candidate.holdelementId) {
-    existing.holdelementId = candidate.holdelementId;
-    changed = true;
+  for (const row of rows) {
+    const canonicalKey = normalizeKey(row.canonical_key);
+    const nextDefaultName = normalizeWhitespace(row.default_name);
+    const nextDisplayName = normalizeWhitespace(row.display_name || row.default_name);
+    const nextColorHue = row.override_color_hue ?? null;
+    const nextIcon = row.override_icon ?? null;
+    const existing = store.mappings[canonicalKey];
+
+    if (!existing) {
+      store.mappings[canonicalKey] = {
+        kind: 'mapping',
+        canonicalKey,
+        defaultName: nextDefaultName,
+        displayName: nextDisplayName,
+        autoGuessed: nextDisplayName === nextDefaultName,
+        colorHue: nextColorHue,
+        icon: nextIcon,
+        sampleHoldCode: null,
+      };
+      changed = true;
+      continue;
+    }
+
+    if (
+      existing.defaultName !== nextDefaultName ||
+      existing.displayName !== nextDisplayName ||
+      existing.autoGuessed !== (nextDisplayName === nextDefaultName) ||
+      existing.colorHue !== nextColorHue ||
+      existing.icon !== nextIcon
+    ) {
+      existing.defaultName = nextDefaultName;
+      existing.displayName = nextDisplayName;
+      existing.autoGuessed = nextDisplayName === nextDefaultName;
+      existing.colorHue = nextColorHue;
+      existing.icon = nextIcon;
+      changed = true;
+    }
   }
 
-  if (!existing.subjectAbbrev && candidate.subjectAbbrev) {
-    existing.subjectAbbrev = candidate.subjectAbbrev;
-    changed = true;
-  }
-
-  if (!existing.icon && candidate.icon) {
-    existing.icon = candidate.icon;
-    changed = true;
-  }
-
-  if (existing.colorHue === null && candidate.colorHue !== null) {
-    existing.colorHue = candidate.colorHue;
-    changed = true;
-  }
-
-  if (!candidate.autoGuessed && existing.autoGuessed) {
-    existing.displayName = candidate.displayName;
-    existing.autoGuessed = false;
-    changed = true;
+  if (changed) {
+    saveStore(store);
   }
 
   return changed;
 }
 
-// ── Resolution ─────────────────────────────────────────────────────────
-
-function getSubjectDisplayName(store: HoldMappingStore, descriptor: HoldDescriptor): string {
-  if (!descriptor.subjectKey || !descriptor.subjectName) return descriptor.holdCode;
-  return store.subjects[descriptor.subjectKey]?.displayName ?? descriptor.subjectName;
-}
-
-function getSubjectHue(store: HoldMappingStore, descriptor: HoldDescriptor): number {
-  if (!descriptor.subjectKey) return UNMAPPED_HUE;
-  const subject = store.subjects[descriptor.subjectKey];
-  if (subject?.colorHue !== null && subject?.colorHue !== undefined) {
-    return subject.colorHue;
-  }
-  return getDefaultSubjectHue(descriptor.subjectKey);
-}
-
-function expandHoldLabel(descriptor: HoldDescriptor, subjectName: string): string {
-  if (!descriptor.prefix || !subjectName.trim()) return subjectName.trim() || descriptor.holdCode;
-
-  const trimmedSubjectName = subjectName.trim();
-  if (trimmedSubjectName.toLocaleLowerCase('da').startsWith(`${descriptor.prefix.toLocaleLowerCase('da')} `)) {
-    return trimmedSubjectName;
-  }
-
-  return `${descriptor.prefix} ${trimmedSubjectName}${descriptor.suffix}`;
-}
-
-// ── Public API ──────────────────────────────────────────────────────────
-
-/**
- * Get the display name for a hold code.
- * Returns the shared subject name, per-hold override, or raw hold code.
- */
 export function getHoldDisplayName(holdCode: string): string {
   const store = loadStore();
   const descriptor = analyzeHold(holdCode);
 
-  if (descriptor.classification === 'ignored' || descriptor.classification === 'fallback') {
+  if (descriptor.classification !== 'mapping') {
     return descriptor.holdCode;
   }
 
-  if (descriptor.classification === 'override') {
-    return store.holdOverrides[descriptor.holdCode]?.displayName ?? descriptor.holdCode;
-  }
-
-  return getSubjectDisplayName(store, descriptor);
+  return getDisplayName(store, descriptor);
 }
 
-/**
- * Whether this hold currently resolves through a stored subject/override mapping.
- */
 export function hasHoldMapping(holdCode: string): boolean {
   const store = loadStore();
   const descriptor = analyzeHold(holdCode);
-
-  if (descriptor.classification === 'subject') {
-    return !!descriptor.subjectKey && !!store.subjects[descriptor.subjectKey];
-  }
-
-  if (descriptor.classification === 'override') {
-    return !!store.holdOverrides[descriptor.holdCode];
-  }
-
-  return false;
+  return descriptor.classification === 'mapping' && !!descriptor.canonicalKey && !!store.mappings[descriptor.canonicalKey];
 }
 
-/**
- * Get a full hold label with class prefix preserved.
- * "1x MA" -> "1x Matematik", "1g Ty 4" -> "1g Tysk 4", "2.4 EN" -> "2.4 Engelsk"
- */
 export function getFullHoldDisplayName(holdCode: string): string {
   const store = loadStore();
   const descriptor = analyzeHold(holdCode);
 
-  if (descriptor.classification !== 'subject') {
-    return getHoldDisplayName(holdCode);
+  if (descriptor.classification !== 'mapping') {
+    return descriptor.holdCode;
   }
 
-  return expandHoldLabel(descriptor, getSubjectDisplayName(store, descriptor));
+  return expandHoldLabel(descriptor, getDisplayName(store, descriptor));
 }
 
-/**
- * Get the color hue for a hold code.
- * Shared subjects use a shared default hue across classes.
- */
 export function getHoldHue(holdCode: string): number {
   const store = loadStore();
   const descriptor = analyzeHold(holdCode);
 
-  if (descriptor.classification === 'subject') {
-    return getSubjectHue(store, descriptor);
-  }
-
-  if (descriptor.classification === 'override') {
-    const override = store.holdOverrides[descriptor.holdCode];
-    if (override?.colorHue !== null && override?.colorHue !== undefined) {
-      return override.colorHue;
-    }
+  if (descriptor.classification !== 'mapping' || !descriptor.canonicalKey) {
     return UNMAPPED_HUE;
   }
 
-  return UNMAPPED_HUE;
+  const mapping = store.mappings[descriptor.canonicalKey];
+  if (mapping?.colorHue !== null && mapping?.colorHue !== undefined) {
+    return mapping.colorHue;
+  }
+
+  return getDefaultHue(descriptor.canonicalKey);
 }
 
-/**
- * Register a hold code in the store.
- * Shared academic subjects are stored once; non-academic groups are ignored.
- */
-export function registerHold(holdCode: string, holdelementId?: string | null): void {
+export function registerHold(holdCode: string, _holdelementId?: string | null): void {
   const store = loadStore();
   const descriptor = analyzeHold(holdCode);
 
-  if (descriptor.classification === 'ignored' || descriptor.classification === 'fallback') {
+  if (descriptor.classification !== 'mapping' || !descriptor.canonicalKey || !descriptor.defaultName) {
     return;
   }
 
-  if (descriptor.classification === 'subject' && descriptor.subjectKey && descriptor.subjectName) {
-    const changed = upsertSubjectMapping(store, descriptor.subjectKey, {
-      subjectAbbrev: descriptor.subjectToken ?? descriptor.subjectName,
-      defaultName: descriptor.subjectName,
-      displayName: descriptor.subjectName,
-      autoGuessed: true,
-      colorHue: null,
-      icon: null,
-      sampleHoldCode: descriptor.holdCode === descriptor.subjectName ? null : descriptor.holdCode,
-    });
-    if (changed) saveStore(store);
-    return;
-  }
-
-  const changed = upsertHoldOverride(store, descriptor.holdCode, {
-    holdelementId: holdelementId ?? null,
-    subjectAbbrev: descriptor.subjectToken,
-    defaultName: descriptor.holdCode,
-    displayName: descriptor.holdCode,
+  const changed = upsertMapping(store, descriptor.canonicalKey, {
+    defaultName: descriptor.defaultName,
+    displayName: descriptor.defaultName,
     autoGuessed: true,
     colorHue: null,
     icon: null,
+    sampleHoldCode: descriptor.holdCode === descriptor.defaultName ? null : descriptor.holdCode,
   });
   if (changed) saveStore(store);
 }
 
-/**
- * Scan the DOM for hold references and register them.
- * Targets:
- *   1. [data-tooltip] elements with "Hold: xxx" lines
- *   2. span[data-lectioContextCard^="HE"] hold spans
- */
 export function scanDOMForHolds(root?: Element): void {
   const container = root ?? document;
 
@@ -732,123 +802,66 @@ export function scanDOMForHolds(root?: Element): void {
 
   container.querySelectorAll('span[data-lectioContextCard^="HE"]').forEach((el) => {
     const holdCode = el.textContent?.trim();
-    const contextId = el.getAttribute('data-lectioContextCard') || null;
     if (holdCode) {
-      registerHold(holdCode, contextId);
+      registerHold(holdCode);
     }
   });
 }
 
-/**
- * Get all editable mappings for the settings UI.
- */
 export function getAllHolds(): HoldMappingRow[] {
   const store = loadStore();
 
-  const subjects = Object.values(store.subjects)
+  return Object.values(store.mappings)
     .map<HoldMappingRow>((mapping) => ({
-      id: mapping.subjectKey,
-      kind: 'subject',
-      codeLabel: mapping.sampleHoldCode ?? mapping.subjectAbbrev.toLocaleUpperCase('da'),
+      id: mapping.canonicalKey,
+      kind: 'mapping',
+      codeLabel: mapping.sampleHoldCode ?? mapping.canonicalKey.toLocaleUpperCase('da'),
       displayName: mapping.displayName,
       autoGuessed: mapping.autoGuessed,
       colorHue: mapping.colorHue,
-      effectiveHue: mapping.colorHue ?? getDefaultSubjectHue(mapping.subjectKey),
+      effectiveHue: mapping.colorHue ?? getDefaultHue(mapping.canonicalKey),
       description: mapping.sampleHoldCode
-        ? `Gælder automatisk for fx ${mapping.sampleHoldCode}.`
-        : 'Gælder automatisk på tværs af dine klasser.',
+        ? `Normaliseres til ${mapping.canonicalKey.toLocaleUpperCase('da')} for fx ${mapping.sampleHoldCode}.`
+        : `Normaliseres til ${mapping.canonicalKey.toLocaleUpperCase('da')} på tværs af dine hold.`,
       sortLabel: mapping.displayName,
     }))
     .sort((a, b) => a.sortLabel.localeCompare(b.sortLabel, 'da'));
-
-  const overrides = Object.values(store.holdOverrides)
-    .map<HoldMappingRow>((mapping) => ({
-      id: mapping.holdCode,
-      kind: 'override',
-      codeLabel: mapping.holdCode,
-      displayName: mapping.displayName,
-      autoGuessed: mapping.autoGuessed,
-      colorHue: mapping.colorHue,
-      effectiveHue: mapping.colorHue ?? UNMAPPED_HUE,
-      description: 'Bruges kun når Lectio viser dette navn.',
-      sortLabel: mapping.displayName,
-    }))
-    .sort((a, b) => a.sortLabel.localeCompare(b.sortLabel, 'da'));
-
-  return [...subjects, ...overrides];
 }
 
-/**
- * Set a user override for a subject or hold exception display name.
- */
-export function setHoldDisplayName(id: string, kind: HoldMappingRow['kind'], name: string): void {
+export function setHoldDisplayName(id: string, _kind: HoldMappingRow['kind'], name: string): void {
   const store = loadStore();
   const trimmed = normalizeWhitespace(name);
   if (!trimmed) return;
 
-  if (kind === 'subject') {
-    const subject = store.subjects[id];
-    if (!subject) return;
-    subject.displayName = trimmed;
-    subject.autoGuessed = trimmed === subject.defaultName;
-    saveStore(store);
-    return;
-  }
+  const mapping = store.mappings[id];
+  if (!mapping) return;
 
-  const override = store.holdOverrides[id];
-  if (!override) return;
-  override.displayName = trimmed;
-  override.autoGuessed = trimmed === override.defaultName;
+  mapping.displayName = trimmed;
+  mapping.autoGuessed = trimmed === mapping.defaultName;
   saveStore(store);
 }
 
-/**
- * Set a user override for a subject or hold exception color hue.
- * Pass null to reset to the shared/default hash color.
- */
-export function setHoldColorHue(id: string, kind: HoldMappingRow['kind'], hue: number | null): void {
+export function setHoldColorHue(id: string, _kind: HoldMappingRow['kind'], hue: number | null): void {
   const store = loadStore();
+  const mapping = store.mappings[id];
+  if (!mapping) return;
 
-  if (kind === 'subject') {
-    const subject = store.subjects[id];
-    if (!subject) return;
-    subject.colorHue = hue;
-    saveStore(store);
-    return;
-  }
-
-  const override = store.holdOverrides[id];
-  if (!override) return;
-  override.colorHue = hue;
+  mapping.colorHue = hue;
   saveStore(store);
 }
 
-/**
- * Reset all display names and color overrides to their defaults.
- */
 export function resetAllMappings(): void {
   const store = loadStore();
 
-  for (const subject of Object.values(store.subjects)) {
-    subject.displayName = subject.defaultName;
-    subject.autoGuessed = true;
-    subject.colorHue = null;
-  }
-
-  for (const override of Object.values(store.holdOverrides)) {
-    override.displayName = override.defaultName;
-    override.autoGuessed = true;
-    override.colorHue = null;
+  for (const mapping of Object.values(store.mappings)) {
+    mapping.displayName = mapping.defaultName;
+    mapping.autoGuessed = true;
+    mapping.colorHue = null;
   }
 
   saveStore(store);
 }
 
-/**
- * Replace hold codes with display names in the DOM.
- * Targets <span data-lectioContextCard="HE..."> elements (schedule bricks, etc.).
- * Returns the number of replacements made.
- */
 export function replaceHoldCodesInDOM(container: Element, useFullName = false): number {
   const spans = container.querySelectorAll<HTMLElement>('span[data-lectioContextCard^="HE"]');
   let count = 0;
@@ -868,9 +881,6 @@ export function replaceHoldCodesInDOM(container: Element, useFullName = false): 
   return count;
 }
 
-/**
- * Clear the entire hold mapping store.
- */
 export function clearHoldMappings(): void {
   cachedStore = null;
   try {

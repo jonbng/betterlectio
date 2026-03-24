@@ -68,7 +68,7 @@ function applyFilters(
 
 async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }>): Promise<SupabaseResponse> {
   const supabase = getSupabase();
-  let query = supabase.from(msg.table).select(msg.select ?? '*');
+  let query: any = supabase.from(msg.table).select(msg.select ?? '*');
   query = applyFilters(query, msg.filters);
   if (msg.order) {
     query = query.order(msg.order.column, { ascending: msg.order.ascending ?? true });
@@ -235,6 +235,33 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
     const supabase = getSupabase();
     const { data } = await supabase.auth.getSession();
     if (data.session?.expires_at && data.session.expires_at > Date.now() / 1000 + 300) {
+      if (qrData?.userId && data.session.user?.id) {
+        const { data: studentRows, error: studentLookupError } = await supabase
+          .from('students')
+          .select('id')
+          .eq('supabase_id', data.session.user.id)
+          .eq('id', qrData.userId)
+          .limit(1);
+
+        if (studentLookupError) {
+          console.warn('[BetterLectio] Could not validate existing Supabase session owner:', studentLookupError.message);
+        } else if (!studentRows?.length) {
+          console.log('[BetterLectio] Existing Supabase session belongs to a different Lectio user, reauthenticating');
+        } else {
+          await browser.storage.local.remove(REAUTH_KEY);
+          return { ok: true, session: { expires_at: data.session.expires_at } };
+        }
+      } else {
+        await browser.storage.local.remove(REAUTH_KEY);
+        return { ok: true, session: { expires_at: data.session.expires_at } };
+      }
+    }
+
+    if (data.session && qrData?.userId) {
+      await supabase.auth.signOut().catch(() => {});
+    }
+
+    if (data.session?.expires_at && data.session.expires_at > Date.now() / 1000 + 300 && !qrData) {
       await browser.storage.local.remove(REAUTH_KEY);
       return { ok: true, session: { expires_at: data.session.expires_at } };
     }

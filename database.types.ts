@@ -146,6 +146,50 @@ export type Database = {
         }
         Relationships: []
       }
+      school_lesson_mappings: {
+        Row: {
+          canonical_key: string
+          created_at: string
+          default_color_hue: number | null
+          default_name: string
+          deleted_at: string | null
+          icon: string | null
+          id: string
+          school_id: number
+          updated_at: string
+        }
+        Insert: {
+          canonical_key: string
+          created_at?: string
+          default_color_hue?: number | null
+          default_name: string
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          school_id: number
+          updated_at?: string
+        }
+        Update: {
+          canonical_key?: string
+          created_at?: string
+          default_color_hue?: number | null
+          default_name?: string
+          deleted_at?: string | null
+          icon?: string | null
+          id?: string
+          school_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_lesson_mappings_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schools: {
         Row: {
           created_at: string
@@ -370,6 +414,63 @@ export type Database = {
         }
         Relationships: []
       }
+      user_lesson_overrides: {
+        Row: {
+          client_updated_at: string | null
+          color_hue: number | null
+          created_at: string
+          deleted_at: string | null
+          display_name: string | null
+          icon: string | null
+          id: string
+          last_modified_by: string | null
+          mapping_id: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_updated_at?: string | null
+          color_hue?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          display_name?: string | null
+          icon?: string | null
+          id?: string
+          last_modified_by?: string | null
+          mapping_id: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_updated_at?: string | null
+          color_hue?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          display_name?: string | null
+          icon?: string | null
+          id?: string
+          last_modified_by?: string | null
+          mapping_id?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_lesson_overrides_mapping_id_fkey"
+            columns: ["mapping_id"]
+            isOneToOne: false
+            referencedRelation: "school_lesson_mappings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_lesson_overrides_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       week_sync: {
         Row: {
           created_at: string
@@ -410,6 +511,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_school_id: { Args: never; Returns: number }
       get_student_lesson_mappings: {
         Args: { p_gym_id: string; p_student_id: string }
         Returns: {
@@ -420,6 +522,69 @@ export type Database = {
           is_overwritten: boolean
           mapping_id: string
           original_string: string
+        }[]
+      }
+      get_student_lesson_mappings_v2: {
+        Args: { p_school_id: number; p_student_id: string }
+        Returns: {
+          canonical_key: string
+          default_color_hue: number
+          default_icon: string
+          default_name: string
+          display_color_hue: number
+          display_icon: string
+          display_name: string
+          is_overridden: boolean
+          mapping_id: string
+          override_color_hue: number
+          override_display_name: string
+          override_icon: string
+          override_id: string
+          school_id: number
+          student_id: string
+          updated_at: string
+        }[]
+      }
+      reset_user_lesson_override_v2: {
+        Args: {
+          p_canonical_key: string
+          p_client_updated_at?: string
+          p_last_modified_by?: string
+          p_school_id: number
+          p_student_id: string
+        }
+        Returns: undefined
+      }
+      upsert_user_lesson_override_v2: {
+        Args: {
+          p_canonical_key: string
+          p_client_updated_at?: string
+          p_color_hue?: number
+          p_default_color_hue?: number
+          p_default_name: string
+          p_display_name?: string
+          p_icon?: string
+          p_last_modified_by?: string
+          p_school_id: number
+          p_student_id: string
+        }
+        Returns: {
+          canonical_key: string
+          default_color_hue: number
+          default_icon: string
+          default_name: string
+          display_color_hue: number
+          display_icon: string
+          display_name: string
+          is_overridden: boolean
+          mapping_id: string
+          override_color_hue: number
+          override_display_name: string
+          override_icon: string
+          override_id: string
+          school_id: number
+          student_id: string
+          updated_at: string
         }[]
       }
     }
