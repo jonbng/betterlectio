@@ -44,7 +44,7 @@ import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName,
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
-import { captureOncePerSession, identifyIfNeeded, getDistinctId } from "@/lib/posthog";
+import { captureOncePerSession, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -205,6 +205,13 @@ function installActivityModalClickInterceptor() {
 }
 
 function initLayout() {
+  // Sync analytics opt-out to extension storage so background script can read it
+  try {
+    const stored = localStorage.getItem('bl-feature-settings') ?? localStorage.getItem('il-feature-settings');
+    const optedOut = stored ? JSON.parse(stored)?.behavior?.analyticsOptOut === true : false;
+    syncOptOutToExtensionStorage(optedOut);
+  } catch { /* non-critical */ }
+
   // If this page was prerendered and is now activating, it's already set up
   const wasPrerendered =
     (window as any).__IL_PRERENDERED__ && !(document as any).prerendering;

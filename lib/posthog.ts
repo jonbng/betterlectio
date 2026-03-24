@@ -5,16 +5,52 @@ const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
 const IS_DEV = import.meta.env.DEV;
 
 // ── Analytics opt-out ────────────────────────────────────────────────
-// Direct localStorage read to avoid circular dependency with settings-storage.
+// Works in both content scripts (localStorage) and background/service workers
+// (browser.storage.local). Content scripts sync the flag on settings change.
+
+const OPT_OUT_STORAGE_KEY = 'bl-analytics-opt-out';
 
 function isOptedOut(): boolean {
   if (IS_DEV) return true;
+  // Fast path: check cached value (set by syncOptOutToExtensionStorage or loadOptOutFlag)
+  if (_optOutCached !== undefined) return _optOutCached;
+  // Fallback: try localStorage (content script context)
   try {
     const stored = localStorage.getItem('bl-feature-settings') ?? localStorage.getItem('il-feature-settings');
     if (!stored) return false;
     return JSON.parse(stored)?.behavior?.analyticsOptOut === true;
   } catch {
+    // localStorage not available (background/service worker) — default to false,
+    // the async loadOptOutFlag() will update _optOutCached on next tick
     return false;
+  }
+}
+
+let _optOutCached: boolean | undefined;
+
+/**
+ * Sync the analytics opt-out flag to browser.storage.local so the background
+ * script can read it. Call this whenever the setting changes.
+ */
+export function syncOptOutToExtensionStorage(optedOut: boolean): void {
+  _optOutCached = optedOut;
+  try {
+    browser.storage.local.set({ [OPT_OUT_STORAGE_KEY]: optedOut });
+  } catch {
+    // Non-critical
+  }
+}
+
+/**
+ * Load the opt-out flag from browser.storage.local (for background/service worker).
+ * Call once at startup in contexts without localStorage.
+ */
+export async function loadOptOutFlag(): Promise<void> {
+  try {
+    const result = await browser.storage.local.get(OPT_OUT_STORAGE_KEY);
+    _optOutCached = result[OPT_OUT_STORAGE_KEY] === true;
+  } catch {
+    _optOutCached = false;
   }
 }
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { syncOptOutToExtensionStorage } from '@/lib/posthog';
 
 const SETTINGS_KEY = 'bl-feature-settings';
 const LEGACY_SETTINGS_KEY = 'il-feature-settings';
@@ -134,6 +135,8 @@ export function saveSettings(settings: FeatureSettings): void {
       version: SETTINGS_VERSION,
     });
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(validated));
+    // Sync analytics opt-out to extension storage so background script can read it
+    syncOptOutToExtensionStorage(validated.behavior.analyticsOptOut);
   } catch {
     // Ignore storage errors
   }

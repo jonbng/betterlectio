@@ -7,7 +7,7 @@ import type {
   TableName,
 } from '@/lib/supabase/messages';
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
-import { capture, getDistinctId } from '@/lib/posthog';
+import { capture, identify, getDistinctId, loadOptOutFlag } from '@/lib/posthog';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -278,7 +278,13 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
         await setFailures({ count: 0, lastAttempt: 0 });
         await browser.storage.local.remove(REAUTH_KEY);
         const { data: newData } = await supabase.auth.getSession();
-        capture('supabase auth succeeded', getDistinctId(qrData.userId));
+        identify(getDistinctId(qrData.userId), {
+          school_id: schoolId,
+          extension_version: browser.runtime.getManifest().version,
+        });
+        capture('supabase auth succeeded', getDistinctId(qrData.userId), {
+          school_id: schoolId,
+        });
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
       }
       // Don't count transient QR errors as failures (race conditions, expired QR)
@@ -286,9 +292,14 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
       if (!isTransient) {
         const failures = await getFailures();
         await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
+        identify(getDistinctId(qrData.userId), {
+          school_id: schoolId,
+          extension_version: browser.runtime.getManifest().version,
+        });
         capture('supabase auth failed', getDistinctId(qrData.userId), {
           error: result.error,
           failure_count: failures.count + 1,
+          school_id: schoolId,
         });
       }
       console.warn('[BetterLectio] Auto Supabase auth failed:', result.error);
@@ -322,6 +333,9 @@ function initAuthStateListener(): void {
 
 export default defineBackground(() => {
   console.log('[BetterLectio] Background script loaded');
+
+  // Load analytics opt-out flag from extension storage (no localStorage in service workers)
+  loadOptOutFlag();
 
   initAuthStateListener();
 
