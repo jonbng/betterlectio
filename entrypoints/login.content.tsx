@@ -135,7 +135,8 @@ function parseSchoolsFromDOM(doc: Document): School[] {
   const schools: School[] = [];
 
   // Find all school links in the buttonHeader divs
-  const schoolDivs = doc.querySelectorAll("#schoolsdiv .buttonHeader a");
+  // Lectio uses .buttonlinklist (mobile) or .buttonHeader (desktop) for school links
+  const schoolDivs = doc.querySelectorAll("#schoolsdiv .buttonlinklist a, #schoolsdiv .buttonHeader a");
 
   schoolDivs.forEach((link) => {
     const anchor = link as HTMLAnchorElement;

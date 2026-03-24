@@ -849,7 +849,7 @@ export function resetAllMappings(): void {
  * Targets <span data-lectioContextCard="HE..."> elements (schedule bricks, etc.).
  * Returns the number of replacements made.
  */
-export function replaceHoldCodesInDOM(container: Element): number {
+export function replaceHoldCodesInDOM(container: Element, useFullName = false): number {
   const spans = container.querySelectorAll<HTMLElement>('span[data-lectioContextCard^="HE"]');
   let count = 0;
 
@@ -857,7 +857,7 @@ export function replaceHoldCodesInDOM(container: Element): number {
     const holdCode = span.textContent?.trim();
     if (!holdCode) return;
 
-    const displayName = getHoldDisplayName(holdCode);
+    const displayName = useFullName ? getFullHoldDisplayName(holdCode) : getHoldDisplayName(holdCode);
     if (displayName !== holdCode) {
       span.textContent = displayName;
       span.title = holdCode;

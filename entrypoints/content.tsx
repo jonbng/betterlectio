@@ -40,7 +40,7 @@ import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
 import { applyThemeForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
-import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
+import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, getFullHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
@@ -411,8 +411,10 @@ function initLayout() {
       contentContainer.appendChild(wrapper);
 
       // Scan DOM for hold codes, register them, and replace with display names
+      // Show class prefix (e.g. "1x Matematik") when viewing non-student schedules
+      const showClassPrefix = !isViewingOwnPage();
       scanDOMForHolds(wrapper);
-      const holdReplacements = replaceHoldCodesInDOM(wrapper);
+      const holdReplacements = replaceHoldCodesInDOM(wrapper, showClassPrefix);
       if (holdReplacements > 0) {
         console.log(`[BetterLectio] Replaced ${holdReplacements} hold codes with subject names`);
       }
@@ -1176,7 +1178,7 @@ function mergeReplacedBricks() {
         cancelledHold?.textContent?.trim() ||
         "";
       const cancelledName = cancelledCode
-        ? getHoldDisplayName(cancelledCode)
+        ? (!isViewingOwnPage() ? getFullHoldDisplayName(cancelledCode) : getHoldDisplayName(cancelledCode))
         : "";
 
       // Hide the cancelled brick
@@ -1243,7 +1245,7 @@ function enhanceScheduleBricks() {
     // Get hold code for coloring (title attr has original code)
     const holdCode =
       holdSpan?.getAttribute("title") || holdSpan?.textContent?.trim() || "";
-    const holdDisplayName = holdCode ? getHoldDisplayName(holdCode) : "";
+    const holdDisplayName = holdCode ? (!isViewingOwnPage() ? getFullHoldDisplayName(holdCode) : getHoldDisplayName(holdCode)) : "";
     const hasMappedHoldTitle = holdCode ? hasHoldMapping(holdCode) : false;
     const topicText = topicSpan?.textContent?.trim() || "";
 
