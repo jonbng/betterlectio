@@ -15,6 +15,26 @@ export interface TeacherCache {
   cachedAt: number;
 }
 
+const MAX_TEACHER_DISPLAY_NAME_LENGTH = 26;
+
+export function shortenTeacherDisplayName(
+  fullName: string,
+  maxLength = MAX_TEACHER_DISPLAY_NAME_LENGTH,
+): string {
+  const clean = fullName.trim().replace(/\s+/g, ' ');
+  if (clean.length <= maxLength) return clean;
+
+  const parts = clean.split(' ');
+  if (parts.length <= 2) return clean;
+
+  const shortenedParts = [...parts];
+  while (shortenedParts.length > 2 && shortenedParts.join(' ').length > maxLength) {
+    shortenedParts.splice(1, 1);
+  }
+
+  return shortenedParts.join(' ');
+}
+
 export function getCachedTeachers(schoolId: string): TeacherCache | null {
   try {
     const stored = localStorage.getItem(TEACHER_CACHE_KEY) ?? localStorage.getItem(LEGACY_TEACHER_CACHE_KEY);
@@ -98,6 +118,11 @@ export async function loadTeacherNames(schoolId: string): Promise<TeacherCache |
  * Look up a teacher's full name by their abbreviation.
  */
 export function getTeacherName(cache: TeacherCache, abbrev: string): string | null {
+  const fullName = cache.byAbbrev[abbrev];
+  return fullName ? shortenTeacherDisplayName(fullName) : null;
+}
+
+export function getTeacherFullName(cache: TeacherCache, abbrev: string): string | null {
   return cache.byAbbrev[abbrev] ?? null;
 }
 
@@ -123,8 +148,8 @@ export function replaceTeacherInitialsInDOM(cache: TeacherCache, container: HTML
     const id = span.getAttribute('data-lectioContextCard')!.slice(1);
     const entry = cache.byId[id];
     if (entry) {
-      span.textContent = entry.fullName;
-      span.title = entry.abbrev;
+      span.textContent = shortenTeacherDisplayName(entry.fullName);
+      span.title = `${entry.fullName} (${entry.abbrev})`;
       count++;
     }
   });

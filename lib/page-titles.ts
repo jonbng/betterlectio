@@ -4,6 +4,7 @@
  */
 
 import { getFullHoldDisplayName } from './hold-mapping';
+import { shortenTeacherDisplayName } from './teacher-cache';
 import { getCachedUnreadCount } from './unread-messages';
 
 interface TitleConfig {
@@ -43,7 +44,7 @@ function extractTeacherInfo(): string | null {
   const title = document.title;
   const match = title.match(/^Læreren\s+(.+?)\s*-/);
   if (match) {
-    return match[1].trim();
+    return shortenTeacherDisplayName(match[1].trim());
   }
   return null;
 }

@@ -39,7 +39,7 @@ import {
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
 import { applyThemeForSchool } from "@/lib/theme-storage";
-import { loadTeacherNames, replaceTeacherInitialsInDOM } from "@/lib/teacher-cache";
+import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, getFullHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
@@ -1901,7 +1901,7 @@ function injectViewingScheduleHeader(schoolId: string) {
     loadTeacherNames(schoolId).then((cache) => {
       const teacherName = cache?.byId[viewedEntity.id]?.fullName;
       if (teacherName && teacherName !== viewedEntity.name) {
-        renderHeader(teacherName);
+        renderHeader(shortenTeacherDisplayName(teacherName));
       }
     });
   }
