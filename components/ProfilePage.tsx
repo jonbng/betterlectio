@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import type { Tables } from '@/database.types';
 import { useQuery } from '@/lib/supabase/hooks';
 import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
+import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
 
 interface ProfilePageProps {
   name: string;
@@ -205,6 +206,7 @@ export function ProfilePage({
   const firstName = displayName.split(' ')[0];
   const effectivePictureUrl = student?.custom_pfp_url || student?.lectio_pfp_url || pictureUrl;
   const canEnlargePicture = Boolean(effectivePictureUrl && hasBetterLectio);
+  const titleSubject = subtitle ? `${displayName} (${subtitle})` : displayName;
 
   // Navigation context
   const urlParams = new URLSearchParams(window.location.search);
@@ -336,6 +338,14 @@ export function ProfilePage({
     const timer = window.setTimeout(hideNewestDocumentsNode, 250);
     return () => window.clearTimeout(timer);
   }, [isDocumentsPage]);
+
+  useEffect(() => {
+    setCustomPageTitle(buildViewedEntityTitle(titleSubject, activeTab));
+
+    return () => {
+      setCustomPageTitle(null);
+    };
+  }, [activeTab, titleSubject]);
 
   async function resolveClassId(): Promise<string | null> {
     if (classIdRef.current) {

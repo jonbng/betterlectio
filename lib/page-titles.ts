@@ -4,6 +4,7 @@
  */
 
 import { getFullHoldDisplayName } from './hold-mapping';
+import { extractViewedEntity } from './profile-cache';
 import { shortenTeacherDisplayName } from './teacher-cache';
 import { getCachedUnreadCount } from './unread-messages';
 
@@ -14,6 +15,47 @@ interface TitleConfig {
   dynamic?: () => string | null;
   /** Whether to show a badge count (e.g., unread messages) */
   badge?: () => number | null;
+}
+
+export type ViewedEntityTitleSection =
+  | 'profil'
+  | 'skema'
+  | 'klassekammerater'
+  | 'laerere'
+  | 'holdgrupper'
+  | 'dokumenter';
+
+function getCustomPageTitle(): string | null {
+  return ((window as any).__IL_CUSTOM_PAGE_TITLE__ as string | null | undefined) ?? null;
+}
+
+export function buildViewedEntityTitle(
+  subject: string,
+  section: ViewedEntityTitleSection = 'skema',
+): string {
+  const labels: Record<ViewedEntityTitleSection, string> = {
+    profil: 'Profil',
+    skema: 'Skema',
+    klassekammerater: 'Klassekammerater',
+    laerere: 'Lærere',
+    holdgrupper: 'Hold & grupper',
+    dokumenter: 'Dokumenter',
+  };
+
+  return `${subject} - ${labels[section]}`;
+}
+
+function getViewedEntityTitleSubject(): string | null {
+  const viewedEntity = extractViewedEntity();
+  if (!viewedEntity) {
+    return null;
+  }
+
+  if (viewedEntity.type === 'student' && viewedEntity.subtitle) {
+    return `${viewedEntity.name} (${viewedEntity.subtitle})`;
+  }
+
+  return viewedEntity.name;
 }
 
 /**
@@ -103,6 +145,11 @@ function extractHoldInfo(): string | null {
  * Get the person/entity being viewed for schedule pages.
  */
 function getScheduleSubject(): string | null {
+  const viewedEntitySubject = getViewedEntityTitleSubject();
+  if (viewedEntitySubject) {
+    return viewedEntitySubject;
+  }
+
   const params = new URLSearchParams(window.location.search);
 
   if (params.has('elevid')) {
@@ -171,7 +218,7 @@ const PAGE_CONFIGS: Array<{ pattern: RegExp; config: TitleConfig }> = [
       title: 'Skema',
       dynamic: () => {
         const subject = getScheduleSubject();
-        return subject ? `Skema: ${subject}` : null;
+        return subject ? buildViewedEntityTitle(subject, 'skema') : null;
       },
     },
   },
@@ -275,6 +322,11 @@ function findPageConfig(): TitleConfig | null {
  * Generate the page title based on configuration.
  */
 function generateTitle(config: TitleConfig): string {
+  const customTitle = getCustomPageTitle();
+  if (customTitle) {
+    return `${customTitle} - Lectio`;
+  }
+
   let title = config.title;
 
   // Try dynamic title first
@@ -309,6 +361,11 @@ export function updatePageTitle(): void {
       document.title = newTitle;
     }
   }
+}
+
+export function setCustomPageTitle(title: string | null): void {
+  (window as any).__IL_CUSTOM_PAGE_TITLE__ = title;
+  updatePageTitle();
 }
 
 /**

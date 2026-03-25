@@ -39,6 +39,30 @@ export const THEME_PRESETS = [
       dark: { bg: "oklch(0.14 0.008 335)", sidebar: "oklch(0.12 0.008 335)", primary: "oklch(0.68 0.18 350)", accent: "oklch(0.21 0.01 335)" },
     },
   },
+  {
+    id: "ocean",
+    label: "Ocean",
+    colors: {
+      light: { bg: "oklch(0.982 0.006 220)", sidebar: "oklch(0.962 0.014 220)", primary: "oklch(0.6 0.17 235)", accent: "oklch(0.925 0.02 220)" },
+      dark: { bg: "oklch(0.145 0.004 285)", sidebar: "oklch(0.125 0.004 285)", primary: "oklch(0.71 0.14 235)", accent: "oklch(0.22 0.008 235)" },
+    },
+  },
+  {
+    id: "copper",
+    label: "Copper",
+    colors: {
+      light: { bg: "oklch(0.984 0.007 55)", sidebar: "oklch(0.964 0.015 55)", primary: "oklch(0.66 0.18 45)", accent: "oklch(0.93 0.02 55)" },
+      dark: { bg: "oklch(0.145 0.004 285)", sidebar: "oklch(0.125 0.004 285)", primary: "oklch(0.75 0.14 45)", accent: "oklch(0.23 0.008 45)" },
+    },
+  },
+  {
+    id: "iris",
+    label: "Iris",
+    colors: {
+      light: { bg: "oklch(0.982 0.008 300)", sidebar: "oklch(0.962 0.016 300)", primary: "oklch(0.62 0.18 305)", accent: "oklch(0.93 0.02 300)" },
+      dark: { bg: "oklch(0.145 0.004 285)", sidebar: "oklch(0.125 0.004 285)", primary: "oklch(0.72 0.14 305)", accent: "oklch(0.22 0.009 305)" },
+    },
+  },
 ] as const;
 
 export type ThemePresetId = (typeof THEME_PRESETS)[number]["id"];
@@ -50,4 +74,3 @@ export interface ThemePreference {
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = {
   themeId: "default",
 };
-

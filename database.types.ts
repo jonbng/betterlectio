@@ -24,6 +24,7 @@ export type Database = {
           lesson_date: string
           note: string | null
           room: string | null
+          school_id: number | null
           source_updated_at: string | null
           status: string | null
           teacher: string | null
@@ -39,6 +40,7 @@ export type Database = {
           lesson_date: string
           note?: string | null
           room?: string | null
+          school_id?: number | null
           source_updated_at?: string | null
           status?: string | null
           teacher?: string | null
@@ -54,6 +56,7 @@ export type Database = {
           lesson_date?: string
           note?: string | null
           room?: string | null
+          school_id?: number | null
           source_updated_at?: string | null
           status?: string | null
           teacher?: string | null
@@ -213,23 +216,29 @@ export type Database = {
       }
       student_homework: {
         Row: {
+          client_updated_at: string | null
           done_updated_at: string
           homework_id: string
           is_done: boolean
+          last_modified_by: string | null
           student_id: string
           updated_at: string
         }
         Insert: {
+          client_updated_at?: string | null
           done_updated_at?: string
           homework_id: string
           is_done?: boolean
+          last_modified_by?: string | null
           student_id: string
           updated_at?: string
         }
         Update: {
+          client_updated_at?: string | null
           done_updated_at?: string
           homework_id?: string
           is_done?: boolean
+          last_modified_by?: string | null
           student_id?: string
           updated_at?: string
         }
@@ -511,6 +520,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_student_homework_statuses: {
+        Args: { p_school_id: number; p_student_id: string }
+        Returns: {
+          client_updated_at: string | null
+          done_updated_at: string
+          entry_id: string
+          homework_id: string
+          is_done: boolean
+          last_modified_by: string | null
+          lesson_date: string
+          school_id: number
+          student_id: string
+          updated_at: string
+        }[]
+      }
       get_my_school_id: { Args: never; Returns: number }
       get_student_lesson_mappings: {
         Args: { p_gym_id: string; p_student_id: string }
@@ -582,6 +606,36 @@ export type Database = {
           override_display_name: string
           override_icon: string
           override_id: string
+          school_id: number
+          student_id: string
+          updated_at: string
+        }[]
+      }
+      upsert_student_homework_status: {
+        Args: {
+          p_client_updated_at?: string
+          p_display_date?: string
+          p_entry_id: string
+          p_hold?: string
+          p_is_done: boolean
+          p_items_json?: Json
+          p_last_modified_by?: string
+          p_lesson_date?: string
+          p_note?: string
+          p_room?: string
+          p_school_id: number
+          p_student_id: string
+          p_teacher?: string
+          p_title?: string
+        }
+        Returns: {
+          client_updated_at: string | null
+          done_updated_at: string
+          entry_id: string
+          homework_id: string
+          is_done: boolean
+          last_modified_by: string | null
+          lesson_date: string
           school_id: number
           student_id: string
           updated_at: string

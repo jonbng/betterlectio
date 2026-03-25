@@ -649,7 +649,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                   {THEME_PRESETS.map((preset) => {
                     const isDark = settings.visual?.darkMode ?? false;
                     const c = isDark ? preset.colors.dark : preset.colors.light;

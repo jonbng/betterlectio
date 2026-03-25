@@ -1,5 +1,10 @@
 export { getStudent, getStudentsBySchool, updateStudent } from './student';
-export { getHomework, getStudentHomework, markHomeworkDone } from './homework';
+export {
+  getHomework,
+  getStudentHomework,
+  markHomeworkDone,
+  upsertStudentHomeworkStatus,
+} from './homework';
 export {
   getLessons,
   getLessonMappings,

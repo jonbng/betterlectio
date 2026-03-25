@@ -7,6 +7,7 @@ import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } fr
 import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
 import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name';
+import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
 import { PersonCard } from './PersonCard';
 
 interface ViewingScheduleHeaderProps {
@@ -100,6 +101,7 @@ export function ViewingScheduleHeader({
   const [members, setMembers] = useState<Member[] | null>(null);
   const [, setMembersRerenderNonce] = useState(0);
   const firstName = name.split(' ')[0];
+  const titleSubject = subtitle ? `${name} (${subtitle})` : name;
 
   const config = ENTITY_CONFIG[type];
   const TypeIcon = config.icon;
@@ -219,6 +221,14 @@ export function ViewingScheduleHeader({
       url: getScheduleUrl(member.id, schoolId, { name: fullName }),
     });
   };
+
+  useEffect(() => {
+    setCustomPageTitle(buildViewedEntityTitle(titleSubject, 'skema'));
+
+    return () => {
+      setCustomPageTitle(null);
+    };
+  }, [titleSubject]);
 
   const sortedMembers = members
     ? [...members].sort((a, b) => {

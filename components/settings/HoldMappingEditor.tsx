@@ -218,7 +218,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
         {showColors && (
           <div className="absolute left-[calc(100%+8px)] top-1/2 z-50 -translate-y-1/2 rounded-xl border border-border bg-popover p-2 shadow-lg">
             <div className="mb-2 pl-0.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vælg farve</div>
-            <div className="flex w-[182px] flex-wrap gap-1">
+            <div className="flex w-[214px] flex-wrap gap-1">
               <button
                 type="button"
                 className={cn(

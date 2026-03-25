@@ -28,7 +28,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views. Supabase-backed: shows description, instagram, birthday (if `show_birthday`), BL badge. Own-profile inline edit form for description/instagram/show_birthday.
 - `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`), optional BetterLectio badge
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
-- `components/LektierPage.tsx` - Day-grouped homework cards
+- `components/LektierPage.tsx` - Day-grouped homework cards with Supabase-backed done-state sync (same UI, optimistic local toggle, cross-device persistence)
 - `components/OpgaverPage.tsx` - Urgency-first assignment cards, relative Danish deadlines, color-coded grades
 - `components/OpgaveDetailSheet.tsx` - Assignment detail side sheet with submission history, comment/file upload
 - `components/BeskederThreadView.tsx` - Thread view with sender avatars, WYSIWYG reply, no-reload reply/attach
@@ -43,7 +43,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design (parser reused by ForsideDashboard)
 - `components/KaraktererPage.tsx` - Grade report redesign: subject cards with big color-coded grades, teacher notes inline, summary bar, collapsible diploma/protocol/remarks sections, DOM parser
 - `components/DesignPlayground.tsx` - Design system playground from Settings
-- `components/settings/HoldMappingEditor.tsx` - Canonical lesson-key editor for subject names/colors (e.g. `1x MA`/`L2d MA` -> `ma`)
+- `components/settings/HoldMappingEditor.tsx` - Canonical lesson-key editor for subject names/colors (e.g. `1x MA`/`L2d MA`/`2zq MA` -> `ma`)
 
 ### Libraries
 - `lib/beskeder-thread-parser.ts` - Thread DOM parser, state detection, signature stripping (parsers accept optional `doc: Document`)
@@ -53,9 +53,9 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx, submission API, localStorage cache
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content + cache
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
-- `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
+- `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA`/`2.4 MA`/`L2d MA`/`2zq MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
 - `lib/hold-mapping-sync.ts` - Supabase v2 hydration + upsert/reset sync bridge for canonical lesson mappings and user overrides
-- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with letter or numeric suffixes (e.g. `1x`, `1.4`, `L2d`)
+- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with 1-2 alphanumeric suffixes or dotted numeric suffixes (e.g. `1x`, `2hf`, `2zq`, `1.4`, `L2d`)
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
 - `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
 - `lib/findskema-types.ts` - Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to filter types
@@ -66,6 +66,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/schedule-cache.ts` - Today's schedule cache (45min TTL)
 - `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
 - `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers
+- `lib/supabase/resources/homework.ts` - Homework queries + `upsert_student_homework_status` RPC bridge for synced completion state
 - `lib/supabase/student-lookup.ts` - Shared `useSchoolStudents(schoolId)` hook (returns `studentsMap` Map for O(1) lookups), `getStudentIdFromPersonId()`, `formatDanishBirthdate()`
 - `lib/school-storage.ts` - Last school persistence
 - `styles/globals.css` - Main styles, Lectio modernizer, page-specific styling
@@ -109,6 +110,8 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
 
 **Lesson mapping sync v2:** Canonical lesson mappings now live in Supabase v2 tables `school_lesson_mappings` (school defaults keyed by normalized `canonical_key` like `ma`, `srp`, `kt`) and `user_lesson_overrides` (per-student display/color/icon overrides). A migration lives in `supabase/migrations/20260324_add_lesson_mapping_v2.sql`. Mobile migration notes live in `docs/mobile-lesson-mapping-migration.md`.
+
+**Homework completion sync:** Lektier completion now persists per student in Supabase via `student_homework`, keyed from Lectio activity `entry_id`/`absid`. The extension still renders the same checkbox UI, but completion is now synced cross-device with optimistic local state and RPC writes through `upsert_student_homework_status(...)`. Schema/RLS lives in `supabase/migrations/20260324_add_homework_completion_sync.sql` plus the FK index migration `supabase/migrations/20260324_add_student_homework_homework_idx.sql`.
 
 ## Architecture
 Content scripts inject a custom Preact UI that wraps the original Lectio DOM. The original DOM is **moved** (not cloned) to preserve event handlers and functionality.
@@ -172,7 +175,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 
 **FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms. Real AvanceretSkema IDs use `SC*` for stamklasser, `RO*` for lokaler, `RE*` for ressourcer, `HE*` for hold, `GE*` for grupper. Always map by actual ID prefixes.
 
-**Class name parsing:** Do not assume grade-based class codes always end in a letter (`1x`, `2a`). Some schools use numeric suffixes like `1.4` / `2.4`, and others use a letter prefix like `L2d` (letter prefix + grade + suffix). Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across all formats.
+**Class name parsing:** Do not assume grade-based class codes always end in a single letter (`1x`, `2a`). Support 1-2 alphanumeric suffixes after the grade like `2hf` or `2zq`, dotted numeric suffixes like `1.4` / `2.4`, and letter-prefixed variants like `L2d`. Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across all formats.
 
 **Lectio Modernizer:** The "Lectio Modernizer" section in `globals.css` restyles native Lectio elements with modern design. Add new overrides to this section under `@layer components`. Key targets: `table.lf-grid`, `.buttonfilled`/`.buttonoutlined`/`.buttonfilledtonal`, `input`/`select`/`textarea`, `.s2skemabrik`, `.lf-island`.
 

@@ -362,6 +362,14 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     return !!(s?.has_extension || s?.has_app);
   };
 
+  const getPersonCardHref = useCallback((personId: string, fallbackHref: string) => {
+    const sid = getStudentIdFromPersonId(personId);
+    if (sid && userProfile?.studentId === sid) {
+      return `${window.location.origin}/lectio/${schoolId}/indstillinger/studentIndstillinger.aspx`;
+    }
+    return fallbackHref;
+  }, [schoolId, userProfile?.studentId]);
+
   return (
     <div className="min-h-full bg-background pb-2">
       {/* Search Section */}
@@ -444,7 +452,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                     name={displayName}
                     classCode={classCode}
                     type={item.type}
-                    href={item.scheduleUrl || getScheduleUrl(item.id, schoolId)}
+                    href={getPersonCardHref(item.id, item.scheduleUrl || getScheduleUrl(item.id, schoolId))}
                     isStarred={isPersonStarred(item.id)}
                     onStarToggle={handleStarToggle}
                     onClick={() => handleCardClick(item)}
@@ -478,7 +486,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   name={displayName}
                   classCode={classCode}
                   type={item.type}
-                  href={item.scheduleUrl || getScheduleUrl(item.id, schoolId)}
+                  href={getPersonCardHref(item.id, item.scheduleUrl || getScheduleUrl(item.id, schoolId))}
                   isStarred={isPersonStarred(item.id)}
                   onStarToggle={handleStarToggle}
                   onClick={() => handleCardClick(item)}
@@ -507,7 +515,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 name={recent.name}
                 classCode={recent.classCode}
                 type={recent.type}
-                href={recent.url}
+                href={getPersonCardHref(recent.id, recent.url)}
                 isStarred={isPersonStarred(recent.id)}
                 onStarToggle={handleStarToggle}
                 onRemove={handleRemoveRecent}
@@ -535,7 +543,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 name={person.name}
                 classCode={person.classCode}
                 type={person.type}
-                href={getScheduleUrl(person.id, schoolId)}
+                href={getPersonCardHref(person.id, getScheduleUrl(person.id, schoolId))}
                 isStarred={true}
                 onStarToggle={handleStarToggle}
                 onClick={() => {
@@ -573,7 +581,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   name={displayName}
                   classCode={classCode}
                   type={item.type}
-                  href={getScheduleUrl(item.id, schoolId)}
+                  href={getPersonCardHref(item.id, getScheduleUrl(item.id, schoolId))}
                   isStarred={isPersonStarred(item.id)}
                   onStarToggle={handleStarToggle}
                   onClick={() => handleCardClick(item)}
@@ -604,7 +612,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   name={displayName}
                   classCode={classCode}
                   type={item.type}
-                  href={getScheduleUrl(item.id, schoolId)}
+                  href={getPersonCardHref(item.id, getScheduleUrl(item.id, schoolId))}
                   isStarred={isPersonStarred(item.id)}
                   onStarToggle={handleStarToggle}
                   onClick={() => handleCardClick(item)}

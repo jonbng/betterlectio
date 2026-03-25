@@ -1,3 +1,5 @@
+import { looksLikeAcademicClassPrefix } from './class-name';
+
 const STORAGE_KEY = 'bl-hold-mappings';
 const LEGACY_STORAGE_KEY = 'il-hold-mappings';
 const STORE_VERSION = 3;
@@ -246,28 +248,47 @@ const IGNORED_HOLD_PATTERNS = [
 
 export const CURATED_HUES = [
   0,
+  8,
   15,
+  22,
   28,
+  34,
   40,
+  48,
   52,
   65,
+  72,
   80,
+  88,
   95,
+  108,
   118,
   132,
   145,
   160,
+  172,
   175,
+  186,
   188,
   200,
+  205,
+  210,
   218,
+  225,
   235,
+  242,
   248,
   258,
+  272,
   280,
+  286,
   295,
+  300,
+  305,
   312,
+  318,
   330,
+  336,
   342,
   355,
 ];
@@ -443,10 +464,6 @@ function saveStore(store: HoldMappingStore): void {
   }
 }
 
-function looksLikeAcademicPrefix(prefix: string): boolean {
-  return /^[a-zæøå]*\d+(?:[a-zæøå]+(?:\d+[a-zæøå]*)?|\.\d+)$/i.test(prefix);
-}
-
 function isIgnoredHold(holdCode: string): boolean {
   const normalized = normalizeWhitespace(holdCode);
   return IGNORED_HOLD_PATTERNS.some((pattern) => pattern.test(normalized));
@@ -546,7 +563,7 @@ function analyzeHold(holdCode: string): HoldDescriptor {
   }
 
   const [, prefix, subjectToken, suffix] = match;
-  if (!looksLikeAcademicPrefix(prefix)) {
+  if (!looksLikeAcademicClassPrefix(prefix)) {
     return {
       holdCode: normalizedHoldCode,
       prefix,

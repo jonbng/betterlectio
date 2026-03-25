@@ -134,7 +134,7 @@ Content Scripts (inject into lectio.dk pages)
 | `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params, optional BetterLectio badge |
 | `lib/supabase/student-lookup.ts` | Shared `useSchoolStudents` hook (Map for O(1) lookups), `getStudentIdFromPersonId`, `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
-| `lib/class-name.ts` | Shared class-name transforms/matchers for letter-based, numeric, and letter-prefixed class codes (`1x`, `1.4`, `L2d`, year-based dropdown names) |
+| `lib/class-name.ts` | Shared class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes or dotted numeric suffixes (`1x`, `2hf`, `2zq`, `1.4`, `L2d`, year-based dropdown names) |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
 | `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params + shared in-flight/TTL-cached dropdown loader |
@@ -142,7 +142,7 @@ Content Scripts (inject into lectio.dk pages)
 
 **Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
 
-**Class Code Note:** Schools can use letter-based grade codes (`1x`), numeric ones (`1.4`), or letter-prefixed ones (`L2d`). FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025.4`, or `L2025d`.
+**Class Code Note:** Schools can use single-letter grade codes (`1x`), two-character alphanumeric suffixes like `2hf` or `2zq`, numeric ones like `1.4`, and letter-prefixed variants like `L2d`. FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025zq`, `2025.4`, or `L2025d`.
 
 ### Schedule & Activities
 
@@ -158,10 +158,15 @@ Content Scripts (inject into lectio.dk pages)
 
 | File | Purpose |
 |------|---------|
-| `LektierPage.tsx` | Day-grouped homework cards with file/activity links, teacher notes |
+| `LektierPage.tsx` | Day-grouped homework cards with file/activity links, teacher notes, and Supabase-backed done-state sync keyed by Lectio `absid`/`entry_id` while preserving the existing checkbox UI |
 | `OpgaverPage.tsx` | Urgency-first cards with 4-tier visual urgency, relative Danish deadlines, color-coded grade badges, hold filters |
 | `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (posts via ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage caching with 5-min TTL, session expiry detection) |
 | `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)` fetch+parse, `submitComment(detail, comment)` POST with tokens, `uploadFileAndSubmit(detail, file, comment, schoolId)`, `getCachedDetail`/`invalidateDetailCache` school-scoped localStorage cache |
+| `lib/supabase/resources/homework.ts` | Homework table access plus `upsert_student_homework_status(...)` RPC wrapper. Reads visible `homework_entries` by `school_id` + `entry_id`, writes per-student completion with optimistic invalidation of `homework_entries`/`student_homework` caches |
+
+**Homework sync contract:** Completion is stored per student in `public.student_homework` and resolved against shared `public.homework_entries`. The client parses each lektie card's Lectio activity URL and extracts `absid` as the stable `entry_id`. Writes go through the `upsert_student_homework_status` security-definer RPC so legacy rows without `school_id` can be claimed safely on first write, client timestamps can prevent stale overwrites, and both extension/mobile can share the same patch-style contract.
+
+**Realtime behavior:** `LektierPage.tsx` subscribes to `student_homework` and `homework_entries` via Supabase Realtime. External updates invalidate the browser cache for those tables, which causes the page to refetch and reflect cross-device changes without changing the existing UI.
 
 ### Grades
 

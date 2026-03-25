@@ -1,6 +1,12 @@
-import { useState, useCallback } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { FileText, BookOpen, Download, ArrowUpRight, Check } from 'lucide-react';
+import type { Tables } from '@/database.types';
+import { getLoggedInUserId } from '@/lib/profile-cache';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { ensureSupabaseSession } from '@/lib/supabase/session';
+import { subscribe, unsubscribe } from '@/lib/supabase/realtime';
+import { useQuery } from '@/lib/supabase/hooks';
+import { upsertStudentHomeworkStatus } from '@/lib/supabase/resources';
 import { cn } from '@/lib/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -13,6 +19,7 @@ interface HomeworkItem {
 }
 
 interface LektierEntry {
+  entryId: string | null;
   dateText: string;
   date: Date;
   activityUrl: string;
@@ -66,7 +73,8 @@ function getRelativeLabel(date: Date): { text: string; type: 'today' | 'tomorrow
 function getLektierStorageKey(): string {
   const m = window.location.pathname.match(/\/lectio\/(\d+)\//);
   const schoolId = m ? m[1] : '0';
-  return `il-lektier-done-${schoolId}`;
+  const studentId = getLoggedInUserId() || 'anon';
+  return `il-lektier-done-${schoolId}-${studentId}`;
 }
 
 function loadDoneSet(): Set<string> {
@@ -81,9 +89,32 @@ function saveDoneSet(done: Set<string>): void {
   localStorage.setItem(getLektierStorageKey(), JSON.stringify([...done]));
 }
 
-/** Stable key for a lektier entry — activity URL is unique per module. */
+function getCurrentSchoolId(): string | null {
+  const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  return match?.[1] ?? null;
+}
+
 function entryKey(entry: LektierEntry): string {
+  return entry.entryId || legacyEntryKey(entry);
+}
+
+function legacyEntryKey(entry: LektierEntry): string {
   return entry.activityUrl || `${entry.dateText}-${entry.hold}`;
+}
+
+function extractHomeworkEntryId(activityUrl: string, dataBrikId?: string | null): string | null {
+  try {
+    const url = new URL(activityUrl, window.location.origin);
+    const fromQuery = url.searchParams.get('absid') || url.searchParams.get('id');
+    if (fromQuery) return fromQuery;
+  } catch {
+    // Ignore parse failures and fall through to regex checks.
+  }
+
+  const fromUrl = activityUrl.match(/[?&](?:absid|id)=(\d+)/i)?.[1];
+  if (fromUrl) return fromUrl;
+
+  return dataBrikId?.match(/^ABS(\d+)$/i)?.[1] ?? null;
 }
 
 // ── Tooltip parser ─────────────────────────────────────────────────────
@@ -356,6 +387,7 @@ export function parseLektierFromDOM(): LektierEntry[] {
       activityLink.getAttribute('title') ||
       '';
     const activityUrl = activityLink.getAttribute('href') || '';
+    const entryId = extractHomeworkEntryId(activityUrl, activityLink.getAttribute('data-brikid'));
     const tooltipData = parseTooltip(tooltip);
     const fallbackMeta = parseFallbackActivityMeta(activityLink);
     const contextMeta = parseContextCardMeta(activityLink);
@@ -366,6 +398,7 @@ export function parseLektierFromDOM(): LektierEntry[] {
     const { items, note } = parseHomeworkCell(homeworkCell);
 
     entries.push({
+      entryId,
       dateText,
       date: tooltipData?.date || fallbackDate!,
       activityUrl,
@@ -390,23 +423,219 @@ interface LektierPageProps {
   entries: LektierEntry[];
 }
 
+type HomeworkEntryRow = Tables<'homework_entries'>;
+type StudentHomeworkRow = Tables<'student_homework'>;
+
+interface PendingHomeworkUpdate {
+  clientUpdatedAt: string;
+  isDone: boolean;
+}
+
+interface RemoteHomeworkStatus {
+  clientUpdatedAt: string | null;
+  isDone: boolean;
+}
+
+function getHomeworkItemsPayload(entry: LektierEntry) {
+  return entry.homeworkItems.map((item, index) => ({
+    id: `${entry.entryId || legacyEntryKey(entry)}_${index}`,
+    text: item.text,
+    file_url: item.fileUrl,
+    activity_url: item.activityUrl,
+    note: item.note,
+  }));
+}
+
 export function LektierPage({ entries }: LektierPageProps) {
   const days = groupByDay(entries);
   const totalFiles = entries.reduce((sum, e) =>
     sum + e.homeworkItems.filter(i => i.fileUrl).length, 0);
 
-  const [doneSet, setDoneSet] = useState<Set<string>>(loadDoneSet);
+  const schoolId = useMemo(() => getCurrentSchoolId(), []);
+  const studentId = useMemo(() => getLoggedInUserId(), []);
+  const visibleEntryIds = useMemo(
+    () => Array.from(new Set(entries.map((entry) => entry.entryId).filter((entryId): entryId is string => !!entryId))),
+    [entries],
+  );
 
-  const toggleDone = useCallback((key: string) => {
-    setDoneSet(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      saveDoneSet(next);
-      return next;
+  const [localDoneSet, setLocalDoneSet] = useState<Set<string>>(loadDoneSet);
+  const [pendingSync, setPendingSync] = useState<Record<string, PendingHomeworkUpdate>>({});
+
+  useEffect(() => {
+    if (!schoolId) return;
+    void ensureSupabaseSession(schoolId);
+  }, [schoolId]);
+
+  const { data: homeworkRows } = useQuery<HomeworkEntryRow[]>({
+    schoolId: schoolId ?? '0',
+    table: 'homework_entries',
+    filters: [
+      { column: 'school_id', op: 'eq', value: Number(schoolId) },
+      { column: 'entry_id', op: 'in', value: visibleEntryIds },
+    ],
+    enabled: Boolean(schoolId && visibleEntryIds.length > 0),
+  });
+
+  const { data: studentHomeworkRows } = useQuery<StudentHomeworkRow[]>({
+    schoolId: schoolId ?? '0',
+    table: 'student_homework',
+    filters: [{ column: 'student_id', op: 'eq', value: studentId }],
+    enabled: Boolean(schoolId && studentId),
+  });
+
+  useEffect(() => {
+    if (!schoolId || !studentId) return;
+
+    const studentChannel = `student-homework:${schoolId}:${studentId}`;
+    const homeworkChannel = `homework-entries:${schoolId}`;
+
+    void subscribe({
+      channel: studentChannel,
+      table: 'student_homework',
+      schoolId,
+      filter: `student_id=eq.${studentId}`,
     });
-  }, []);
 
-  const doneCount = entries.filter(e => doneSet.has(entryKey(e))).length;
+    void subscribe({
+      channel: homeworkChannel,
+      table: 'homework_entries',
+      schoolId,
+      filter: `school_id=eq.${schoolId}`,
+    });
+
+    return () => {
+      void unsubscribe(studentChannel);
+      void unsubscribe(homeworkChannel);
+    };
+  }, [schoolId, studentId]);
+
+  const remoteStatusByEntryId = useMemo(() => {
+    if (!homeworkRows || !studentHomeworkRows) return null;
+
+    const entryIdByHomeworkId = new Map(homeworkRows.map((row) => [row.id, row.entry_id]));
+    const next = new Map<string, RemoteHomeworkStatus>();
+
+    for (const row of studentHomeworkRows) {
+      const entryId = entryIdByHomeworkId.get(row.homework_id);
+      if (!entryId) continue;
+
+      next.set(entryId, {
+        clientUpdatedAt: row.client_updated_at,
+        isDone: row.is_done,
+      });
+    }
+
+    return next;
+  }, [homeworkRows, studentHomeworkRows]);
+
+  useEffect(() => {
+    if (!remoteStatusByEntryId || Object.keys(pendingSync).length === 0) return;
+
+    setPendingSync((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      for (const [entryId, pending] of Object.entries(current)) {
+        const remote = remoteStatusByEntryId.get(entryId);
+        if (!remote?.clientUpdatedAt) continue;
+        if (remote.clientUpdatedAt < pending.clientUpdatedAt) continue;
+
+        delete next[entryId];
+        changed = true;
+      }
+
+      return changed ? next : current;
+    });
+  }, [pendingSync, remoteStatusByEntryId]);
+
+  const effectiveDoneSet = useMemo(() => {
+    const next = new Set<string>();
+
+    for (const entry of entries) {
+      const key = entryKey(entry);
+
+      if (!entry.entryId) {
+        if (localDoneSet.has(key)) next.add(key);
+        continue;
+      }
+
+      const pending = pendingSync[key];
+      const remote = remoteStatusByEntryId?.get(entry.entryId) ?? null;
+
+      if (pending) {
+        const remoteIsFreshEnough = Boolean(
+          remote?.clientUpdatedAt && remote.clientUpdatedAt >= pending.clientUpdatedAt,
+        );
+
+        if (!remoteIsFreshEnough) {
+          if (pending.isDone) next.add(key);
+          continue;
+        }
+      }
+
+      if (remote?.isDone) next.add(key);
+    }
+
+    return next;
+  }, [entries, localDoneSet, pendingSync, remoteStatusByEntryId]);
+
+  const toggleDone = useCallback((entry: LektierEntry) => {
+    const key = entryKey(entry);
+
+    const nextIsDone = !effectiveDoneSet.has(key);
+
+    if (!schoolId || !studentId || !entry.entryId) {
+      setLocalDoneSet((prev) => {
+        const next = new Set(prev);
+        if (nextIsDone) next.add(key);
+        else next.delete(key);
+        saveDoneSet(next);
+        return next;
+      });
+      return;
+    }
+
+    const clientUpdatedAt = new Date().toISOString();
+    setPendingSync((prev) => ({
+      ...prev,
+      [key]: {
+        clientUpdatedAt,
+        isDone: nextIsDone,
+      },
+    }));
+
+    void upsertStudentHomeworkStatus(
+      schoolId,
+      studentId,
+      entry.entryId,
+      nextIsDone,
+      'extension',
+      clientUpdatedAt,
+      {
+        displayDate: entry.dateText,
+        hold: entry.hold,
+        lessonDate: entry.date.toISOString().slice(0, 10),
+        note: entry.note,
+        room: entry.room || null,
+        teacher: entry.teacherName || null,
+        title: entry.activityTitle,
+        itemsJson: getHomeworkItemsPayload(entry),
+      },
+    ).catch((error: unknown) => {
+      console.warn('[BetterLectio] Failed to sync lektier completion:', error);
+
+      setPendingSync((prev) => {
+        const pending = prev[key];
+        if (!pending || pending.clientUpdatedAt !== clientUpdatedAt) return prev;
+
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    });
+  }, [effectiveDoneSet, schoolId, studentId]);
+
+  const doneCount = entries.filter(e => effectiveDoneSet.has(entryKey(e))).length;
   const totalCount = entries.length;
   const progressPct = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
 
@@ -423,7 +652,7 @@ export function LektierPage({ entries }: LektierPageProps) {
           {totalCount > 0 && (
             <div className="flex items-center gap-3 px-3 py-2">
               <div className="relative size-11">
-                <svg className="size-11 -rotate-90" viewBox="0 0 36 36">
+                <svg aria-hidden="true" className="size-11 -rotate-90" viewBox="0 0 36 36">
                   <circle
                     cx="18" cy="18" r="15"
                     fill="none"
@@ -519,7 +748,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                     const fileItems = entry.homeworkItems.filter(i => i.fileUrl);
                     const hasContent = contentItems.length > 0 || entry.note || fileItems.length > 0;
                     const key = entryKey(entry);
-                    const isDone = doneSet.has(key);
+                    const isDone = effectiveDoneSet.has(key);
 
                     return (
                       <div
@@ -536,7 +765,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                         <div className="flex items-center gap-3 p-4">
                           <button
                             type="button"
-                            onClick={() => toggleDone(key)}
+                            onClick={() => toggleDone(entry)}
                             aria-label={isDone ? 'Markér som ikke færdig' : 'Markér som færdig'}
                             className={cn(
                               "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
@@ -593,7 +822,9 @@ export function LektierPage({ entries }: LektierPageProps) {
                           <div className="overflow-hidden">
                             <div className="space-y-3 px-4 pb-4 pt-0">
                               <div className="flex flex-wrap items-center gap-1.5 pl-9 text-[0.9375rem] text-muted-foreground">
-                                {entry.teacherName && <span title={entry.teacherAbbrev}>{entry.teacherName}</span>}
+                                {entry.teacherName && (
+                                  <span title={entry.teacherAbbrev || undefined}>{entry.teacherName}</span>
+                                )}
                                 {entry.teacherName && entry.room && (
                                   <span className="size-[3px] rounded-full bg-muted-foreground/40" />
                                 )}

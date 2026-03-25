@@ -1,9 +1,13 @@
-const YEAR_BASED_CLASS_SUFFIX = String.raw`(?:[A-Za-z]|\.\d+)`;
-const GRADE_BASED_CLASS_SUFFIX = String.raw`(?:[A-Za-z]|\.\d+)`;
+const CLASS_LETTER = String.raw`A-Za-zÆØÅæøå`;
+const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|\.\d+)`;
 
-const YEAR_BASED_CLASS_RE = new RegExp(`^([A-Za-z]*)(\\d{4})(${YEAR_BASED_CLASS_SUFFIX})(?:\\s+(\\d+))?$`);
-const GRADE_BASED_CLASS_RE = new RegExp(`^([A-Za-z]*\\d+${GRADE_BASED_CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
-const YEAR_BASED_HOLD_RE = new RegExp(`^([A-Za-z]*\\d{4}${YEAR_BASED_CLASS_SUFFIX})\\s+(.+)$`);
+const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})(${CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
+const GRADE_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*\\d+${CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
+const YEAR_BASED_HOLD_RE = new RegExp(`^([${CLASS_LETTER}]*\\d{4}${CLASS_SUFFIX})\\s+(.+)$`, 'i');
+
+export function looksLikeAcademicClassPrefix(value: string): boolean {
+  return GRADE_BASED_CLASS_RE.test(value.trim());
+}
 
 function getCurrentSchoolStartYear(now: Date): number {
   const currentYear = now.getFullYear();
