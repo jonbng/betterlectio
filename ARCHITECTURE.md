@@ -148,9 +148,9 @@ Content Scripts (inject into lectio.dk pages)
 
 | File | Purpose |
 |------|---------|
-| `ActivityClassModal.tsx` | In-place modal for activity details from schedule/forside links |
-| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content + school-scoped localStorage cache (cache key includes `schoolId`) |
-| `lib/brick-tooltip.ts` | Custom schedule brick hover tooltip with async-enriched content |
+| `ActivityClassModal.tsx` | In-place modal for activity details from schedule/forside links. Renders note, lektier, presentation content, øvrigt indhold, related links, and hold navigation in the side sheet |
+| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content, presentation blocks (`ACP*`), øvrigt indhold, navigation/form tokens, and school-scoped localStorage cache (cache key includes `schoolId`) |
+| `lib/brick-tooltip.ts` | Custom schedule brick hover tooltip with async-enriched content, including fetched presentation previews when available |
 | `ScheduleCountdown.tsx` | Sidebar countdown: time remaining in current class / until next class |
 | `lib/schedule-cache.ts` | School-scoped fetch + cache for today's schedule (45min TTL) |
 

@@ -66,6 +66,7 @@ export interface ActivityDetail {
   tabs: ActivityTabLink[];
   phase: ActivityPhase | null;
   homework: ActivityHomeworkItem[];
+  presentation: ActivityHomeworkItem[];
   otherContent: ActivityHomeworkItem[];
   related: ActivityRelatedItem[];
   navigation: ActivityNavigation;
@@ -80,6 +81,16 @@ const CACHE_MAX_ENTRIES = 50;
 interface CachedActivity {
   timestamp: number;
   detail: ActivityDetail;
+}
+
+function normalizeActivityDetail(detail: ActivityDetail): ActivityDetail {
+  return {
+    ...detail,
+    homework: detail.homework ?? [],
+    presentation: detail.presentation ?? [],
+    otherContent: detail.otherContent ?? [],
+    related: detail.related ?? [],
+  };
 }
 
 function getSchoolIdFromActivityUrl(url: string): string {
@@ -125,7 +136,7 @@ export function getCachedActivityDetail(url: string): ActivityDetail | null {
       localStorage.removeItem(key);
       return null;
     }
-    return parsed.detail;
+    return normalizeActivityDetail(parsed.detail);
   } catch {
     return null;
   }
@@ -411,32 +422,73 @@ function parseArticle(article: HTMLElement, fallbackLabel: string, index: number
   return { id, title, contentHtml, links };
 }
 
-function parseHomeworkSections(doc: Document): { homework: ActivityHomeworkItem[]; otherContent: ActivityHomeworkItem[] } {
+function parsePresentationBlock(block: HTMLElement, index: number): ActivityHomeworkItem {
+  const contentRoot =
+    block.querySelector<HTMLElement>("[data-local-id='content']") ||
+    block.querySelector<HTMLElement>(".lc-display-fragment") ||
+    block;
+
+  const clone = contentRoot.cloneNode(true) as HTMLElement;
+  const cloneTitleEl = Array.from(
+    clone.querySelectorAll<HTMLElement>("h1, h2, h3"),
+  ).find((heading) => heading.textContent?.replace(/\s+/g, " ").trim());
+  const title =
+    cloneTitleEl?.textContent?.replace(/\s+/g, " ").trim() ||
+    (index === 0 ? "Præsentation" : `Præsentation ${index + 1}`);
+
+  // Avoid repeating the slide heading both as the card title and in the body.
+  cloneTitleEl?.remove();
+  sanitizeActivityHtml(clone);
+
+  const links = extractLinksFromElement(clone);
+  const id = block.id || `presentation-${index + 1}`;
+  const contentHtml = linkifyBareUrls(clone.innerHTML.trim());
+
+  return { id, title, contentHtml, links };
+}
+
+function parseContentSections(doc: Document): {
+  homework: ActivityHomeworkItem[];
+  presentation: ActivityHomeworkItem[];
+  otherContent: ActivityHomeworkItem[];
+} {
   const container = doc.querySelector("#s_m_Content_Content_tocAndToolbar_inlineHomeworkDiv");
-  if (!container) return { homework: [], otherContent: [] };
+  if (!container) return { homework: [], presentation: [], otherContent: [] };
 
   const homework: ActivityHomeworkItem[] = [];
+  const presentation: ActivityHomeworkItem[] = [];
   const otherContent: ActivityHomeworkItem[] = [];
 
-  // Walk section headings and articles to determine which section each article belongs to
-  // Section headings are h1.ls-paper-section-heading with text "Lektier" or "Øvrigt indhold"
-  let currentSection: "homework" | "other" = "homework"; // default if no heading found
-  const allNodes = Array.from(container.querySelectorAll("h1.ls-paper-section-heading, article"));
+  // Walk section headings and content blocks to determine which section each item belongs to.
+  // Lectio uses article blocks for lektier/øvrigt indhold and ACP wrappers for presentations.
+  let currentSection: "homework" | "presentation" | "other" = "homework";
+  const allNodes = Array.from(
+    container.querySelectorAll("h1.ls-paper-section-heading, article, div[id^='ACP']"),
+  );
 
   let hwIndex = 0;
+  let presIndex = 0;
   let ocIndex = 0;
   for (const node of allNodes) {
     if (node.matches("h1.ls-paper-section-heading")) {
       const text = node.textContent?.trim().toLowerCase() || "";
       if (text.includes("øvrigt indhold")) {
         currentSection = "other";
+      } else if (text.includes("præsentation")) {
+        currentSection = "presentation";
       } else {
         currentSection = "homework";
       }
+    } else if (node.matches("div[id^='ACP']")) {
+      presentation.push(parsePresentationBlock(node as HTMLElement, presIndex));
+      presIndex++;
     } else if (node.matches("article")) {
       if (currentSection === "other") {
         otherContent.push(parseArticle(node as HTMLElement, "Indhold", ocIndex));
         ocIndex++;
+      } else if (currentSection === "presentation") {
+        presentation.push(parseArticle(node as HTMLElement, "Præsentation", presIndex));
+        presIndex++;
       } else {
         homework.push(parseArticle(node as HTMLElement, "Lektie", hwIndex));
         hwIndex++;
@@ -444,7 +496,7 @@ function parseHomeworkSections(doc: Document): { homework: ActivityHomeworkItem[
     }
   }
 
-  return { homework, otherContent };
+  return { homework, presentation, otherContent };
 }
 
 function parseRelated(doc: Document): ActivityRelatedItem[] {
@@ -566,7 +618,7 @@ function parseActivityDetail(doc: Document, url: string): ActivityDetail {
       .querySelector<HTMLTextAreaElement>("#s_m_Content_Content_tocAndToolbar_ActNoteTB_tb")
       ?.value?.trim() || "";
 
-  const { homework, otherContent } = parseHomeworkSections(doc);
+  const { homework, presentation, otherContent } = parseContentSections(doc);
 
   return {
     url: absolute.href,
@@ -576,6 +628,7 @@ function parseActivityDetail(doc: Document, url: string): ActivityDetail {
     tabs: parseTabs(doc),
     phase: parsePhase(doc),
     homework,
+    presentation,
     otherContent,
     related: parseRelated(doc),
     navigation: parseNavigation(doc),

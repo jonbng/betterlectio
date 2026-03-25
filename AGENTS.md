@@ -35,7 +35,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor
 - `components/WysiwygEditor.tsx` - contentEditable editor converting BBCode <-> rich HTML
 - `components/BBCodeToolbar.tsx` - Formatting toolbar (bold, italic, underline, link)
-- `components/ActivityClassModal.tsx` - Activity detail modal from skema/forside links
+- `components/ActivityClassModal.tsx` - Activity detail modal from skema/forside links, now rendering lektier, presentation content, øvrigt indhold, and related links in the side sheet
 - `components/SettingsModal.tsx` - Settings modal (appearance, behavior, sidebar, fag, about)
 - `components/ScheduleCountdown.tsx` - Sidebar countdown widget
 - `components/ForsideGreeting.tsx` - Time-based greeting, live clock
@@ -51,7 +51,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/beskeder-submit.ts` - No-reload message operations (flag, read, delete, folder, search, reply, send, recipients, attach) with serialized mutex
 - `lib/bbcode-convert.ts` - BBCode <-> HTML conversion + paste sanitizer
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx, submission API, localStorage cache
-- `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content + cache
+- `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content, presentation sections, øvrigt indhold, navigation/form tokens + cache
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
 - `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA`/`2.4 MA`/`L2d MA`/`2zq MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
 - `lib/hold-mapping-sync.ts` - Supabase v2 hydration + upsert/reset sync bridge for canonical lesson mappings and user overrides

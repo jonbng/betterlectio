@@ -164,7 +164,12 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     }
   };
 
-  const hasContent = !!detail?.note || (detail?.homework.length ?? 0) > 0 || (detail?.otherContent?.length ?? 0) > 0 || (detail?.related.length ?? 0) > 0;
+  const hasContent =
+    !!detail?.note ||
+    (detail?.homework.length ?? 0) > 0 ||
+    (detail?.presentation?.length ?? 0) > 0 ||
+    (detail?.otherContent?.length ?? 0) > 0 ||
+    (detail?.related.length ?? 0) > 0;
   const metaLine = [detail?.meta.dateText, detail?.meta.timeText, detail?.meta.moduleText]
     .filter(Boolean)
     .join(" \u00b7 ");
@@ -338,7 +343,23 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </h3>
                   <div className="flex flex-col gap-3">
                     {detail.homework.map((item) => (
-                      <HomeworkCard key={item.id} item={item} />
+                      <ContentCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {detail.presentation.length > 0 ? (
+                <section className="mb-8 last:mb-0">
+                  <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                    Præsentation
+                    <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
+                      {detail.presentation.length}
+                    </span>
+                  </h3>
+                  <div className="flex flex-col gap-3">
+                    {detail.presentation.map((item) => (
+                      <ContentCard key={item.id} item={item} />
                     ))}
                   </div>
                 </section>
@@ -354,7 +375,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </h3>
                   <div className="flex flex-col gap-3">
                     {detail.otherContent.map((item) => (
-                      <HomeworkCard key={item.id} item={item} />
+                      <ContentCard key={item.id} item={item} />
                     ))}
                   </div>
                 </section>
@@ -451,7 +472,7 @@ function isEmptyHtml(html: string): boolean {
   return stripped.length === 0;
 }
 
-function HomeworkCard({ item }: { item: ActivityHomeworkItem }) {
+function ContentCard({ item }: { item: ActivityHomeworkItem }) {
   const hasContent = item.contentHtml && !isEmptyHtml(item.contentHtml);
   const hasLinks = item.links.length > 0;
 
@@ -466,7 +487,7 @@ function HomeworkCard({ item }: { item: ActivityHomeworkItem }) {
 
       {hasContent ? (
         <div
-          className="overflow-wrap-anywhere px-[1.1rem] py-[0.9rem] text-base leading-[1.6] text-foreground [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_img]:mt-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_p]:mb-2.5 [&_p:last-child]:mb-0 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
+          className="overflow-wrap-anywhere px-[1.1rem] py-[0.9rem] text-base leading-[1.6] text-foreground [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-[1.05rem] [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-[1rem] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.contentHtml) }}
         />
       ) : null}

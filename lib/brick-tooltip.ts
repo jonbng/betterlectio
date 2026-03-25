@@ -61,8 +61,9 @@ function getSchoolId(): string | null {
 
 /** Resolve teacher initials to full names using the teacher cache */
 function resolveTeacherNames(initials: string[]): string[] {
-  if (!teacherCache) return initials;
-  return initials.map((abbrev) => getTeacherName(teacherCache, abbrev) || abbrev);
+  const cache = teacherCache;
+  if (!cache) return initials;
+  return initials.map((abbrev) => getTeacherName(cache, abbrev) || abbrev);
 }
 
 // ── Parsing ────────────────────────────────────────────
@@ -279,6 +280,7 @@ const ICON_NOTE = `<svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none
 const ICON_LINK = `<svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5l3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9 10.5l1.5-1.5a2.121 2.121 0 000-3v0a2.121 2.121 0 00-3 0L6 7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M7 5.5L5.5 7a2.121 2.121 0 000 3v0a2.121 2.121 0 003 0L10 8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
 
 const ICON_FILE = `<svg class="size-[0.6875rem] shrink-0" viewBox="0 0 16 16" fill="none"><path d="M4 2h5.5l3 3V13.5a.5.5 0 01-.5.5H4a.5.5 0 01-.5-.5V2.5A.5.5 0 014 2z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/><path d="M9.5 2v3.5h3" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>`;
+const ICON_PRESENTATION = `<svg class="size-3.5 shrink-0" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="2.5" width="11" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M8 10.5v3M5.5 13.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M5.5 5.5h5M5.5 7.5h3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>`;
 
 const ICON_SPINNER = `<svg class="size-3.5 shrink-0 animate-spin text-muted-foreground" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 105.196 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 
@@ -486,6 +488,45 @@ function renderEnrichedSections(detail: ActivityDetail, basicData: TooltipData):
       if (item.description) {
         parts.push(`<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-2">${esc(item.description)}</span>`);
       }
+      parts.push("</div>");
+    }
+    parts.push("</div>");
+  }
+
+  // ── Rich Præsentation section ──
+  if (detail.presentation.length > 0) {
+    parts.push('<div class="px-3 py-[0.4375rem] border-t border-border/60" data-tt-section="presentation">');
+    parts.push(
+      `<div class="flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] text-muted-foreground mb-[0.3125rem]">${ICON_PRESENTATION}Præsentation <span class="il-tt-count inline-flex min-w-[1.125rem] h-[1.125rem] items-center justify-center rounded-lg px-1 text-[0.625rem] font-semibold ml-1">${detail.presentation.length}</span></div>`,
+    );
+    for (let idx = 0; idx < detail.presentation.length; idx++) {
+      const item = detail.presentation[idx];
+      const sep = idx > 0 ? ' border-t border-dashed border-border/40 mt-[0.1875rem] pt-[0.1875rem]' : '';
+      parts.push(`<div class="flex flex-col gap-[0.0625rem]${sep}">`);
+      parts.push(`<span class="text-[0.8125rem] font-medium text-foreground truncate">${esc(item.title)}</span>`);
+
+      const contentText = stripHtml(item.contentHtml);
+      if (contentText) {
+        parts.push(
+          `<span class="text-[0.75rem] leading-[1.4] text-muted-foreground line-clamp-3">${esc(contentText)}</span>`,
+        );
+      }
+
+      if (item.links.length > 0) {
+        parts.push('<div class="flex flex-wrap gap-1 mt-1">');
+        for (const link of item.links.slice(0, 3)) {
+          const icon = link.type === "file" ? ICON_FILE : ICON_LINK;
+          const label = truncate(link.label, 30);
+          parts.push(
+            `<a class="inline-flex items-center gap-[0.1875rem] text-[0.6875rem] font-medium px-[0.3125rem] py-[0.0625rem] rounded bg-muted text-muted-foreground no-underline whitespace-nowrap max-w-[12rem] overflow-hidden text-ellipsis transition-colors hover:bg-accent hover:text-accent-foreground" href="${escAttr(link.url)}" target="_blank" rel="noopener noreferrer" title="${escAttr(link.label)}">${icon}${esc(label)}</a>`,
+          );
+        }
+        if (item.links.length > 3) {
+          parts.push(`<span class="inline-flex items-center text-[0.6875rem] font-semibold px-[0.3125rem] py-[0.0625rem] rounded bg-muted text-muted-foreground">+${item.links.length - 3}</span>`);
+        }
+        parts.push("</div>");
+      }
+
       parts.push("</div>");
     }
     parts.push("</div>");
