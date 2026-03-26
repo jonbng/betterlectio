@@ -8,7 +8,9 @@ import {
   addRecentPerson,
   type StarredPerson,
 } from '../lib/findskema-storage';
+import { getSettings } from '../lib/settings-storage';
 import { parseMembersFromDocument, type Member } from '../lib/members-fetch';
+import { useSchoolStudents } from '@/lib/supabase/student-lookup';
 
 interface MembersPageProps {
   schoolId: string;
@@ -17,6 +19,8 @@ interface MembersPageProps {
 
 export function MembersPage({ schoolId, members }: MembersPageProps) {
   const [, setStarred] = useState<StarredPerson[]>([]);
+  const pinningEnabled = getSettings().data?.starredPeople ?? false;
+  const { studentsMap } = useSchoolStudents(schoolId);
 
   // Load starred from localStorage
   useEffect(() => {
@@ -71,8 +75,10 @@ export function MembersPage({ schoolId, members }: MembersPageProps) {
             href={getScheduleUrl(member.id, schoolId)}
             isStarred={isPersonStarred(member.id)}
             onStarToggle={handleStarToggle}
+            showPinButton={pinningEnabled}
             onClick={() => handleCardClick(member)}
             schoolId={schoolId}
+            studentsMap={studentsMap}
           />
         );
       })}

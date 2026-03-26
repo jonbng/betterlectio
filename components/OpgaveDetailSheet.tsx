@@ -37,6 +37,7 @@ import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { cn } from '@/lib/utils';
+import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const [ignoredMissing, setIgnoredMissing] = useState(false);
   const [groupAdding, setGroupAdding] = useState(false);
   const [groupRemoving, setGroupRemoving] = useState<string | null>(null); // contextCardId being removed
+  const { studentsMap } = useSchoolStudents(schoolId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadDetail = useCallback(async (url: string, useCache = true) => {
@@ -452,6 +454,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                           key={member.contextCardId}
                           member={member}
                           schoolId={schoolId}
+                          studentsMap={studentsMap}
                           removing={groupRemoving === member.contextCardId}
                           onRemove={member.removePostbackTarget
                             ? () => handleRemoveGroupMember(member.removePostbackTarget!, member.removePostbackArgument!, member.contextCardId)
@@ -466,6 +469,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                       <GroupStudentPicker
                         students={detail.availableGroupStudents}
                         schoolId={schoolId}
+                        studentsMap={studentsMap}
                         adding={groupAdding}
                         onAdd={handleAddGroupMember}
                       />
@@ -696,15 +700,23 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 // ── Group member with picture ──────────────────────────────────────────
 
-function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32 }: {
+function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32, studentsMap }: {
   contextCardId: string;
   name: string;
   schoolId: string;
   size?: number;
+  studentsMap: StudentsMap | null;
 }) {
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
+  const displayName = getDisplayNameFromLookupId(studentsMap, contextCardId, name);
+  const preferredPictureUrl = getPictureUrlFromLookupId(studentsMap, contextCardId);
 
   useEffect(() => {
+    if (preferredPictureUrl) {
+      setPictureUrl(preferredPictureUrl);
+      return;
+    }
+
     if (!contextCardId) return;
     const cached = getCachedPictureUrl(contextCardId);
     if (cached !== undefined) {
@@ -712,9 +724,9 @@ function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32 }: {
       return;
     }
     fetchPictureUrl(contextCardId, schoolId).then(setPictureUrl);
-  }, [contextCardId, schoolId]);
+  }, [contextCardId, preferredPictureUrl, schoolId]);
 
-  const initials = name
+  const initials = displayName
     .split(/[\s,]+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -742,21 +754,24 @@ function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32 }: {
   );
 }
 
-function GroupMemberRow({ member, schoolId, removing, onRemove }: {
+function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap }: {
   member: import('@/lib/opgave-detail').GroupMember;
   schoolId: string;
   removing: boolean;
   onRemove?: () => void;
+  studentsMap: StudentsMap | null;
 }) {
+  const displayName = getDisplayNameFromLookupId(studentsMap, member.contextCardId, member.name);
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
       <GroupMemberAvatar
         contextCardId={member.contextCardId}
-        name={member.name}
+        name={displayName}
         schoolId={schoolId}
+        studentsMap={studentsMap}
       />
       <span className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
-        {member.name}
+        {displayName}
       </span>
       {onRemove && (
         <button
@@ -764,7 +779,7 @@ function GroupMemberRow({ member, schoolId, removing, onRemove }: {
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           onClick={onRemove}
           disabled={removing}
-          aria-label={`Fjern ${member.name}`}
+          aria-label={`Fjern ${displayName}`}
         >
           {removing ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
         </button>
@@ -775,11 +790,12 @@ function GroupMemberRow({ member, schoolId, removing, onRemove }: {
 
 // ── Group student picker with pictures ────────────────────────────────
 
-function GroupStudentPicker({ students, schoolId, adding, onAdd }: {
+function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: {
   students: AvailableGroupStudent[];
   schoolId: string;
   adding: boolean;
   onAdd: (value: string) => void;
+  studentsMap: StudentsMap | null;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -919,6 +935,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd }: {
                   key={student.value}
                   student={student}
                   schoolId={schoolId}
+                  studentsMap={studentsMap}
                   highlighted={i === highlightIndex}
                   onSelect={() => {
                     onAdd(student.value);
@@ -936,16 +953,18 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd }: {
   );
 }
 
-function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover }: {
+function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover, studentsMap }: {
   student: AvailableGroupStudent;
   schoolId: string;
   highlighted: boolean;
   onSelect: () => void;
   onHover: () => void;
+  studentsMap: StudentsMap | null;
 }) {
   // Extract student context card ID from the dropdown value
   // The value is the student's numeric ID. Context card IDs for students are S + numeric ID.
   const contextCardId = `S${student.value}`;
+  const displayName = getDisplayNameFromLookupId(studentsMap, contextCardId, student.name);
 
   return (
     <button
@@ -959,12 +978,13 @@ function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover 
     >
       <GroupMemberAvatar
         contextCardId={contextCardId}
-        name={student.name}
+        name={displayName}
         schoolId={schoolId}
         size={28}
+        studentsMap={studentsMap}
       />
       <span className="min-w-0 flex-1 truncate text-base text-foreground">
-        {student.name}
+        {displayName}
       </span>
     </button>
   );

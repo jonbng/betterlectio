@@ -32,6 +32,7 @@ import { sanitizeHtml } from '@/lib/sanitize-html';
 import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
 import { fetchUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 import { cn } from '@/lib/utils';
+import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
 
 /** Extract short display name: "Jonathan Arthur Hojer Bangert(k) (1x 17)" → "Jonathan Bangert" */
 function shortName(fullName: string): string {
@@ -199,14 +200,23 @@ interface AvatarProps {
   contextCardId: string;
   schoolId: string;
   size?: number;
+  studentsMap: StudentsMap | null;
 }
 
-function SenderAvatar({ name, contextCardId, schoolId, size = 36 }: AvatarProps) {
+function SenderAvatar({ name, contextCardId, schoolId, size = 36, studentsMap }: AvatarProps) {
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const fetchedRef = useRef<string | null>(null);
+  const preferredPictureUrl = getPictureUrlFromLookupId(studentsMap, contextCardId);
 
   useEffect(() => {
+    if (preferredPictureUrl) {
+      setError(false);
+      setPictureUrl(preferredPictureUrl);
+      fetchedRef.current = null;
+      return;
+    }
+
     if (!contextCardId) return;
     const fetchKey = `${schoolId}:${contextCardId}`;
     if (fetchedRef.current === fetchKey) return;
@@ -226,7 +236,7 @@ function SenderAvatar({ name, contextCardId, schoolId, size = 36 }: AvatarProps)
       if (url) setPictureUrl(url);
       else setError(true);
     });
-  }, [contextCardId, schoolId]);
+  }, [contextCardId, preferredPictureUrl, schoolId]);
 
   const initials = getInitials(name);
   const hue = nameToHue(name);
@@ -274,13 +284,19 @@ interface MessageItemProps {
   threadSubject: string;
   index: number;
   onImageClick: (img: LightboxImage) => void;
+  studentsMap: StudentsMap | null;
 }
 
-function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: MessageItemProps) {
+function MessageItem({ message, schoolId, threadSubject, index, onImageClick, studentsMap }: MessageItemProps) {
+  const displaySenderName = getDisplayNameFromLookupId(
+    studentsMap,
+    message.senderContextCardId,
+    message.senderName,
+  );
   const strippedContent = stripSignatures(message.content);
   const personScheduleUrl = getPersonScheduleUrlFromMessage(
     message.senderContextCardId,
-    message.senderName,
+    displaySenderName,
     schoolId,
   );
 
@@ -302,9 +318,10 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
     >
       <div className="shrink-0">
         <SenderAvatar
-          name={message.senderName}
+          name={displaySenderName}
           contextCardId={message.senderContextCardId}
           schoolId={schoolId}
+          studentsMap={studentsMap}
         />
       </div>
 
@@ -317,13 +334,13 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick }: 
               onClick={() => {
                 window.location.href = personScheduleUrl;
               }}
-              title={`Vis ${shortName(message.senderName)}s skema`}
+              title={`Vis ${shortName(displaySenderName)}s skema`}
             >
-              {shortName(message.senderName)}
+              {shortName(displaySenderName)}
             </button>
           ) : (
             <span className="truncate text-lg font-semibold tracking-tight text-foreground">
-              {shortName(message.senderName)}
+              {shortName(displaySenderName)}
             </span>
           )}
           <span className="shrink-0 text-base text-muted-foreground">{dateStr}</span>
@@ -440,6 +457,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     tokens: data.formTokens,
     action: data.formAction,
   });
+  const { studentsMap } = useSchoolStudents(schoolId);
   // Reply form postback targets — tracked in state because ASP.NET ctl indices
   // shift after each send (new row added to the messages table).
   const [replyTargets, setReplyTargets] = useState<ReplyFormTargets | null>(() => {
@@ -643,11 +661,19 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     window.location.href = `${window.location.origin}/lectio/${sid}/beskeder2.aspx?mappeid=-70`;
   };
 
-  const recipientEntries = recipients.map((recipient) => ({
-    ...recipient,
-    shortLabel: shortName(recipient.name),
-    scheduleUrl: getPersonScheduleUrlFromMessage(recipient.contextCardId, recipient.name, schoolId),
-  }));
+  const recipientEntries = recipients.map((recipient) => {
+    const displayName = getDisplayNameFromLookupId(
+      studentsMap,
+      recipient.contextCardId,
+      recipient.name,
+    );
+    return {
+      ...recipient,
+      displayName,
+      shortLabel: shortName(displayName),
+      scheduleUrl: getPersonScheduleUrlFromMessage(recipient.contextCardId, displayName, schoolId),
+    };
+  });
 
   return (
     <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
@@ -709,6 +735,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             threadSubject={data.threadSubject}
             index={idx}
             onImageClick={setLightboxImage}
+            studentsMap={studentsMap}
           />
         ))}
         <div ref={messagesEndRef} />

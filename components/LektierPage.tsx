@@ -3,11 +3,11 @@ import { FileText, BookOpen, Download, ArrowUpRight, Check } from 'lucide-react'
 import type { Tables } from '@/database.types';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
-import { ensureSupabaseSession } from '@/lib/supabase/session';
 import { subscribe, unsubscribe } from '@/lib/supabase/realtime';
 import { useQuery } from '@/lib/supabase/hooks';
 import { upsertStudentHomeworkStatus } from '@/lib/supabase/resources';
 import { cn } from '@/lib/utils';
+import { captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -461,11 +461,6 @@ export function LektierPage({ entries }: LektierPageProps) {
   const [localDoneSet, setLocalDoneSet] = useState<Set<string>>(loadDoneSet);
   const [pendingSync, setPendingSync] = useState<Record<string, PendingHomeworkUpdate>>({});
 
-  useEffect(() => {
-    if (!schoolId) return;
-    void ensureSupabaseSession(schoolId);
-  }, [schoolId]);
-
   const { data: homeworkRows } = useQuery<HomeworkEntryRow[]>({
     schoolId: schoolId ?? '0',
     table: 'homework_entries',
@@ -583,6 +578,14 @@ export function LektierPage({ entries }: LektierPageProps) {
     const key = entryKey(entry);
 
     const nextIsDone = !effectiveDoneSet.has(key);
+
+    if (studentId) {
+      captureFeatureUsedOncePerSession('homework_toggle', getDistinctId(studentId), {
+        school_id: schoolId,
+        has_entry_id: Boolean(entry.entryId),
+        is_done: nextIsDone,
+      });
+    }
 
     if (!schoolId || !studentId || !entry.entryId) {
       setLocalDoneSet((prev) => {

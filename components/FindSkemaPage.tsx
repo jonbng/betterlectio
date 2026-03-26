@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { X, Clock, Star, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
+import { X, Clock, Pin, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
 import { PersonCard } from './PersonCard';
 import { getCachedProfile } from '../lib/profile-cache';
 
@@ -27,7 +27,7 @@ import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
 import { getMyTeacherIds } from '../lib/my-teachers';
 import { getFullHoldDisplayName } from '../lib/hold-mapping';
 import { classGroupsMatch, transformYearBasedClassName, transformYearBasedHoldName } from '../lib/class-name';
-import { useSchoolStudents, getStudentIdFromPersonId } from '../lib/supabase/student-lookup';
+import { useSchoolStudents, getStudentIdFromPersonId, getNameAliasesFromLookupId } from '../lib/supabase/student-lookup';
 
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
@@ -75,14 +75,14 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('q') || '';
   });
-  const [items, setItems] = useState<SearchableItem[]>([]);
+  const [rawItems, setRawItems] = useState<SearchableItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starred, setStarred] = useState<StarredPerson[]>([]);
   const [recents, setRecents] = useState<RecentPerson[]>([]);
   const [myTeacherIds, setMyTeacherIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
-  const { studentsMap } = useSchoolStudents(schoolId);
+  const { studentsMap } = useSchoolStudents(schoolId, { refreshOnMount: true });
 
   // Initialize active filter based on searchType prop — single-select or 'all'
   const getInitialFilter = (): string => {
@@ -173,7 +173,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             };
           });
 
-        setItems(parsed);
+        setRawItems(parsed);
         setLoading(false);
 
         // Cache name → context card ID mappings for profile picture lookups (e.g. in messages)
@@ -190,6 +190,20 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
 
     loadData();
   }, [schoolId]);
+
+  const items = useMemo(() => {
+    return rawItems.map((item) => {
+      if (item.type !== 'S') return item;
+
+      const aliases = getNameAliasesFromLookupId(studentsMap, item.id, item.name);
+      if (aliases.length === 0) return item;
+
+      return {
+        ...item,
+        searchText: `${item.searchText} ${aliases.join(' ')}`.trim(),
+      };
+    });
+  }, [rawItems, studentsMap]);
 
   // Load starred and recents from localStorage
   useEffect(() => {
@@ -350,8 +364,9 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const settings = getSettings();
 
   // Determine which sections to show
+  const pinningEnabled = settings.data?.starredPeople ?? false;
   const showRecents = !showSearchResults && filteredRecents.length > 0 && (settings.data?.recentSearches ?? false);
-  const showStarred = !showSearchResults && filteredStarred.length > 0 && (settings.data?.starredPeople ?? false);
+  const showStarred = !showSearchResults && filteredStarred.length > 0 && pinningEnabled;
   const showClassmates = !showSearchResults && classmates.length > 0 && activeFilters.has('S');
   const showMyTeachers = !showSearchResults && myTeachers.length > 0 && activeFilters.has('T');
 
@@ -455,10 +470,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                     href={getPersonCardHref(item.id, item.scheduleUrl || getScheduleUrl(item.id, schoolId))}
                     isStarred={isPersonStarred(item.id)}
                     onStarToggle={handleStarToggle}
+                    showPinButton={pinningEnabled}
                     onClick={() => handleCardClick(item)}
                     schoolId={schoolId}
                     searchQuery={query}
                     hasBetterLectio={hasBL(item.id)}
+                    studentsMap={studentsMap}
                   />
                 );
               })}
@@ -489,10 +506,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   href={getPersonCardHref(item.id, item.scheduleUrl || getScheduleUrl(item.id, schoolId))}
                   isStarred={isPersonStarred(item.id)}
                   onStarToggle={handleStarToggle}
+                  showPinButton={pinningEnabled}
                   onClick={() => handleCardClick(item)}
                   schoolId={schoolId}
                   searchQuery={query}
                   hasBetterLectio={hasBL(item.id)}
+                  studentsMap={studentsMap}
                 />
               );
             })}
@@ -518,10 +537,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 href={getPersonCardHref(recent.id, recent.url)}
                 isStarred={isPersonStarred(recent.id)}
                 onStarToggle={handleStarToggle}
+                showPinButton={pinningEnabled}
                 onRemove={handleRemoveRecent}
                 schoolId={schoolId}
                 searchQuery={query}
                 hasBetterLectio={hasBL(recent.id)}
+                studentsMap={studentsMap}
               />
             ))}
           </div>
@@ -532,8 +553,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {showStarred && (
         <section className="mb-6">
           <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
-            <Star className="size-4" />
-            <span>Favoritter</span>
+            <Pin className="size-4" />
+            <span>Fastgjorte</span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
             {filteredStarred.map(person => (
@@ -546,6 +567,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 href={getPersonCardHref(person.id, getScheduleUrl(person.id, schoolId))}
                 isStarred={true}
                 onStarToggle={handleStarToggle}
+                showPinButton={pinningEnabled}
                 onClick={() => {
                   addRecentPerson({
                     id: person.id,
@@ -558,6 +580,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                 schoolId={schoolId}
                 searchQuery={query}
                 hasBetterLectio={hasBL(person.id)}
+                studentsMap={studentsMap}
               />
             ))}
           </div>
@@ -584,10 +607,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   href={getPersonCardHref(item.id, getScheduleUrl(item.id, schoolId))}
                   isStarred={isPersonStarred(item.id)}
                   onStarToggle={handleStarToggle}
+                  showPinButton={pinningEnabled}
                   onClick={() => handleCardClick(item)}
                   schoolId={schoolId}
                   searchQuery={query}
                   hasBetterLectio={hasBL(item.id)}
+                  studentsMap={studentsMap}
                 />
               );
             })}
@@ -615,10 +640,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
                   href={getPersonCardHref(item.id, getScheduleUrl(item.id, schoolId))}
                   isStarred={isPersonStarred(item.id)}
                   onStarToggle={handleStarToggle}
+                  showPinButton={pinningEnabled}
                   onClick={() => handleCardClick(item)}
                   schoolId={schoolId}
                   searchQuery={query}
                   hasBetterLectio={hasBL(item.id)}
+                  studentsMap={studentsMap}
                 />
               );
             })}

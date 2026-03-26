@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Star, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users, ChevronDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Pin, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users, ChevronDown, Loader2 } from 'lucide-react';
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
@@ -8,7 +8,9 @@ import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
 import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name';
 import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
+import { getSettings } from '@/lib/settings-storage';
 import { PersonCard } from './PersonCard';
+import { useSchoolStudents } from '@/lib/supabase/student-lookup';
 
 interface ViewingScheduleHeaderProps {
   name: string;
@@ -100,6 +102,7 @@ export function ViewingScheduleHeader({
   const [membersError, setMembersError] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[] | null>(null);
   const [, setMembersRerenderNonce] = useState(0);
+  const { studentsMap } = useSchoolStudents(schoolId);
   const firstName = name.split(' ')[0];
   const titleSubject = subtitle ? `${name} (${subtitle})` : name;
 
@@ -111,6 +114,7 @@ export function ViewingScheduleHeader({
   // Students with a class code can show classmates even without subnav members links
   const isStudentWithClass = type === 'student' && !!subtitle;
   const supportsMembersPanel = hasSubnavMembers || isStudentWithClass;
+  const pinningEnabled = getSettings().data?.starredPeople ?? false;
 
   // Parse navigation context from URL params (set by FindSkemaPage)
   const urlParams = new URLSearchParams(window.location.search);
@@ -296,20 +300,22 @@ export function ViewingScheduleHeader({
           </div>
 
           <div className="ml-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleToggleStar}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
-              title={starred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
-            >
-              <Star
-                className={`size-5 transition-colors ${
-                  starred
-                    ? 'fill-yellow-400 text-yellow-400'
-                    : 'text-muted-foreground hover:text-yellow-400'
-                }`}
-              />
-            </button>
+            {pinningEnabled && (
+              <button
+                type="button"
+                onClick={handleToggleStar}
+                className="p-2 rounded-lg hover:bg-accent transition-colors"
+                title={starred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
+              >
+                <Pin
+                  className={`size-5 transition-colors ${
+                    starred
+                      ? 'fill-primary text-primary'
+                      : 'text-muted-foreground hover:text-primary'
+                  }`}
+                />
+              </button>
+            )}
 
             {supportsMembersPanel && (
               <button
@@ -361,8 +367,10 @@ export function ViewingScheduleHeader({
                     href={getScheduleUrl(member.id, schoolId, { name: fullName })}
                     isStarred={isPersonStarred(member.id)}
                     onStarToggle={handleMemberStarToggle}
+                    showPinButton={pinningEnabled}
                     onClick={() => handleMemberClick(member)}
                     schoolId={schoolId}
+                    studentsMap={studentsMap}
                   />
                 );
               })}

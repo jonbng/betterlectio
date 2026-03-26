@@ -8,6 +8,7 @@ import type {
 } from '@/lib/supabase/messages';
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
 import { capture, captureException, identify, getDistinctId, loadOptOutFlag } from '@/lib/posthog';
+import { queueLifecycleEvent } from '@/lib/posthog-lifecycle';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -29,6 +30,8 @@ const extensionStorage = {
 
 let client: SupabaseClient | null = null;
 let cachedDistinctId: string | null = null;
+// Uninstall tracking is intentionally disabled for now until we have a hosted
+// endpoint/page to receive `browser.runtime.setUninstallURL(...)` traffic.
 
 function getSupabase(): SupabaseClient {
   if (client) return client;
@@ -76,6 +79,9 @@ async function captureSupabaseError(
     fn?: string;
     schoolId?: string;
     studentId?: string;
+    source?: string;
+    authStage?: string;
+    authServerSchoolId?: string;
   },
 ): Promise<void> {
   try {
@@ -242,6 +248,15 @@ const LOCK_TTL_MS = 30_000; // 30s — edge function should finish well within t
 
 interface FailureState { count: number; lastAttempt: number }
 
+let inFlightAuth:
+  | {
+      key: string;
+      promise: Promise<SupabaseResponse>;
+      source: string;
+      startedAt: number;
+    }
+  | null = null;
+
 function getBackoffMs(failures: number): number {
   if (failures <= 0) return 0;
   if (failures === 1) return 15_000;      // 15s
@@ -274,7 +289,18 @@ async function clearLock(): Promise<void> {
   await browser.storage.local.remove(LOCK_KEY);
 }
 
-async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<{ success: boolean; error?: string }> {
+function getAuthDedupeKey(qrData?: { qrId: string; userId: string }, schoolId?: string): string {
+  return `${schoolId ?? 'unknown'}:${qrData?.userId ?? 'session'}`;
+}
+
+interface AuthAttemptResult {
+  success: boolean;
+  error?: string;
+  authStage?: string;
+  authServerSchoolId?: string;
+}
+
+async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<AuthAttemptResult> {
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/verify-lectio-auth`, {
     method: 'POST',
     headers: {
@@ -285,13 +311,28 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
   });
 
   if (!resp.ok) {
-    const body = await resp.text();
-    return { success: false, error: `Serverfejl: ${body}` };
+    const rawBody = await resp.text();
+    try {
+      const parsed = JSON.parse(rawBody) as { error?: string; stage?: string; schoolId?: string };
+      return {
+        success: false,
+        error: `Serverfejl: ${rawBody}`,
+        authStage: parsed.stage ?? 'edge-error',
+        authServerSchoolId: parsed.schoolId,
+      };
+    } catch {
+      return { success: false, error: `Serverfejl: ${rawBody}`, authStage: 'edge-error' };
+    }
   }
 
-  const { tokenHash, error } = await resp.json();
+  const { tokenHash, error, schoolId: serverSchoolId } = await resp.json();
   if (error || !tokenHash) {
-    return { success: false, error: error || 'Ingen token modtaget.' };
+    return {
+      success: false,
+      error: error || 'Ingen token modtaget.',
+      authStage: 'edge-response',
+      authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
+    };
   }
 
   const supabase = getSupabase();
@@ -300,13 +341,26 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     type: 'magiclink',
   });
   if (verifyError) {
-    return { success: false, error: verifyError.message };
+    return {
+      success: false,
+      error: verifyError.message,
+      authStage: 'verify-otp',
+      authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
+    };
   }
 
-  return { success: true };
+  return {
+    success: true,
+    authStage: 'verify-otp',
+    authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
+  };
 }
 
-async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, schoolId?: string): Promise<SupabaseResponse> {
+async function runEnsureSupabaseSession(
+  qrData?: { qrId: string; userId: string },
+  schoolId?: string,
+  source = 'unknown',
+): Promise<SupabaseResponse> {
   try {
     const supabase = getSupabase();
     const { data } = await supabase.auth.getSession();
@@ -388,6 +442,9 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
         });
         capture('supabase auth succeeded', getDistinctId(qrData.userId), {
           school_id: schoolId,
+          source,
+          auth_stage: result.authStage,
+          auth_server_school_id: result.authServerSchoolId,
         });
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
       }
@@ -400,6 +457,9 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
           action: 'auth',
           schoolId,
           studentId: qrData.userId,
+          source,
+          authStage: result.authStage,
+          authServerSchoolId: result.authServerSchoolId,
         });
         identify(getDistinctId(qrData.userId), {
           school_id: schoolId,
@@ -409,6 +469,9 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
           error: result.error,
           failure_count: failures.count + 1,
           school_id: schoolId,
+          source,
+          auth_stage: result.authStage,
+          auth_server_school_id: result.authServerSchoolId,
         });
       }
       console.warn('[BetterLectio] Auto Supabase auth failed:', result.error);
@@ -423,9 +486,37 @@ async function ensureSupabaseSession(qrData?: { qrId: string; userId: string }, 
       action: 'auth',
       schoolId,
       studentId: qrData?.userId,
+      source,
+      authStage: 'ensure-session',
     });
     return { ok: false, error: String(err) };
   }
+}
+
+async function ensureSupabaseSession(
+  qrData?: { qrId: string; userId: string },
+  schoolId?: string,
+  source = 'unknown',
+): Promise<SupabaseResponse> {
+  const dedupeKey = getAuthDedupeKey(qrData, schoolId);
+  if (inFlightAuth && inFlightAuth.key === dedupeKey) {
+    return inFlightAuth.promise;
+  }
+
+  const promise = runEnsureSupabaseSession(qrData, schoolId, source).finally(() => {
+    if (inFlightAuth?.promise === promise) {
+      inFlightAuth = null;
+    }
+  });
+
+  inFlightAuth = {
+    key: dedupeKey,
+    promise,
+    source,
+    startedAt: Date.now(),
+  };
+
+  return promise;
 }
 
 // ── Auth state listener ─────────────────────────────────────────────
@@ -444,6 +535,23 @@ function initAuthStateListener(): void {
   }
 }
 
+function initLifecycleTracking(): void {
+  try {
+    browser.runtime.onInstalled.addListener((details) => {
+      void queueLifecycleEvent(
+        details.reason === 'update' ? 'extension updated' : 'extension installed',
+        {
+          extension_version: browser.runtime.getManifest().version,
+          previous_version: details.previousVersion,
+          install_reason: details.reason,
+        },
+      );
+    });
+  } catch {
+    // Non-critical
+  }
+}
+
 // ── Background entry ────────────────────────────────────────────────
 
 export default defineBackground(() => {
@@ -452,6 +560,7 @@ export default defineBackground(() => {
   // Load analytics opt-out flag from extension storage (no localStorage in service workers)
   loadOptOutFlag();
 
+  initLifecycleTracking();
   initAuthStateListener();
 
   // Handle extension icon click
@@ -496,7 +605,7 @@ export default defineBackground(() => {
 
       // ── Auth ────────────────────────────────────────────────────
       case 'bl-sb:auth:ensure':
-        ensureSupabaseSession(msg.qrData, msg.schoolId).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        ensureSupabaseSession(msg.qrData, msg.schoolId, msg.source).then(sendResponse).catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:auth:session': {

@@ -8,6 +8,7 @@ import { loadTeacherNames, getTeacherName, getTeacherContextCardId, type Teacher
 import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
 import { nameToHue } from '@/lib/beskeder-helpers';
 import type { ForsideOpgave } from '@/components/ForsideOpgaverCard';
+import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -630,35 +631,54 @@ function OpgaverCard({ initialEntries, schoolId }: { initialEntries: ForsideOpga
 
 // ── Beskeder Card ───────────────────────────────────────────────────
 
-function BeskedSenderAvatar({ besked, schoolId, nameIdReady }: { besked: BeskedEntry; schoolId: string; nameIdReady: boolean }) {
-  const displayName = besked.senderFull || besked.senderShort;
+function BeskedSenderAvatar({
+  besked,
+  schoolId,
+  nameIdReady,
+  studentsMap,
+}: {
+  besked: BeskedEntry;
+  schoolId: string;
+  nameIdReady: boolean;
+  studentsMap: StudentsMap | null;
+}) {
+  const rawDisplayName = besked.senderFull || besked.senderShort;
+  const contextCardId = besked.contextCardId || lookupContextCardIdByName(rawDisplayName, schoolId);
+  const displayName = getDisplayNameFromLookupId(studentsMap, contextCardId, rawDisplayName);
   const initials = getInitials(displayName);
   const hue = nameToHue(displayName);
+  const preferredPictureUrl = getPictureUrlFromLookupId(studentsMap, contextCardId);
 
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const fetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const ctxId = besked.contextCardId || lookupContextCardIdByName(displayName, schoolId);
-    if (!ctxId) return;
+    if (preferredPictureUrl) {
+      setImgError(false);
+      setPictureUrl(preferredPictureUrl);
+      fetchedRef.current = null;
+      return;
+    }
 
-    const fetchKey = `${schoolId}:${ctxId}`;
+    if (!contextCardId) return;
+
+    const fetchKey = `${schoolId}:${contextCardId}`;
     if (fetchedRef.current === fetchKey) return;
     fetchedRef.current = fetchKey;
     setImgError(false);
     setPictureUrl(null);
 
-    const cached = getCachedPictureUrl(ctxId);
+    const cached = getCachedPictureUrl(contextCardId);
     if (cached !== undefined) {
       if (cached) setPictureUrl(cached);
       return;
     }
 
-    fetchPictureUrl(ctxId, schoolId).then((url) => {
+    fetchPictureUrl(contextCardId, schoolId).then((url) => {
       if (url) setPictureUrl(url);
     });
-  }, [besked.contextCardId, displayName, schoolId, nameIdReady]);
+  }, [contextCardId, preferredPictureUrl, schoolId, nameIdReady]);
 
   if (pictureUrl && !imgError) {
     return (
@@ -686,6 +706,7 @@ function BeskedSenderAvatar({ besked, schoolId, nameIdReady }: { besked: BeskedE
 function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry[]; unreadCount: number; schoolId: string }) {
   const [teacherCache, setTeacherCache] = useState<TeacherCache | null>(null);
   const [nameIdReady, setNameIdReady] = useState(false);
+  const { studentsMap } = useSchoolStudents(schoolId);
 
   useEffect(() => {
     let cancelled = false;
@@ -726,32 +747,40 @@ function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry
         icon={Mail}
       />
       <div className="flex flex-col">
-        {resolved.map((besked, i) => (
-          <a
-            key={besked.url || i}
-            href={besked.url}
-            className="group/msg flex items-center gap-3 border-t border-border px-4 py-2.5 no-underline transition-colors hover:bg-accent/40"
-          >
-            <BeskedSenderAvatar besked={besked} schoolId={schoolId} nameIdReady={nameIdReady} />
+        {resolved.map((besked, i) => {
+          const displayName = getDisplayNameFromLookupId(
+            studentsMap,
+            besked.contextCardId,
+            besked.senderFull || besked.senderShort,
+          );
 
-            {/* Content */}
-            <div className="min-w-0 flex-1 flex flex-col gap-px">
-              <div className="flex items-baseline gap-2">
-                <span className="truncate text-sm font-medium leading-[1.3] text-foreground group-hover/msg:text-foreground">
-                  {besked.subject}
-                </span>
-                <span className="shrink-0 text-[0.6875rem] text-muted-foreground/60 tabular-nums">
-                  {relativeTime(besked.timeRaw)}
+          return (
+            <a
+              key={besked.url || i}
+              href={besked.url}
+              className="group/msg flex items-center gap-3 border-t border-border px-4 py-2.5 no-underline transition-colors hover:bg-accent/40"
+            >
+              <BeskedSenderAvatar besked={besked} schoolId={schoolId} nameIdReady={nameIdReady} studentsMap={studentsMap} />
+
+              {/* Content */}
+              <div className="min-w-0 flex-1 flex flex-col gap-px">
+                <div className="flex items-baseline gap-2">
+                  <span className="truncate text-sm font-medium leading-[1.3] text-foreground group-hover/msg:text-foreground">
+                    {besked.subject}
+                  </span>
+                  <span className="shrink-0 text-[0.6875rem] text-muted-foreground/60 tabular-nums">
+                    {relativeTime(besked.timeRaw)}
+                  </span>
+                </div>
+                <span className="truncate text-xs leading-[1.4] text-muted-foreground" title={displayName}>
+                  {besked.senderType === 'teacher' && teacherCache
+                    ? (getTeacherName(teacherCache, besked.senderShort) || besked.senderShort)
+                    : displayName}
                 </span>
               </div>
-              <span className="truncate text-xs leading-[1.4] text-muted-foreground" title={besked.senderFull}>
-                {besked.senderType === 'teacher' && teacherCache
-                  ? (getTeacherName(teacherCache, besked.senderShort) || besked.senderShort)
-                  : besked.senderShort}
-              </span>
-            </div>
-          </a>
-        ))}
+            </a>
+          );
+        })}
       </div>
     </div>
   );

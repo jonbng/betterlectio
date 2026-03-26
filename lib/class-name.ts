@@ -4,6 +4,7 @@ const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|\.\d+)`;
 const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})(${CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
 const GRADE_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*\\d+${CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
 const YEAR_BASED_HOLD_RE = new RegExp(`^([${CLASS_LETTER}]*\\d{4}${CLASS_SUFFIX})\\s+(.+)$`, 'i');
+const GRADE_PREFIX_RE = new RegExp(`^[${CLASS_LETTER}]*(\\d+)`, 'i');
 
 export function looksLikeAcademicClassPrefix(value: string): boolean {
   return GRADE_BASED_CLASS_RE.test(value.trim());
@@ -60,4 +61,16 @@ export function classGroupsMatch(left: string, right: string): boolean {
   const normalizedLeft = extractClassGroup(left).toLowerCase();
   const normalizedRight = extractClassGroup(right).toLowerCase();
   return normalizedLeft !== '' && normalizedLeft === normalizedRight;
+}
+
+export function getSchoolYearFromClassName(name: string, now: Date = new Date()): number | null {
+  const transformed = transformYearBasedClassName(name, now);
+  if (transformed) return transformed.grade;
+
+  const trimmed = name.trim();
+  const match = trimmed.match(GRADE_PREFIX_RE);
+  if (!match) return null;
+
+  const grade = Number.parseInt(match[1], 10);
+  return grade >= 1 && grade <= 3 ? grade : null;
 }

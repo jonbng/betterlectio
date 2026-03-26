@@ -64,6 +64,7 @@ export interface AuthEnsureMessage {
   type: 'bl-sb:auth:ensure';
   schoolId: string;
   qrData?: { qrId: string; userId: string };
+  source?: string;
 }
 
 export interface AuthGetSessionMessage {

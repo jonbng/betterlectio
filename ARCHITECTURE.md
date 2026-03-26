@@ -94,9 +94,16 @@ Content Scripts (inject into lectio.dk pages)
 **Edge function** (`supabase/functions/verify-lectio-auth/index.ts`):
 1. QR login via `LandingPageQrCode.aspx` → extract session cookies + school ID
 2. Fetch student profile from `digitaltStudiekort.aspx` (name, birthdate, picture URL)
-3. `generateLink({ type: 'magiclink' })` → creates/finds auth user, returns `data.user.id`
-4. Download Lectio profile picture (authenticated) → upload to `profile-pictures` storage bucket at `{schoolId}/{userId}.{ext}`
-5. Upsert `students` record with `supabase_id` (auth UID), `lectio_pfp_url` (original), `custom_pfp_url` (Supabase Storage public URL)
+3. Fetch `SkemaNy.aspx` to resolve `elevid`; if Lectio has not fully propagated the new QR session yet, retry the fetch briefly before failing
+4. `generateLink({ type: 'magiclink' })` → creates/finds auth user, returns `data.user.id`
+5. Download Lectio profile picture (authenticated) → upload to `profile-pictures` storage bucket at `{schoolId}/{userId}.{ext}`
+6. Upsert `students` record with `supabase_id` (auth UID), `lectio_pfp_url` (original), `custom_pfp_url` (Supabase Storage public URL)
+
+**Background auth orchestration** (`entrypoints/background.ts` + `lib/supabase/session.ts`):
+- `entrypoints/content.tsx` is the primary auth bootstrapper on page load
+- Feature modules should only call `ensureSupabaseSession(...)` as a fallback when auth is still missing
+- The background script dedupes concurrent auth attempts per `schoolId:userId` and shares one in-flight promise across callers, preventing duplicate `generateLink` / `verifyOtp` races that otherwise invalidate the first one-time token
+- Auth analytics include a `source` property so callsites can be traced in PostHog
 
 **Storage bucket** `profile-pictures`: public, allows jpeg/png/webp/gif, 5MB limit. Pictures are organized as `{schoolId}/{userId}.{ext}`.
 
@@ -121,7 +128,7 @@ Content Scripts (inject into lectio.dk pages)
 
 | Component | Purpose |
 |-----------|---------|
-| `AppSidebar.tsx` | Custom sidebar navigation with collapsible sections, profile display, settings access |
+| `AppSidebar.tsx` | Custom sidebar navigation with collapsible sections, profile display, settings access, and Supabase-backed student name/avatar fallbacks for the current/viewed profile |
 | `SettingsModal.tsx` | Settings: appearance, behavior, sidebar toggles, subject mappings, design playground, about |
 | `DesignPlayground.tsx` | Full-screen overlay showcasing all design system tokens and components |
 
@@ -129,10 +136,10 @@ Content Scripts (inject into lectio.dk pages)
 
 | File | Purpose |
 |------|---------|
-| `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections, BetterLectio badges on students |
+| `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections, BetterLectio badges on students, Supabase-backed student display names/avatars, and search aliases for both Lectio + preferred names |
 | `ProfilePage.tsx` | Supabase-backed student profile: description, instagram, birthday (if `show_birthday`), custom pfp, inline edit form for own profile. Tabs: schedule, classmates, teachers, hold/groups, documents |
-| `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params, optional BetterLectio badge |
-| `lib/supabase/student-lookup.ts` | Shared `useSchoolStudents` hook (Map for O(1) lookups), `getStudentIdFromPersonId`, `formatDanishBirthdate` |
+| `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params, optional BetterLectio badge, and student name/avatar resolution via Supabase before Lectio fallbacks |
+| `lib/supabase/student-lookup.ts` | Shared `useSchoolStudents` hook (Map for O(1) lookups) plus helpers for `getStudentIdFromPersonId`, lookup-ID-based preferred name/avatar resolution, search aliases, and `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
 | `lib/class-name.ts` | Shared class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes or dotted numeric suffixes (`1x`, `2hf`, `2zq`, `1.4`, `L2d`, year-based dropdown names) |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
@@ -143,6 +150,8 @@ Content Scripts (inject into lectio.dk pages)
 **Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
 
 **Class Code Note:** Schools can use single-letter grade codes (`1x`), two-character alphanumeric suffixes like `2hf` or `2zq`, numeric ones like `1.4`, and letter-prefixed variants like `L2d`. FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025zq`, `2025.4`, or `L2025d`.
+
+**Student Identity Resolution Note:** Student-facing UI should prefer `students.name` for display, while keeping native Lectio names as aliases/search terms. For pictures, prefer `students.custom_pfp_url`, then `students.lectio_pfp_url`, and only fall back to Lectio/context-card image fetches when no Supabase-backed student row is available. The shared helpers in `lib/supabase/student-lookup.ts` accept both raw `elevid` values and prefixed lookup IDs like `S727...` so message names/avatars, FindSkema cards/search, member grids, group submissions, and sidebar/profile surfaces stay consistent.
 
 ### Schedule & Activities
 
@@ -160,7 +169,7 @@ Content Scripts (inject into lectio.dk pages)
 |------|---------|
 | `LektierPage.tsx` | Day-grouped homework cards with file/activity links, teacher notes, and Supabase-backed done-state sync keyed by Lectio `absid`/`entry_id` while preserving the existing checkbox UI |
 | `OpgaverPage.tsx` | Urgency-first cards with 4-tier visual urgency, relative Danish deadlines, color-coded grade badges, hold filters |
-| `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (posts via ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage caching with 5-min TTL, session expiry detection) |
+| `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (posts via ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage caching with 5-min TTL, session expiry detection), plus Supabase-backed group-member names/avatars |
 | `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)` fetch+parse, `submitComment(detail, comment)` POST with tokens, `uploadFileAndSubmit(detail, file, comment, schoolId)`, `getCachedDetail`/`invalidateDetailCache` school-scoped localStorage cache |
 | `lib/supabase/resources/homework.ts` | Homework table access plus `upsert_student_homework_status(...)` RPC wrapper. Reads visible `homework_entries` by `school_id` + `entry_id`, writes per-student completion with optimistic invalidation of `homework_entries`/`student_homework` caches |
 
@@ -188,9 +197,9 @@ Content Scripts (inject into lectio.dk pages)
 
 | File | Purpose |
 |------|---------|
-| `BeskederPage.tsx` (in content.tsx) | Thread list with folder pills, sender avatars, optimistic flag/read/delete, search, bulk actions |
-| `BeskederThreadView.tsx` | Thread reader with sender pictures, signature stripping, no-reload reply + file attachment |
-| `BeskederCompose.tsx` | Card-based compose with a fully custom recipient picker (students/teachers from AvanceretSkema, avatar thumbnails via context cards, keyboard navigation), recipient pills with avatars, no-reload add/remove recipient actions, no-reload send, and Ctrl+Enter. Falls back to showing native form if parser fails. |
+| `BeskederPage.tsx` (in content.tsx) | Thread list with folder pills, sender names/avatars preferring Supabase student data, optimistic flag/read/delete, search, bulk actions |
+| `BeskederThreadView.tsx` | Thread reader with sender names/pictures preferring Supabase student data, signature stripping, no-reload reply + file attachment |
+| `BeskederCompose.tsx` | Card-based compose with a fully custom recipient picker (students/teachers from AvanceretSkema, rendered names/avatars preferring Supabase student data while raw Lectio names remain for postbacks, keyboard navigation), recipient pills with avatars, no-reload add/remove recipient actions, no-reload send, and Ctrl+Enter. Falls back to showing native form if parser fails. |
 | `WysiwygEditor.tsx` | contentEditable editor converting between BBCode and rich HTML |
 | `BBCodeToolbar.tsx` | Formatting toolbar (bold, italic, underline, link) |
 | `lib/beskeder-thread-parser.ts` | Thread DOM parser, state detection, signature stripping |
@@ -202,7 +211,7 @@ Content Scripts (inject into lectio.dk pages)
 | File | Purpose |
 |------|---------|
 | `ForsideGreeting.tsx` | Time-based greeting, live clock, Danish date formatting |
-| `ForsideDashboard.tsx` | Redesigned forside dashboard with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides only the 4 specific original cards, renders 2-col grid with priority indicators, hold colors, urgency bars, sender avatars, relative times |
+| `ForsideDashboard.tsx` | Redesigned forside dashboard with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides only the 4 specific original cards, renders 2-col grid with priority indicators, hold colors, urgency bars, sender names/avatars preferring Supabase student data, relative times |
 | `ForsideOpgaverCard.tsx` | Forside opgaver parser (reused by ForsideDashboard) |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
 | `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |
@@ -215,7 +224,9 @@ Content Scripts (inject into lectio.dk pages)
 | `lib/school-storage.ts` | Last school persistence for quick login |
 | `lib/page-titles.ts` | Clean page titles with unread message badge, MutationObserver |
 | `lib/preload.ts` | Speculation Rules API + hover-based prefetching |
-| `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}` (raw elevid). Identify sends name, school, class. `flushAt:1` for short-lived contexts. All calls silently caught. |
+| `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}` (raw elevid). Identify sends name, school, class, year, dark mode, and theme. Includes once-per-session feature helpers plus page-hide flushing to keep request volume lower without losing short-lived events. All calls silently caught. |
+| `lib/posthog-lifecycle.ts` | Queues deferred lifecycle events (`extension installed` / `extension updated`) in extension storage until an identified user is available in a content script. |
+| `lib/logout-tracking.ts` | Passive Lectio logout/session-loss heuristics. Stores last authenticated activity and recent explicit logout intent so unexpected returns to `login.aspx` can be tracked without touching auth flow. |
 | `lib/utils.ts` | Helper functions (`cn()`) |
 
 ---

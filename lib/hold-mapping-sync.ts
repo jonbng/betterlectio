@@ -29,7 +29,7 @@ async function getSyncContext() {
   if (!authenticated) {
     try {
       const { ensureSupabaseSession } = await import('@/lib/supabase/session');
-      await ensureSupabaseSession(schoolId);
+      await ensureSupabaseSession(schoolId, 'hold-mapping-sync');
       authenticated = await isAuthenticated();
     } catch {
       authenticated = false;

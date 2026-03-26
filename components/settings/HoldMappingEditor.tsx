@@ -12,6 +12,8 @@ import {
   setHoldDisplayName,
   type HoldMappingRow,
 } from '@/lib/hold-mapping';
+import { getLoggedInUserId } from '@/lib/profile-cache';
+import { captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 
 // ── Autocomplete suggestions ────────────────────────────────────────────
 const SUBJECT_SUGGESTIONS = [
@@ -408,6 +410,12 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
 
 // ── Main editor ─────────────────────────────────────────────────────────
 export function HoldMappingEditor() {
+  useEffect(() => {
+    const studentId = getLoggedInUserId();
+    if (!studentId) return;
+    captureFeatureUsedOncePerSession('hold_mapping_editor', getDistinctId(studentId));
+  }, []);
+
   const [, setTick] = useState(0);
   const [filter, setFilter] = useState('');
   const forceUpdate = () => setTick((tick) => tick + 1);

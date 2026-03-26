@@ -57,15 +57,45 @@ export async function loadOptOutFlag(): Promise<void> {
 // ── Singleton client ─────────────────────────────────────────────────
 
 let _client: PostHog | null = null;
+let _flushHandlersRegistered = false;
+
+function flushClient(): void {
+  try {
+    const client = getClient() as any;
+    void client.flush?.();
+  } catch {
+    // Non-critical
+  }
+}
+
+function registerFlushHandlers(): void {
+  if (_flushHandlersRegistered) return;
+
+  try {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('pagehide', flushClient, { capture: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        flushClient();
+      }
+    });
+    _flushHandlersRegistered = true;
+  } catch {
+    // Non-critical
+  }
+}
 
 function getClient(): PostHog {
   if (_client) return _client;
   _client = new PostHog(POSTHOG_KEY, {
     host: POSTHOG_HOST,
-    // Flush immediately since the extension context can be short-lived
-    flushAt: 1,
-    flushInterval: 0,
+    // Keep request volume down while still flushing quickly in short-lived
+    // extension contexts. We also flush on page hide / tab backgrounding.
+    flushAt: 3,
+    flushInterval: 5000,
   });
+  registerFlushHandlers();
   return _client;
 }
 
@@ -149,6 +179,13 @@ export function identify(
   }
 }
 
+export function setPersonProperties(
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
+  identify(distinctId, properties);
+}
+
 const SESSION_IDENTIFY_KEY = 'bl-posthog-identified';
 
 /**
@@ -184,7 +221,7 @@ export function reset(): void {
       const key = sessionStorage.key(i);
       if (key?.startsWith('bl-posthog-')) sessionStorage.removeItem(key);
     }
-    getClient().reset();
+    (getClient() as any).reset?.();
   } catch {
     // Non-critical
   }
@@ -200,9 +237,18 @@ export function captureOncePerSession(
   distinctId: string,
   properties?: Record<string, unknown>,
 ): void {
+  captureOncePerSessionByKey(event, event, distinctId, properties);
+}
+
+export function captureOncePerSessionByKey(
+  keySuffix: string,
+  event: string,
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
   try {
     if (isOptedOut()) return;
-    const key = `bl-posthog-once:${event}`;
+    const key = `bl-posthog-once:${keySuffix}`;
     if (sessionStorage.getItem(key)) return;
 
     getClient().capture({
@@ -214,6 +260,19 @@ export function captureOncePerSession(
   } catch {
     // Non-critical
   }
+}
+
+export function captureFeatureUsedOncePerSession(
+  feature: string,
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
+  captureOncePerSessionByKey(
+    `feature:${feature}`,
+    'feature used',
+    distinctId,
+    { feature, ...properties },
+  );
 }
 
 /**

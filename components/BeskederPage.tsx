@@ -46,6 +46,7 @@ import {
 import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
 import { cn } from '@/lib/utils';
 import { getUnreadCount, getCachedUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
+import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function normalizePersonLabel(value: string): string {
@@ -147,36 +148,54 @@ function FolderNav({ folders, onSelectFolder }: { folders: BeskedFolder[]; onSel
 
 // ── Sender Avatar ──────────────────────────────────────────────────────
 
-function SenderAvatar({ person, schoolId, nameIdReady }: { person: PersonRef; schoolId: string; nameIdReady: boolean }) {
-  const displayName = getPersonLabel(person) || person.name;
+function SenderAvatar({
+  person,
+  schoolId,
+  nameIdReady,
+  studentsMap,
+}: {
+  person: PersonRef;
+  schoolId: string;
+  nameIdReady: boolean;
+  studentsMap: StudentsMap | null;
+}) {
+  const rawDisplayName = getPersonLabel(person) || person.name;
+  const contextCardId = person.contextCardId || lookupContextCardIdByName(rawDisplayName, schoolId);
+  const displayName = getDisplayNameFromLookupId(studentsMap, contextCardId, rawDisplayName);
   const initials = getInitials(displayName);
   const hue = nameToHue(displayName);
+  const preferredPictureUrl = getPictureUrlFromLookupId(studentsMap, contextCardId);
 
   const [pictureUrl, setPictureUrl] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const fetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Resolve context card ID: direct from DOM, or by name lookup
-    const ctxId = person.contextCardId || lookupContextCardIdByName(displayName, schoolId);
-    if (!ctxId) return;
+    if (preferredPictureUrl) {
+      setImgError(false);
+      setPictureUrl(preferredPictureUrl);
+      fetchedRef.current = null;
+      return;
+    }
 
-    const fetchKey = `${schoolId}:${ctxId}`;
+    if (!contextCardId) return;
+
+    const fetchKey = `${schoolId}:${contextCardId}`;
     if (fetchedRef.current === fetchKey) return;
     fetchedRef.current = fetchKey;
     setImgError(false);
     setPictureUrl(null);
 
-    const cached = getCachedPictureUrl(ctxId);
+    const cached = getCachedPictureUrl(contextCardId);
     if (cached !== undefined) {
       if (cached) setPictureUrl(cached);
       return;
     }
 
-    fetchPictureUrl(ctxId, schoolId).then((url) => {
+    fetchPictureUrl(contextCardId, schoolId).then((url) => {
       if (url) setPictureUrl(url);
     });
-  }, [person.contextCardId, displayName, schoolId, nameIdReady]);
+  }, [contextCardId, preferredPictureUrl, schoolId, nameIdReady]);
 
   if (pictureUrl && !imgError) {
     return (
@@ -215,6 +234,7 @@ interface ThreadRowProps {
   schoolId: string;
   nameIdReady: boolean;
   actionLoading: string | null;
+  studentsMap: StudentsMap | null;
 }
 
 function actionIsLoading(actionLoading: string | null, threadId: string): boolean {
@@ -228,17 +248,40 @@ function formatActionError(error: SubmitError): string {
   return 'Kunne ikke bekræfte handlingen. Opdatér siden for at undgå dubletter.';
 }
 
-function ThreadRow({ thread, isSelected, onToggleSelect, onOpen, onFlag, onRead, onDelete, index, schoolId, nameIdReady, actionLoading }: ThreadRowProps) {
+function ThreadRow({
+  thread,
+  isSelected,
+  onToggleSelect,
+  onOpen,
+  onFlag,
+  onRead,
+  onDelete,
+  index,
+  schoolId,
+  nameIdReady,
+  actionLoading,
+  studentsMap,
+}: ThreadRowProps) {
   const [showActions, setShowActions] = useState(false);
   const isBusy = actionIsLoading(actionLoading, thread.threadId);
-  const latestSenderScheduleUrl = getPersonScheduleUrlFromMessage(
+  const latestSenderName = getDisplayNameFromLookupId(
+    studentsMap,
     thread.latestSender.contextCardId,
     getPersonLabel(thread.latestSender),
+  );
+  const recipientsName = getDisplayNameFromLookupId(
+    studentsMap,
+    thread.recipients.contextCardId,
+    getPersonLabel(thread.recipients),
+  );
+  const latestSenderScheduleUrl = getPersonScheduleUrlFromMessage(
+    thread.latestSender.contextCardId,
+    latestSenderName,
     schoolId,
   );
   const recipientsScheduleUrl = getPersonScheduleUrlFromMessage(
     thread.recipients.contextCardId,
-    getPersonLabel(thread.recipients),
+    recipientsName,
     schoolId,
   );
 
@@ -338,9 +381,9 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onOpen, onFlag, onRead,
         onClick={(e) => handlePersonNavigate(e, latestSenderScheduleUrl)}
         onKeyDown={(e) => handlePersonNavigateByKeyboard(e, latestSenderScheduleUrl)}
         disabled={!latestSenderScheduleUrl}
-        title={latestSenderScheduleUrl ? `Vis ${getPersonLabel(thread.latestSender)}s skema` : undefined}
+        title={latestSenderScheduleUrl ? `Vis ${latestSenderName}s skema` : undefined}
       >
-        <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} />
+        <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} studentsMap={studentsMap} />
       </button>
 
       {/* Content */}
@@ -356,9 +399,9 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onOpen, onFlag, onRead,
             onClick={(e) => handlePersonNavigate(e, latestSenderScheduleUrl)}
             onKeyDown={(e) => handlePersonNavigateByKeyboard(e, latestSenderScheduleUrl)}
             disabled={!latestSenderScheduleUrl}
-            title={latestSenderScheduleUrl ? `Vis ${getPersonLabel(thread.latestSender)}s skema` : undefined}
+            title={latestSenderScheduleUrl ? `Vis ${latestSenderName}s skema` : undefined}
           >
-            {getPersonLabel(thread.latestSender)}
+            {latestSenderName}
           </button>
           <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">{dateDisplay}</span>
         </div>
@@ -381,9 +424,9 @@ function ThreadRow({ thread, isSelected, onToggleSelect, onOpen, onFlag, onRead,
             onClick={(e) => handlePersonNavigate(e, recipientsScheduleUrl)}
             onKeyDown={(e) => handlePersonNavigateByKeyboard(e, recipientsScheduleUrl)}
             disabled={!recipientsScheduleUrl}
-            title={recipientsScheduleUrl ? `Vis ${getPersonLabel(thread.recipients)}s skema` : undefined}
+            title={recipientsScheduleUrl ? `Vis ${recipientsName}s skema` : undefined}
           >
-            Til: {getPersonLabel(thread.recipients)}
+            Til: {recipientsName}
           </button>
         </div>
       </div>
@@ -474,6 +517,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { studentsMap } = useSchoolStudents(schoolId);
   const searchRef = useRef<HTMLInputElement>(null);
   const bulkRef = useRef<HTMLDivElement>(null);
   const pollTimeoutRef = useRef<number | null>(null);
@@ -971,6 +1015,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
               schoolId={schoolId}
               nameIdReady={nameIdReady}
               actionLoading={actionLoading}
+              studentsMap={studentsMap}
             />
           ))}
         </div>

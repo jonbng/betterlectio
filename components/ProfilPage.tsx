@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import {
   User,
   Monitor,
@@ -26,6 +26,7 @@ import { fetchStudiekortData, fetchSessionsData, deleteSession } from '@/lib/pro
 import type { Tables } from '@/database.types';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
 import { getLoggedInUserId } from '@/lib/profile-cache';
+import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 
 type Student = Tables<'students'>;
 
@@ -365,6 +366,7 @@ function SessionsCard({
 
 function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
   const loggedInId = getLoggedInUserId();
+  const distinctId = loggedInId ? getDistinctId(loggedInId) : null;
 
   const { data: student, isLoading } = useQuery<Student>({
     schoolId,
@@ -378,12 +380,24 @@ function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
   const [instagram, setInstagram] = useState('');
   const [showBirthday, setShowBirthday] = useState(false);
   const [saved, setSaved] = useState(false);
+  const pendingChangesRef = useRef<{
+    changed_description: boolean;
+    changed_instagram: boolean;
+    changed_show_birthday: boolean;
+  } | null>(null);
 
   const { mutate: updateProfile, isLoading: saving } = useMutation({
     table: 'students',
     method: 'update',
     schoolId,
     onSuccess: () => {
+      if (distinctId && pendingChangesRef.current) {
+        capture('betterlectio profile updated', distinctId, {
+          school_id: schoolId,
+          ...pendingChangesRef.current,
+        });
+      }
+      pendingChangesRef.current = null;
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
@@ -397,6 +411,14 @@ function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
       setShowBirthday(student.show_birthday ?? false);
     }
   }, [student]);
+
+  useEffect(() => {
+    if (distinctId && student && (student.has_extension || student.has_app)) {
+      captureFeatureUsedOncePerSession('betterlectio_profile_edit', distinctId, {
+        school_id: schoolId,
+      });
+    }
+  }, [distinctId, schoolId, student]);
 
   if (!loggedInId) return null;
 
@@ -512,6 +534,11 @@ function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
       <div className="flex justify-end mt-3">
         <button
           onClick={() => {
+            pendingChangesRef.current = {
+              changed_description: description !== (student?.description || ''),
+              changed_instagram: instagram !== (student?.instagram || ''),
+              changed_show_birthday: showBirthday !== (student?.show_birthday ?? false),
+            };
             updateProfile(
               {
                 description: description || null,

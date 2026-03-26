@@ -16,6 +16,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const NUMERIC_RE = /^\d+$/;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 BetterLectio/1.0';
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function errorResponse(error: string, status: number, stage: string, schoolId?: string | null): Response {
+  return jsonResponse({ error, stage, schoolId: schoolId ?? null }, status);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -33,15 +41,15 @@ Deno.serve(async (req: Request) => {
 
     // Validate required fields
     if (!qrId || !userId) {
-      return jsonResponse({ error: 'Missing required fields: qrId, userId' }, 400);
+      return errorResponse('Missing required fields: qrId, userId', 400, 'validate-input', clientSchoolId);
     }
 
     // Validate formats
     if (!UUID_RE.test(qrId)) {
-      return jsonResponse({ error: 'Invalid qrId format' }, 400);
+      return errorResponse('Invalid qrId format', 400, 'validate-input', clientSchoolId);
     }
     if (!NUMERIC_RE.test(userId)) {
-      return jsonResponse({ error: 'userId must be numeric' }, 400);
+      return errorResponse('userId must be numeric', 400, 'validate-input', clientSchoolId);
     }
 
     // ── Step 1: Login via QR code URL ──────────────────────────────────
@@ -50,14 +58,14 @@ Deno.serve(async (req: Request) => {
     const qrResp = await fetch(qrLoginUrl, { redirect: 'manual', headers: { 'User-Agent': USER_AGENT } });
 
     if (qrResp.status !== 303) {
-      return jsonResponse({ error: 'QR code invalid or expired' }, 401);
+      return errorResponse('QR code invalid or expired', 401, 'qr-login', clientSchoolId);
     }
 
     // Extract schoolId from Location header: /lectio/{schoolId}/UserSetup.aspx
     const location = qrResp.headers.get('Location') || '';
     const schoolMatch = location.match(/\/lectio\/(\d+)\//);
     if (!schoolMatch) {
-      return jsonResponse({ error: 'Could not determine school from QR redirect' }, 500);
+      return errorResponse('Could not determine school from QR redirect', 500, 'qr-redirect-school', clientSchoolId);
     }
     const schoolId = schoolMatch[1];
 
@@ -79,7 +87,7 @@ Deno.serve(async (req: Request) => {
     const cookieHeader = cookies.join('; ');
 
     if (!cookieHeader) {
-      return jsonResponse({ error: 'No session cookies received from QR login' }, 500);
+      return errorResponse('No session cookies received from QR login', 500, 'qr-session-cookies', schoolId);
     }
 
     // ── Step 2: Fetch skema (for elevid) + studiekort (for profile) in parallel
@@ -89,12 +97,21 @@ Deno.serve(async (req: Request) => {
       fetch(`https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`, { headers: lectioHeaders, redirect: 'follow' }),
     ]);
 
-    const [skemaHtml, html] = await Promise.all([skemaResp.text(), studiekortResp.text()]);
+    let [skemaHtml, html] = await Promise.all([skemaResp.text(), studiekortResp.text()]);
 
     // Extract elevid from data-lectioContextCard="S{elevid}" on the schedule page
-    const elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
+    let elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
+    for (let attempt = 0; !elevidMatch && attempt < 2; attempt++) {
+      await sleep(400 * (attempt + 1));
+      const retryResp = await fetch(`https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`, {
+        headers: lectioHeaders,
+        redirect: 'follow',
+      });
+      skemaHtml = await retryResp.text();
+      elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
+    }
     if (!elevidMatch) {
-      return jsonResponse({ error: 'Could not determine elevid from authenticated session' }, 500);
+      return errorResponse('Could not determine elevid from authenticated session', 500, 'resolve-elevid', schoolId);
     }
     const elevid = elevidMatch[1];
 
@@ -142,7 +159,7 @@ Deno.serve(async (req: Request) => {
 
     if (error) {
       console.error('Failed to generate magic link:', error);
-      return jsonResponse({ error: 'Failed to generate login link' }, 500);
+      return errorResponse('Failed to generate login link', 500, 'generate-magic-link', schoolId);
     }
 
     // Extract the auth user ID from the generated link
@@ -209,9 +226,9 @@ Deno.serve(async (req: Request) => {
       console.warn('Failed to upsert student record:', e);
     }
 
-    return jsonResponse({ tokenHash: data.properties.hashed_token });
+    return jsonResponse({ tokenHash: data.properties.hashed_token, schoolId });
   } catch (err) {
     console.error('Edge function error:', err);
-    return jsonResponse({ error: 'Internal server error' }, 500);
+    return errorResponse('Internal server error', 500, 'unhandled', null);
   }
 });

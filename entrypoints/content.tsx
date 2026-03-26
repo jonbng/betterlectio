@@ -38,14 +38,23 @@ import {
 } from "@/lib/profile-cache";
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
-import { applyThemeForSchool } from "@/lib/theme-storage";
+import { applyThemeForSchool, getThemePreferenceForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, getFullHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { hydrateHoldMappingsFromSupabase, seedKnownHoldMappingsToSupabase } from "@/lib/hold-mapping-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
-import { captureOncePerSession, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { getSchoolYearFromClassName } from "@/lib/class-name";
+import { captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
+import {
+  clearLogoutIntent,
+  getLastAuthenticatedActivity,
+  getLastLogoutIntent,
+  markLogoutIntent,
+  recordAuthenticatedActivity,
+} from "@/lib/logout-tracking";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -83,6 +92,66 @@ function replaceFavicon() {
   favicon.type = "image/x-icon";
   favicon.href = browser.runtime.getURL("/assets/favicon.ico");
   document.head.appendChild(favicon);
+}
+
+function trackFeatureUsed(feature: string, properties?: Record<string, unknown>) {
+  const profile = getCachedProfile();
+  if (!profile?.studentId) return;
+
+  captureFeatureUsedOncePerSession(feature, getDistinctId(profile.studentId), properties);
+}
+
+const LECTIO_SESSION_LOST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const LOGOUT_INTENT_GRACE_MS = 10 * 60 * 1000;
+
+function trackPotentialLectioSessionLoss(
+  detectionSource: 'login_aspx' | 'school_page_without_header',
+): void {
+  const lastActivity = getLastAuthenticatedActivity();
+  if (!lastActivity?.studentId) return;
+
+  const ageMs = Date.now() - lastActivity.timestamp;
+  if (ageMs < 0 || ageMs > LECTIO_SESSION_LOST_MAX_AGE_MS) return;
+
+  const lastLogoutIntent = getLastLogoutIntent();
+  const hasRecentLogoutIntent =
+    !!lastLogoutIntent &&
+    Date.now() - lastLogoutIntent.timestamp <= LOGOUT_INTENT_GRACE_MS &&
+    (!lastLogoutIntent.schoolId || lastLogoutIntent.schoolId === lastActivity.schoolId);
+
+  if (hasRecentLogoutIntent) {
+    clearLogoutIntent();
+    return;
+  }
+
+  captureOncePerSessionByKey(
+    `lectio-session-lost:${lastActivity.schoolId ?? 'unknown'}:${lastActivity.timestamp}`,
+    'lectio session lost',
+    getDistinctId(lastActivity.studentId),
+    {
+      school_id: lastActivity.schoolId,
+      detection_source: detectionSource,
+      previous_path: lastActivity.path,
+      minutes_since_last_authenticated: Math.round(ageMs / 60000),
+    },
+  );
+}
+
+function installLogoutIntentTracking(): void {
+  document.addEventListener(
+    'click',
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const anchor = target.closest('a[href*="logout.aspx"]');
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+
+      const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1] ?? null;
+      markLogoutIntent(schoolId);
+    },
+    { capture: true },
+  );
 }
 
 function injectFont() {
@@ -226,6 +295,7 @@ function initLayout() {
     if (hasReturnUrl) {
       // Auth redirect in progress, keeping state
     } else {
+      trackPotentialLectioSessionLoss('login_aspx');
       updateLoginState(); // This will detect not logged in and clear the cache
     }
     document.documentElement.classList.add("il-ready");
@@ -241,6 +311,7 @@ function initLayout() {
     // user is likely logged out - update the state
     const isSchoolPage = /\/lectio\/\d+\//.test(window.location.pathname);
     if (isSchoolPage && !hasMainHeader && !isPrintPage) {
+      trackPotentialLectioSessionLoss('school_page_without_header');
       updateLoginState(); // This will detect not logged in and clear the cache
     }
 
@@ -286,13 +357,24 @@ function initLayout() {
   // Update login state and profile cache
   updateLoginState();
   updateProfileCache();
+  installLogoutIntentTracking();
+
+  const currentProfile = getCachedProfile();
+  if (currentProfile) {
+    recordAuthenticatedActivity({
+      schoolId: currentProfile.schoolId,
+      studentId: currentProfile.studentId,
+      path: window.location.pathname,
+      timestamp: Date.now(),
+    });
+  }
 
   // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
   // All Supabase operations run in the background script to avoid Firefox
   // cross-compartment Promise errors.
   if (schoolId) {
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
-      void ensureSupabaseSession(schoolId);
+      void ensureSupabaseSession(schoolId, 'bootstrap');
     }).catch(() => {});
 
     // Prefetch all school students into cache (for BL badges + profile data)
@@ -306,6 +388,11 @@ function initLayout() {
 
   // Set cached profile data on window for AppSidebar to use
   const cachedProfile = getCachedProfile();
+  const currentSettings = getSettings();
+  const currentTheme = getThemePreferenceForSchool(schoolId);
+  const schoolYear = cachedProfile?.className
+    ? getSchoolYearFromClassName(cachedProfile.className)
+    : null;
   const pageProps = {
     school_id: schoolId,
     page: window.location.pathname.split('/').pop()?.split('?')[0] ?? 'unknown',
@@ -320,10 +407,25 @@ function initLayout() {
       school_id: cachedProfile.schoolId,
       school_name: cachedProfile.schoolName,
       class_name: cachedProfile.className,
+      school_year: schoolYear,
+      dark_mode: currentSettings.visual.darkMode,
+      theme_id: currentTheme.themeId,
       extension_version: browser.runtime.getManifest().version,
       lectio_version: getLectioVersionForUserJot(),
     });
     captureOncePerSession('extension loaded', phDistinctId, pageProps);
+    void consumeLifecycleEvents().then((events) => {
+      for (const lifecycleEvent of events) {
+        captureOncePerSession(
+          lifecycleEvent.event,
+          phDistinctId,
+          {
+            ...lifecycleEvent.properties,
+            school_id: cachedProfile.schoolId,
+          },
+        );
+      }
+    }).catch(() => {});
   }
 
   let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
@@ -1412,6 +1514,8 @@ function enhanceScheduleBricks() {
 }
 
 function injectFindSkemaPage(schoolId: string) {
+  trackFeatureUsed("findskema", { school_id: schoolId });
+
   // Add body class for FindSkema-specific CSS
   document.body.classList.add("il-findskema");
 
@@ -1454,6 +1558,8 @@ function injectFindSkemaPage(schoolId: string) {
 }
 
 function injectForsideGreeting(schoolId: string) {
+  trackFeatureUsed("forside_dashboard", { school_id: schoolId });
+
   // Add body class for forside-specific CSS
   document.body.classList.add("il-forside");
 
@@ -1855,6 +1961,8 @@ function applyMasonryLayout() {
 }
 
 function injectViewingScheduleHeader(schoolId: string) {
+  trackFeatureUsed("profile_page", { school_id: schoolId });
+
   const viewedEntity = extractViewedEntity();
   if (!viewedEntity) return;
 
@@ -1920,6 +2028,8 @@ function injectViewingScheduleHeader(schoolId: string) {
 }
 
 function injectMembersPage(schoolId: string) {
+  trackFeatureUsed("members_page", { school_id: schoolId });
+
   const url = new URL(window.location.href);
   const reportType = url.searchParams.get("reporttype");
 
@@ -1965,6 +2075,8 @@ function injectMembersPage(schoolId: string) {
 }
 
 function injectBeskederPage(schoolId: string) {
+  trackFeatureUsed("beskeder_list", { school_id: schoolId });
+
   // Detect which beskeder state we're in
   if (isThreadViewState()) {
     injectBeskederThreadView(schoolId);
@@ -2016,6 +2128,8 @@ function injectBeskederPage(schoolId: string) {
 }
 
 function injectBeskederThreadView(schoolId: string) {
+  trackFeatureUsed("beskeder_thread", { school_id: schoolId });
+
   const data = parseThreadFromDOM();
 
   const contentContainer = document.getElementById("il-lectio-content");
@@ -2040,6 +2154,8 @@ function injectBeskederThreadView(schoolId: string) {
 }
 
 function injectBeskederCompose(schoolId: string) {
+  trackFeatureUsed("beskeder_compose", { school_id: schoolId });
+
   document.body.classList.add("il-beskeder-page-active");
   document.body.classList.add("bl-beskeder-compose-active");
 
@@ -2065,6 +2181,8 @@ function injectBeskederCompose(schoolId: string) {
 }
 
 function injectLektierPage(_schoolId: string) {
+  trackFeatureUsed("lektier_page");
+
   const entries = parseLektierFromDOM();
 
   const contentContainer = document.getElementById("il-lectio-content");
@@ -2090,6 +2208,8 @@ function injectLektierPage(_schoolId: string) {
 }
 
 async function injectOpgaverPage(schoolId: string) {
+  trackFeatureUsed("opgaver_page", { school_id: schoolId });
+
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
@@ -2111,6 +2231,8 @@ async function injectOpgaverPage(schoolId: string) {
 }
 
 async function injectFravaerPage(schoolId: string) {
+  trackFeatureUsed("fravaer_page", { school_id: schoolId });
+
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
@@ -2133,6 +2255,8 @@ async function injectFravaerPage(schoolId: string) {
 }
 
 function injectKaraktererPage(_schoolId: string) {
+  trackFeatureUsed("karakterer_page");
+
   const data = parseKaraktererFromDOM();
 
   const contentContainer = document.getElementById("il-lectio-content");
@@ -2154,6 +2278,8 @@ function injectKaraktererPage(_schoolId: string) {
 }
 
 function injectProfilPage(schoolId: string) {
+  trackFeatureUsed("profil_page", { school_id: schoolId });
+
   const data = parseProfilFromDOM();
 
   const contentContainer = document.getElementById("il-lectio-content");

@@ -23,23 +23,23 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `entrypoints/session-block.content.ts` - Blocks session timeout popup
 
 ### Components
-- `components/AppSidebar.tsx` - Sidebar navigation with collapsible sections
-- `components/FindSkemaPage.tsx` - FindSkema redesign with fuzzy search, starred/recents, person cards
+- `components/AppSidebar.tsx` - Sidebar navigation with collapsible sections; student name/avatar prefer Supabase `name` and `custom_pfp_url`/`lectio_pfp_url` before Lectio DOM data
+- `components/FindSkemaPage.tsx` - FindSkema redesign with fuzzy search, starred/recents, person cards, Supabase-backed student avatars, and student search that matches both Lectio names and Supabase preferred names
 - `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views. Supabase-backed: shows description, instagram, birthday (if `show_birthday`), BL badge. Own-profile inline edit form for description/instagram/show_birthday.
-- `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`), optional BetterLectio badge
+- `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`), optional BetterLectio badge, and student name/avatar resolution via Supabase before Lectio fallbacks
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
 - `components/LektierPage.tsx` - Day-grouped homework cards with Supabase-backed done-state sync (same UI, optimistic local toggle, cross-device persistence)
 - `components/OpgaverPage.tsx` - Urgency-first assignment cards, relative Danish deadlines, color-coded grades
-- `components/OpgaveDetailSheet.tsx` - Assignment detail side sheet with submission history, comment/file upload
-- `components/BeskederThreadView.tsx` - Thread view with sender avatars, WYSIWYG reply, no-reload reply/attach
-- `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor
+- `components/OpgaveDetailSheet.tsx` - Assignment detail side sheet with submission history, comment/file upload, and group-member names/avatars that prefer Supabase student data
+- `components/BeskederThreadView.tsx` - Thread view with sender names/avatars preferring Supabase student data, WYSIWYG reply, no-reload reply/attach
+- `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor; student recipients prefer Supabase names/avatars for display while keeping Lectio names for postbacks
 - `components/WysiwygEditor.tsx` - contentEditable editor converting BBCode <-> rich HTML
 - `components/BBCodeToolbar.tsx` - Formatting toolbar (bold, italic, underline, link)
 - `components/ActivityClassModal.tsx` - Activity detail modal from skema/forside links, now rendering lektier, presentation content, øvrigt indhold, and related links in the side sheet
 - `components/SettingsModal.tsx` - Settings modal (appearance, behavior, sidebar, fag, about)
 - `components/ScheduleCountdown.tsx` - Sidebar countdown widget
 - `components/ForsideGreeting.tsx` - Time-based greeting, live clock
-- `components/ForsideDashboard.tsx` - Redesigned forside dashboard: 4 cards (aktuel info, lektier, opgaver, beskeder) parsed from native DOM, 2-col grid layout with priority indicators, hold colors, urgency bars, relative times
+- `components/ForsideDashboard.tsx` - Redesigned forside dashboard: 4 cards (aktuel info, lektier, opgaver, beskeder) parsed from native DOM, 2-col grid layout with priority indicators, hold colors, urgency bars, relative times, and Supabase-backed student names/avatars in message previews
 - `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design (parser reused by ForsideDashboard)
 - `components/KaraktererPage.tsx` - Grade report redesign: subject cards with big color-coded grades, teacher notes inline, summary bar, collapsible diploma/protocol/remarks sections, DOM parser
 - `components/DesignPlayground.tsx` - Design system playground from Settings
@@ -67,7 +67,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
 - `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers
 - `lib/supabase/resources/homework.ts` - Homework queries + `upsert_student_homework_status` RPC bridge for synced completion state
-- `lib/supabase/student-lookup.ts` - Shared `useSchoolStudents(schoolId)` hook (returns `studentsMap` Map for O(1) lookups), `getStudentIdFromPersonId()`, `formatDanishBirthdate()`
+- `lib/supabase/student-lookup.ts` - Shared student lookup/display helpers: `useSchoolStudents(schoolId)` (returns `studentsMap` Map for O(1) lookups), `getStudentIdFromPersonId()`, lookup-ID-based preferred name/avatar resolution, search aliases, and `formatDanishBirthdate()`
 - `lib/school-storage.ts` - Last school persistence
 - `styles/globals.css` - Main styles, Lectio modernizer, page-specific styling
 
@@ -86,26 +86,35 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 
 **Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Never build the ID string manually. **No anonymous tracking** — all PostHog events require an identified user. Pre-login pages (login) do not send analytics.
 
-**Identify:** On each page load (content.tsx), `identify()` sets person properties: `name`, `school_id`, `school_name`, `class_name`, `extension_version`, `lectio_version`. PostHog auto-wraps as `$set`, so never wrap in `$set` yourself.
+**Identify:** On each page load (content.tsx), `identifyIfNeeded()` sets person properties: `name`, `school_id`, `school_name`, `class_name`, `school_year`, `dark_mode`, `theme_id`, `extension_version`, `lectio_version`. PostHog auto-wraps as `$set`, so never wrap in `$set` yourself. Use `setPersonProperties()` for targeted profile updates after settings/theme changes.
 
-**Events (free-tier minimal):**
+**Events:**
 - `extension loaded` (content.tsx) — DAU, school, page. Props: `school_id`, `page`, `extension_version`
-- `supabase auth succeeded/failed` (background.ts) — Supabase auth tracking
+- `extension installed` / `extension updated` — queued in background on lifecycle changes, emitted once the extension has an identified user
+- `supabase auth succeeded/failed` (background.ts) — Supabase auth tracking. Include `source` (`bootstrap`, `hold-mapping-sync`, etc.) when adding new auth callsites so first-attempt failures can be traced back to the caller. Success/failure events should also preserve `auth_stage` and `auth_server_school_id` when the edge function provides them.
+- `setting changed` / `theme changed` — settings + theme instrumentation
+- `betterlectio profile updated` — own BetterLectio profile edits (`description`, `instagram`, `show_birthday`)
+- `feature used` — once-per-session feature telemetry (`findskema`, `forside_dashboard`, `lektier_page`, `homework_toggle`, `beskeder_*`, `hold_mapping_editor`, etc.)
+- `lectio session lost` — passive logout detection when an identified user is unexpectedly sent back to `login.aspx` or another school page without the normal authenticated shell, excluding recent explicit logout clicks
 - `captureException` — error tracking (only when distinctId is available)
 
-**Adding new events:** Be conservative — we're on PostHog's free tier. Import `{ capture, getDistinctId }` from `@/lib/posthog`. Only capture events when you have an identified user. All calls are try/catch wrapped.
+**Adding new events:** Be conservative — we're on PostHog's free tier. Import helpers from `@/lib/posthog`. Only capture events when you have an identified user. Prefer `captureFeatureUsedOncePerSession()` for feature-adoption telemetry and `identifyIfNeeded()` / `setPersonProperties()` for person updates. All calls are try/catch wrapped.
 
 **Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`.
 
-**Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Host permission for `https://eu.i.posthog.com/*` in manifest.
+**Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Optional: `VITE_POSTHOG_UNINSTALL_URL` for hosted uninstall tracking via `browser.runtime.setUninstallURL(...)`. Host permission for `https://eu.i.posthog.com/*` in manifest.
 
 ## Supabase Auth & Storage
 
-**Edge function:** `supabase/functions/verify-lectio-auth/index.ts` handles QR-code-based auth. Flow: QR login → extract session cookies → fetch student profile from `digitaltStudiekort.aspx` → generate magic link → upload profile picture to storage → upsert student record.
+**Edge function:** `supabase/functions/verify-lectio-auth/index.ts` handles QR-code-based auth. Flow: QR login → extract session cookies → fetch student profile from `digitaltStudiekort.aspx` plus `SkemaNy.aspx` (with short retries for `elevid` propagation) → generate magic link → upload profile picture to storage → upsert student record.
+
+**Background auth dedupe:** `entrypoints/background.ts` is the single coordinator for Supabase auth. Startup auth should originate from `entrypoints/content.tsx`; feature code should only call `ensureSupabaseSession(...)` as a fallback when auth is still missing. The background script dedupes concurrent auth attempts per `schoolId:userId` so multiple content-script callers do not burn the same one-time magic-link token and produce false `Email link is invalid or has expired` failures.
 
 **Auth UID:** The edge function sets `supabase_id` on the `students` table from `data.user.id` returned by `generateLink()`. This links the Lectio student ID to the Supabase auth user.
 
 **Profile picture storage:** Profile pictures are downloaded from Lectio (using session cookies) and uploaded to the `profile-pictures` Supabase Storage bucket at `{schoolId}/{userId}.{ext}`. The public URL is stored in `students.custom_pfp_url`. The original Lectio URL is kept in `students.lectio_pfp_url` as a reference. The bucket is public with allowed mime types (jpeg, png, webp, gif) and 5MB limit.
+
+**Student identity rendering rule:** When a UI surface can identify a student (`students.id`, raw `elevid`, or a lookup/context-card ID like `S727...`), prefer `students.name` for display, then keep Lectio names as aliases/search terms. For pictures, prefer `students.custom_pfp_url`, then `students.lectio_pfp_url`, and only then fall back to Lectio/context-card image fetching. This is the expected behavior for FindSkema cards/search, members, Beskeder names/avatars, assignment group members, and the sidebar profile avatar.
 
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
 

@@ -5,6 +5,8 @@
 import type { SupabaseMessage, SupabaseResponse } from './messages';
 import { fetchQrUrl } from '@/lib/profil-parser';
 
+type AuthSource = 'bootstrap' | 'hold-mapping-sync' | 'unknown';
+
 async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
   const resp = await browser.runtime.sendMessage(msg);
   if (!resp) return { ok: false, error: 'Background not ready' };
@@ -15,7 +17,7 @@ async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
  * Ensures a valid Supabase session exists. Runs silently — never throws.
  * Safe to call fire-and-forget from any content script.
  */
-export async function ensureSupabaseSession(schoolId: string): Promise<void> {
+export async function ensureSupabaseSession(schoolId: string, source: AuthSource = 'unknown'): Promise<void> {
   try {
     // Quick check: is session already valid?
     const check = await send({ type: 'bl-sb:auth:session' });
@@ -43,6 +45,7 @@ export async function ensureSupabaseSession(schoolId: string): Promise<void> {
       type: 'bl-sb:auth:ensure',
       schoolId,
       qrData: { qrId, userId },
+      source,
     });
 
     if (!result.ok) {

@@ -18,6 +18,7 @@ import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 import { normalizeString, fuzzyMatch } from '@/lib/fuzzy-search';
 import { cn } from '@/lib/utils';
+import { getDisplayNameFromLookupId, getNameAliasesFromLookupId, getPictureUrlFromLookupId, useSchoolStudents } from '@/lib/supabase/student-lookup';
 
 interface BeskederComposePageProps {
   data: ComposeFormData;
@@ -59,6 +60,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     const { tokens, action } = parseFormTokens();
     return { tokens, action };
   });
+  const { studentsMap } = useSchoolStudents(schoolId);
 
   // Track mutable postback targets (ctl indices may shift after recipient/attachment changes)
   const [sendTarget] = useState(data.sendPostbackTarget);
@@ -87,6 +89,12 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     if (Object.prototype.hasOwnProperty.call(pictureByContextId, contextId)) return;
     if (pictureInFlightRef.current.has(contextId)) return;
 
+    const preferredPictureUrl = getPictureUrlFromLookupId(studentsMap, contextId);
+    if (preferredPictureUrl) {
+      setPictureByContextId((prev) => ({ ...prev, [contextId]: preferredPictureUrl }));
+      return;
+    }
+
     const cached = getCachedPictureUrl(contextId);
     if (cached !== undefined) {
       setPictureByContextId((prev) => ({ ...prev, [contextId]: cached }));
@@ -101,7 +109,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       .finally(() => {
         pictureInFlightRef.current.delete(contextId);
       });
-  }, [pictureByContextId, schoolId]);
+  }, [pictureByContextId, schoolId, studentsMap]);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,12 +224,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     const ranked = recipientOptions
       .filter((option) => !alreadyChosen.has(normalizeRecipientName(option.name)))
       .map((option) => {
-        const searchIndex = option.searchText.indexOf(query);
+        const displayName = getDisplayNameFromLookupId(studentsMap, option.id, option.name);
+        const optionSearchText = normalizeString(`${option.searchText} ${getNameAliasesFromLookupId(studentsMap, option.id, option.name).join(' ')}`);
+        const searchIndex = optionSearchText.indexOf(query);
         const matchesAllTerms = queryTerms.length > 0
-          ? queryTerms.every((term) => option.searchText.includes(term))
+          ? queryTerms.every((term) => optionSearchText.includes(term))
           : false;
         const [fuzzyMatched, fuzzyScore] = !isMultiTermQuery
-          ? fuzzyMatch(query, option.name)
+          ? fuzzyMatch(query, `${displayName} ${option.name}`)
           : [false, 0];
 
         if (searchIndex < 0 && !matchesAllTerms && !fuzzyMatched) return null;
@@ -232,11 +242,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         } else if (matchesAllTerms) {
           // Loose multi-word matching, e.g. "Carl Meding" => "Carl Christian Meding".
           // Score tighter term placement higher.
-          const firstTermIndex = option.searchText.indexOf(queryTerms[0]);
-          const lastTermIndex = option.searchText.indexOf(queryTerms[queryTerms.length - 1]);
+          const firstTermIndex = optionSearchText.indexOf(queryTerms[0]);
+          const lastTermIndex = optionSearchText.indexOf(queryTerms[queryTerms.length - 1]);
           const windowSize = firstTermIndex >= 0 && lastTermIndex >= 0
             ? Math.max(1, lastTermIndex - firstTermIndex + queryTerms[queryTerms.length - 1].length)
-            : option.searchText.length;
+            : optionSearchText.length;
           score = 180 - windowSize * 0.15;
         } else {
           // Single-term fuzzy fallback only, with a floor to avoid weak matches.
@@ -252,7 +262,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       .map((entry) => entry.option);
 
     return ranked;
-  }, [recipientQuery, recipientOptions, recipients, normalizeRecipientName]);
+  }, [recipientQuery, recipientOptions, recipients, normalizeRecipientName, studentsMap]);
 
   useEffect(() => {
     setActiveSuggestionIndex(0);
@@ -523,6 +533,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
             {recipients.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {recipientsWithContext.map((r) => (
+                  (() => {
+                    const displayName = r.contextId
+                      ? getDisplayNameFromLookupId(studentsMap, r.contextId, r.name)
+                      : r.name;
+                    return (
                   <span
                     key={r.removePostbackTarget}
                     className={cn(
@@ -542,14 +557,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                         getInitials(r.name)
                       )}
                     </span>
-                    <span className="text-xs font-medium text-foreground">{r.name}</span>
+                    <span className="text-xs font-medium text-foreground">{displayName}</span>
                     {r.removePostbackTarget && (
                       <button
                         type="button"
                         className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         onClick={() => handleRemoveRecipient(r.removePostbackTarget)}
                         disabled={!!removingRecipient}
-                        title={`Fjern ${r.name}`}
+                        title={`Fjern ${displayName}`}
                       >
                         {removingRecipient === r.removePostbackTarget
                           ? <Loader2 size={13} className="animate-spin" />
@@ -558,6 +573,8 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       </button>
                     )}
                   </span>
+                    );
+                  })()
                 ))}
               </div>
             )}
@@ -610,6 +627,9 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                     </div>
                   )}
                   {recipientSuggestions.map((option, index) => (
+                    (() => {
+                      const displayName = getDisplayNameFromLookupId(studentsMap, option.id, option.name);
+                      return (
                     <button
                       key={option.id}
                       type="button"
@@ -620,7 +640,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleAddRecipient(option)}
                       disabled={!!addingRecipientId}
-                    >
+                      >
                       <span className="inline-flex size-7 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
                         {pictureByContextId[option.id] ? (
                           <img
@@ -634,12 +654,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                         )}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-foreground">{option.name}</span>
+                        <span className="block truncate text-sm font-medium text-foreground">{displayName}</span>
                         <span className="block text-xs text-muted-foreground">
                           {getRecipientTypeLabel(option.id)}
                         </span>
                       </span>
                     </button>
+                      );
+                    })()
                   ))}
                 </div>
               )}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { reset as resetPostHog } from '@/lib/posthog';
+import { markLogoutIntent } from '@/lib/logout-tracking';
 import {
   Calendar,
   FileText,
@@ -61,6 +62,8 @@ import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
 import { setUserJotTheme } from '@/lib/userjot';
+import { useQuery } from '@/lib/supabase/hooks';
+import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
@@ -249,8 +252,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const soroeLogoUrl = browser.runtime.getURL('/assets/soroeakademi.png');
 
   const schoolName = schoolInfo.name;
-  const profilePic = getProfilePicture();
-  const userName = getUserName();
+  const cachedProfile = getCachedProfile();
+  const { data: sidebarStudent } = useQuery<Student>({
+    schoolId,
+    table: 'students',
+    filters: cachedProfile?.studentId ? [{ column: 'id', op: 'eq', value: cachedProfile.studentId }] : [],
+    single: true,
+    enabled: Boolean(cachedProfile?.studentId),
+  });
+  const profilePic = getPreferredStudentPictureUrl(sidebarStudent, getProfilePicture());
+  const userName = getPreferredStudentDisplayName(sidebarStudent, getUserName());
   const userClass = getUserClass();
   const currentPage = getCurrentPage();
 
@@ -673,6 +684,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     href={`${baseUrl}/logout.aspx`}
                     onClick={(e) => {
                       e.preventDefault();
+                      markLogoutIntent(schoolId);
                       clearLoginState();
                       resetPostHog();
                       const logoutUrl = new URL(`${baseUrl}/logout.aspx`, window.location.origin).href;

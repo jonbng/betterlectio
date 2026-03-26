@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowUpRight,
-  Star,
+  Pin,
   Mail,
   Cake,
   FileText,
@@ -27,8 +27,9 @@ import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/database.types';
 import { useQuery } from '@/lib/supabase/hooks';
-import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
+import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate, getPreferredStudentDisplayName } from '@/lib/supabase/student-lookup';
 import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
+import { getSettings } from '@/lib/settings-storage';
 
 interface ProfilePageProps {
   name: string;
@@ -184,13 +185,6 @@ export function ProfilePage({
   const classIdRef = useRef<string | null>(null);
   const [holdGroups, setHoldGroups] = useState<HoldGroupItem[]>([]);
 
-  // Invalidate students cache on mount so we get fresh data for this profile
-  useEffect(() => {
-    import('@/lib/supabase/cache').then(({ invalidateTable }) => {
-      invalidateTable(schoolId, 'students');
-    });
-  }, [schoolId, entityId]);
-
   // Supabase student data
   const { data: student } = useQuery<Student>({
     schoolId,
@@ -198,15 +192,16 @@ export function ProfilePage({
     filters: [{ column: 'id', op: 'eq', value: entityId }],
     single: true,
   });
-  const { studentsMap } = useSchoolStudents(schoolId);
+  const { studentsMap } = useSchoolStudents(schoolId, { refreshOnMount: true });
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
   const hasBetterLectio = !!(student?.has_extension || student?.has_app);
-  const displayName = student?.name || name;
+  const displayName = getPreferredStudentDisplayName(student, name);
   const firstName = displayName.split(' ')[0];
   const effectivePictureUrl = student?.custom_pfp_url || student?.lectio_pfp_url || pictureUrl;
   const canEnlargePicture = Boolean(effectivePictureUrl && hasBetterLectio);
   const titleSubject = subtitle ? `${displayName} (${subtitle})` : displayName;
+  const pinningEnabled = getSettings().data?.starredPeople ?? false;
 
   // Navigation context
   const urlParams = new URLSearchParams(window.location.search);
@@ -558,19 +553,19 @@ export function ProfilePage({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {hasBetterLectio && (
+                {hasBetterLectio && pinningEnabled && (
                   <button
                     type="button"
                     onClick={handleToggleStar}
                     className="p-2.5 rounded-xl hover:bg-accent transition-colors"
-                    title={starred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
+                    title={starred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
                   >
-                    <Star
+                    <Pin
                       className={cn(
                         'size-5 transition-colors',
                         starred
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-muted-foreground hover:text-yellow-400',
+                          ? 'fill-primary text-primary'
+                          : 'text-muted-foreground hover:text-primary',
                       )}
                     />
                   </button>
@@ -772,8 +767,10 @@ export function ProfilePage({
                     href={getScheduleUrl(member.id, schoolId, { name: fullName })}
                     isStarred={isPersonStarred(member.id)}
                     onStarToggle={handleMemberStarToggle}
+                    showPinButton={pinningEnabled}
                     onClick={() => handleMemberClick(member)}
                     schoolId={schoolId}
+                    studentsMap={studentsMap}
                     hasBetterLectio={(() => {
                       const sid = getStudentIdFromPersonId(member.id);
                       if (!sid || !studentsMap) return false;

@@ -42,6 +42,8 @@ import {
   getThemePreferenceForSchool,
   saveThemePreferenceForSchool,
 } from "@/lib/theme-storage";
+import { getCachedProfile } from "@/lib/profile-cache";
+import { capture, captureFeatureUsedOncePerSession, getDistinctId, setPersonProperties } from "@/lib/posthog";
 import { clearPictureCache, getStarredPeople, getRecentPeople } from "@/lib/findskema-storage";
 import {
   Info,
@@ -202,6 +204,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [supabaseStatus, setSupabaseStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [supabaseExpiry, setSupabaseExpiry] = useState<number | null>(null);
 
+  const getPostHogDistinctId = () => {
+    const profile = getCachedProfile();
+    return profile?.studentId ? getDistinctId(profile.studentId) : null;
+  };
+
   // Get version info on mount
   useEffect(() => {
     setVersionInfo(getVersionInfo(version));
@@ -213,6 +220,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       setSettings(getSettings());
       const preference = getThemePreferenceForSchool(getSchoolIdFromUrl());
       setThemeId(preference.themeId);
+
+      const distinctId = getPostHogDistinctId();
+      if (distinctId) {
+        captureFeatureUsedOncePerSession("settings_modal", distinctId, {
+          school_id: getSchoolIdFromUrl(),
+        });
+      }
     }
   }, [open]);
 
@@ -317,9 +331,24 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setSettings(newSettings as FeatureSettings);
     saveSettings(newSettings as FeatureSettings);
 
+    const distinctId = getPostHogDistinctId();
+    if (distinctId && !(category === "behavior" && key === "analyticsOptOut" && value)) {
+      capture("setting changed", distinctId, {
+        category,
+        key: String(key),
+        value,
+        school_id: schoolId,
+      });
+    }
+
     if (category === "visual" && key === "darkMode") {
       document.documentElement.classList.toggle("dark", value);
       setUserJotTheme(value ? "dark" : "light");
+      if (distinctId) {
+        setPersonProperties(distinctId, {
+          dark_mode: value,
+        });
+      }
     }
 
     // Show reload toast if this setting requires it
@@ -351,6 +380,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const handleThemeChange = (nextThemeId: ThemePresetId) => {
     setThemeId(nextThemeId);
     saveThemePreference(nextThemeId);
+
+    const distinctId = getPostHogDistinctId();
+    if (distinctId) {
+      capture("theme changed", distinctId, {
+        school_id: schoolId,
+        theme_id: nextThemeId,
+      });
+      setPersonProperties(distinctId, {
+        theme_id: nextThemeId,
+      });
+    }
   };
 
   const handleClearAllData = () => {
@@ -900,8 +940,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <SettingsSection title="Data">
               <FeatureToggle
                 id="data-starred"
-                label="Favoritter"
-                description={`Gem favorit-personer til hurtig adgang (${starredCount} gemt)`}
+                label="Fastgjorte personer"
+                description={`Gem fastgjorte personer til hurtig adgang (${starredCount} gemt)`}
                 enabled={settings.data?.starredPeople ?? false}
                 onChange={(v) => handleSettingChange('data', 'starredPeople', v)}
               />
@@ -975,7 +1015,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <div className="space-y-0.5">
                   <Label className="font-medium">Ryd alle data</Label>
                   <p className="text-sm text-muted-foreground">
-                    Slet favoritter, seneste søgninger, billedcache og indstillinger
+                    Slet fastgjorte personer, seneste søgninger, billedcache og indstillinger
                   </p>
                 </div>
                 <Button
@@ -994,7 +1034,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <div className="space-y-0.5">
                   <Label className="font-medium">Nulstil indstillinger</Label>
                   <p className="text-sm text-muted-foreground">
-                    Gendan alle indstillinger til standard (beholder favoritter og søgninger)
+                    Gendan alle indstillinger til standard (beholder fastgjorte personer og søgninger)
                   </p>
                 </div>
                 <Button

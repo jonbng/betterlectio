@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { Star, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
+import { Pin, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
 import { fetchPictureUrl, getCachedPictureUrl } from '../lib/findskema-storage';
+import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, type StudentsMap } from '@/lib/supabase/student-lookup';
 import { browser } from 'wxt/browser';
 
 // Type configuration for badge display
@@ -43,11 +44,13 @@ interface PersonCardProps {
   href: string;
   isStarred: boolean;
   onStarToggle: (id: string) => void;
+  showPinButton?: boolean;
   onRemove?: (id: string) => void;
   onClick?: () => void;
   schoolId: string;
   searchQuery?: string; // If provided, adds from=findskema&q= to href for back navigation
   hasBetterLectio?: boolean; // Show BetterLectio badge on student cards
+  studentsMap?: StudentsMap | null;
 }
 
 export function PersonCard({
@@ -58,26 +61,29 @@ export function PersonCard({
   href,
   isStarred,
   onStarToggle,
+  showPinButton = true,
   onRemove,
   onClick,
   schoolId,
   searchQuery,
   hasBetterLectio,
+  studentsMap,
 }: PersonCardProps) {
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.S;
   const isEntityCard = !TYPES_WITH_PICTURES.includes(type);
   const EntityIcon = TYPE_ICONS[type];
+  const displayName = getDisplayNameFromLookupId(studentsMap, id, name);
 
   // Build href with navigation context (for back button on schedule page)
   // and preserve entity name for robust header extraction on destination pages.
   const targetUrl = new URL(href, window.location.origin);
   targetUrl.searchParams.set('from', 'findskema');
-  targetUrl.searchParams.set('name', name);
+  targetUrl.searchParams.set('name', displayName);
   if (searchQuery) {
     targetUrl.searchParams.set('q', searchQuery);
   }
   const fullHref = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
-  const initials = name
+  const initials = displayName
     .split(' ')
     .slice(0, 2)
     .map(n => n.charAt(0))
@@ -89,11 +95,36 @@ export function PersonCard({
   const [pictureError, setPictureError] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
+  const preferredPictureUrl = getPictureUrlFromLookupId(studentsMap, id);
+
+  useEffect(() => {
+    setPictureLoaded(false);
+    setPictureError(false);
+
+    if (isEntityCard) {
+      setPictureUrl(null);
+      hasFetchedRef.current = true;
+      return;
+    }
+
+    if (preferredPictureUrl) {
+      setPictureUrl(preferredPictureUrl);
+      hasFetchedRef.current = true;
+      return;
+    }
+
+    setPictureUrl(null);
+    hasFetchedRef.current = false;
+  }, [id, isEntityCard, preferredPictureUrl]);
 
   // Load picture - check cache first, then fetch if visible
   useEffect(() => {
     if (isEntityCard) {
       setPictureError(true); // Show initials for non-picture types
+      return;
+    }
+
+    if (preferredPictureUrl) {
       return;
     }
 
@@ -163,7 +194,7 @@ export function PersonCard({
         (cardRef as any)._observer = null;
       }
     };
-  }, [id, schoolId, type, isEntityCard]);
+  }, [id, schoolId, type, isEntityCard, preferredPictureUrl]);
 
   const handleStarClick = (e: MouseEvent) => {
     e.preventDefault();
@@ -206,7 +237,9 @@ export function PersonCard({
   const showFallback = !pictureUrl || pictureError || !pictureLoaded;
 
   // Action buttons (shared between entity and person cards)
-  const actionButtons = (
+  const hasActions = Boolean(onRemove || showPinButton);
+
+  const actionButtons = hasActions ? (
     <div
       data-card-actions
       className={`absolute top-2 right-2 flex flex-col gap-1 transition-opacity duration-200 ${
@@ -223,20 +256,22 @@ export function PersonCard({
           <Trash2 className="size-4" />
         </button>
       )}
-      <button
-        type="button"
-        onClick={handleStarClick}
-        className={`p-2 rounded-full backdrop-blur-sm shadow-[0_2px_8px_oklch(0_0_0/0.1)] hover:scale-110 transition-all duration-150 ${
-          isStarred
-            ? 'bg-white text-[oklch(0.75_0.16_70)]'
-            : 'bg-[oklch(1_0_0/0.9)] text-muted-foreground hover:bg-white hover:text-[oklch(0.75_0.16_70)]'
-        }`}
-        title={isStarred ? 'Fjern fra favoritter' : 'Tilføj til favoritter'}
-      >
-        <Star className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
-      </button>
+      {showPinButton && (
+        <button
+          type="button"
+          onClick={handleStarClick}
+          className={`p-2 rounded-full backdrop-blur-sm shadow-[0_2px_8px_oklch(0_0_0/0.1)] hover:scale-110 transition-all duration-150 ${
+            isStarred
+              ? 'bg-white text-primary'
+              : 'bg-[oklch(1_0_0/0.9)] text-muted-foreground hover:bg-white hover:text-primary'
+          }`}
+          title={isStarred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
+        >
+          <Pin className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
+        </button>
+      )}
     </div>
-  );
+  ) : null;
 
   // Entity card layout (classes, rooms, resources, hold, groups)
   if (isEntityCard) {
@@ -247,7 +282,7 @@ export function PersonCard({
         tabIndex={0}
         onClick={handleCardClick}
         onKeyDown={handleCardKeyDown}
-        aria-label={`Åbn skema for ${name}`}
+        aria-label={`Åbn skema for ${displayName}`}
         className={`group flex flex-col rounded-2xl border border-border bg-card cursor-pointer transition-all duration-200 no-underline text-inherit overflow-hidden hover:border-ring hover:shadow-[0_8px_24px_oklch(0_0_0/0.1)] hover:-translate-y-0.5 relative aspect-square p-4 justify-end ${ENTITY_BORDER[type] || ''}`}
       >
         {/* Decorative background icon */}
@@ -262,7 +297,7 @@ export function PersonCard({
 
         {/* Entity content */}
         <div className="relative flex flex-col gap-2 z-[1]">
-          <span className="text-xl font-bold text-foreground leading-tight -tracking-[0.01em]">{name}</span>
+          <span className="text-xl font-bold text-foreground leading-tight -tracking-[0.01em]">{displayName}</span>
           <span className={`self-start text-xs font-semibold px-2 py-0.5 rounded-full ${config.badgeClass}`}>
             {config.label}
           </span>
@@ -279,7 +314,7 @@ export function PersonCard({
       tabIndex={0}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
-      aria-label={`Åbn skema for ${name}`}
+      aria-label={`Åbn skema for ${displayName}`}
       className="group flex flex-col rounded-2xl border border-border bg-card cursor-pointer transition-all duration-200 no-underline text-inherit overflow-hidden hover:border-ring hover:shadow-[0_8px_24px_oklch(0_0_0/0.1)] hover:-translate-y-0.5"
     >
       {/* Large image at top */}
@@ -287,7 +322,7 @@ export function PersonCard({
         {pictureUrl && !pictureError && (
           <img
             src={pictureUrl}
-            alt={name}
+            alt={displayName}
             className={`w-full h-full object-cover object-top transition-all duration-300 ease-out ${
               pictureLoaded ? 'opacity-100 group-hover:scale-105' : 'opacity-0'
             }`}
@@ -313,7 +348,7 @@ export function PersonCard({
 
       {/* Card content below image */}
       <div className="p-3.5 flex flex-col gap-1.5">
-        <span className="text-[0.9375rem] font-semibold text-foreground leading-[1.3] line-clamp-2">{name}</span>
+        <span className="text-[0.9375rem] font-semibold text-foreground leading-[1.3] line-clamp-2">{displayName}</span>
         <div className="flex items-center gap-2 flex-wrap">
           {classCode && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
