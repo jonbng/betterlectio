@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import { browser } from 'wxt/browser';
 import {
@@ -32,7 +32,12 @@ import {
 import { setUserJotTheme } from '@/lib/userjot';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
-import { getPreferredStudentPictureUrl } from '@/lib/supabase/student-lookup';
+import {
+  getPreferredStudentPictureUrl,
+  useAdoptionCounts,
+  ADOPTION_SCHOOL_THRESHOLD,
+  ADOPTION_CLASS_THRESHOLD,
+} from '@/lib/supabase/student-lookup';
 import { capture, getDistinctId, setPersonProperties } from '@/lib/posthog';
 import type { Tables } from '@/database.types';
 
@@ -47,7 +52,8 @@ interface OnboardingWizardProps {
   onOpenSettings: () => void;
 }
 
-const TOTAL_STEPS = 5;
+const ALL_STEPS = [0, 1, 2, 3, 4] as const;
+const PROFILE_STEP = 3;
 
 // ── Live schedule preview for fagfarver ───────────────────────────────
 const SCHEDULE_BLOCKS = [
@@ -76,13 +82,13 @@ function SchedulePreviewLive({ colored }: { colored: boolean }) {
             }}
           >
             <span
-              className="text-base font-bold transition-colors duration-500"
+              className="text-base font-bold transition-[color,background-color] duration-150 duration-500"
               style={{ color: `oklch(0.42 ${textChroma} ${hue})` }}
             >
               {b.short}
             </span>
             <span
-              className="text-[10px] font-medium transition-colors duration-500 opacity-60"
+              className="text-[10px] font-medium transition-[color,background-color] duration-150 duration-500 opacity-60"
               style={{ color: `oklch(0.42 ${textChroma} ${hue})` }}
             >
               {b.label}
@@ -133,6 +139,35 @@ export function OnboardingWizard({
     schoolId,
   });
 
+  // ── Profile step skip logic (based on BL adoption) ──────────────────
+  const cachedProfileData = getCachedProfile();
+  const { schoolCount, classCount } = useAdoptionCounts(schoolId, cachedProfileData?.className ?? null);
+
+  // Lock the decision once data arrives so the step structure doesn't change mid-wizard
+  const [skipProfileLocked, setSkipProfileLocked] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (open && skipProfileLocked === null && schoolCount !== null) {
+      const schoolBelow = schoolCount < ADOPTION_SCHOOL_THRESHOLD;
+      // If class_name data isn't available yet, fall back to school-only check
+      const classBelow = classCount === null ? true : classCount < ADOPTION_CLASS_THRESHOLD;
+      setSkipProfileLocked(schoolBelow && classBelow);
+    }
+  }, [open, skipProfileLocked, schoolCount, classCount]);
+
+  useEffect(() => {
+    if (!open) setSkipProfileLocked(null);
+  }, [open]);
+
+  const shouldSkipProfile = skipProfileLocked ?? false;
+
+  const activeSteps = useMemo(() => {
+    return shouldSkipProfile ? ALL_STEPS.filter((s) => s !== PROFILE_STEP) : [...ALL_STEPS];
+  }, [shouldSkipProfile]);
+
+  const totalVisibleSteps = activeSteps.length;
+  const currentStepId = activeSteps[step];
+
   // Pre-populate profile fields when student data loads
   useEffect(() => {
     if (student && !profileInitialized) {
@@ -141,6 +176,15 @@ export function OnboardingWizard({
       setProfileInsta(student.instagram ?? '');
       setShowBirthday(student.show_birthday ?? false);
       setProfileInitialized(true);
+
+      // Backfill class_name if missing on the student record
+      const className = cachedProfileData?.className;
+      if (className && !student.class_name && studentId) {
+        updateStudent(
+          { class_name: className } as Record<string, unknown>,
+          [{ column: 'id', op: 'eq', value: studentId }],
+        );
+      }
     }
   }, [student, profileInitialized]);
 
@@ -153,6 +197,7 @@ export function OnboardingWizard({
       setIsDark(getSettings().visual?.darkMode ?? false);
       setSubjectColors(getSettings().schedule?.subjectColors ?? true);
       setProfileInitialized(false);
+      setSkipProfileLocked(null);
     }
   }, [open, schoolId]);
 
@@ -256,14 +301,15 @@ export function OnboardingWizard({
   // ── Navigation ──────────────────────────────────────────────────────
 
   const goNext = () => {
-    if (step < TOTAL_STEPS - 1) {
+    if (step < totalVisibleSteps - 1) {
       setStep(step + 1);
     } else {
       const distinctId = getDistinctIdSafe();
       if (distinctId) {
         capture('onboarding_completed', distinctId, {
           school_id: schoolId,
-          steps_visited: step + 1,
+          steps_visited: totalVisibleSteps,
+          profile_skipped: shouldSkipProfile,
         });
       }
       onClose();
@@ -277,12 +323,12 @@ export function OnboardingWizard({
   if (!open) return null;
 
   const profilePic = getPreferredStudentPictureUrl(student ?? null, null);
-  const progress = ((step + 1) / TOTAL_STEPS) * 100;
+  const progress = ((step + 1) / totalVisibleSteps) * 100;
 
   // ── Step content ────────────────────────────────────────────────────
 
   const renderStep = () => {
-    switch (step) {
+    switch (currentStepId) {
       // ── Welcome ─────────────────────────────────────────────────────
       case 0:
         return (
@@ -617,7 +663,7 @@ export function OnboardingWizard({
     }
   };
 
-  const isLastStep = step === TOTAL_STEPS - 1;
+  const isLastStep = step === totalVisibleSteps - 1;
 
   return createPortal(
     <div
@@ -662,7 +708,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={goBack}
-                className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 cursor-pointer"
               >
                 <ChevronLeft className="size-4" />
                 Tilbage
@@ -673,7 +719,7 @@ export function OnboardingWizard({
           <div className="flex items-center gap-3">
             {/* Step indicator dots */}
             <div className="flex items-center gap-1.5">
-              {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              {Array.from({ length: totalVisibleSteps }).map((_, i) => (
                 <div
                   key={i}
                   className={`rounded-full transition-all duration-200 ${

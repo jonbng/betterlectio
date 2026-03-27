@@ -194,7 +194,7 @@ function FolderTreeItem({
     <div>
       <div
         className={cn(
-          'group flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] cursor-pointer transition-colors',
+          'group flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm cursor-pointer transition-[color,background-color] duration-150',
           isSelected
             ? 'bg-primary/10 text-primary font-medium'
             : 'text-foreground/80 hover:bg-muted',
@@ -205,7 +205,7 @@ function FolderTreeItem({
         {hasChildren ? (
           <button
             onClick={handleToggle}
-            className="shrink-0 p-0.5 rounded hover:bg-muted-foreground/10 transition-colors"
+            className="shrink-0 p-0.5 rounded hover:bg-muted-foreground/10 transition-[color,background-color] duration-150"
           >
             {isExpanded ? (
               <ChevronDown size={15} className="text-muted-foreground" />
@@ -262,7 +262,7 @@ function Breadcrumbs({
   if (items.length === 0) return null;
 
   return (
-    <nav className="flex items-center gap-1 text-[13px] text-muted-foreground min-w-0 overflow-hidden">
+    <nav className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 overflow-hidden">
       {items.map((item, i) => {
         const isLast = i === items.length - 1;
         return (
@@ -277,7 +277,7 @@ function Breadcrumbs({
             ) : (
               <a
                 href={`${window.location.pathname}?elevid=${new URL(window.location.href).searchParams.get('elevid') ?? ''}&folderid=${item.folderId}`}
-                className="truncate hover:text-foreground transition-colors"
+                className="truncate hover:text-foreground transition-[color,background-color] duration-150"
                 onClick={(e) => {
                   e.preventDefault();
                   const url = new URL(window.location.href);
@@ -317,7 +317,7 @@ function FileRow({
   };
 
   return (
-    <div className="group flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
+    <div className="group flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/50 transition-[color,background-color] duration-150 border border-transparent hover:border-border/50">
       {/* File icon */}
       <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-muted/60">
         <FileTypeIcon extension={file.extension} size={22} />
@@ -332,7 +332,7 @@ function FileRow({
             rel={canPreview ? undefined : 'noopener'}
             onClick={handleFileClick}
             className={cn(
-              'truncate text-[13px] font-medium text-foreground hover:text-primary transition-colors',
+              'truncate text-sm font-medium text-foreground hover:text-primary transition-[color,background-color] duration-150',
               canPreview && 'cursor-pointer',
             )}
             title={file.name}
@@ -342,7 +342,7 @@ function FileRow({
           <ExtBadge ext={file.extension} />
         </div>
         {file.comment && (
-          <p className="text-[12px] text-muted-foreground truncate mt-0.5">
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
             {file.comment}
           </p>
         )}
@@ -363,7 +363,7 @@ function FileRow({
               {file.changedBy.initials.slice(0, 2).toUpperCase()}
             </div>
             <span
-              className="text-[12px] text-muted-foreground truncate"
+              className="text-xs text-muted-foreground truncate"
               title={file.changedBy.name}
             >
               {file.changedBy.initials}
@@ -373,12 +373,12 @@ function FileRow({
       </div>
 
       {/* Date */}
-      <span className="hidden sm:block text-[12px] text-muted-foreground shrink-0 w-[75px] text-right tabular-nums">
+      <span className="hidden sm:block text-xs text-muted-foreground shrink-0 w-[75px] text-right tabular-nums">
         {file.date}
       </span>
 
       {/* Size */}
-      <span className="hidden lg:block text-[12px] text-muted-foreground shrink-0 w-[75px] text-right tabular-nums">
+      <span className="hidden lg:block text-xs text-muted-foreground shrink-0 w-[75px] text-right tabular-nums">
         {file.size}
       </span>
 
@@ -388,7 +388,7 @@ function FileRow({
           href={file.downloadUrl}
           target="_blank"
           rel="noopener"
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
           title="Download"
         >
           <Download size={15} />
@@ -401,7 +401,7 @@ function FileRow({
                 new CustomEvent('bl-doc-edit', { detail: { file } }),
               );
             }}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
             title="Rediger"
           >
             <Pencil size={15} />
@@ -440,14 +440,14 @@ function DeleteFileButton({ file }: { file: DocFile }) {
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="inline-flex items-center gap-1 h-6 px-2 rounded bg-destructive text-white text-[11px] font-medium hover:bg-destructive/90 transition-colors disabled:opacity-60"
+          className="inline-flex items-center gap-1 h-6 px-2 rounded bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
         >
           {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
           {deleting ? 'Sletter' : 'Slet'}
         </button>
         <button
           onClick={() => setConfirming(false)}
-          className="h-6 px-1.5 rounded text-[11px] text-muted-foreground hover:bg-muted transition-colors"
+          className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
         >
           <X size={12} />
         </button>
@@ -462,7 +462,7 @@ function DeleteFileButton({ file }: { file: DocFile }) {
         e.stopPropagation();
         setConfirming(true);
       }}
-      className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+      className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150"
       title="Slet"
     >
       <Trash2 size={15} />
@@ -498,7 +498,7 @@ function SubfolderRow({
     : folder.name;
 
   return (
-    <div className="group flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
+    <div className="group flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/50 transition-[color,background-color] duration-150 border border-transparent hover:border-border/50">
       <a
         href={`${window.location.pathname}?folderid=${folder.id}`}
         onClick={handleClick}
@@ -515,11 +515,11 @@ function SubfolderRow({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-[13px] font-medium text-foreground group-hover:text-primary transition-colors truncate block">
+          <span className="text-sm font-medium text-foreground group-hover:text-primary transition-[color,background-color] duration-150 truncate block">
             {displayName}
           </span>
           {folder.comment && folder.comment !== folder.name && (
-            <p className="text-[12px] text-muted-foreground truncate mt-0.5">
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
               {folder.comment}
             </p>
           )}
@@ -533,7 +533,7 @@ function SubfolderRow({
               e.stopPropagation();
               onEdit(folder.id, displayName);
             }}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
             title="Rediger mappe"
           >
             <Pencil size={15} />
@@ -601,12 +601,12 @@ function PdfPreview({ url, title }: { url: string; title: string }) {
     return (
       <div className="flex flex-col items-center gap-3 text-center py-8">
         <FileText size={48} className="text-muted-foreground/40" />
-        <p className="text-[13px] text-muted-foreground">Kunne ikke indlæse PDF</p>
+        <p className="text-sm text-muted-foreground">Kunne ikke indlæse PDF</p>
         <a
           href={url}
           target="_blank"
           rel="noopener"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150"
         >
           <Download size={14} />
           Download i stedet
@@ -679,7 +679,7 @@ function PreviewOverlay({
             {file.editUrl && !confirmDelete && (
               <button
                 onClick={() => setConfirmDelete(true)}
-                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150"
                 title="Slet"
               >
                 <Trash2 size={16} />
@@ -690,14 +690,14 @@ function PreviewOverlay({
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-destructive text-white text-[12px] font-medium hover:bg-destructive/90 transition-colors disabled:opacity-60"
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                 >
                   {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                   {deleting ? 'Sletter...' : 'Slet'}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="p-1 rounded-md text-muted-foreground hover:bg-muted transition-colors"
+                  className="p-1 rounded-md text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                 >
                   <X size={14} />
                 </button>
@@ -707,7 +707,7 @@ function PreviewOverlay({
               href={file.downloadUrl}
               target="_blank"
               rel="noopener"
-              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
               title="Download"
             >
               <Download size={16} />
@@ -720,7 +720,7 @@ function PreviewOverlay({
                     new CustomEvent('bl-doc-edit', { detail: { file } }),
                   );
                 }}
-                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
                 title="Rediger"
               >
                 <Pencil size={16} />
@@ -728,7 +728,7 @@ function PreviewOverlay({
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
             >
               <X size={16} />
             </button>
@@ -755,7 +755,7 @@ function PreviewOverlay({
                 href={file.downloadUrl}
                 target="_blank"
                 rel="noopener"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150"
               >
                 <Download size={14} />
                 Download fil
@@ -802,7 +802,7 @@ function AffiliationRow({
   };
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/40 text-[12px]">
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/40 text-xs">
       <div className="flex-1 min-w-0">
         <span className="font-medium text-foreground truncate block">
           {affiliation.name}
@@ -815,7 +815,7 @@ function AffiliationRow({
       <button
         onClick={handleRemove}
         disabled={removing}
-        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0 disabled:opacity-50"
+        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150 shrink-0 disabled:opacity-50"
         title="Fjern deling"
       >
         {removing ? (
@@ -915,12 +915,12 @@ function EditDocumentModal({
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div className="flex items-center gap-2 min-w-0">
             <FileTypeIcon extension={file.extension} size={20} />
-            <h2 className="text-[14px] font-semibold truncate">{file.name}</h2>
+            <h2 className="text-sm font-semibold truncate">{file.name}</h2>
             <ExtBadge ext={file.extension} />
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 shrink-0"
           >
             <X size={16} />
           </button>
@@ -935,7 +935,7 @@ function EditDocumentModal({
           ) : detail ? (
             <>
               {/* File info */}
-              <div className="grid grid-cols-2 gap-2 text-[12px]">
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 {detail.size && (
                   <div>
                     <span className="text-muted-foreground">Størrelse</span>
@@ -958,7 +958,7 @@ function EditDocumentModal({
 
               {/* Comment */}
               <div>
-                <label className="text-[12px] font-medium text-muted-foreground block mb-1">
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
                   Kommentar
                 </label>
                 <textarea
@@ -967,15 +967,15 @@ function EditDocumentModal({
                   rows={3}
                   maxLength={1000}
                   placeholder="Tilføj kommentar..."
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-colors"
+                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150"
                 />
               </div>
 
               {/* Public checkbox */}
-              <label className="flex items-center gap-2.5 text-[13px] cursor-pointer select-none">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none">
                 <span
                   className={cn(
-                    'flex items-center justify-center size-[18px] rounded border-2 transition-colors shrink-0 pointer-events-none',
+                    'flex items-center justify-center size-[18px] rounded border-2 transition-[color,background-color] duration-150 shrink-0 pointer-events-none',
                     isPublic
                       ? 'bg-primary border-primary text-primary-foreground'
                       : 'border-muted-foreground/40 bg-transparent',
@@ -999,7 +999,7 @@ function EditDocumentModal({
               {/* Affiliations / Deling */}
               {detail.affiliations.length > 0 && (
                 <div>
-                  <label className="text-[12px] font-medium text-muted-foreground block mb-1.5">
+                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">
                     Delt med
                   </label>
                   <div className="space-y-1">
@@ -1027,7 +1027,7 @@ function EditDocumentModal({
               )}
             </>
           ) : (
-            <p className="text-[13px] text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-4">
               Kunne ikke hente dokumentdetaljer.
             </p>
           )}
@@ -1040,7 +1040,7 @@ function EditDocumentModal({
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={deleting}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
               >
                 <Trash2 size={14} />
                 Slet
@@ -1050,14 +1050,14 @@ function EditDocumentModal({
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-[12px] font-medium hover:bg-destructive/90 transition-colors disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                 >
                   {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                   {deleting ? 'Sletter...' : 'Bekræft slet'}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                  className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                 >
                   Annuller
                 </button>
@@ -1069,7 +1069,7 @@ function EditDocumentModal({
               href={file.downloadUrl}
               target="_blank"
               rel="noopener"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border/60 text-[12px] font-medium hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border/60 text-xs font-medium hover:bg-muted transition-[color,background-color] duration-150"
             >
               <Download size={14} />
               Download
@@ -1078,7 +1078,7 @@ function EditDocumentModal({
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
               >
                 {saving ? 'Gemmer...' : 'Gem'}
               </button>
@@ -1174,11 +1174,11 @@ function EditFolderModal({
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div className="flex items-center gap-2 min-w-0">
             <Folder size={18} className="text-muted-foreground shrink-0" />
-            <h2 className="text-[14px] font-semibold truncate">Rediger mappe</h2>
+            <h2 className="text-sm font-semibold truncate">Rediger mappe</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 shrink-0"
           >
             <X size={16} />
           </button>
@@ -1193,7 +1193,7 @@ function EditFolderModal({
           ) : detail ? (
             <>
               <div>
-                <label className="text-[12px] font-medium text-muted-foreground block mb-1">
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
                   Mappenavn
                 </label>
                 <input
@@ -1201,12 +1201,12 @@ function EditFolderModal({
                   value={name}
                   onInput={(e) => setName((e.target as HTMLInputElement).value)}
                   maxLength={50}
-                  className="w-full h-9 px-3 rounded-lg border border-border/60 bg-muted/30 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-colors"
+                  className="w-full h-9 px-3 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-[color,background-color] duration-150"
                 />
               </div>
 
               <div>
-                <label className="text-[12px] font-medium text-muted-foreground block mb-1">
+                <label className="text-xs font-medium text-muted-foreground block mb-1">
                   Kommentar
                 </label>
                 <textarea
@@ -1214,14 +1214,14 @@ function EditFolderModal({
                   onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
                   rows={2}
                   placeholder="Valgfrit..."
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-colors"
+                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150"
                 />
               </div>
 
-              <label className="flex items-center gap-2.5 text-[13px] cursor-pointer select-none">
+              <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none">
                 <span
                   className={cn(
-                    'flex items-center justify-center size-[18px] rounded border-2 transition-colors shrink-0 pointer-events-none',
+                    'flex items-center justify-center size-[18px] rounded border-2 transition-[color,background-color] duration-150 shrink-0 pointer-events-none',
                     isPublic
                       ? 'bg-primary border-primary text-primary-foreground'
                       : 'border-muted-foreground/40 bg-transparent',
@@ -1243,7 +1243,7 @@ function EditFolderModal({
               </label>
             </>
           ) : (
-            <p className="text-[13px] text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-4">
               Kunne ikke hente mappedetaljer.
             </p>
           )}
@@ -1256,7 +1256,7 @@ function EditFolderModal({
               {!confirmDelete ? (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
                 >
                   <Trash2 size={14} />
                   Slet mappe
@@ -1266,14 +1266,14 @@ function EditFolderModal({
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-[12px] font-medium hover:bg-destructive/90 transition-colors disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                   >
                     {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     {deleting ? 'Sletter...' : 'Bekræft slet'}
                   </button>
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    className="h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                   >
                     Annuller
                   </button>
@@ -1283,7 +1283,7 @@ function EditFolderModal({
             <button
               onClick={handleSave}
               disabled={saving || !name.trim()}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
             >
               {saving ? 'Gemmer...' : 'Gem'}
             </button>
@@ -1321,7 +1321,7 @@ function SortHeader({
     <button
       onClick={handleSort}
       className={cn(
-        'flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium',
+        'flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 font-medium',
         className,
       )}
     >
@@ -1675,7 +1675,7 @@ export function DokumenterPage({
         {/* Sidebar toggle */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
           title={sidebarCollapsed ? 'Vis mapper' : 'Skjul mapper'}
         >
           <FolderTree size={16} />
@@ -1702,7 +1702,7 @@ export function DokumenterPage({
               setSearchQuery(val);
               scheduleServerSearch(val);
             }}
-            className="w-full h-9 pl-8 pr-8 rounded-lg border border-border/60 bg-muted/30 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-colors"
+            className="w-full h-9 pl-8 pr-8 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-[color,background-color] duration-150"
           />
           {searchQuery && (
             <button
@@ -1728,7 +1728,7 @@ export function DokumenterPage({
             {/* New folder button */}
             <button
               onClick={() => setShowFolderDialog(!showFolderDialog)}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border/60 text-[13px] font-medium text-foreground hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border/60 text-sm font-medium text-foreground hover:bg-muted transition-[color,background-color] duration-150"
               title="Opret ny mappe"
             >
               <FolderPlus size={15} />
@@ -1739,7 +1739,7 @@ export function DokumenterPage({
             <button
               onClick={handleUploadClick}
               disabled={isUploading}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
             >
               {isUploading ? (
                 <Loader2 size={15} className="animate-spin" />
@@ -1752,7 +1752,7 @@ export function DokumenterPage({
             {/* Folder creation popover */}
             {showFolderDialog && (
               <div className="absolute top-full right-0 mt-2 w-[300px] p-3 rounded-xl bg-background border shadow-lg z-20 animate-in fade-in slide-in-from-top-2 duration-150">
-                <p className="text-[13px] font-medium mb-2">Ny mappe</p>
+                <p className="text-sm font-medium mb-2">Ny mappe</p>
                 <input
                   type="text"
                   placeholder="Mappenavn..."
@@ -1772,7 +1772,7 @@ export function DokumenterPage({
                     }
                   }}
                   autoFocus
-                  className="w-full h-9 px-3 rounded-lg border border-border/60 bg-muted/30 text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-colors mb-2"
+                  className="w-full h-9 px-3 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-[color,background-color] duration-150 mb-2"
                 />
                 <textarea
                   placeholder="Kommentar (valgfrit)..."
@@ -1781,7 +1781,7 @@ export function DokumenterPage({
                     setFolderComment((e.target as HTMLTextAreaElement).value)
                   }
                   rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-[12px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-colors mb-2"
+                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150 mb-2"
                 />
                 <div className="flex justify-end gap-2">
                   <button
@@ -1790,14 +1790,14 @@ export function DokumenterPage({
                       setFolderName('');
                       setFolderComment('');
                     }}
-                    className="h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                    className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                   >
                     Annuller
                   </button>
                   <button
                     onClick={handleCreateFolder}
                     disabled={!folderName.trim() || isCreatingFolder}
-                    className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[12px] font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+                    className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                   >
                     {isCreatingFolder ? 'Opretter...' : 'Opret'}
                   </button>
@@ -1875,7 +1875,7 @@ export function DokumenterPage({
               ))}
 
               {/* File count */}
-              <div className="px-3 py-3 text-[12px] text-muted-foreground">
+              <div className="px-3 py-3 text-xs text-muted-foreground">
                 {filteredSubfolders.length > 0 && (
                   <span>{filteredSubfolders.length} {filteredSubfolders.length === 1 ? 'mappe' : 'mapper'}, </span>
                 )}
@@ -1887,10 +1887,10 @@ export function DokumenterPage({
           ) : searchQuery ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Search size={28} className="text-muted-foreground/40 mb-3" />
-              <h3 className="text-[13px] font-medium text-foreground mb-1">
+              <h3 className="text-sm font-medium text-foreground mb-1">
                 Ingen resultater
               </h3>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Ingen filer matcher &ldquo;{searchQuery}&rdquo;
               </p>
             </div>
@@ -1946,7 +1946,7 @@ export function DokumenterPage({
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-background border shadow-lg">
             <Loader2 size={24} className="animate-spin text-primary" />
-            <p className="text-[13px] font-medium">Uploader fil...</p>
+            <p className="text-sm font-medium">Uploader fil...</p>
           </div>
         </div>
       )}

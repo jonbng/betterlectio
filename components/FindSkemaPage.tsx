@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { X, Clock, Pin, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
+import { X, Clock, Pin, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid, Sparkles } from 'lucide-react';
 import { PersonCard } from './PersonCard';
 import { getCachedProfile } from '../lib/profile-cache';
 
@@ -377,6 +377,33 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     return !!(s?.has_extension || s?.has_app);
   };
 
+  // BetterLectio filter state
+  const [blFilterActive, setBlFilterActive] = useState(false);
+
+  // Count BL users school-wide
+  const schoolBLCount = useMemo(() => {
+    if (!studentsMap) return 0;
+    let count = 0;
+    for (const s of studentsMap.values()) {
+      if (s.has_extension || s.has_app) count++;
+    }
+    return count;
+  }, [studentsMap]);
+
+  // Count BL users among classmates
+  const classmatesBLCount = useMemo(() => {
+    return classmates.filter(item => hasBL(item.id)).length;
+  }, [classmates, studentsMap]);
+
+  // Only show BL filter if >= 20 BL users at the school
+  const showBLFilter = schoolBLCount >= 20;
+
+  // Apply BL filter to classmates
+  const displayedClassmates = useMemo(() => {
+    if (!blFilterActive) return classmates;
+    return classmates.filter(item => hasBL(item.id));
+  }, [classmates, blFilterActive, studentsMap]);
+
   const getPersonCardHref = useCallback((personId: string, fallbackHref: string) => {
     const sid = getStudentIdFromPersonId(personId);
     if (sid && userProfile?.studentId === sid) {
@@ -388,9 +415,9 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   return (
     <div className="min-h-full bg-background pb-2">
       {/* Search Section */}
-      <div className="px-6 pt-8 pb-0 max-sm:px-4 max-sm:pt-4">
+      <div className="px-6 pt-8 pb-0">
         <div className="relative max-w-[800px] mx-auto">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-6 text-muted-foreground pointer-events-none max-sm:left-4 max-sm:size-5" />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 size-6 text-muted-foreground pointer-events-none" />
           <input
             ref={inputRef}
             type="text"
@@ -398,7 +425,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
             placeholder={loading ? 'Indlæser...' : placeholderText}
             disabled={loading || !!error}
-            className="w-full h-16 pl-14 pr-20 text-xl rounded-2xl border-2 border-border bg-background text-foreground shadow-[0_4px_12px_oklch(0_0_0/0.05)] transition-all duration-200 placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:shadow-[0_4px_12px_oklch(0_0_0/0.1),0_0_0_3px_color-mix(in_oklch,var(--ring)_20%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed max-sm:h-14 max-sm:text-base max-sm:pl-12"
+            className="w-full h-16 pl-14 pr-20 text-xl rounded-2xl border-2 border-border bg-background text-foreground shadow-[0_4px_12px_oklch(0_0_0/0.05)] transition-all duration-200 placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:shadow-[0_4px_12px_oklch(0_0_0/0.1),0_0_0_3px_color-mix(in_oklch,var(--ring)_20%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {query ? (
@@ -420,7 +447,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       </div>
 
       {/* Filter Pills */}
-      <div className="flex flex-wrap gap-2 px-6 py-4 max-w-[800px] mx-auto justify-center max-sm:px-4">
+      <div className="flex flex-wrap gap-2 px-6 py-4 max-w-[800px] mx-auto justify-center">
         <button
           type="button"
           onClick={() => setActiveFilter('all')}
@@ -452,12 +479,12 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {/* Search Results */}
       {showSearchResults && (
         <section className="mb-6">
-          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Search className="size-4" />
             <span>Søgeresultater ({filteredItems.length})</span>
           </div>
           {filteredItems.length > 0 ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
               {filteredItems.map(item => {
                 const { displayName, classCode } = parsePersonInfo(item.name);
                 return (
@@ -489,11 +516,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {/* Browse Sections */}
       {!showSearchResults && browseSections.map(({ key, label, icon: Icon, items: sectionItems, limit }) => (
         <section key={key} className="mb-6">
-          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Icon className="size-4" />
             <span>{label} (viser {sectionItems.length}{sectionItems.length >= limit ? '+' : ''})</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {sectionItems.map(item => {
               const { displayName, classCode } = parsePersonInfo(item.name);
               return (
@@ -522,11 +549,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {/* Recents Section */}
       {showRecents && (
         <section className="mb-6">
-          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Clock className="size-4" />
             <span>Seneste</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {filteredRecents.map(recent => (
               <PersonCard
                 key={recent.id}
@@ -552,11 +579,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {/* Starred Section */}
       {showStarred && (
         <section className="mb-6">
-          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Pin className="size-4" />
             <span>Fastgjorte</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {filteredStarred.map(person => (
               <PersonCard
                 key={person.id}
@@ -590,11 +617,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {/* My Teachers Section */}
       {showMyTeachers && (
         <section className="mb-6">
-          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
+          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <GraduationCap className="size-4" />
             <span>Mine lærere</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {myTeachers.map(item => {
               const { displayName, classCode } = parsePersonInfo(item.name);
               return (
@@ -623,12 +650,28 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {/* Classmates Section */}
       {showClassmates && (
         <section className="mb-6">
-          <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide max-sm:px-4">
-            <Users className="size-4" />
-            <span>Klassekammerater ({userProfile?.className})</span>
+          <div className="flex items-center justify-between px-6 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              <Users className="size-4" />
+              <span>Klassekammerater ({userProfile?.className})</span>
+            </div>
+            {showBLFilter && (
+              <button
+                type="button"
+                onClick={() => setBlFilterActive(!blFilterActive)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all duration-150 select-none ${
+                  blFilterActive
+                    ? 'bg-primary text-primary-foreground border-primary hover:bg-[color-mix(in_oklch,var(--primary)_90%,black)]'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                <Sparkles className="size-3" />
+                <span>{classmatesBLCount}/{classmates.length}</span>
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6 max-sm:grid-cols-2 max-sm:gap-3 max-sm:px-4">
-            {classmates.map(item => {
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
+            {displayedClassmates.map(item => {
               const { displayName, classCode } = parsePersonInfo(item.name);
               return (
                 <PersonCard

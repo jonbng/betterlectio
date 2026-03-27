@@ -378,7 +378,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
               <button
                 onClick={goToToday}
                 disabled={weekLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-[color,background-color] duration-150 hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-50"
                 style={{ background: 'none', border: 'none' }}
                 title="Gå til i dag"
               >
@@ -388,7 +388,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
             )}
             <a
               href={`/lectio/${schoolId}/SkemaNy.aspx`}
-              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
               title="Se fuld skema"
             >
               <ArrowUpRight size={18} />
@@ -402,7 +402,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
         <button
           disabled={(dayIndex <= 0 && !weekData.prevWeekParam) || weekLoading}
           onClick={() => navigate(-1)}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color] duration-150 hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <ChevronLeft size={18} />
@@ -430,7 +430,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
                 style={{ border: 'none', background: isActive ? undefined : 'none' }}
                 title={day.label}
               >
-                <span className="text-[0.6875rem] uppercase tracking-wide opacity-60">{dayAbbr}</span>
+                <span className="text-xs uppercase tracking-wide opacity-60">{dayAbbr}</span>
                 <span className="text-base font-semibold leading-tight">{dayNum}</span>
               </button>
             );
@@ -440,7 +440,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
         <button
           disabled={(dayIndex >= days.length - 1 && !weekData.nextWeekParam) || weekLoading}
           onClick={() => navigate(1)}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color] duration-150 hover:bg-background hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
           style={{ background: 'none', border: 'none', padding: 0 }}
         >
           <ChevronRight size={18} />
@@ -462,7 +462,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
                 );
               }}
               className={cn(
-                "rounded-md bg-muted/50 px-3 py-1.5 text-[0.8125rem] no-underline transition-colors",
+                "rounded-md bg-muted/50 px-3 py-1.5 text-[0.8125rem] no-underline transition-[color,background-color] duration-150",
                 note.url && "cursor-pointer hover:bg-muted",
               )}
             >

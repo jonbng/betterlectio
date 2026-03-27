@@ -283,7 +283,7 @@ export function PersonCard({
         onClick={handleCardClick}
         onKeyDown={handleCardKeyDown}
         aria-label={`Åbn skema for ${displayName}`}
-        className={`group flex flex-col rounded-2xl border border-border bg-card cursor-pointer transition-all duration-200 no-underline text-inherit overflow-hidden hover:border-ring hover:shadow-[0_8px_24px_oklch(0_0_0/0.1)] hover:-translate-y-0.5 relative aspect-square p-4 justify-end ${ENTITY_BORDER[type] || ''}`}
+        className={`group flex flex-col rounded-xl border border-border bg-card cursor-pointer transition-[background-color,border-color] duration-150 no-underline text-inherit overflow-hidden hover:border-ring hover:bg-accent/20 relative aspect-square p-4 justify-end ${ENTITY_BORDER[type] || ''}`}
       >
         {/* Decorative background icon */}
         {EntityIcon && (
@@ -315,7 +315,7 @@ export function PersonCard({
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
       aria-label={`Åbn skema for ${displayName}`}
-      className="group flex flex-col rounded-2xl border border-border bg-card cursor-pointer transition-all duration-200 no-underline text-inherit overflow-hidden hover:border-ring hover:shadow-[0_8px_24px_oklch(0_0_0/0.1)] hover:-translate-y-0.5"
+      className="group flex flex-col rounded-xl border border-border bg-card cursor-pointer transition-[background-color,border-color] duration-150 no-underline text-inherit overflow-hidden hover:border-ring hover:bg-accent/20"
     >
       {/* Large image at top */}
       <div className="relative w-full aspect-[3/4] bg-muted overflow-hidden">

@@ -495,7 +495,7 @@ export function ProfilePage({
       <div className="px-6 pt-3 pb-0">
         <a
           href={backUrl}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
         >
           <ArrowLeft className="size-4" />
           <span>{backText}</span>
@@ -557,12 +557,12 @@ export function ProfilePage({
                   <button
                     type="button"
                     onClick={handleToggleStar}
-                    className="p-2.5 rounded-xl hover:bg-accent transition-colors"
+                    className="p-2.5 rounded-xl hover:bg-accent transition-[color,background-color] duration-150"
                     title={starred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
                   >
                     <Pin
                       className={cn(
-                        'size-5 transition-colors',
+                        'size-5 transition-[color,background-color] duration-150',
                         starred
                           ? 'fill-primary text-primary'
                           : 'text-muted-foreground hover:text-primary',
@@ -577,7 +577,7 @@ export function ProfilePage({
                     sessionStorage.setItem('bl-compose-to', JSON.stringify({ contextId, name }));
                     window.location.href = messageHref;
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-[color,background-color] duration-150 shadow-sm"
                   title={`Send besked til ${firstName}`}
                 >
                   <Mail className="size-4" />
@@ -697,7 +697,7 @@ export function ProfilePage({
             {weekNav.prevHref && (
               <a
                 href={weekNav.prevHref}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-[color,background-color] duration-150"
                 title="Forrige uge"
               >
                 <ChevronLeft className="size-4" />
@@ -711,7 +711,7 @@ export function ProfilePage({
             ) : (
               <a
                 href={weekNav.todayHref || '#'}
-                className="text-sm font-medium tabular-nums px-1.5 text-primary/70 hover:text-primary transition-colors"
+                className="text-sm font-medium tabular-nums px-1.5 text-primary/70 hover:text-primary transition-[color,background-color] duration-150"
                 title="Gå til denne uge"
               >
                 {weekNav.weekLabel}
@@ -721,7 +721,7 @@ export function ProfilePage({
             {weekNav.nextHref && (
               <a
                 href={weekNav.nextHref}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-[color,background-color] duration-150"
                 title="Næste uge"
               >
                 <ChevronRight className="size-4" />
@@ -801,7 +801,7 @@ export function ProfilePage({
                   <a
                     key={item.id}
                     href={item.href}
-                    className="group rounded-2xl border border-border bg-gradient-to-br from-background via-background to-muted/40 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                    className="group rounded-xl border border-border bg-card p-4 transition-[background-color,border-color] duration-150 hover:border-primary/30 hover:bg-accent/20"
                   >
                     <div className="flex items-start gap-3">
                       <span
@@ -823,7 +823,7 @@ export function ProfilePage({
                             )}
                           </div>
 
-                          <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                          <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-[color,background-color] duration-150 group-hover:text-primary" />
                         </div>
                       </div>
                     </div>
@@ -882,7 +882,7 @@ function TabButton({
   count?: number;
 }) {
   const className = cn(
-    'relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors',
+    'relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-[color,background-color] duration-150',
     active
       ? 'text-foreground'
       : 'text-muted-foreground hover:text-foreground',
@@ -936,7 +936,7 @@ function InfoChip({ icon: Icon, label, href }: { icon: typeof Cake; label: strin
   const cls = "inline-flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-sm font-medium text-muted-foreground";
   if (href) {
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer" className={cn(cls, 'hover:bg-muted/70 hover:text-foreground transition-colors')}>
+      <a href={href} target="_blank" rel="noopener noreferrer" className={cn(cls, 'hover:bg-muted/70 hover:text-foreground transition-[color,background-color] duration-150')}>
         <Icon className="size-4 shrink-0" />
         <span>{label}</span>
       </a>

@@ -114,7 +114,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
       >
         {/* Close button */}
         <button
-          className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
           onClick={() => onOpenChange(false)}
           aria-label="Luk"
         >
@@ -163,7 +163,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               <AlertTriangle size={24} />
               <p className="mt-2">{error}</p>
               <button
-                className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent"
                 onClick={() => {
                   if (record?.editUrl) {
                     setError(null);
@@ -244,7 +244,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
         {formData && !error && (
           <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
             <button
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >

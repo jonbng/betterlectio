@@ -93,7 +93,7 @@ function FolderPill({ folder, isChild, onSelectFolder }: FolderPillProps) {
   };
 
   const pillClass = cn(
-    'inline-flex items-center gap-1.5 rounded-full border bg-background text-xs font-medium leading-tight text-muted-foreground transition-all',
+    'inline-flex items-center gap-1.5 rounded-full border bg-background text-xs font-medium leading-tight text-muted-foreground transition-[background-color,color,border-color] duration-150',
     'px-3 py-1.5',
     'hover:border-muted-foreground hover:bg-muted hover:text-foreground',
     folder.isSelected && 'border-primary bg-primary text-primary-foreground font-semibold',
@@ -286,10 +286,10 @@ function ThreadRow({
   );
 
   const rowClass = cn(
-    'animate-[beskeder-row-in_0.25s_ease-out_both] relative flex cursor-pointer items-center gap-3 border-b border-border/70 px-3 py-2.5 transition-colors last:border-b-0',
-    'hover:bg-muted',
-    thread.isUnread && 'bg-primary/5',
-    isSelected && 'bg-primary/10 hover:bg-primary/15',
+    'animate-[beskeder-row-in_0.25s_cubic-bezier(0.23,1,0.32,1)_both] relative flex cursor-pointer items-center gap-3 border-b border-border/70 px-4 py-3 transition-[background-color] duration-150 last:border-b-0',
+    'hover:bg-muted/70',
+    thread.isUnread && 'bg-primary/[0.04]',
+    isSelected && 'bg-primary/10 hover:bg-primary/[0.12]',
   );
 
   const handleOpen = (e: MouseEvent) => {
@@ -357,8 +357,8 @@ function ThreadRow({
       tabIndex={0}
       style={{ animationDelay: `${index * 30}ms` } as any}
     >
-      {/* Checkbox */}
-      <div data-row-check className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center">
+      {/* Checkbox — large hit area for easy selection */}
+      <label data-row-check className="relative -m-2 inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-md transition-[background-color] duration-150 hover:bg-muted active:scale-[0.95]">
         <input
           type="checkbox"
           checked={isSelected}
@@ -366,10 +366,10 @@ function ThreadRow({
           onClick={(e) => e.stopPropagation()}
           className="peer sr-only"
         />
-        <span className="inline-flex size-4 items-center justify-center rounded-[4px] border border-border bg-background transition-colors peer-checked:border-primary peer-checked:bg-primary">
-          <Check size={12} className="text-primary-foreground opacity-0 transition-opacity peer-checked:opacity-100" />
+        <span className="inline-flex size-[18px] items-center justify-center rounded-[5px] border-[1.5px] border-border bg-background transition-[background-color,border-color,transform] duration-150 peer-checked:border-primary peer-checked:bg-primary">
+          <Check size={13} strokeWidth={2.5} className="text-primary-foreground opacity-0 transition-opacity peer-checked:opacity-100" />
         </span>
-      </div>
+      </label>
 
       {/* Unread indicator */}
       {thread.isUnread && <div className="absolute left-1 size-1.5 shrink-0 rounded-full bg-primary" />}
@@ -387,12 +387,12 @@ function ThreadRow({
       </button>
 
       {/* Content */}
-      <div className="min-w-0 flex-1 pr-17">
+      <div className="min-w-0 flex-1 pr-18">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
           <button
             type="button"
             className={cn(
-              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base text-foreground transition-colors hover:text-primary',
+              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base text-foreground transition-[color] duration-150 hover:text-primary',
               thread.isUnread ? 'font-semibold' : 'font-medium',
               !latestSenderScheduleUrl && 'cursor-default hover:text-foreground',
             )}
@@ -418,7 +418,7 @@ function ThreadRow({
           <button
             type="button"
             className={cn(
-              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-tight text-muted-foreground transition-colors hover:text-primary',
+              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-tight text-muted-foreground transition-[color] duration-150 hover:text-primary',
               !recipientsScheduleUrl && 'cursor-default hover:text-muted-foreground',
             )}
             onClick={(e) => handlePersonNavigate(e, recipientsScheduleUrl)}
@@ -435,13 +435,13 @@ function ThreadRow({
       <div
         data-row-actions
         className={cn(
-          'pointer-events-none absolute right-2.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-md bg-card p-0.5 shadow-[-8px_0_8px_var(--card)] transition-opacity',
-          showActions ? 'pointer-events-auto opacity-100' : 'opacity-0',
+          'pointer-events-none absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center gap-0.5 rounded-lg border border-border/50 bg-card p-0.5 shadow-[0_2px_8px_oklch(0_0_0/0.06),-12px_0_12px_var(--card)] transition-[opacity,transform] duration-150',
+          showActions ? 'pointer-events-auto scale-100 opacity-100' : 'scale-95 opacity-0',
         )}
       >
         <button
           type="button"
-          className="inline-flex size-6.5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.93]"
           onClick={handleFlag}
           disabled={isBusy}
           title={thread.isFlagged ? 'Fjern flag' : 'Tilføj flag'}
@@ -450,7 +450,7 @@ function ThreadRow({
         </button>
         <button
           type="button"
-          className="inline-flex size-6.5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.93]"
           onClick={handleRead}
           disabled={isBusy}
           title={thread.isRead ? 'Marker som ulæst' : 'Marker som læst'}
@@ -460,7 +460,7 @@ function ThreadRow({
         <button
           type="button"
           className={cn(
-            'inline-flex size-6.5 items-center justify-center rounded transition-colors',
+            'inline-flex size-7 items-center justify-center rounded-md transition-[background-color,color] duration-150 active:scale-[0.93]',
             thread.isDeleted
               ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
               : 'text-destructive hover:bg-[oklch(0.95_0.02_25)] hover:text-[oklch(0.55_0.2_25)] dark:hover:bg-[oklch(0.25_0.04_25)] dark:hover:text-[oklch(0.7_0.16_25)]',
@@ -871,21 +871,21 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
   const someSelected = selectedThreads.size > 0;
 
   return (
-    <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-10 pb-12 pt-8">
       {/* ── Header ─────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 border-b border-border pb-5 mb-3">
         <div className="inline-flex items-center gap-2">
-          <h1 className="text-[2rem] font-[800] tracking-[-0.03em] text-foreground">Beskeder</h1>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Beskeder</h1>
           {globalUnreadCount > 0 && (
             <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{globalUnreadCount}</span>
           )}
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 active:scale-[0.97]"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-[0_1px_2px_oklch(0_0_0/0.12)] transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97]"
           onClick={() => newMessage()}
         >
-          <Plus size={16} />
+          <Plus size={16} strokeWidth={2.5} />
           <span>Ny besked</span>
         </button>
       </div>
@@ -897,18 +897,18 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center gap-2">
           {/* Select all */}
-          <label className="inline-flex size-8 cursor-pointer items-center justify-center" title="Markér alle">
+          <label className="inline-flex size-9 cursor-pointer items-center justify-center rounded-md transition-[background-color] duration-150 hover:bg-muted active:scale-[0.95]" title="Markér alle">
             <input
               type="checkbox"
               checked={allSelected}
               onChange={handleSelectAll}
               className="peer sr-only"
             />
-            <span className="inline-flex size-4 items-center justify-center rounded-[4px] border border-border bg-background text-primary-foreground transition-colors peer-checked:border-primary peer-checked:bg-primary">
+            <span className="inline-flex size-[18px] items-center justify-center rounded-[5px] border-[1.5px] border-border bg-background text-primary-foreground transition-[background-color,border-color] duration-150 peer-checked:border-primary peer-checked:bg-primary">
               {someSelected && !allSelected ? (
-                <Minus size={12} className="text-primary" />
+                <Minus size={13} strokeWidth={2.5} className="text-primary" />
               ) : (
-                <Check size={12} className={cn('transition-opacity', allSelected ? 'opacity-100' : 'opacity-0')} />
+                <Check size={13} strokeWidth={2.5} className={cn('transition-opacity', allSelected ? 'opacity-100' : 'opacity-0')} />
               )}
             </span>
           </label>
@@ -917,22 +917,22 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
             <>
               <button
                 type="button"
-                className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.95]"
                 onClick={handleMarkAllRead}
                 title="Alle læst"
               >
-                <CheckCheck size={15} />
+                <CheckCheck size={16} />
               </button>
 
               {/* Bulk actions dropdown */}
               <div className="relative" ref={bulkRef}>
                 <button
                   type="button"
-                  className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.95]"
                   onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
                   title="Flere handlinger"
                 >
-                  <MoreHorizontal size={15} />
+                  <MoreHorizontal size={16} />
                 </button>
                 {bulkMenuOpen && (
                   <div className="animate-[beskeder-dropdown-in_0.12s_ease-out] absolute left-0 top-[calc(100%+6px)] z-40 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-[0_4px_16px_oklch(0_0_0/0.08),0_1px_3px_oklch(0_0_0/0.04)]">
@@ -940,7 +940,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
                       <button
                         type="button"
                         key={action.value}
-                        className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                        className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-foreground transition-[background-color] duration-150 hover:bg-accent"
                         onClick={() => handleBulkAction(action.value)}
                       >
                         {action.label}
@@ -954,12 +954,12 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
         </div>
 
         {/* Search */}
-        <form className="relative min-w-[240px] flex-1" onSubmit={handleSearch}>
+        <form className="relative min-w-[240px] max-w-md flex-1" onSubmit={handleSearch}>
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={searchRef}
             type="text"
-            className="peer h-10 w-full rounded-lg border border-border bg-background pl-9 pr-16 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="peer h-9 w-full rounded-lg border border-border bg-card pl-9 pr-16 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             placeholder="Søg beskeder..."
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -967,7 +967,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
           {searchQuery && (
             <button
               type="button"
-              className="absolute right-10 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="absolute right-10 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
               onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
             >
               <X size={14} />

@@ -6,6 +6,9 @@ import { invalidateTable } from './cache';
 export type Student = Tables<'students'>;
 export type StudentsMap = Map<string, Student>;
 
+const ADOPTION_SCHOOL_THRESHOLD = 30;
+const ADOPTION_CLASS_THRESHOLD = 5;
+
 const STUDENTS_REFRESH_KEY_PREFIX = 'bl-students-last-refresh';
 const STUDENTS_REFRESH_TTL_MS = 30_000;
 
@@ -54,6 +57,43 @@ export function useSchoolStudents(
 
   return { students, studentsMap, isLoading: !refreshReady || isLoading };
 }
+
+/** Hook that checks BetterLectio adoption counts for skip-profile-step logic. */
+export function useAdoptionCounts(
+  schoolId: string,
+  className: string | null,
+): { schoolCount: number | null; classCount: number | null; isLoading: boolean } {
+  const { data: schoolStudents, isLoading: schoolLoading } = useQuery<Pick<Student, 'id'>[]>({
+    schoolId,
+    table: 'students',
+    select: 'id',
+    filters: [
+      { column: 'school_id', op: 'eq', value: Number(schoolId) },
+      { column: 'has_extension', op: 'eq', value: true },
+    ],
+    enabled: Boolean(schoolId),
+  });
+
+  const { data: classStudents, isLoading: classLoading } = useQuery<Pick<Student, 'id'>[]>({
+    schoolId,
+    table: 'students',
+    select: 'id',
+    filters: [
+      { column: 'school_id', op: 'eq', value: Number(schoolId) },
+      { column: 'has_extension', op: 'eq', value: true },
+      { column: 'class_name', op: 'eq', value: className! },
+    ],
+    enabled: Boolean(schoolId) && Boolean(className),
+  });
+
+  return {
+    schoolCount: schoolStudents ? schoolStudents.length : null,
+    classCount: className ? (classStudents ? classStudents.length : null) : null,
+    isLoading: schoolLoading || (Boolean(className) && classLoading),
+  };
+}
+
+export { ADOPTION_SCHOOL_THRESHOLD, ADOPTION_CLASS_THRESHOLD };
 
 export async function invalidateStudentsCacheIfStale(
   schoolId: string,

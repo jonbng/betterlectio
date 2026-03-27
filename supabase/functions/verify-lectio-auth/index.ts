@@ -117,6 +117,13 @@ Deno.serve(async (req: Request) => {
     }
     const elevid = elevidMatch[1];
 
+    // Parse class_name from schedule page title: "Eleven Name, 1x - Skema"
+    let className: string | null = null;
+    const classTitleMatch = skemaHtml.match(/<title>[^<]*Eleven\s+.+?,\s*(\S+)\s*-/);
+    if (classTitleMatch) {
+      className = classTitleMatch[1];
+    }
+
     // Parse name: strip "(k)" or similar suffix
     const nameMatch = html.match(/id="s_m_Content_Content_StudentName"[^>]*>([^<]+)</);
     let name: string | null = null;
@@ -236,6 +243,7 @@ Deno.serve(async (req: Request) => {
       if (firstName) studentRecord.lectio_first_name = firstName;
       if (lastName) studentRecord.lectio_last_name = lastName;
       if (birthdate) studentRecord.birthdate = birthdate;
+      if (className) studentRecord.class_name = className;
       if (storedPfpPath) {
         const { data: urlData } = supabaseAdmin.storage
           .from('profile-pictures')

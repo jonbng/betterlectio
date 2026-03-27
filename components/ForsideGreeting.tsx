@@ -275,10 +275,10 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   const hasMissing = urgentOpgaver.some(o => o.isMissing);
 
   return (
-    <div className="px-8 pt-12 pb-8 relative">
+    <div className="px-8 pt-10 pb-8 relative animate-[bl-fade-in_400ms_var(--ease-out)_both]">
       {cloudConnected !== null && (
         <div
-          className="absolute top-4 right-8 flex items-center gap-1.5 text-[0.6rem] font-medium select-none"
+          className="absolute top-4 right-8 flex items-center gap-1.5 text-xs font-medium select-none"
           style={{ color: cloudConnected ? 'oklch(0.55 0.08 145)' : 'oklch(0.55 0.03 285)' }}
         >
           <span
@@ -315,6 +315,31 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
                   href={opgave.url || undefined}
                   className="text-sm font-medium flex items-center gap-2 no-underline hover:underline"
                   style={{ color: isOverdue ? 'oklch(0.55 0.15 25)' : 'oklch(0.55 0.15 55)' }}
+                  onClick={(e) => {
+                    if (!opgave.url) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.dispatchEvent(
+                      new CustomEvent('betterlectio:openOpgaveDetail', {
+                        detail: {
+                          entry: {
+                            title: opgave.title,
+                            url: opgave.url,
+                            hold: opgave.hold,
+                            deadline: opgave.deadline,
+                            deadlineText: '',
+                            studentTime: '',
+                            status: opgave.isMissing ? 'mangler' as const : 'venter' as const,
+                            absence: '',
+                            awaiting: '',
+                            note: '',
+                            grade: '',
+                            gradeExtra: '',
+                          },
+                        },
+                      }),
+                    );
+                  }}
                 >
                   <span style={{
                     display: 'inline-block',

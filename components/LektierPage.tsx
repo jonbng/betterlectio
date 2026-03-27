@@ -643,12 +643,12 @@ export function LektierPage({ entries }: LektierPageProps) {
   const progressPct = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
 
   return (
-    <div className="mx-auto max-w-[920px] px-10 pb-16 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto max-w-7xl px-10 pb-12 pt-8">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-6 border-b border-border pb-5 mb-7">
         <div>
-          <h1 className="text-[2.25rem] font-[800] tracking-[-0.03em] text-foreground">Lektier</h1>
-          <p className="mt-1 text-sm text-muted-foreground">De næste 14 dage</p>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Lektier</h1>
+          <p className="mt-1 text-base text-muted-foreground">De næste 14 dage</p>
         </div>
         <div className="flex items-center gap-7">
           {/* Progress ring */}
@@ -670,7 +670,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeDasharray={`${progressPct * 0.9425} 94.25`}
-                    className="transition-all duration-500 ease-out dark:stroke-[oklch(0.65_0.13_145)]"
+                    className="transition-[stroke-dasharray] duration-500 ease-out dark:stroke-[oklch(0.65_0.13_145)]"
                   />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
@@ -712,11 +712,11 @@ export function LektierPage({ entries }: LektierPageProps) {
               <div
                 key={day.date.toISOString()}
                 className={cn(
-                  'flex items-start gap-8 border-t border-border py-8 first:border-t-0 first:pt-0 animate-[lektier-fade-in_0.5s_ease_both]',
+                  'flex items-start gap-8 border-t border-border py-8 first:border-t-0 first:pt-0 animate-[bl-fade-in_350ms_var(--ease-out)_both]',
                   relative?.type === 'today' && '[&_.lektier-date-number]:text-[oklch(0.42_0.16_145)] [&_.lektier-date-weekday]:text-[oklch(0.42_0.16_145)] dark:[&_.lektier-date-number]:text-[oklch(0.7_0.14_145)] dark:[&_.lektier-date-weekday]:text-[oklch(0.7_0.14_145)]',
                   relative?.type === 'tomorrow' && '[&_.lektier-date-number]:text-[oklch(0.45_0.18_265)] [&_.lektier-date-weekday]:text-[oklch(0.45_0.18_265)] dark:[&_.lektier-date-number]:text-[oklch(0.72_0.14_265)] dark:[&_.lektier-date-weekday]:text-[oklch(0.72_0.14_265)]',
                 )}
-                style={{ animationDelay: `${dayIdx * 60}ms` }}
+                style={{ animationDelay: `${dayIdx * 40}ms` }}
               >
                 {/* Date column */}
                 <div className="sticky top-4 flex w-20 shrink-0 flex-col items-center pt-1">
@@ -757,10 +757,10 @@ export function LektierPage({ entries }: LektierPageProps) {
                       <div
                         key={idx}
                         className={cn(
-                          "overflow-hidden rounded-xl border border-border border-l-4 bg-card transition-all duration-300 ease-out",
+                          "overflow-hidden rounded-xl border border-border border-l-4 bg-card transition-[background-color,opacity,transform] duration-200 ease-out active:scale-[0.99]",
                           isDone
                             ? "border-l-[oklch(0.78_0.1_145)] dark:border-l-[oklch(0.45_0.1_145)] opacity-60 hover:opacity-80"
-                            : "border-l-[oklch(0.68_0.2_var(--hold-hue,265))] dark:border-l-[oklch(0.58_0.16_var(--hold-hue,265))] hover:bg-accent/15 dark:hover:bg-[oklch(0.2_0.004_285)]",
+                            : "border-l-[oklch(0.68_0.2_var(--hold-hue,265))] dark:border-l-[oklch(0.58_0.16_var(--hold-hue,265))] hover:bg-accent/30",
                         )}
                         style={{ '--hold-hue': hue } as any}
                       >
@@ -771,7 +771,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                             onClick={() => toggleDone(entry)}
                             aria-label={isDone ? 'Markér som ikke færdig' : 'Markér som færdig'}
                             className={cn(
-                              "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200",
+                              "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-[border-color,background-color,transform] duration-150 ease-out active:scale-[0.9]",
                               isDone
                                 ? "border-[oklch(0.55_0.15_145)] bg-[oklch(0.55_0.15_145)] dark:border-[oklch(0.6_0.13_145)] dark:bg-[oklch(0.6_0.13_145)]"
                                 : "border-[oklch(0.8_0.03_var(--hold-hue,265))] hover:border-[oklch(0.6_0.1_145)] hover:bg-[oklch(0.95_0.03_145)] dark:border-[oklch(0.35_0.02_285)] dark:hover:border-[oklch(0.5_0.1_145)] dark:hover:bg-[oklch(0.25_0.04_145)]",
@@ -781,10 +781,10 @@ export function LektierPage({ entries }: LektierPageProps) {
                               size={14}
                               strokeWidth={3}
                               className={cn(
-                                "transition-all duration-200",
+                                "transition-[transform,opacity] duration-150 ease-out",
                                 isDone
                                   ? "scale-100 opacity-100 text-white"
-                                  : "scale-0 opacity-0 text-[oklch(0.55_0.15_145)] group-hover/check:scale-75 group-hover/check:opacity-40",
+                                  : "scale-[0.4] opacity-0 text-[oklch(0.55_0.15_145)] group-hover/check:scale-75 group-hover/check:opacity-40",
                               )}
                             />
                           </button>
@@ -792,7 +792,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                             <a
                               href={entry.activityUrl}
                               className={cn(
-                                "font-semibold no-underline transition-colors duration-200 cursor-pointer",
+                                "font-semibold no-underline transition-[color] duration-150 ease-out cursor-pointer",
                                 isDone
                                   ? "text-base text-muted-foreground line-through decoration-muted-foreground/40"
                                   : "text-xl text-foreground hover:text-[oklch(0.5_0.16_var(--hold-hue,265))]",
@@ -819,7 +819,7 @@ export function LektierPage({ entries }: LektierPageProps) {
 
                         {/* Collapsible content — grid row trick for smooth height animation */}
                         <div
-                          className="grid transition-[grid-template-rows] duration-300 ease-out"
+                          className="grid transition-[grid-template-rows] duration-200 ease-out"
                           style={{ gridTemplateRows: isDone ? '0fr' : '1fr' }}
                         >
                           <div className="overflow-hidden">
@@ -871,7 +871,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                   {fileItems.length > 0 && (
                                     <div className="grid gap-2">
                                       {fileItems.map((item, itemIdx) => (
-                                        <a key={itemIdx} href={item.fileUrl!} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 rounded-md border border-[oklch(0.93_0.02_250)] bg-[oklch(0.975_0.012_250)] px-2.5 py-2 no-underline transition-colors hover:bg-[oklch(0.96_0.025_250)] dark:border-[oklch(0.3_0.02_250)] dark:bg-[oklch(0.2_0.02_250)] dark:hover:bg-[oklch(0.24_0.03_250)]">
+                                        <a key={itemIdx} href={item.fileUrl!} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-2 rounded-md border border-[oklch(0.93_0.02_250)] bg-[oklch(0.975_0.012_250)] px-2.5 py-2 no-underline transition-[color,background-color] duration-150 hover:bg-[oklch(0.96_0.025_250)] dark:border-[oklch(0.3_0.02_250)] dark:bg-[oklch(0.2_0.02_250)] dark:hover:bg-[oklch(0.24_0.03_250)]">
                                           <div className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[oklch(0.93_0.04_250)] text-[oklch(0.5_0.15_250)] dark:bg-[oklch(0.24_0.03_250)] dark:text-[oklch(0.65_0.1_250)]">
                                             <FileText size={18} />
                                           </div>

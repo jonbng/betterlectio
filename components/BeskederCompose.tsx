@@ -510,12 +510,12 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   const isBusy = sending || !!uploadingFileName || removingAttachIndex !== null || !!addingRecipientId;
 
   return (
-    <div className="mx-auto max-w-[720px] space-y-3 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto max-w-4xl space-y-3 px-10 pb-12 pt-8">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-border pb-4 mb-3">
         <button
           type="button"
-          className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+          className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-[background-color] duration-150 hover:bg-accent"
           onClick={handleBack}
           title="Tilbage til beskeder"
         >
@@ -561,7 +561,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                     {r.removePostbackTarget && (
                       <button
                         type="button"
-                        className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                         onClick={() => handleRemoveRecipient(r.removePostbackTarget)}
                         disabled={!!removingRecipient}
                         title={`Fjern ${displayName}`}
@@ -721,7 +721,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                 <span>{file.name}</span>
                 <button
                   type="button"
-                  className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                   onClick={() => handleRemoveAttachment(file, i)}
                   disabled={removingAttachIndex !== null}
                   title="Fjern vedhæftning"
@@ -752,7 +752,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                 ) : (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                     onClick={() => fileInputRef.current?.click()}
                     title="Vedhæft fil"
                   >
@@ -766,7 +766,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
           <div className="inline-flex items-center gap-2">
             <button
               type="button"
-              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-[background-color] duration-150 hover:bg-accent"
               onClick={handleBack}
             >
               Annuller

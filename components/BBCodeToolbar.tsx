@@ -187,7 +187,7 @@ function LinkPopover({ onInsert, onCancel, anchorRef }: LinkPopoverProps) {
       <div className="flex justify-end gap-2">
         <button
           type="button"
-          className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent"
+          className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-[color,background-color] duration-150 hover:bg-accent"
           onClick={onCancel}
         >
           Annuller
@@ -380,7 +380,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       <button
         type="button"
         className={cn(
-          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-[color,background-color] duration-150 hover:bg-accent",
           activeFormats.has('B') && "border-border bg-accent text-accent-foreground",
         )}
         onMouseDown={(e) => e.preventDefault()}
@@ -393,7 +393,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       <button
         type="button"
         className={cn(
-          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-[color,background-color] duration-150 hover:bg-accent",
           activeFormats.has('I') && "border-border bg-accent text-accent-foreground",
         )}
         onMouseDown={(e) => e.preventDefault()}
@@ -406,7 +406,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       <button
         type="button"
         className={cn(
-          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+          "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-[color,background-color] duration-150 hover:bg-accent",
           activeFormats.has('U') && "border-border bg-accent text-accent-foreground",
         )}
         onMouseDown={(e) => e.preventDefault()}
@@ -422,7 +422,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
           ref={linkBtnRef}
           type="button"
           className={cn(
-            "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent",
+            "inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-[color,background-color] duration-150 hover:bg-accent",
             activeFormats.has('A') && "border-border bg-accent text-accent-foreground",
           )}
           onMouseDown={(e) => e.preventDefault()}
@@ -442,7 +442,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       </div>
       <button
         type="button"
-        className="inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent"
+        className="inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-[color,background-color] duration-150 hover:bg-accent"
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleUnorderedList}
         title="Punktopstilling"
@@ -451,7 +451,7 @@ export function BBCodeToolbar(props: BBCodeToolbarProps) {
       </button>
       <button
         type="button"
-        className="inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-colors hover:bg-accent"
+        className="inline-flex size-8 items-center justify-center rounded-md border border-transparent bg-transparent text-foreground transition-[color,background-color] duration-150 hover:bg-accent"
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleOrderedList}
         title="Nummereret liste"

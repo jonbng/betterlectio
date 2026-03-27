@@ -144,7 +144,7 @@ export function LoginPage({ schools }: LoginPageProps) {
           <div className="mb-8">
             <button
               onClick={handleContinueToLastSchool}
-              className="w-full bg-white border-2 border-[oklch(0.54_0.2_265)] rounded-lg p-6 text-left hover:bg-[oklch(0.54_0.2_265)]/5 transition-colors group cursor-pointer"
+              className="w-full bg-white border-2 border-[oklch(0.54_0.2_265)] rounded-lg p-6 text-left hover:bg-[oklch(0.54_0.2_265)]/5 transition-[color,background-color] duration-150 group cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -155,7 +155,7 @@ export function LoginPage({ schools }: LoginPageProps) {
                     {lastSchool.name}
                   </p>
                 </div>
-                <div className="bg-[oklch(0.54_0.2_265)] text-white p-3 rounded-lg group-hover:bg-[oklch(0.45_0.2_265)] transition-colors">
+                <div className="bg-[oklch(0.54_0.2_265)] text-white p-3 rounded-lg group-hover:bg-[oklch(0.45_0.2_265)] transition-[background-color] duration-150">
                   <ArrowRight className="size-5" />
                 </div>
               </div>
@@ -194,7 +194,7 @@ export function LoginPage({ schools }: LoginPageProps) {
           {query && (
             <button
               onClick={() => setQuery("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-[color,background-color] duration-150 cursor-pointer"
             >
               <X className="size-5" />
             </button>
@@ -219,7 +219,7 @@ export function LoginPage({ schools }: LoginPageProps) {
               <button
                 key={school.id}
                 onClick={() => handleSchoolSelect(school)}
-                className={`w-full px-4 py-3 text-left border-b border-gray-100 last:border-b-0 transition-colors cursor-pointer ${
+                className={`w-full px-4 py-3 text-left border-b border-gray-100 last:border-b-0 transition-[color,background-color] duration-150 cursor-pointer ${
                   index === selectedIndex
                     ? "bg-[oklch(0.54_0.2_265)]/10"
                     : "hover:bg-gray-50"
@@ -244,7 +244,7 @@ export function LoginPage({ schools }: LoginPageProps) {
           href="https://github.com/jonbng/betterlectio"
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-gray-600 transition-colors cursor-pointer"
+          className="hover:text-gray-600 transition-[color,background-color] duration-150 cursor-pointer"
         >
           BetterLectio
         </a>

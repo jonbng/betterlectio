@@ -271,7 +271,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
       <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
         <div className={baseTop}>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight il-cd-subject">{state.label}</span>
-          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
+          <span className="shrink-0 text-base font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
         </div>
         <div className="text-xs text-muted-foreground">kl. {fmtTime(activeBlocks[0]?.start ?? 0)}</div>
       </div>
@@ -284,7 +284,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
       <div className={cn(baseCd, "border-dashed")} style={{ '--cd-hue': hue } as React.CSSProperties}>
         <div className={baseTop}>
           <span className="text-sm font-semibold text-muted-foreground">Pause</span>
-          <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
+          <span className="shrink-0 text-base font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
         </div>
         <div className="text-xs text-muted-foreground">
           <span className="il-cd-subject font-semibold">{state.label}</span>
@@ -306,7 +306,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
       <div className={baseTop}>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight il-cd-subject">{state.label}</span>
-        <span className="shrink-0 text-[15px] font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>
+        <span className="shrink-0 text-base font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>
       </div>
       <div className={baseBar}>
         <div className={cn(baseFill, "il-cd-bar")} style={{ width: `${(progress * 100).toFixed(1)}%` }} />

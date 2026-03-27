@@ -151,7 +151,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
         <div className="flex items-center gap-0.5">
           <a
             href={data.prevWeekUrl}
-            className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150"
             title="Forrige uge (Alt+B)"
           >
             <ChevronLeft className="size-4" />
@@ -170,7 +170,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
 
           <a
             href={data.nextWeekUrl}
-            className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150"
             title="Næste uge (Alt+N)"
           >
             <ChevronRight className="size-4" />
@@ -186,7 +186,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
         ) : data.todayUrl ? (
           <a
             href={data.todayUrl}
-            className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors no-underline"
+            className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 no-underline"
           >
             I dag
           </a>
@@ -200,7 +200,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
           {data.viewModes.map((mode) => {
             const isActive = mode.url === null;
             const cls = cn(
-              "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+              "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-[color,background-color] duration-150 whitespace-nowrap",
               isActive
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -217,7 +217,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
         {data.calendarUrl && (
           <a
             href={data.calendarUrl}
-            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors no-underline"
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 no-underline"
           >
             <CalendarRange className="size-3.5" />
             Måned
@@ -230,7 +230,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
         {data.privatAftalUrl && (
           <a
             href={data.privatAftalUrl}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors no-underline"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 no-underline"
           >
             <Plus className="size-3.5" />
             Privat aftale
@@ -243,7 +243,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
               className={cn(
-                "inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+                "inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150",
                 menuOpen && "bg-muted text-foreground",
               )}
               title="Flere handlinger"
@@ -257,7 +257,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
                   <button
                     key={action.command}
                     type="button"
-                    className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-popover-foreground hover:bg-accent transition-colors text-left"
+                    className="flex items-center gap-2.5 w-full rounded-lg px-3 py-2 text-sm text-popover-foreground hover:bg-accent transition-[color,background-color] duration-150 text-left"
                     onClick={() => {
                       setMenuOpen(false);
                       document

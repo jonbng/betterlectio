@@ -321,7 +321,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
         {/* Close button */}
         <button
           type="button"
-          className="absolute right-5 top-5 z-10 inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+          className="absolute right-5 top-5 z-10 inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground cursor-pointer"
           onClick={() => onOpenChange(false)}
           aria-label="Luk"
         >
@@ -355,7 +355,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 {entry.status === 'mangler' && getExerciseIdFromUrl(entry.url) && (
                   <button
                     type="button"
-                    className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent cursor-pointer dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
+                    className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-[color,background-color] duration-150 hover:bg-accent cursor-pointer dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
                     onClick={toggleIgnoreMissing}
                   >
                     {ignoredMissing ? 'Vis igen som manglende' : 'Ignorer manglende'}
@@ -377,7 +377,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
-                  className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent cursor-pointer"
+                  className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent cursor-pointer"
                   onClick={() => entry && loadDetail(entry.url, false)}
                 >
                   Prøv igen
@@ -385,7 +385,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 {entry && (
                   <a
                     href={entry.url}
-                    className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground no-underline"
+                    className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground no-underline"
                   >
                     <ExternalLink size={15} />
                     Åbn i Lectio
@@ -403,9 +403,6 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 <InfoRow label="Elevtid" value={detail.studentTime} />
                 <InfoRow label="Karakterskala" value={detail.gradeScale} />
                 <InfoRow label="Frist" value={detail.deadline} />
-                {detail.inUVBeskrivelse && (
-                  <InfoRow label="UV-beskrivelse" value={detail.inUVBeskrivelse} />
-                )}
               </div>
 
               {/* Assignment note */}
@@ -423,7 +420,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                     <a
                       key={i}
                       href={file.url}
-                      className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-colors hover:bg-accent/40"
+                      className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -562,7 +559,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                           {historyEntry.documentName && (
                             <a
                               href={historyEntry.documentUrl}
-                              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-colors hover:bg-accent/40"
+                              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -601,7 +598,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 <button
                   type="button"
                   className={cn(
-                    "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-colors hover:bg-accent/20",
+                    "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-[color,background-color] duration-150 hover:bg-accent/20",
                     dragOver && "border-ring bg-accent/30",
                     selectedFile && "border-border bg-background",
                     submitting && "cursor-not-allowed opacity-70",
@@ -623,7 +620,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                       </span>
                       <button
                         type="button"
-                        className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                       >
                         <X size={15} />
@@ -665,7 +662,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
             {entry && (
               <a
                 href={entry.url}
-                className="flex items-center justify-center gap-2 border-t border-border px-7 py-3 text-base font-medium text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground"
+                className="flex items-center justify-center gap-2 border-t border-border px-7 py-3 text-base font-medium text-muted-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
               >
                 <ExternalLink size={15} />
                 Åbn i Lectio
@@ -776,7 +773,7 @@ function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap }: {
       {onRemove && (
         <button
           type="button"
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           onClick={onRemove}
           disabled={removing}
           aria-label={`Fjern ${displayName}`}
@@ -874,7 +871,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
       {isOpen ? (
         <div
           className={cn(
-            "flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 transition-colors",
+            "flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 transition-[color,background-color] duration-150",
             adding ? "cursor-not-allowed opacity-70" : "hover:bg-accent/20",
             "border-ring ring-2 ring-ring/20",
           )}
@@ -900,7 +897,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
         <button
           type="button"
           className={cn(
-            "flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 text-left transition-colors",
+            "flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 text-left transition-[color,background-color] duration-150",
             adding ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-accent/20",
           )}
           onClick={() => {
@@ -970,7 +967,7 @@ function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover,
     <button
       type="button"
       className={cn(
-        "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition-colors",
+        "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition-[color,background-color] duration-150",
         highlighted ? "bg-accent" : "hover:bg-accent/50",
       )}
       onClick={onSelect}

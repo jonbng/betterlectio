@@ -263,7 +263,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
       {/* Header */}
       <a
         href={opgaverPageUrl}
-        className="flex items-center gap-2 border-b border-border px-3.5 py-[0.6875rem] no-underline transition-colors hover:bg-accent/40"
+        className="flex items-center gap-2 border-b border-border px-3.5 py-[0.6875rem] no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
       >
         <span className="text-[1.0625rem] font-[650] tracking-[-0.01em] text-foreground">Opgaver</span>
         <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold leading-none text-primary-foreground">{entries.length}</span>
@@ -282,7 +282,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               key={opgave.url || i}
               href={opgave.url}
               className={cn(
-                "relative flex items-center gap-2.5 overflow-hidden border-b border-border px-3.5 py-2.5 no-underline text-foreground cursor-pointer transition-colors last:border-b-0 hover:bg-accent/40",
+                "relative flex items-center gap-2.5 overflow-hidden border-b border-border px-3.5 py-2.5 no-underline text-foreground cursor-pointer transition-[color,background-color] duration-150 last:border-b-0 hover:bg-accent/40",
                 info.urgency === 'missing' && "bg-[oklch(0.97_0.02_25)] hover:bg-[oklch(0.95_0.03_25)] dark:bg-[oklch(0.17_0.02_25)] dark:hover:bg-[oklch(0.2_0.025_25)]",
               )}
               style={{ animationDelay: `${i * 50}ms`, '--hold-hue': hue, '--anim-i': i } as any}
@@ -320,7 +320,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               {/* Hold pill + hide button */}
               <div className="shrink-0 flex items-center gap-1.5">
                 <span
-                  className="inline-flex items-center rounded-full px-[0.4375rem] py-0.5 text-[0.625rem] font-semibold leading-[1.5] whitespace-nowrap bg-[oklch(0.95_0.08_var(--hold-hue,235))] text-[oklch(0.5_0.16_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
+                  className="hold-pill-dynamic inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-[1.5] whitespace-nowrap"
                   style={{ '--hold-hue': hue } as any}
                 >
                   {getHoldDisplayName(opgave.holdCode)}

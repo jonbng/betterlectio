@@ -46,6 +46,13 @@ import { getCachedProfile } from "@/lib/profile-cache";
 import { capture, captureFeatureUsedOncePerSession, getDistinctId, setPersonProperties } from "@/lib/posthog";
 import { clearPictureCache, getStarredPeople, getRecentPeople } from "@/lib/findskema-storage";
 import {
+  fetchSessionsData,
+  deleteSession,
+  isMobileDevice,
+  cleanDeviceName,
+  type SessionEntry,
+} from "@/lib/profil-parser";
+import {
   Info,
   Github,
   Palette,
@@ -54,6 +61,12 @@ import {
   X,
   Chrome,
   Monitor,
+  Smartphone,
+  Shield,
+  Clock,
+  CalendarPlus,
+  CalendarClock,
+  Trash2,
   Calendar,
   PanelLeft,
   GraduationCap,
@@ -61,7 +74,9 @@ import {
   Copy,
   Check,
   Sparkles,
+  Loader2,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { DesignPlayground } from "@/components/DesignPlayground";
 
 interface SettingsModalProps {
@@ -74,6 +89,7 @@ const navItems = [
   { id: "appearance", name: "Udseende", icon: Palette },
   { id: "sidebar", name: "Sidebar", icon: PanelLeft },
   { id: "subjects", name: "Fag", icon: GraduationCap },
+  { id: "sessions", name: "Sessioner", icon: Shield },
   { id: "advanced", name: "Avanceret", icon: Wrench },
   { id: "about", name: "Om", icon: Info },
 ];
@@ -133,6 +149,16 @@ function formatDate(isoString: string): string {
 }
 
 function getBrowserInfo(): string {
+  const uad = (navigator as any).userAgentData as
+    | { brands?: { brand: string; version: string }[] }
+    | undefined;
+  if (uad?.brands) {
+    const brand =
+      uad.brands.find(
+        (b) => !b.brand.includes("Not") && b.brand !== "Chromium"
+      ) ?? uad.brands.find((b) => b.brand === "Chromium");
+    if (brand) return `${brand.brand} ${brand.version}`;
+  }
   const ua = navigator.userAgent;
   if (ua.includes("Firefox")) {
     const match = ua.match(/Firefox\/(\d+)/);
@@ -154,6 +180,10 @@ function getBrowserInfo(): string {
 }
 
 function getOSInfo(): string {
+  const uad = (navigator as any).userAgentData as
+    | { platform?: string }
+    | undefined;
+  if (uad?.platform) return uad.platform;
   const ua = navigator.userAgent;
   if (ua.includes("Windows NT 10")) return "Windows 10/11";
   if (ua.includes("Windows")) return "Windows";
@@ -205,6 +235,10 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
   const [copied, setCopied] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [supabaseExpiry, setSupabaseExpiry] = useState<number | null>(null);
+  const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const sessionsFetchedRef = useRef(false);
+  const [deletingSessionIndex, setDeletingSessionIndex] = useState<number | null>(null);
 
   const getPostHogDistinctId = () => {
     const profile = getCachedProfile();
@@ -231,6 +265,37 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       }
     }
   }, [open]);
+
+  // Fetch sessions when advanced tab is shown
+  useEffect(() => {
+    if (!open || activeSection !== 'sessions' || sessionsFetchedRef.current || !schoolId) return;
+    sessionsFetchedRef.current = true;
+    setSessionsLoading(true);
+    fetchSessionsData(schoolId)
+      .then(setSessions)
+      .catch((err) => console.error('[BetterLectio] Failed to load sessions:', err))
+      .finally(() => setSessionsLoading(false));
+  }, [open, activeSection, schoolId]);
+
+  // Reset sessions fetch ref when modal closes
+  useEffect(() => {
+    if (!open) {
+      sessionsFetchedRef.current = false;
+    }
+  }, [open]);
+
+  const handleDeleteSession = async (deleteIndex: number) => {
+    if (!schoolId) return;
+    setDeletingSessionIndex(deleteIndex);
+    try {
+      const updated = await deleteSession(schoolId, deleteIndex);
+      setSessions(updated);
+    } catch (err) {
+      console.error('[BetterLectio] Failed to delete session:', err);
+    } finally {
+      setDeletingSessionIndex(null);
+    }
+  };
 
   // Check Supabase auth status when about tab is shown
   useEffect(() => {
@@ -501,7 +566,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 href="https://chromewebstore.google.com/detail/betterlectio/cbopfnaegoknpplkngoppmmomppimhkh"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-colors no-underline"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-[color,background-color] duration-150 no-underline"
               >
                 <Chrome className="size-4" />
                 Chrome Web Store
@@ -511,7 +576,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 href="https://addons.mozilla.org/en-US/firefox/addon/betterlectio/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-colors no-underline"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-[color,background-color] duration-150 no-underline"
               >
                 <svg
                   role="img"
@@ -529,7 +594,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 href="https://github.com/jonbng/betterlectio"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-colors no-underline"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-[color,background-color] duration-150 no-underline"
               >
                 <Github className="size-4" />
                 GitHub
@@ -539,7 +604,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 href={reportIssueUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-colors no-underline"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md border border-input bg-background text-foreground hover:bg-accent cursor-pointer transition-[color,background-color] duration-150 no-underline"
               >
                 <Bug className="size-4" />
                 Rapporter problem
@@ -919,6 +984,114 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       case "subjects":
         return <HoldMappingEditor />;
 
+      case "sessions":
+        return (
+          <div className="space-y-6">
+            <SettingsSection title="Aktive sessioner" description="Enheder der er logget ind på din Lectio-konto">
+              {sessionsLoading ? (
+                <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Henter sessioner...
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="px-4 py-4 text-sm text-muted-foreground">
+                  Ingen aktive sessioner fundet.
+                </div>
+              ) : (
+                <div className="px-2 py-1">
+                  <div className="flex items-center gap-2 px-3 pb-2 text-xs text-muted-foreground">
+                    <Shield className="size-3.5" />
+                    <span>{sessions.length} enhed{sessions.length !== 1 ? 'er' : ''}</span>
+                  </div>
+                  {sessions.map((session, i) => {
+                    const mobile = isMobileDevice(session.device);
+                    const DeviceIcon = mobile ? Smartphone : Monitor;
+                    const deviceName = session.isCurrent
+                      ? cleanDeviceName(session.device)
+                      : session.device;
+
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-[color,background-color] duration-150',
+                          session.isCurrent
+                            ? 'bg-[oklch(0.97_0.02_145)] dark:bg-[oklch(0.18_0.02_145)]'
+                            : 'hover:bg-accent/30',
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'flex items-center justify-center w-8 h-8 rounded-lg shrink-0',
+                            session.isCurrent
+                              ? 'bg-[oklch(0.92_0.04_145)] dark:bg-[oklch(0.24_0.03_145)]'
+                              : 'bg-muted',
+                          )}
+                        >
+                          <DeviceIcon
+                            className={cn(
+                              'w-4 h-4',
+                              session.isCurrent
+                                ? 'text-[oklch(0.45_0.15_145)] dark:text-[oklch(0.70_0.12_145)]'
+                                : 'text-muted-foreground',
+                            )}
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {deviceName}
+                            </span>
+                            {session.isCurrent && (
+                              <Badge
+                                className="text-[0.55rem] px-1.5 py-0 border-0"
+                                style={{
+                                  backgroundColor: 'oklch(0.88 0.06 145)',
+                                  color: 'oklch(0.35 0.12 145)',
+                                }}
+                              >
+                                Denne enhed
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5 text-[0.65rem] text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {session.lastLogin}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CalendarPlus className="w-3 h-3" />
+                              {session.created}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <CalendarClock className="w-3 h-3" />
+                              {session.expiry}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteSession(session.deleteIndex)}
+                          disabled={deletingSessionIndex !== null}
+                          title="Slet session"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 hover:bg-destructive/10 transition-[color,background-color] duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {deletingSessionIndex === session.deleteIndex ? (
+                            <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </SettingsSection>
+          </div>
+        );
+
       case "advanced":
         return (
           <div className="space-y-6">
@@ -1124,7 +1297,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                         <SidebarMenuButton
                           isActive={item.id === activeSection}
                           onClick={() => setActiveSection(item.id)}
-                          className="cursor-pointer h-11! text-[15px]!"
+                          className="cursor-pointer h-11! text-base!"
                         >
                           <item.icon className="size-[18px]!" />
                           <span>{item.name}</span>
@@ -1141,7 +1314,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
             <header className="flex h-12 shrink-0 items-center gap-2 border-b mt-4">
               <div className="flex items-center gap-2 px-6">
                 <Breadcrumb>
-                  <BreadcrumbList className="text-[15px]">
+                  <BreadcrumbList className="text-base">
                     <BreadcrumbItem>
                       <span className="text-muted-foreground">
                         Indstillinger

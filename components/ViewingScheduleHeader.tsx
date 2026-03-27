@@ -260,7 +260,7 @@ export function ViewingScheduleHeader({
       <div className="flex items-center gap-4">
         <a
           href={backUrl}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
         >
           <ArrowLeft className="size-4" />
           <span>{backText}</span>
@@ -304,11 +304,11 @@ export function ViewingScheduleHeader({
               <button
                 type="button"
                 onClick={handleToggleStar}
-                className="p-2 rounded-lg hover:bg-accent transition-colors"
+                className="p-2 rounded-lg hover:bg-accent transition-[color,background-color] duration-150"
                 title={starred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
               >
                 <Pin
-                  className={`size-5 transition-colors ${
+                  className={`size-5 transition-[color,background-color] duration-150 ${
                     starred
                       ? 'fill-primary text-primary'
                       : 'text-muted-foreground hover:text-primary'
@@ -321,7 +321,7 @@ export function ViewingScheduleHeader({
               <button
                 type="button"
                 onClick={handleToggleMembers}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent aria-expanded:bg-primary/10 aria-expanded:border-primary/40"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent aria-expanded:bg-primary/10 aria-expanded:border-primary/40"
                 aria-expanded={membersOpen}
                 title={isStudentWithClass && !hasSubnavMembers ? 'Vis klassekammerater' : 'Vis medlemmer'}
               >

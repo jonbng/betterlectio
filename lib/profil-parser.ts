@@ -221,6 +221,16 @@ async function decodeQrImage(imageUrl: string): Promise<string | null> {
   return result?.data || null;
 }
 
+// ── Session helpers ─────────────────────────────────────────────────────
+
+export function isMobileDevice(device: string): boolean {
+  return /mobil/i.test(device);
+}
+
+export function cleanDeviceName(device: string): string {
+  return device.replace(/^Denne enhed:\s*/i, '').trim();
+}
+
 // ── Sessions parser (AdgangIndstillinger.aspx) ─────────────────────────
 
 export function parseSessionsFromDoc(doc: Document): SessionEntry[] {

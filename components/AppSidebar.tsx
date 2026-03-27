@@ -324,6 +324,31 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       // If localStorage fails, fail open without blocking the app.
       setWelcomeOpen(true);
     }
+
+    // Listen for storage changes from other preloaded/prerendered pages so that
+    // completing onboarding on one page dismisses it on already-loaded pages too.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === WELCOME_STORAGE_KEY && e.newValue === "true") {
+        setWelcomeOpen(false);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    // When a prerendered page becomes active, re-check localStorage in case
+    // onboarding was completed while this page was still in prerender state.
+    const onPageReveal = () => {
+      try {
+        if (localStorage.getItem(WELCOME_STORAGE_KEY) === "true") {
+          setWelcomeOpen(false);
+        }
+      } catch { /* ignore */ }
+    };
+    document.addEventListener('prerenderingchange', onPageReveal);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('prerenderingchange', onPageReveal);
+    };
   }, [WELCOME_STORAGE_KEY, LEGACY_WELCOME_STORAGE_KEY]);
 
   const closeWelcome = () => {
@@ -591,7 +616,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <div className="flex items-center gap-1 px-2 mb-2">
           <a
             href={`${baseUrl}/indstillinger/studentIndstillinger.aspx`}
-            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors"
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
             title="Profil"
           >
             <User className="size-[1.1rem]" />
@@ -599,7 +624,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors"
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
             title="Indstillinger"
           >
             <Settings className="size-[1.1rem]" />
@@ -613,7 +638,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               document.documentElement.classList.toggle('dark', next);
               setUserJotTheme(next ? 'dark' : 'light');
             }}
-            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-colors"
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
             title={isDark ? 'Skift til lys tilstand' : 'Skift til mørk tilstand'}
           >
             {isDark ? <Sun className="size-[1.1rem]" /> : <Moon className="size-[1.1rem]" />}
@@ -642,7 +667,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 <div className="p-1.5">
                   <a
                     href={`${baseUrl}/indstillinger/studentIndstillinger.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <User className="size-[1.1rem] opacity-70" />
                     Profil
@@ -650,7 +675,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   {hasSps && (
                     <a
                       href={`${baseUrl}/Elev_SPS.aspx`}
-                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                     >
                       <ListChecks className="size-[1.1rem] opacity-70" />
                       SPS
@@ -659,7 +684,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   {hasBooks && (
                     <a
                       href={`${baseUrl}/bd/userreservations.aspx`}
-                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                     >
                       <Library className="size-[1.1rem] opacity-70" />
                       Bøger
@@ -667,7 +692,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   )}
                   <a
                     href={`${baseUrl}/studieplan/uvb_list_off.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <BookMarked className="size-[1.1rem] opacity-70" />
                     UV-beskrivelser
@@ -680,7 +705,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                       setSettingsOpen(true);
                       setMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-colors"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <Settings className="size-[1.1rem] opacity-70" />
                     Indstillinger
@@ -703,7 +728,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                           window.location.href = 'https://www.lectio.dk';
                         });
                     }}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-destructive/10 transition-colors text-destructive"
+                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-destructive/10 transition-[color,background-color] duration-150 text-destructive"
                   >
                     <LogOut className="size-[1.1rem]" />
                     Log ud

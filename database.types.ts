@@ -334,6 +334,7 @@ export type Database = {
       students: {
         Row: {
           birthdate: string | null
+          class_name: string | null
           created_at: string
           custom_pfp_url: string | null
           description: string | null
@@ -351,6 +352,7 @@ export type Database = {
         }
         Insert: {
           birthdate?: string | null
+          class_name?: string | null
           created_at?: string
           custom_pfp_url?: string | null
           description?: string | null
@@ -368,6 +370,7 @@ export type Database = {
         }
         Update: {
           birthdate?: string | null
+          class_name?: string | null
           created_at?: string
           custom_pfp_url?: string | null
           description?: string | null

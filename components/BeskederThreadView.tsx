@@ -193,6 +193,66 @@ const ATTACHMENT_ICON_CLASS: Record<AttachmentKind, string> = {
   file: 'text-muted-foreground bg-muted/80',
 };
 
+// ── PDF Preview (fetches blob to bypass Content-Disposition: attachment) ─
+
+function PdfPreview({ url, title }: { url: string; title: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let revoked = false;
+    fetch(url, { credentials: 'include' })
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to fetch PDF');
+        return r.blob();
+      })
+      .then((blob) => {
+        if (revoked) return;
+        setBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => setError(true));
+
+    return () => {
+      revoked = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [url]);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-3 text-center py-8">
+        <FileText size={48} className="text-muted-foreground/40" />
+        <p className="text-sm text-muted-foreground">Kunne ikke indlæse PDF</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150"
+        >
+          <Download size={14} />
+          Download i stedet
+        </a>
+      </div>
+    );
+  }
+
+  if (!blobUrl) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      src={blobUrl}
+      className="w-full h-full rounded-lg border"
+      title={title}
+    />
+  );
+}
+
 // ── Avatar Component ────────────────────────────────────────────────────
 
 interface AvatarProps {
@@ -271,11 +331,12 @@ function SenderAvatar({ name, contextCardId, schoolId, size = 36, studentsMap }:
 
 // ── Message Component ────────────────────────────────────────────────────
 
-interface LightboxImage {
+interface LightboxItem {
   url: string;
   name: string;
   sizeLabel?: string;
   ext: string;
+  kind: 'image' | 'pdf';
 }
 
 interface MessageItemProps {
@@ -283,7 +344,7 @@ interface MessageItemProps {
   schoolId: string;
   threadSubject: string;
   index: number;
-  onImageClick: (img: LightboxImage) => void;
+  onImageClick: (img: LightboxItem) => void;
   studentsMap: StudentsMap | null;
 }
 
@@ -330,7 +391,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
           {personScheduleUrl ? (
             <button
               type="button"
-              className="truncate text-left text-lg font-semibold tracking-tight text-foreground transition-colors hover:text-primary"
+              className="truncate text-left text-lg font-semibold tracking-tight text-foreground transition-[color] duration-150 hover:text-primary"
               onClick={() => {
                 window.location.href = personScheduleUrl;
               }}
@@ -368,7 +429,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                     <button
                       type="button"
                       className="block w-full cursor-zoom-in bg-muted/30 p-0"
-                      onClick={() => onImageClick({ url: att.url, name: att.name, sizeLabel: att.sizeLabel, ext })}
+                      onClick={() => onImageClick({ url: att.url, name: att.name, sizeLabel: att.sizeLabel, ext, kind: 'image' })}
                     >
                       <img
                         src={att.url}
@@ -388,7 +449,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                         download={att.name}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="ml-auto inline-flex size-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="ml-auto inline-flex size-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                         title="Download"
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -399,15 +460,10 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                 );
               }
 
-              return (
-                <a
-                  key={i}
-                  href={att.url}
-                  className="inline-flex max-w-full items-center gap-2 rounded-xl border border-border/90 bg-card/70 px-2.5 py-2 text-foreground no-underline transition-all hover:-translate-y-px hover:border-primary/40 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring/60 focus-visible:outline-offset-2"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={att.name}
-                >
+              const isPdf = ext === 'pdf';
+              const sharedClassName = "inline-flex max-w-full items-center gap-2 rounded-xl border border-border/90 bg-card/70 px-2.5 py-2 text-foreground no-underline transition-[background-color,border-color] duration-150 hover:border-primary/40 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring/60 focus-visible:outline-offset-2";
+              const inner = (
+                <>
                   <span className={cn('inline-flex size-[1.9rem] shrink-0 items-center justify-center rounded-lg', ATTACHMENT_ICON_CLASS[kind])}>
                     <Icon size={16} />
                   </span>
@@ -418,6 +474,33 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                     </span>
                   </span>
                   <Download size={14} className="shrink-0 text-muted-foreground/80" />
+                </>
+              );
+
+              if (isPdf) {
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={cn(sharedClassName, 'cursor-pointer')}
+                    title={att.name}
+                    onClick={() => onImageClick({ url: att.url, name: att.name, sizeLabel: att.sizeLabel, ext, kind: 'pdf' })}
+                  >
+                    {inner}
+                  </button>
+                );
+              }
+
+              return (
+                <a
+                  key={i}
+                  href={att.url}
+                  className={sharedClassName}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={att.name}
+                >
+                  {inner}
                 </a>
               );
             })}
@@ -452,7 +535,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const [removingIndex, setRemovingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
-  const [lightboxImage, setLightboxImage] = useState<LightboxImage | null>(null);
+  const [lightboxItem, setLightboxItem] = useState<LightboxItem | null>(null);
   const [formState, setFormState] = useState<FormState>({
     tokens: data.formTokens,
     action: data.formAction,
@@ -556,13 +639,13 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
   // Close lightbox on Escape
   useEffect(() => {
-    if (!lightboxImage) return;
+    if (!lightboxItem) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightboxImage(null);
+      if (e.key === 'Escape') setLightboxItem(null);
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [lightboxImage]);
+  }, [lightboxItem]);
 
   const handleFileSelect = useCallback((e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -676,12 +759,12 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   });
 
   return (
-    <div className="mx-auto max-w-[960px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-10 pb-12 pt-8">
       {/* ── Header ─────────────────────────────── */}
-      <div className="sticky top-0 z-10 -mx-8 flex items-center gap-3 border-b border-border bg-background/80 px-8 pb-5 pt-5 mb-3 backdrop-blur-md max-sm:-mx-4 max-sm:px-4">
+      <div className="sticky top-0 z-10 -mx-10 flex items-center gap-3 border-b border-border bg-background/80 px-10 pb-5 pt-5 mb-3 backdrop-blur-md">
         <button
           type="button"
-          className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent"
+          className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.95]"
           onClick={handleBack}
           title="Tilbage til beskeder"
         >
@@ -689,7 +772,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         </button>
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[1.5rem] font-[800] tracking-[-0.03em] text-foreground">{data.threadSubject}</h1>
+          <h1 className="truncate text-[1.5rem] font-[800] tracking-[-0.02em] text-foreground">{data.threadSubject}</h1>
           <div className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users size={13} className="text-muted-foreground" />
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -698,7 +781,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                   <button
                     key={`${recipient.contextCardId}-${recipient.name}-${index}`}
                     type="button"
-                    className="truncate text-left transition-colors hover:text-primary"
+                    className="truncate text-left transition-[color] duration-150 hover:text-primary"
                     onClick={() => {
                       window.location.href = recipient.scheduleUrl!;
                     }}
@@ -734,7 +817,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             schoolId={schoolId}
             threadSubject={data.threadSubject}
             index={idx}
-            onImageClick={setLightboxImage}
+            onImageClick={setLightboxItem}
             studentsMap={studentsMap}
           />
         ))}
@@ -775,7 +858,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                   <span>{file.name}</span>
                   <button
                     type="button"
-                    className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                     onClick={() => handleRemoveFile(file, i)}
                     disabled={removingIndex !== null}
                     title="Fjern vedhæftning"
@@ -805,7 +888,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                   ) : (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                       onClick={() => fileInputRef.current?.click()}
                       title="Vedhæft fil"
                     >
@@ -826,7 +909,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
               </span>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-[0_1px_2px_oklch(0_0_0/0.06)] transition-all hover:bg-[oklch(from_var(--primary)_calc(l-0.04)_c_h)] hover:shadow-[0_2px_6px_oklch(0_0_0/0.1)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={handleSend}
                 disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null}
               >
@@ -839,45 +922,59 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         </div>
       )}
 
-      {/* ── Image Lightbox ───────────────────────── */}
-      {lightboxImage && (
+      {/* ── Lightbox (image + PDF) ───────────────────────── */}
+      {lightboxItem && (
         <div
           className="animate-[lightbox-fade-in_0.15s_ease-out] fixed inset-0 z-100 flex cursor-pointer items-center justify-center bg-[oklch(0_0_0/0.6)] backdrop-blur-sm"
-          onClick={() => setLightboxImage(null)}
+          onClick={() => setLightboxItem(null)}
         >
           <div
-            className="animate-[lightbox-scale-in_0.2s_ease-out] flex max-h-[85vh] max-w-[min(85vw,900px)] cursor-default flex-col overflow-hidden rounded-xl bg-card shadow-[0_24px_80px_-12px_oklch(0_0_0/0.5),0_0_0_1px_oklch(1_0_0/0.08)]"
+            className={cn(
+              "animate-[lightbox-scale-in_0.2s_ease-out] flex cursor-default flex-col overflow-hidden rounded-xl bg-card shadow-[0_24px_80px_-12px_oklch(0_0_0/0.5),0_0_0_1px_oklch(1_0_0/0.08)]",
+              lightboxItem.kind === 'pdf'
+                ? 'w-[95vw] max-w-[1200px] h-[92vh]'
+                : 'max-h-[85vh] max-w-[min(85vw,900px)]',
+            )}
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={lightboxImage.url}
-              alt={lightboxImage.name}
-              className="block max-h-[calc(85vh-3rem)] max-w-full object-contain bg-[oklch(0.12_0_0)]"
-            />
+            {lightboxItem.kind === 'pdf' ? (
+              <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-0">
+                <PdfPreview url={lightboxItem.url} title={lightboxItem.name} />
+              </div>
+            ) : (
+              <img
+                src={lightboxItem.url}
+                alt={lightboxItem.name}
+                className="block max-h-[calc(85vh-3rem)] max-w-full object-contain bg-[oklch(0.12_0_0)]"
+              />
+            )}
             <div className="flex min-h-11 items-center gap-2 border-t border-border/50 px-3 py-2">
-              <FileImage size={15} className="shrink-0 text-[oklch(0.59_0.11_215)]" />
+              {lightboxItem.kind === 'pdf'
+                ? <FileText size={15} className="shrink-0 text-[oklch(0.54_0.13_265)]" />
+                : <FileImage size={15} className="shrink-0 text-[oklch(0.59_0.11_215)]" />
+              }
               <div className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-foreground">{lightboxImage.name}</span>
-                {(lightboxImage.sizeLabel || lightboxImage.ext) && (
+                <span className="block truncate text-sm font-medium text-foreground">{lightboxItem.name}</span>
+                {(lightboxItem.sizeLabel || lightboxItem.ext) && (
                   <span className="block text-xs font-medium uppercase tracking-[0.01em] text-muted-foreground">
-                    {lightboxImage.sizeLabel || lightboxImage.ext.toUpperCase()}
+                    {lightboxItem.sizeLabel || lightboxItem.ext.toUpperCase()}
                   </span>
                 )}
               </div>
               <a
-                href={lightboxImage.url}
-                download={lightboxImage.name}
+                href={lightboxItem.url}
+                download={lightboxItem.name}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent/60 hover:text-foreground"
                 title="Download"
               >
                 <Download size={15} />
               </a>
               <button
                 type="button"
-                className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-                onClick={() => setLightboxImage(null)}
+                className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent/60 hover:text-foreground"
+                onClick={() => setLightboxItem(null)}
                 title="Luk"
               >
                 <X size={16} />

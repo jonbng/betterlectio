@@ -329,7 +329,7 @@ function CardHeader({
   return (
     <a
       href={href}
-      className="group flex items-center gap-2.5 px-4 py-3 no-underline transition-colors hover:bg-accent/40"
+      className="group flex items-center gap-2.5 px-4 py-3 no-underline transition-[background-color] duration-150 hover:bg-accent/30"
     >
       <div className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Icon size={15} strokeWidth={2} />
@@ -337,7 +337,7 @@ function CardHeader({
       <span className="text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground">{title}</span>
       {count != null && count > 0 && (
         <span className={cn(
-          "inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[0.6875rem] font-semibold leading-none",
+          "inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold leading-none",
           countColor || "bg-primary text-primary-foreground",
         )}>
           {count}
@@ -425,7 +425,7 @@ function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: 
           <div key={gi}>
             {/* Date group label */}
             <div className={cn(
-              "flex items-center gap-2 px-4 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.05em] text-muted-foreground",
+              "flex items-center gap-2 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground",
               gi > 0 && "border-t border-border",
             )}>
               {group.label}
@@ -438,7 +438,7 @@ function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: 
                 <a
                   key={li}
                   href={lektie.activityUrl}
-                  className="group/lektie flex items-start gap-2.5 border-t border-border/60 px-4 py-2.5 no-underline transition-colors hover:bg-accent/40 cursor-pointer"
+                  className="group/lektie flex items-start gap-2.5 border-t border-border/60 px-4 py-2.5 no-underline transition-[background-color] duration-150 hover:bg-accent/30 cursor-pointer"
                   title={lektie.fullDescription}
                   onClick={(e) => {
                     e.preventDefault();
@@ -452,7 +452,7 @@ function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: 
                 >
                   {/* Hold pill */}
                   <span
-                    className="mt-0.5 inline-flex shrink-0 items-center rounded-md px-1.5 py-px text-[0.625rem] font-semibold leading-[1.6] whitespace-nowrap bg-[oklch(0.95_0.06_var(--hold-hue,235))] text-[oklch(0.45_0.14_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
+                    className="hold-pill-dynamic mt-0.5 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-[1.5] whitespace-nowrap"
                     style={{ '--hold-hue': hue } as any}
                   >
                     {displayName}
@@ -563,7 +563,7 @@ function OpgaverCard({ initialEntries, schoolId }: { initialEntries: ForsideOpga
               key={opgave.url || i}
               href={opgave.url}
               className={cn(
-                "relative flex items-center gap-2.5 overflow-hidden border-t border-border px-4 py-2.5 no-underline text-foreground cursor-pointer transition-colors hover:bg-accent/40",
+                "relative flex items-center gap-2.5 overflow-hidden border-t border-border px-4 py-2.5 no-underline text-foreground cursor-pointer transition-[background-color] duration-150 hover:bg-accent/30",
                 info.urgency === 'missing' && "bg-[oklch(0.97_0.02_25)] hover:bg-[oklch(0.95_0.03_25)] dark:bg-[oklch(0.17_0.02_25)] dark:hover:bg-[oklch(0.2_0.025_25)]",
               )}
               onClick={(e) => openDetail(e as unknown as MouseEvent, opgave)}
@@ -600,7 +600,7 @@ function OpgaverCard({ initialEntries, schoolId }: { initialEntries: ForsideOpga
               {/* Hold pill + dismiss */}
               <div className="shrink-0 flex items-center gap-1.5">
                 <span
-                  className="inline-flex items-center rounded-full px-[0.4375rem] py-0.5 text-[0.625rem] font-semibold leading-[1.5] whitespace-nowrap bg-[oklch(0.95_0.08_var(--hold-hue,235))] text-[oklch(0.5_0.16_var(--hold-hue,235))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]"
+                  className="hold-pill-dynamic inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-[1.5] whitespace-nowrap"
                   style={{ '--hold-hue': hue } as any}
                 >
                   {getHoldDisplayName(opgave.holdCode)}
@@ -758,7 +758,7 @@ function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry
             <a
               key={besked.url || i}
               href={besked.url}
-              className="group/msg flex items-center gap-3 border-t border-border px-4 py-2.5 no-underline transition-colors hover:bg-accent/40"
+              className="group/msg flex items-center gap-3 border-t border-border px-4 py-2.5 no-underline transition-[background-color] duration-150 hover:bg-accent/30"
             >
               <BeskedSenderAvatar besked={besked} schoolId={schoolId} nameIdReady={nameIdReady} studentsMap={studentsMap} />
 
@@ -768,7 +768,7 @@ function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry
                   <span className="truncate text-sm font-medium leading-[1.3] text-foreground group-hover/msg:text-foreground">
                     {besked.subject}
                   </span>
-                  <span className="shrink-0 text-[0.6875rem] text-muted-foreground/60 tabular-nums">
+                  <span className="shrink-0 text-xs text-muted-foreground/60 tabular-nums">
                     {relativeTime(besked.timeRaw)}
                   </span>
                 </div>
@@ -817,16 +817,24 @@ export function ForsideDashboard({
 }: DashboardProps) {
   // 2-column grid: left has aktuel info + lektier, right has opgaver + beskeder
   return (
-    <div className="grid grid-cols-1 gap-4 px-8 pb-4 md:grid-cols-2">
+    <div className="grid grid-cols-2 gap-4 px-8 pb-4">
       {/* Left column */}
       <div className="flex flex-col gap-4">
-        <AktuelInfoCard entries={aktuelInfo} schoolId={schoolId} />
-        <LektierCard entries={lektier} schoolId={schoolId} />
+        <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '0ms' }}>
+          <AktuelInfoCard entries={aktuelInfo} schoolId={schoolId} />
+        </div>
+        <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '60ms' }}>
+          <LektierCard entries={lektier} schoolId={schoolId} />
+        </div>
       </div>
       {/* Right column */}
       <div className="flex flex-col gap-4">
-        <OpgaverCard initialEntries={opgaver} schoolId={schoolId} />
-        <BeskederCard entries={beskeder} unreadCount={unreadCount} schoolId={schoolId} />
+        <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '30ms' }}>
+          <OpgaverCard initialEntries={opgaver} schoolId={schoolId} />
+        </div>
+        <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '90ms' }}>
+          <BeskederCard entries={beskeder} unreadCount={unreadCount} schoolId={schoolId} />
+        </div>
       </div>
     </div>
   );

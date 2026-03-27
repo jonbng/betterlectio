@@ -147,7 +147,7 @@ function AutocompleteInput({
               data-suggestion
               type="button"
               className={cn(
-                'block w-full rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent focus:bg-accent',
+                'block w-full rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-sm text-foreground transition-[color,background-color] duration-150 hover:bg-accent focus:bg-accent',
                 i === selectedIndex && 'bg-accent',
               )}
               onMouseDown={(e) => {
@@ -205,7 +205,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
   };
 
   return (
-    <div className={cn('flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/30', showColors && 'relative z-2')}>
+    <div className={cn('flex items-center gap-3 px-4 py-2 transition-[color,background-color] duration-150 hover:bg-accent/30', showColors && 'relative z-2')}>
       {/* Color dot */}
       <div className="relative shrink-0" ref={colorRef}>
         <button
@@ -294,7 +294,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
         ) : (
           <button
             type="button"
-            className="group -m-0.5 flex w-fit max-w-full items-center gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-sm text-foreground transition-colors hover:bg-accent/70"
+            className="group -m-0.5 flex w-fit max-w-full items-center gap-2 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-sm text-foreground transition-[color,background-color] duration-150 hover:bg-accent/70"
             onClick={() => setEditing(true)}
             title="Klik for at redigere"
           >

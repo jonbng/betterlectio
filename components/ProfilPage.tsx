@@ -1,28 +1,28 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import {
   User,
-  Monitor,
-  Smartphone,
-  Shield,
   IdCard,
   Save,
-  Clock,
-  CalendarPlus,
-  CalendarClock,
-  Trash2,
   Loader2,
-  Sparkles,
   Instagram,
   Check,
+  ChevronDown,
+  Lock,
+  Cake,
+  Phone,
+  Mail,
+  MapPin,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { createPortal } from 'preact/compat';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import type {
-  ProfilData,
-  StudiekortData,
-  SessionEntry,
-} from '@/lib/profil-parser';
-import { fetchStudiekortData, fetchSessionsData, deleteSession } from '@/lib/profil-parser';
+import type { ProfilData, StudiekortData } from '@/lib/profil-parser';
+import { fetchStudiekortData } from '@/lib/profil-parser';
 import type { Tables } from '@/database.types';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
 import { getLoggedInUserId } from '@/lib/profile-cache';
@@ -31,14 +31,6 @@ import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/
 type Student = Tables<'students'>;
 
 // ── Helpers ─────────────────────────────────────────────────────────────
-
-function isMobileDevice(device: string): boolean {
-  return /mobil/i.test(device);
-}
-
-function cleanDeviceName(device: string): string {
-  return device.replace(/^Denne enhed:\s*/i, '').trim();
-}
 
 function triggerNativeSave(phone: string, email: string, altContact: string) {
   const phoneInput = document.getElementById(
@@ -55,316 +47,171 @@ function triggerNativeSave(phone: string, email: string, altContact: string) {
   if (emailInput) emailInput.value = email;
   if (altContactInput) altContactInput.value = altContact;
 
-  // Trigger the native ASP.NET postback
   const win = window as unknown as { __doPostBack?: (target: string, arg: string) => void };
   if (win.__doPostBack) {
     win.__doPostBack('s$m$Content$Content$stamdataSaveBtn', '');
   }
 }
 
-// ── Skeleton ────────────────────────────────────────────────────────────
-
 function Skeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={cn('animate-pulse rounded-md bg-muted', className)}
-    />
+    <div className={cn('animate-pulse rounded-md bg-muted', className)} />
   );
 }
 
-// ── Info Row ────────────────────────────────────────────────────────────
+// ── Studiekort Dialog ────────────────────────────────────────────────────
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  if (!value) return null;
-  return (
-    <div className="py-2.5">
-      <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </p>
-      <p className="text-sm text-foreground mt-0.5">{value}</p>
-    </div>
-  );
-}
-
-// ── Editable Row ────────────────────────────────────────────────────────
-
-function EditableRow({
-  label,
-  value,
-  onChange,
-  type = 'text',
-  maxLength,
-  hint,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  maxLength?: number;
-  hint?: string;
-}) {
-  return (
-    <div className="py-2.5">
-      <label className="text-[0.65rem] uppercase tracking-wider text-muted-foreground font-medium block mb-1">
-        {label}
-      </label>
-      <input
-        type={type}
-        value={value}
-        maxLength={maxLength}
-        onInput={(e) => onChange((e.target as HTMLInputElement).value)}
-        className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-colors"
-      />
-      {hint && (
-        <p className="text-[0.65rem] text-muted-foreground mt-1 italic">{hint}</p>
-      )}
-    </div>
-  );
-}
-
-// ── Studiekort Card ─────────────────────────────────────────────────────
-
-function StudiekortCard({
-  data,
-  loading,
-}: {
-  data: StudiekortData | null;
-  loading: boolean;
-}) {
+function StudiekortDialog({ schoolId }: { schoolId: string }) {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<StudiekortData | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const fetchedRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  if (loading) {
-    return (
-      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-        <div className="flex items-center gap-2.5 mb-1">
-          <IdCard className="w-4.5 h-4.5 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">Studiekort</h2>
-        </div>
-        <Skeleton className="w-full h-96 rounded-lg" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!open || fetchedRef.current) return;
+    fetchedRef.current = true;
+    setLoading(true);
+    fetchStudiekortData(schoolId)
+      .then(setData)
+      .catch((err) => console.error('[BetterLectio] Failed to load studiekort:', err))
+      .finally(() => setLoading(false));
+  }, [open, schoolId]);
 
-  if (!data) return null;
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
 
-  return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <div className="flex items-center gap-2.5 mb-4">
-        <IdCard className="w-4.5 h-4.5 text-primary" />
-        <h2 className="text-sm font-semibold text-foreground">Studiekort</h2>
-      </div>
+  // Prevent body scroll when open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
 
-      {/* Vertical card */}
-      <div
-        className="relative rounded-2xl overflow-hidden p-4 flex flex-col"
-        style={{
-          background: `linear-gradient(160deg, oklch(0.45 0.16 265), oklch(0.38 0.12 280))`,
-        }}
-      >
-        {/* Photo / QR — click to toggle */}
+  const portalTarget = document.getElementById('il-root') || document.body;
+
+  const modal = open
+    ? createPortal(
         <div
-          className="w-full aspect-[3/4] rounded-xl overflow-hidden mb-4 flex items-center justify-center cursor-pointer"
-          style={{ backgroundColor: 'oklch(0.30 0.08 265 / 0.4)' }}
-          onClick={() => setShowQr(!showQr)}
-          title={showQr ? 'Klik for at vise foto' : 'Klik for at vise QR kode'}
+          className="fixed inset-0 z-200 flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
         >
-          {showQr && data.qrUrl ? (
-            <img
-              src={data.qrUrl}
-              alt="QR kode"
-              className="w-full h-full object-contain bg-white p-3"
-            />
-          ) : data.photoUrl ? (
-            <img
-              src={data.photoUrl}
-              alt="Foto"
-              className="w-full h-full object-cover object-top"
-            />
-          ) : (
-            <User
-              className="w-12 h-12"
-              style={{ color: 'oklch(0.65 0.06 265)' }}
-            />
-          )}
-        </div>
-
-        {/* Info */}
-        <p
-          className="text-lg font-bold leading-tight"
-          style={{ color: 'oklch(0.96 0.01 265)' }}
-        >
-          {data.name}
-        </p>
-        <p
-          className="text-sm mt-1.5 font-medium"
-          style={{ color: 'oklch(0.78 0.04 265)' }}
-        >
-          {data.school}
-        </p>
-        <p
-          className="text-sm mt-1"
-          style={{ color: 'oklch(0.68 0.04 265)' }}
-        >
-          {data.birthday}
-        </p>
-
-        {/* Timestamp */}
-        {data.timestamp && (
-          <p
-            className="text-[0.6rem] mt-3 text-center"
-            style={{ color: 'oklch(0.52 0.03 265)' }}
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
+            onClick={() => setOpen(false)}
+          />
+          {/* Content */}
+          <div
+            ref={contentRef}
+            className="relative z-10 bg-background w-full max-w-sm mx-4 rounded-xl border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            {data.timestamp}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
+            <h2 className="text-lg font-semibold text-foreground mb-4">Studiekort</h2>
 
-// ── Sessions Card ───────────────────────────────────────────────────────
+            {loading && (
+              <div className="space-y-4">
+                <Skeleton className="w-full h-80 rounded-lg" />
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            )}
 
-function SessionsCard({
-  sessions,
-  loading,
-  onDelete,
-}: {
-  sessions: SessionEntry[];
-  loading: boolean;
-  onDelete: (deleteIndex: number) => void;
-}) {
-  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
-  if (loading) {
-    return (
-      <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-        <div className="flex items-center gap-2.5 mb-1">
-          <Shield className="w-4.5 h-4.5 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">
-            Aktive sessioner
-          </h2>
-        </div>
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-14 w-full rounded-lg" />
-        ))}
-      </div>
-    );
-  }
+            {!loading && data && (
+              <div
+                className="relative rounded-2xl overflow-hidden p-4 flex flex-col"
+                style={{ background: 'linear-gradient(160deg, oklch(0.45 0.16 265), oklch(0.38 0.12 280))' }}
+              >
+                <div
+                  className="w-full aspect-[3/4] rounded-xl overflow-hidden mb-4 flex items-center justify-center cursor-pointer"
+                  style={{ backgroundColor: 'oklch(0.30 0.08 265 / 0.4)' }}
+                  onClick={() => setShowQr(!showQr)}
+                  title={showQr ? 'Klik for at vise foto' : 'Klik for at vise QR kode'}
+                >
+                  {showQr && data.qrUrl ? (
+                    <img src={data.qrUrl} alt="QR kode" className="w-full h-full object-contain bg-white p-3" />
+                  ) : data.photoUrl ? (
+                    <img src={data.photoUrl} alt="Foto" className="w-full h-full object-cover object-top" />
+                  ) : (
+                    <User className="w-12 h-12" style={{ color: 'oklch(0.65 0.06 265)' }} />
+                  )}
+                </div>
+                <p className="text-lg font-bold leading-tight" style={{ color: 'oklch(0.96 0.01 265)' }}>
+                  {data.name}
+                </p>
+                <p className="text-sm mt-1.5 font-medium" style={{ color: 'oklch(0.78 0.04 265)' }}>
+                  {data.school}
+                </p>
+                <p className="text-sm mt-1" style={{ color: 'oklch(0.68 0.04 265)' }}>
+                  {data.birthday}
+                </p>
+                {data.timestamp && (
+                  <p className="text-xs mt-3 text-center" style={{ color: 'oklch(0.52 0.03 265)' }}>
+                    {data.timestamp}
+                  </p>
+                )}
+              </div>
+            )}
 
-  if (sessions.length === 0) return null;
+            {!loading && !data && (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                Kunne ikke hente studiekort.
+              </p>
+            )}
+          </div>
+        </div>,
+        portalTarget,
+      )
+    : null;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <div className="flex items-center gap-2.5 mb-4">
-        <Shield className="w-4.5 h-4.5 text-primary" />
-        <h2 className="text-sm font-semibold text-foreground">
-          Aktive sessioner
-        </h2>
-        <span className="text-[0.6rem] text-muted-foreground ml-auto">
-          {sessions.length} enhed{sessions.length !== 1 ? 'er' : ''}
-        </span>
-      </div>
-
-      <div className="space-y-1">
-        {sessions.map((session, i) => {
-          const mobile = isMobileDevice(session.device);
-          const DeviceIcon = mobile ? Smartphone : Monitor;
-          const deviceName = session.isCurrent
-            ? cleanDeviceName(session.device)
-            : session.device;
-
-          return (
-            <div
-              key={i}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
-                session.isCurrent
-                  ? 'bg-[oklch(0.97_0.02_145)] dark:bg-[oklch(0.18_0.02_145)]'
-                  : 'hover:bg-accent/30',
-              )}
-            >
-              <div
-                className={cn(
-                  'flex items-center justify-center w-8 h-8 rounded-lg shrink-0',
-                  session.isCurrent
-                    ? 'bg-[oklch(0.92_0.04_145)] dark:bg-[oklch(0.24_0.03_145)]'
-                    : 'bg-muted',
-                )}
-              >
-                <DeviceIcon
-                  className={cn(
-                    'w-4 h-4',
-                    session.isCurrent
-                      ? 'text-[oklch(0.45_0.15_145)] dark:text-[oklch(0.70_0.12_145)]'
-                      : 'text-muted-foreground',
-                  )}
-                />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground truncate">
-                    {deviceName}
-                  </span>
-                  {session.isCurrent && (
-                    <Badge
-                      className="text-[0.55rem] px-1.5 py-0 border-0"
-                      style={{
-                        backgroundColor: 'oklch(0.88 0.06 145)',
-                        color: 'oklch(0.35 0.12 145)',
-                      }}
-                    >
-                      Denne enhed
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-3 mt-0.5 text-[0.65rem] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {session.lastLogin}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <CalendarPlus className="w-3 h-3" />
-                    {session.created}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <CalendarClock className="w-3 h-3" />
-                    {session.expiry}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setDeletingIndex(session.deleteIndex);
-                  onDelete(session.deleteIndex);
-                }}
-                disabled={deletingIndex !== null}
-                title="Slet session"
-                className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 hover:bg-destructive/10 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {deletingIndex === session.deleteIndex ? (
-                  <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
-                )}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all duration-150 cursor-pointer active:scale-[0.97]"
+      >
+        <IdCard className="size-4" />
+        Studiekort
+      </button>
+      {modal}
+    </>
   );
 }
 
-// ── BetterLectio Profile Card ────────────────────────────────────────────
+// ── Saved indicator ─────────────────────────────────────────────────────
 
-function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
+function SavedIndicator({ visible }: { visible: boolean }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-xs font-medium transition-all duration-200',
+        visible
+          ? 'opacity-100 translate-y-0 text-[oklch(0.45_0.15_145)] dark:text-[oklch(0.70_0.12_145)]'
+          : 'opacity-0 translate-y-1',
+      )}
+    >
+      <Check className="size-3.5" strokeWidth={2.5} />
+      Gemt
+    </span>
+  );
+}
+
+// ── Social Profile Section ──────────────────────────────────────────────
+
+function SocialProfileSection({ schoolId }: { schoolId: string }) {
   const loggedInId = getLoggedInUserId();
   const distinctId = loggedInId ? getDistinctId(loggedInId) : null;
 
@@ -376,36 +223,24 @@ function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
     enabled: !!loggedInId,
   });
 
+  const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [instagram, setInstagram] = useState('');
   const [showBirthday, setShowBirthday] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const pendingChangesRef = useRef<{
-    changed_description: boolean;
-    changed_instagram: boolean;
-    changed_show_birthday: boolean;
-  } | null>(null);
+  const initializedRef = useRef(false);
+  const [savedField, setSavedField] = useState<string | null>(null);
 
-  const { mutate: updateProfile, isLoading: saving } = useMutation({
+  const { mutate: updateProfile } = useMutation({
     table: 'students',
     method: 'update',
     schoolId,
-    onSuccess: () => {
-      if (distinctId && pendingChangesRef.current) {
-        capture('betterlectio profile updated', distinctId, {
-          school_id: schoolId,
-          ...pendingChangesRef.current,
-        });
-      }
-      pendingChangesRef.current = null;
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    },
   });
 
-  // Sync form fields when student data loads
+  // Only sync form fields on first load — never on refetches after mutations
   useEffect(() => {
-    if (student) {
+    if (student && !initializedRef.current) {
+      initializedRef.current = true;
+      setName(student.name || '');
       setDescription(student.description || '');
       setInstagram(student.instagram || '');
       setShowBirthday(student.show_birthday ?? false);
@@ -420,162 +255,322 @@ function BetterLectioProfileCard({ schoolId }: { schoolId: string }) {
     }
   }, [distinctId, schoolId, student]);
 
+  const saveField = useCallback((field: string, value: unknown) => {
+    if (!loggedInId) return;
+    updateProfile(
+      { [field]: value } as Record<string, unknown>,
+      [{ column: 'id', op: 'eq', value: loggedInId }],
+    );
+    setSavedField(field);
+    setTimeout(() => setSavedField(null), 2000);
+
+    if (distinctId) {
+      capture('betterlectio profile updated', distinctId, {
+        school_id: schoolId,
+        field,
+      });
+    }
+  }, [loggedInId, schoolId, distinctId, updateProfile]);
+
   if (!loggedInId) return null;
 
-  // Not a BetterLectio user yet (no student record or not has_extension)
-  if (!isLoading && !student?.has_extension && !student?.has_app) return null;
+  // Only show skeleton on first load (no data yet), not on refetches
+  const showSkeleton = isLoading && !initializedRef.current;
+  if (!showSkeleton && !student?.has_extension && !student?.has_app) return null;
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
-      <div className="relative bg-card border border-border rounded-xl p-5 overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[oklch(0.54_0.2_265)] via-[oklch(0.6_0.18_285)] to-[oklch(0.54_0.2_265)]" />
-        <div className="flex items-center gap-2.5 mb-4">
-          <Sparkles className="w-4.5 h-4.5 text-[oklch(0.54_0.2_265)]" />
-          <h2 className="text-sm font-semibold text-foreground">BetterLectio Profil</h2>
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-20 w-full rounded-lg" />
-          <Skeleton className="h-10 w-full rounded-lg" />
-          <Skeleton className="h-6 w-48 rounded-lg" />
+      <div className="space-y-6">
+        <Skeleton className="h-14 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-14 w-full rounded-xl" />
         </div>
       </div>
     );
   }
 
-  const hasChanges =
-    description !== (student?.description || '') ||
-    instagram !== (student?.instagram || '') ||
-    showBirthday !== (student?.show_birthday ?? false);
-
   return (
-    <div className="relative bg-card border border-border rounded-xl p-5 overflow-hidden">
-      {/* Accent gradient top line */}
-      <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[oklch(0.54_0.2_265)] via-[oklch(0.6_0.18_285)] to-[oklch(0.54_0.2_265)]" />
-
-      <div className="flex items-center gap-2.5 mb-4">
-        <Sparkles className="w-4.5 h-4.5 text-[oklch(0.54_0.2_265)]" />
-        <h2 className="text-sm font-semibold text-foreground">BetterLectio Profil</h2>
-        <span className="text-[0.6rem] text-muted-foreground ml-auto">Synlig for andre på din skole</span>
+    <div className="space-y-6">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-xl font-semibold text-foreground tracking-tight">
+          Rediger profil
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Synlig for andre BetterLectio brugere
+        </p>
       </div>
 
-      <div className="space-y-0 divide-y divide-border/40">
-        {/* Description */}
-        <div className="py-2.5">
-          <label
-            htmlFor="bl-desc"
-            className="text-[0.65rem] uppercase tracking-wider text-muted-foreground font-medium block mb-1"
-          >
-            Beskrivelse
-          </label>
-          <textarea
-            id="bl-desc"
-            value={description}
-            onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
-            maxLength={200}
-            rows={3}
-            placeholder="Skriv lidt om dig selv..."
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-colors resize-none"
-          />
-          <div className="flex justify-end mt-0.5">
-            <span className={cn(
-              'text-[0.6rem] tabular-nums transition-colors',
-              description.length > 180 ? 'text-[oklch(0.55_0.2_25)]' : 'text-muted-foreground/60',
-            )}>
-              {description.length}/200
-            </span>
+      {/* Name + Instagram — side by side */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {/* Display name */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="bl-name" className="text-sm font-medium text-foreground">
+              Visningsnavn
+            </label>
+            <SavedIndicator visible={savedField === 'name'} />
           </div>
+          <input
+            id="bl-name"
+            type="text"
+            value={name}
+            onInput={(e) => setName((e.target as HTMLInputElement).value)}
+            onBlur={() => {
+              if (name !== (student?.name || '')) {
+                saveField('name', name || null);
+              }
+            }}
+            placeholder="Dit navn"
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150"
+          />
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Andre ser dette i stedet for dit Lectio-navn
+          </p>
         </div>
 
         {/* Instagram */}
-        <div className="py-2.5">
-          <label
-            htmlFor="bl-ig"
-            className="text-[0.65rem] uppercase tracking-wider text-muted-foreground font-medium block mb-1"
-          >
-            Instagram
-          </label>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="bl-ig" className="text-sm font-medium text-foreground">
+              Instagram
+            </label>
+            <SavedIndicator visible={savedField === 'instagram'} />
+          </div>
           <div className="relative">
-            <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+            <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-muted-foreground/40" />
             <input
               id="bl-ig"
               type="text"
               value={instagram}
               onInput={(e) => setInstagram((e.target as HTMLInputElement).value)}
+              onBlur={() => {
+                if (instagram !== (student?.instagram || '')) {
+                  saveField('instagram', instagram || null);
+                }
+              }}
               placeholder="@brugernavn"
-              className="w-full rounded-lg border border-border bg-background pl-9 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-colors"
+              className="w-full rounded-xl border border-border bg-background pl-11 pr-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150"
             />
           </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Dit Instagram-brugernavn
+          </p>
         </div>
+      </div>
 
-        {/* Show birthday checkbox */}
-        <div className="py-3">
-          <label className="flex items-center gap-3 cursor-pointer group" htmlFor="bl-bday">
-            <button
-              type="button"
-              role="checkbox"
-              id="bl-bday"
-              aria-checked={showBirthday}
-              onClick={() => setShowBirthday(!showBirthday)}
-              className={cn(
-                'flex items-center justify-center w-5 h-5 rounded-md border-2 transition-all shrink-0',
-                showBirthday
-                  ? 'bg-[oklch(0.54_0.2_265)] border-[oklch(0.54_0.2_265)]'
-                  : 'border-border bg-background group-hover:border-muted-foreground/40',
-              )}
-            >
-              {showBirthday && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-            </button>
-            <span className="text-sm text-foreground select-none">Vis fødseldag på profil</span>
+      {/* Description — full width */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label htmlFor="bl-desc" className="text-sm font-medium text-foreground">
+            Bio
           </label>
+          <SavedIndicator visible={savedField === 'description'} />
+        </div>
+        <textarea
+          id="bl-desc"
+          value={description}
+          onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
+          onBlur={() => {
+            if (description !== (student?.description || '')) {
+              saveField('description', description || null);
+            }
+          }}
+          maxLength={200}
+          rows={3}
+          placeholder="Skriv lidt om dig selv..."
+          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150 resize-none leading-relaxed"
+        />
+        <div className="flex justify-end mt-1">
+          <span className={cn(
+            'text-xs tabular-nums transition-[color,background-color] duration-150',
+            description.length > 180 ? 'text-[oklch(0.55_0.2_25)]' : 'text-muted-foreground/50',
+          )}>
+            {description.length}/200
+          </span>
         </div>
       </div>
 
-      {/* Save button */}
-      <div className="flex justify-end mt-3">
-        <button
-          onClick={() => {
-            pendingChangesRef.current = {
-              changed_description: description !== (student?.description || ''),
-              changed_instagram: instagram !== (student?.instagram || ''),
-              changed_show_birthday: showBirthday !== (student?.show_birthday ?? false),
-            };
-            updateProfile(
-              {
-                description: description || null,
-                instagram: instagram || null,
-                show_birthday: showBirthday,
-              },
-              [{ column: 'id', op: 'eq', value: loggedInId }],
-            );
+      {/* Birthday toggle */}
+      <div className="flex items-center justify-between rounded-xl border border-border bg-background px-5 py-4">
+        <div className="flex items-center gap-3">
+          <Cake className="size-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Vis fødseldag på profil
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Andre kan se din fødselsdag
+            </p>
+          </div>
+        </div>
+        <Switch
+          id="bl-bday"
+          checked={showBirthday}
+          onCheckedChange={(checked) => {
+            setShowBirthday(checked);
+            saveField('show_birthday', checked);
           }}
-          disabled={saving || !hasChanges}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all cursor-pointer disabled:cursor-not-allowed',
-            saved
-              ? 'bg-[oklch(0.45_0.15_145)] text-white'
-              : hasChanges
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'bg-muted text-muted-foreground',
-          )}
-        >
-          {saved ? (
-            <>
-              <Check className="w-4 h-4" />
-              Gemt
-            </>
-          ) : saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Gemmer...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Gem profil
-            </>
-          )}
-        </button>
+        />
       </div>
+    </div>
+  );
+}
+
+// ── Lectio Info Section (collapsible) ───────────────────────────────────
+
+function LectioInfoSection({ data }: { data: ProfilData }) {
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState(data.phone);
+  const [email, setEmail] = useState(data.email);
+  const [altContact, setAltContact] = useState(data.altContact);
+  const [saving, setSaving] = useState(false);
+
+  const hasAddress = data.address || data.postalCode;
+  const addressStr = [data.address, data.placeName, data.postalCode].filter(Boolean).join(', ');
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="rounded-xl border border-border/50 overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-accent/20 transition-[color,background-color] duration-150 cursor-pointer active:scale-[0.995]"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-medium text-foreground">Lectio oplysninger</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Kontaktinfo, adresse og andre data fra Lectio
+              </p>
+            </div>
+            <ChevronDown
+              className={cn(
+                'size-5 text-muted-foreground/60 transition-transform duration-200 shrink-0',
+                open && 'rotate-180',
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="px-6 pb-6 border-t border-border/40">
+            {/* Read-only info in a compact grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 pt-5 pb-6">
+              <InfoItem label="Fornavn" value={data.firstName} />
+              <InfoItem label="Efternavn" value={data.lastName} />
+              {data.coName && <InfoItem label="C/O navn" value={data.coName} />}
+              {hasAddress && (
+                <InfoItem label="Adresse" value={addressStr} icon={MapPin} />
+              )}
+            </div>
+
+            <div className="border-t border-border/40 pt-5">
+              <p className="text-sm font-medium text-foreground mb-4">Kontaktoplysninger</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <EditableField
+                  label="Telefon"
+                  value={phone}
+                  onChange={setPhone}
+                  type="tel"
+                  maxLength={8}
+                  icon={Phone}
+                />
+                <EditableField
+                  label="E-mail"
+                  value={email}
+                  onChange={setEmail}
+                  maxLength={100}
+                  icon={Mail}
+                />
+              </div>
+              <div className="mt-5">
+                <EditableField
+                  label="Alternativ kontakt"
+                  value={altContact}
+                  onChange={setAltContact}
+                  maxLength={100}
+                  hint="Eks. 'Far 12345678', 'Mor 87654321'"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-6 pt-5 border-t border-border/40">
+              <p className="text-xs text-muted-foreground">
+                Gemmes direkte i Lectio
+              </p>
+              <button
+                onClick={() => {
+                  setSaving(true);
+                  triggerNativeSave(phone, email, altContact);
+                }}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all duration-150 disabled:opacity-50 cursor-pointer active:scale-[0.97]"
+              >
+                <Save className="size-4" />
+                {saving ? 'Gemmer...' : 'Gem ændringer'}
+              </button>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+function InfoItem({ label, value, icon: Icon }: { label: string; value: string; icon?: typeof MapPin }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground font-medium mb-0.5">{label}</p>
+      <p className="text-sm text-foreground flex items-center gap-1.5">
+        {Icon && <Icon className="size-3.5 text-muted-foreground/60 shrink-0" />}
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function EditableField({
+  label,
+  value,
+  onChange,
+  type = 'text',
+  maxLength,
+  hint,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  maxLength?: number;
+  hint?: string;
+  icon?: typeof Phone;
+}) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground font-medium block mb-1.5">
+        {label}
+      </label>
+      <div className="relative">
+        {Icon && (
+          <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/40" />
+        )}
+        <input
+          type={type}
+          value={value}
+          maxLength={maxLength}
+          onInput={(e) => onChange((e.target as HTMLInputElement).value)}
+          className={cn(
+            'w-full rounded-xl border border-border bg-background pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150',
+            Icon ? 'pl-10' : 'px-4',
+          )}
+        />
+      </div>
+      {hint && (
+        <p className="text-xs text-muted-foreground mt-1">{hint}</p>
+      )}
     </div>
   );
 }
@@ -589,58 +584,14 @@ export function ProfilPage({
   data: ProfilData;
   schoolId: string;
 }) {
-  const [phone, setPhone] = useState(data.phone);
-  const [email, setEmail] = useState(data.email);
-  const [altContact, setAltContact] = useState(data.altContact);
-  const [saving, setSaving] = useState(false);
-
-  const [studiekort, setStudiekort] = useState<StudiekortData | null>(null);
-  const [studiekortLoading, setStudiekortLoading] = useState(true);
-
-  const [sessions, setSessions] = useState<SessionEntry[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
-
-  // Fetch studiekort + sessions in parallel
-  useEffect(() => {
-    fetchStudiekortData(schoolId)
-      .then(setStudiekort)
-      .catch((err) =>
-        console.error('[BetterLectio] Failed to load studiekort:', err),
-      )
-      .finally(() => setStudiekortLoading(false));
-
-    fetchSessionsData(schoolId)
-      .then(setSessions)
-      .catch((err) =>
-        console.error('[BetterLectio] Failed to load sessions:', err),
-      )
-      .finally(() => setSessionsLoading(false));
-  }, [schoolId]);
-
-  function handleSave() {
-    setSaving(true);
-    triggerNativeSave(phone, email, altContact);
-  }
-
-  async function handleDeleteSession(deleteIndex: number) {
-    try {
-      const updated = await deleteSession(schoolId, deleteIndex);
-      setSessions(updated);
-    } catch (err) {
-      console.error('[BetterLectio] Failed to delete session:', err);
-    }
-  }
-
-  // Use the high-res fullsize picture (same as sidebar), fall back to thumbnail
   const profilePicUrl = (window as any).__IL_PROFILE_PIC__ || data.pictureUrl;
 
-  const hasAddress = data.address || data.postalCode;
-
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-3xl mx-auto px-6 py-8">
       {/* ── Hero ──────────────────────────────────────────────── */}
-      <div className="flex items-start gap-4">
-        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-border shrink-0 bg-muted">
+      <div className="flex items-start gap-6 mb-10">
+        {/* Profile picture */}
+        <div className="relative w-28 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-border shrink-0 bg-muted group shadow-sm">
           {profilePicUrl ? (
             <img
               src={profilePicUrl}
@@ -649,112 +600,42 @@ export function ProfilPage({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <User className="w-8 h-8 text-muted-foreground" />
+              <User className="size-10 text-muted-foreground/60" />
             </div>
           )}
+          {/* Lock overlay — pfp change coming soon */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <div className="flex flex-col items-center gap-1">
+              <Lock className="size-4 text-white" />
+              <span className="text-xs text-white/90 font-medium">Kommer snart</span>
+            </div>
+          </div>
         </div>
-        <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-2xl font-bold text-foreground leading-tight">
-              {data.fullName}
-            </h1>
+
+        <div className="flex-1 min-w-0 pt-1">
+          <h1 className="text-4xl font-bold text-foreground tracking-tight leading-none">
+            {data.fullName}
+          </h1>
+          <div className="flex items-center gap-3 mt-2.5">
             {data.classCode && (
-              <Badge variant="secondary" className="text-xs font-semibold">
-                {data.classCode}
-              </Badge>
+              <span className="text-lg text-muted-foreground font-medium">{data.classCode}</span>
             )}
-            <Badge
-              className="text-[0.6rem] border-0"
-              style={{
-                backgroundColor: 'oklch(0.92 0.04 265)',
-                color: 'oklch(0.45 0.14 265)',
-              }}
-            >
-              Elev
-            </Badge>
+            <span className="text-lg text-muted-foreground/50">·</span>
+            <span className="text-lg text-muted-foreground">{data.schoolName}</span>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {data.schoolName}
-          </p>
+          <div className="mt-4">
+            <StudiekortDialog schoolId={schoolId} />
+          </div>
         </div>
       </div>
 
-      {/* ── Two-column: Personal Info + Studiekort ────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_18rem] gap-4">
-        {/* Personal Info */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center gap-2.5 mb-3">
-            <User className="w-4.5 h-4.5 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">
-              Mine oplysninger
-            </h2>
-          </div>
-
-          {/* Read-only fields */}
-          <div className="space-y-0 divide-y divide-border/40">
-            <InfoRow label="Fornavn" value={data.firstName} />
-            <InfoRow label="Efternavn" value={data.lastName} />
-            {data.coName && <InfoRow label="C/O navn" value={data.coName} />}
-            {hasAddress && (
-              <InfoRow
-                label="Adresse"
-                value={
-                  [data.address, data.placeName, data.postalCode]
-                    .filter(Boolean)
-                    .join(', ')
-                }
-              />
-            )}
-          </div>
-
-          {/* Editable fields */}
-          <div className="divide-y divide-border/40">
-            <EditableRow
-              label="Telefon"
-              value={phone}
-              onChange={setPhone}
-              type="tel"
-              maxLength={8}
-            />
-            <EditableRow
-              label="E-mail"
-              value={email}
-              onChange={setEmail}
-              maxLength={100}
-            />
-            <EditableRow
-              label="Alternativ kontakt"
-              value={altContact}
-              onChange={setAltContact}
-              maxLength={100}
-              hint="Tlf.nr til fx forældre eller anden kontaktperson. Eks. 'Far 12345678', 'Mor 87654321', 'Mormor 11112222'"
-            />
-          </div>
-
-          {/* Save button */}
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <Save className="w-4 h-4" />
-              {saving ? 'Gemmer...' : 'Gem'}
-            </button>
-          </div>
-        </div>
-
-        {/* Studiekort */}
-        <div>
-          <StudiekortCard data={studiekort} loading={studiekortLoading} />
-        </div>
+      {/* ── Social Profile (primary) ──────────────────────────── */}
+      <div className="mb-8">
+        <SocialProfileSection schoolId={schoolId} />
       </div>
 
-      {/* ── BetterLectio Profile ──────────────────────────────── */}
-      <BetterLectioProfileCard schoolId={schoolId} />
-
-      {/* ── Sessions ──────────────────────────────────────────── */}
-      <SessionsCard sessions={sessions} loading={sessionsLoading} onDelete={handleDeleteSession} />
+      {/* ── Lectio Info (secondary, collapsible) ──────────────── */}
+      <LectioInfoSection data={data} />
     </div>
   );
 }

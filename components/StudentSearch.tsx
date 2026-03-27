@@ -277,7 +277,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
           {query ? (
             <button
               onClick={() => setQuery('')}
-              className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent transition-colors"
+              className="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent transition-[color,background-color] duration-150"
             >
               <X className="size-5" />
             </button>
@@ -316,7 +316,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                             itemType: prefix,
                           });
                         }}
-                        className="w-full px-4 py-3 text-left hover:bg-accent transition-colors flex items-center gap-3 cursor-pointer"
+                        className="w-full px-4 py-3 text-left hover:bg-accent transition-[color,background-color] duration-150 flex items-center gap-3 cursor-pointer"
                       >
                         <span className={`text-xs font-medium px-2 py-1 rounded-md ${itemConfig.badgeClass}`}>
                           {itemConfig.label}
@@ -348,7 +348,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                           onClick={() => {
                             saveRecentSearch({ ...recent, timestamp: Date.now() });
                           }}
-                          className="flex-1 px-4 py-3 text-left hover:bg-accent transition-colors flex items-center gap-3"
+                          className="flex-1 px-4 py-3 text-left hover:bg-accent transition-[color,background-color] duration-150 flex items-center gap-3"
                         >
                           <span className={`text-xs font-medium px-2 py-1 rounded-md ${itemConfig.badgeClass}`}>
                             {itemConfig.label}

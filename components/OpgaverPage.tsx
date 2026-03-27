@@ -768,10 +768,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const hasActiveFilters = selectedHold !== null || datePreset !== 'all' || queryLower !== '';
 
   return (
-    <div className="mx-auto max-w-[860px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6">
+    <div className="mx-auto max-w-7xl space-y-4 px-10 pb-12 pt-8">
       {/* ── Header ─────────────────────────────── */}
       <div className="border-b border-border pb-5 mb-7">
-        <h1 className="text-[2rem] font-[800] tracking-[-0.03em] text-foreground max-sm:text-2xl">Opgaver</h1>
+        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Opgaver</h1>
         <p className="text-base text-muted-foreground">
           {upcoming.length} kommende &middot; {submitted.length} afleveret
         </p>
@@ -786,7 +786,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           <input
             ref={searchRef}
             type="text"
-            className="h-11 w-full rounded-lg border border-border bg-card pl-9 pr-20 text-base text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 max-sm:pr-10"
+            className="h-11 w-full rounded-lg border border-border bg-card pl-9 pr-20 text-base text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             placeholder="Søg opgaver..."
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -794,13 +794,13 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           {searchQuery && (
             <button
               type="button"
-              className="absolute right-12 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="absolute right-12 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
               onClick={() => setSearchQuery('')}
             >
               <X size={14} />
             </button>
           )}
-          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground max-sm:hidden">⌘K</kbd>
+          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">⌘K</kbd>
         </div>
 
         {/* Date presets */}
@@ -811,7 +811,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               key={preset.key}
               type="button"
               className={cn(
-                'rounded-full border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent',
+                'rounded-full border border-border px-3 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
                 datePreset === preset.key &&
                   'border-[oklch(0.34_0.06_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.43_0.14_265)] hover:bg-[oklch(0.92_0.08_265)] dark:border-[oklch(0.34_0.06_265)] dark:bg-[oklch(0.24_0.06_265)] dark:text-[oklch(0.75_0.12_265)] dark:hover:bg-[oklch(0.28_0.08_265)]',
               )}
@@ -829,7 +829,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           <button
             type="button"
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-accent',
+              'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
               selectedHold === null && 'border-primary/40 bg-primary/10 text-foreground',
             )}
             onClick={() => setSelectedHold(null)}
@@ -841,7 +841,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               key={hold}
               type="button"
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-accent',
+                'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
                 selectedHold === hold &&
                   'border-[oklch(0.6_0.12_var(--hold-hue,265))] bg-[oklch(0.94_0.06_var(--hold-hue,265))] text-[oklch(0.4_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]',
               )}
@@ -871,7 +871,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               </p>
               <button
                 type="button"
-                className="mt-4 rounded-md border border-input bg-background px-4 py-2.5 text-base font-medium transition-colors hover:bg-accent"
+                className="mt-4 rounded-lg border border-input bg-background px-4 py-2.5 text-base font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]"
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedHold(null);
@@ -967,7 +967,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         </div>
 
                         {/* Cards for this week */}
-                        <div className="flex flex-col gap-[0.625rem]">
+                        <div className="flex flex-col gap-3">
                           {group.entries.map((entry) => {
                             const idx = cardIndex++;
                             const display = getDeadlineDisplay(entry.deadline);
@@ -989,7 +989,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                 key={idx}
                                 href={entry.url}
                                 className={cn(
-                                  'rounded-lg border border-border bg-card px-5 py-4 no-underline transition-all animate-[opgaver-slide-up_0.4s_ease_both] hover:-translate-y-[2px] hover:bg-accent/25 hover:shadow-[0_4px_20px_oklch(0_0_0/0.07)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_20px_oklch(0_0_0/0.4)]',
+                                  'rounded-xl border border-border bg-card px-5 py-4 no-underline transition-[background-color,transform] duration-200 ease-out animate-[bl-fade-in_350ms_var(--ease-out)_both] hover:bg-accent/30 active:scale-[0.98]',
                                   hasFravaer && 'border-[oklch(0.67_0.22_25)] bg-[linear-gradient(135deg,oklch(0.985_0.02_25),oklch(0.965_0.035_25))] shadow-[0_0_0_1px_oklch(0.78_0.12_25/0.35)] dark:border-[oklch(0.62_0.19_25)] dark:bg-[linear-gradient(135deg,oklch(0.2_0.03_25),oklch(0.16_0.02_25))] dark:shadow-[0_0_0_1px_oklch(0.58_0.18_25/0.22)]',
                                   UPCOMING_CARD_STYLE[effectiveUrgency],
                                 )}
@@ -1004,7 +1004,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                 }
                               >
                                 {/* Deadline — the hero element */}
-                                <div className="flex flex-wrap items-center justify-between gap-2 max-sm:flex-col max-sm:items-start max-sm:gap-1.5">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="inline-flex min-w-0 items-center gap-1.5">
                                     {effectiveUrgency === 'overdue' && (
                                       <AlertTriangle
@@ -1032,7 +1032,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
                                 {/* Title */}
                                 <span
-                                  className="mt-1.5 block truncate text-base font-medium text-foreground transition-colors hover:text-[oklch(0.5_0.16_var(--hold-hue,235))] max-sm:whitespace-normal"
+                                  className="mt-1.5 block truncate text-base font-medium text-foreground transition-[color] duration-150 hover:text-[oklch(0.5_0.16_var(--hold-hue,265))]"
                                 >
                                   {entry.title}
                                 </span>
@@ -1063,7 +1063,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                 {entry.status === 'mangler' && (
                                   <button
                                     type="button"
-                                    className="mt-2.5 inline-flex rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
+                                    className="mt-2.5 inline-flex rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-[color,background-color] duration-150 hover:bg-accent dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
@@ -1091,7 +1091,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                   <button
                                     type="button"
                                     className={cn(
-                                      'mt-2 block w-full cursor-pointer rounded-md border-l-[3px] border-l-[oklch(0.75_0.12_var(--hold-hue,235))] bg-[oklch(0.96_0.005_265/0.6)] px-2.5 py-2 text-left text-sm leading-6 text-muted-foreground whitespace-pre-line transition-all dark:border-l-[oklch(0.45_0.1_var(--hold-hue,265))] dark:bg-[oklch(0.18_0.004_285/0.6)]',
+                                      'mt-2 block w-full cursor-pointer rounded-md border-l-[3px] border-l-[oklch(0.75_0.12_var(--hold-hue,265))] bg-[oklch(0.96_0.005_265/0.6)] px-2.5 py-2 text-left text-sm leading-6 text-muted-foreground whitespace-pre-line transition-[background-color] duration-150 dark:border-l-[oklch(0.45_0.1_var(--hold-hue,265))] dark:bg-[oklch(0.18_0.004_285/0.6)]',
                                       expandedNotes.has(globalIdx) ? 'line-clamp-none' : 'line-clamp-2',
                                     )}
                                     onClick={(e) => {
@@ -1160,7 +1160,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                         </div>
 
                         {/* Cards for this week */}
-                        <div className="flex flex-col gap-[0.625rem] sm:grid sm:grid-cols-2 max-sm:grid-cols-1">
+                        <div className="grid grid-cols-2 gap-3">
                           {group.entries.map((entry) => {
                             const idx = cardIndex++;
                             const hue = getHoldHue(entry.hold);
@@ -1176,7 +1176,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                               <a
                                 key={idx}
                                 href={entry.url}
-                                className="flex items-start gap-3.5 rounded-lg border border-border bg-card px-5 py-4 no-underline transition-all animate-[opgaver-slide-up_0.35s_ease_both] hover:-translate-y-[2px] hover:bg-accent/25 hover:shadow-[0_4px_20px_oklch(0_0_0/0.07)] dark:hover:border-[oklch(0.32_0.004_285)] dark:hover:shadow-[0_4px_20px_oklch(0_0_0/0.4)]"
+                                className="flex items-start gap-3.5 rounded-xl border border-border bg-card px-5 py-4 no-underline transition-[background-color,transform] duration-200 ease-out animate-[bl-fade-in_350ms_var(--ease-out)_both] hover:bg-accent/30 active:scale-[0.98]"
                                 style={
                                   {
                                     '--hold-hue': hue,
@@ -1206,7 +1206,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                   )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <span className="block truncate text-base font-medium text-foreground transition-colors hover:text-[oklch(0.5_0.16_var(--hold-hue,235))] max-sm:whitespace-normal dark:hover:text-[oklch(0.72_0.12_var(--hold-hue,265))]">
+                                  <span className="block truncate text-base font-medium text-foreground transition-[color] duration-150 hover:text-[oklch(0.5_0.16_var(--hold-hue,265))] dark:hover:text-[oklch(0.72_0.12_var(--hold-hue,265))]">
                                     {entry.title}
                                   </span>
                                   <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -1237,7 +1237,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                                   })() && (
                                     <button
                                       type="button"
-                                      className="mt-2.5 inline-flex rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
+                                      className="mt-2.5 inline-flex rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-[color,background-color] duration-150 hover:bg-accent dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -1261,7 +1261,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               {submitted.length > 6 && !showAllSubmitted && (
                 <button
                   type="button"
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-muted px-4 py-3.5 text-base font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-muted px-4 py-3.5 text-base font-medium text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.98]"
                   onClick={() => setShowAllSubmitted(true)}
                 >
                   <ChevronDown size={16} />

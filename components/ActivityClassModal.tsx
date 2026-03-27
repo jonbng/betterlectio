@@ -248,9 +248,9 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     .join(" \u00b7 ");
 
   const iconButtonClass =
-    "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30";
+    "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30";
   const holdNavControlClass =
-    "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
+    "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
 
   const sheet = (
     <div className="fixed inset-0 z-150 flex justify-end pointer-events-auto" role="dialog" aria-modal="true" aria-label="Aktivitetsdetaljer">
@@ -340,7 +340,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   <a
                     href={detail.phase.url}
                     data-no-activity-modal="true"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-base text-muted-foreground no-underline transition-colors hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)] hover:bg-muted hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-base text-muted-foreground no-underline transition-[background-color,border-color,color] duration-150 hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)] hover:bg-muted hover:text-foreground"
                   >
                     <BookOpen size={15} />
                     {detail.phase.title}
@@ -353,7 +353,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                       key={tab.label}
                       href={tab.url}
                       data-no-activity-modal="true"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-base text-muted-foreground no-underline transition-colors hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)] hover:bg-muted hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-base text-muted-foreground no-underline transition-[background-color,border-color,color] duration-150 hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)] hover:bg-muted hover:text-foreground"
                     >
                       <Link2 size={15} />
                       {tab.label}
@@ -364,7 +364,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     type="button"
                     onClick={toggleMembers}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-base transition-colors cursor-pointer",
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-base transition-[background-color,border-color,color] duration-150 cursor-pointer",
                       membersOpen
                         ? "border-[oklch(0.58_0.18_var(--accent-hue,265))/0.3] bg-[oklch(0.58_0.18_var(--accent-hue,265))/0.08] text-[oklch(0.4_0.14_var(--accent-hue,265))] dark:border-[oklch(0.6_0.13_var(--accent-hue,265))/0.3] dark:bg-[oklch(0.6_0.13_var(--accent-hue,265))/0.1] dark:text-[oklch(0.75_0.12_var(--accent-hue,265))]"
                         : "border-border text-muted-foreground hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)] hover:bg-muted hover:text-foreground",
@@ -408,7 +408,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                 <div className="inline-flex shrink-0 items-center gap-1.5">
                   <button
                     type="button"
-                    className="cursor-pointer rounded-lg border border-[oklch(0.78_0.06_65)] bg-[oklch(0.94_0.04_65)] px-2.5 py-1 text-sm font-semibold text-[oklch(0.36_0.08_65)] transition-colors hover:bg-[oklch(0.91_0.05_65)] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[oklch(0.42_0.05_65)] dark:bg-[oklch(0.26_0.03_65)] dark:text-[oklch(0.82_0.06_65)] dark:hover:bg-[oklch(0.3_0.04_65)]"
+                    className="cursor-pointer rounded-lg border border-[oklch(0.78_0.06_65)] bg-[oklch(0.94_0.04_65)] px-2.5 py-1 text-sm font-semibold text-[oklch(0.36_0.08_65)] transition-[background-color] duration-150 hover:bg-[oklch(0.91_0.05_65)] disabled:cursor-not-allowed disabled:opacity-40 dark:border-[oklch(0.42_0.05_65)] dark:bg-[oklch(0.26_0.03_65)] dark:text-[oklch(0.82_0.06_65)] dark:hover:bg-[oklch(0.3_0.04_65)]"
                     onClick={() => navigateByPostback(lastNavTarget)}
                     disabled={!lastNavTarget || navigating}
                   >
@@ -416,7 +416,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </button>
                   <button
                     type="button"
-                    className="cursor-pointer rounded-lg border border-border bg-background px-2.5 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="cursor-pointer rounded-lg border border-border bg-background px-2.5 py-1 text-sm font-semibold text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
                     onClick={() => setNavError(null)}
                   >
                     Luk
@@ -555,7 +555,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                 <a
                   href={detail.url}
                   data-no-activity-modal="true"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
                 >
                   <ExternalLink size={15} />
                   Åbn i Lectio
@@ -678,7 +678,7 @@ function MemberChip({
       className={cn(
         "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-base leading-snug",
         scheduleUrl
-          ? "transition-colors hover:bg-[color-mix(in_oklch,var(--muted)_80%,transparent)] cursor-pointer"
+          ? "transition-[background-color] duration-150 hover:bg-[color-mix(in_oklch,var(--muted)_80%,transparent)] cursor-pointer"
           : "",
       )}
     >
@@ -752,7 +752,7 @@ function ContentCard({ item }: { item: ActivityHomeworkItem }) {
               key={`${link.url}-${index}`}
               href={link.url}
               data-no-activity-modal="true"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground no-underline transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
             >
               <FileText size={14} />
               {link.label}

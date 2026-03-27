@@ -446,36 +446,37 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const presets = getPeriodPresets();
 
   return (
-    <div className={cn("mx-auto max-w-[1080px] space-y-4 px-8 pb-12 pt-10 max-sm:px-4 max-sm:pb-8 max-sm:pt-6", loading && "pointer-events-none opacity-70")}>
+    <div className={cn("mx-auto max-w-7xl space-y-4 px-10 pb-12 pt-8", loading && "pointer-events-none opacity-70")}>
       {/* ── Header ─────────────────────────────── */}
       <div className="border-b border-border pb-5 mb-3">
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-[2rem] leading-none font-extrabold tracking-[-0.03em] text-foreground max-sm:text-2xl">Fravær</h1>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Fravær</h1>
           {data.studentName && (
-            <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 text-sm font-medium text-muted-foreground">{data.studentName}</span>
+            <span className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-sm font-medium text-muted-foreground">{data.studentName}</span>
           )}
         </div>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-base text-muted-foreground">
           {data.holds.length} fag &middot; {data.records.length} registreringer
         </p>
       </div>
 
       {hasMissingReasons && (
-        <section className="mb-5 rounded-xl border border-border bg-card p-4">
-          <div>
-            <span className="inline-flex items-center gap-1 text-xs font-bold tracking-[0.05em] uppercase text-[oklch(0.5_0.14_50)] dark:text-[oklch(0.8_0.11_50)]">
-              <AlertTriangle size={13} />
-              Kræver handling
-            </span>
-            <p className="mt-1 text-base font-bold leading-tight text-foreground">
-              {data.missingReasons.length} registrering{data.missingReasons.length === 1 ? '' : 'er'} mangler fraværsårsag
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Her er dem, der mangler din handling lige nu.
-            </p>
+        <section className="mb-5 rounded-xl border border-[oklch(0.85_0.08_50)] bg-[oklch(0.99_0.005_50)] p-5 dark:border-[oklch(0.35_0.06_50)] dark:bg-[oklch(0.16_0.012_50)] animate-[bl-fade-in_350ms_var(--ease-out)_both]">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.93_0.06_50)] text-[oklch(0.5_0.18_50)] dark:bg-[oklch(0.28_0.05_50)] dark:text-[oklch(0.75_0.14_50)]">
+              <AlertTriangle size={16} />
+            </div>
+            <div>
+              <p className="text-base font-bold leading-tight text-foreground">
+                {data.missingReasons.length} registrering{data.missingReasons.length === 1 ? '' : 'er'} mangler fraværsårsag
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Disse kræver din handling.
+              </p>
+            </div>
           </div>
 
-          <div className="mt-3 grid gap-2.5">
+          <div className="mt-4 grid gap-2.5">
             {topMissingRecords.map((record, index) => (
               <TopMissingReasonCard
                 key={`${record.absid}-${index}`}
@@ -487,7 +488,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {hasCollapsedTopMissing && (
             <button
-              className="mt-3 inline-flex items-center justify-center px-3 py-1.5 text-sm font-bold text-[oklch(0.45_0.14_50)] hover:underline hover:underline-offset-[0.18rem]"
+              className="mt-3 inline-flex items-center justify-center px-3 py-1.5 text-sm font-bold text-[oklch(0.45_0.14_50)] transition-[background-color,transform] duration-150 hover:underline hover:underline-offset-[0.18rem] active:scale-[0.97]"
               onClick={() => setShowAllTopMissing((value) => !value)}
             >
               {showAllTopMissing
@@ -505,7 +506,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           {presets.map(p => (
             <button
               key={p.key}
-              className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => handlePreset(p)}
               disabled={loading}
             >
@@ -534,7 +535,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             }}
           />
           <button
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,opacity,transform] duration-150 hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={handleCustomPeriod}
             disabled={loading || !periodStart || !periodEnd}
           >
@@ -545,7 +546,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* ── Summary donuts ─────────────────────── */}
       {data.totals && (
-        <div className="mb-8 grid gap-4 sm:grid-cols-2">
+        <div className="mb-8 grid grid-cols-2 gap-4">
           <DonutCard
             label="Almindeligt"
             pct={almOpgjort}
@@ -566,9 +567,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       {/* ── Per-hold breakdown ─────────────────── */}
       {data.holds.length > 0 && (
         <section className="mb-10 space-y-3">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
-              <BarChart3 size={16} />
+          <div className="mb-4">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <BarChart3 size={18} />
               Fravær per fag
             </h2>
           </div>
@@ -582,7 +583,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             onMetricChange={setDistributionMetric}
           />
 
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card animate-[bl-fade-in_350ms_var(--ease-out)_both]">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
@@ -605,7 +606,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                 {visibleHolds.map((h, i) => {
                   const hue = getHoldHue(h.hold);
                   return (
-                    <tr key={i} className="border-t border-border/50 transition-colors hover:bg-muted/30" style={{ '--hold-hue': hue } as any}>
+                    <tr key={i} className="border-t border-border/50 transition-[background-color] duration-150 hover:bg-accent/30" style={{ '--hold-hue': hue } as any}>
                       <td className="flex items-center gap-2 whitespace-nowrap px-3.5 py-4 font-medium text-foreground">
                         <span className="size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
                         {getHoldDisplayName(h.hold)}
@@ -634,7 +635,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
           {zeroAbsenceHolds.length > 0 && (
             <button
-              className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
               onClick={() => setShowZeroAbsenceHolds((value) => !value)}
             >
               {showZeroAbsenceHolds ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -648,11 +649,11 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* ── Records section ────────────────────── */}
       <section className="mb-8 space-y-3">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
-            <Clock size={16} />
+        <div className="mb-4">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <Clock size={18} />
             Fraværsregistreringer
-            <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">{filteredRecords.length}</span>
+            <span className="ml-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{filteredRecords.length}</span>
           </h2>
         </div>
 
@@ -663,13 +664,13 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             <input
               ref={searchRef}
               type="text"
-              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+              className="h-11 w-full rounded-lg border border-border bg-card pl-9 pr-10 text-base text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               placeholder="Søg i registreringer..."
               value={recordSearch}
               onInput={(e) => setRecordSearch((e.target as HTMLInputElement).value)}
             />
             {recordSearch && (
-              <button className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" onClick={() => setRecordSearch('')}>
+              <button className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground" onClick={() => setRecordSearch('')}>
                 <X size={14} />
               </button>
             )}
@@ -678,7 +679,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           {hasMissingReasons && (
             <button
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
                 showOnlyMissing && 'border-[oklch(0.50_0.14_50)] bg-[oklch(0.50_0.14_50)] text-[oklch(0.98_0.01_50)] dark:border-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.55_0.14_50)]',
               )}
               onClick={() => { setShowOnlyMissing(!showOnlyMissing); setVisibleRecords(20); }}
@@ -694,8 +695,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           <div className="mb-4 flex flex-wrap gap-2">
             <button
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                selectedHold === null && 'border-[oklch(0.88_0.08_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:border-[oklch(0.4_0.08_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
+                'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
+                selectedHold === null && 'border-primary/40 bg-primary/10 text-foreground',
+                selectedHold !== null && 'text-muted-foreground',
               )}
               onClick={() => setSelectedHold(null)}
             >
@@ -705,8 +707,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               <button
                 key={hold}
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
-                  selectedHold === hold && 'border-[oklch(0.88_0.08_265)] bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:border-[oklch(0.4_0.08_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
+                  'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
+                  selectedHold === hold && 'border-[oklch(0.6_0.12_var(--hold-hue,265))] bg-[oklch(0.94_0.06_var(--hold-hue,265))] text-[oklch(0.4_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]',
+                  selectedHold !== hold && 'text-muted-foreground',
                 )}
                 onClick={() => setSelectedHold(selectedHold === hold ? null : hold)}
                 style={{ '--hold-hue': getHoldHue(hold) } as any}
@@ -727,7 +730,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                 <p className="text-base font-semibold text-foreground">Ingen resultater</p>
                 <p className="text-sm text-muted-foreground">Prøv at ændre dine filtre</p>
                 <button
-                  className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+                  className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-[color,background-color] duration-150 hover:bg-accent"
                   onClick={() => { setRecordSearch(''); setSelectedHold(null); setShowOnlyMissing(false); }}
                 >
                   Nulstil filtre
@@ -756,7 +759,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {filteredRecords.length > visibleRecords && (
           <button
-            className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-muted px-4 py-3.5 text-base font-medium text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.98]"
             onClick={() => setVisibleRecords(v => v + 20)}
           >
             <ChevronDown size={16} />
@@ -776,7 +779,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             {data.warnings.map((w, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-border/75 bg-background/82 px-4 py-3 dark:bg-background/60"
+                className="rounded-xl border border-border/75 bg-card px-4 py-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-foreground">{w.dato}</span>
@@ -826,7 +829,7 @@ function TopMissingReasonCard({
 
   return (
     <div
-      className="flex items-start justify-between gap-3 rounded-2xl border border-border/75 bg-background/82 p-3.5 shadow-[inset_3px_0_0_oklch(0.65_0.16_var(--hold-hue,50))] dark:bg-background/60 max-sm:flex-col max-sm:items-stretch"
+      className="flex items-start justify-between gap-3 rounded-xl border border-border/75 bg-card p-3.5 border-l-[3px] border-l-[oklch(0.65_0.16_var(--hold-hue,50))]"
       style={{ '--hold-hue': hue } as any}
     >
       <div className="min-w-0 flex-1">
@@ -857,7 +860,7 @@ function TopMissingReasonCard({
       </div>
 
       <button
-        className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-full border border-[color-mix(in_oklch,oklch(0.72_0.12_50)_45%,var(--border))] bg-[oklch(0.99_0.006_50/0.9)] px-3 py-1.5 text-xs font-bold text-[oklch(0.45_0.14_50)] transition-all hover:-translate-y-px hover:border-[oklch(0.65_0.12_50/0.85)] hover:bg-[oklch(0.995_0.004_50)] dark:border-[oklch(0.58_0.11_50/0.42)] dark:bg-[oklch(0.3_0.018_50/0.9)] dark:text-[oklch(0.86_0.09_50)] max-sm:w-full"
+        className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-full border border-[oklch(0.72_0.12_50/0.45)] bg-[oklch(0.99_0.006_50/0.9)] px-3.5 py-1.5 text-xs font-bold text-[oklch(0.45_0.14_50)] transition-[background-color,transform] duration-150 hover:bg-[oklch(0.97_0.01_50)] active:scale-[0.95] dark:border-[oklch(0.58_0.11_50/0.42)] dark:bg-[oklch(0.3_0.018_50/0.9)] dark:text-[oklch(0.86_0.09_50)]"
         onClick={() => onEdit(record)}
       >
         <Edit3 size={13} />
@@ -883,8 +886,8 @@ function DonutCard({
   const color = absenceColor(pct);
 
   return (
-    <div className="flex items-start gap-5 rounded-2xl border border-border bg-card px-6 py-5 shadow-[0_12px_28px_oklch(0_0_0/0.05)] max-sm:gap-4 max-sm:px-4 max-sm:py-4">
-      <div className="relative size-[120px] shrink-0 max-sm:size-[90px]">
+    <div className="flex items-start gap-5 rounded-xl border border-border bg-card px-6 py-5 animate-[bl-fade-in_350ms_var(--ease-out)_both]">
+      <div className="relative size-[120px] shrink-0">
         <ResponsiveContainerAny width={120} height={120}>
           <PieChartAny>
             <PieAny
@@ -906,7 +909,7 @@ function DonutCard({
             </PieAny>
           </PieChartAny>
         </ResponsiveContainerAny>
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xl font-bold tracking-tight max-sm:text-base" style={{ color }}>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xl font-bold tabular-nums tracking-tight" style={{ color }}>
           {formatPct(pct)}
         </div>
       </div>
@@ -956,7 +959,7 @@ function SubjectDistributionCard({
 
   return (
     <div className="mb-4 rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-start justify-between gap-4 max-sm:flex-col">
+      <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h3 className="text-base font-bold text-foreground">Fordeling af fravær</h3>
           <p className="text-sm text-muted-foreground">
@@ -973,7 +976,7 @@ function SubjectDistributionCard({
           <div className="flex overflow-hidden rounded-md border border-border">
             <button
               className={cn(
-                'bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                'bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground',
                 metric === 'alm' && 'bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
               )}
               onClick={() => onMetricChange('alm')}
@@ -982,7 +985,7 @@ function SubjectDistributionCard({
             </button>
             <button
               className={cn(
-                'border-l border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                'border-l border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground',
                 metric === 'skr' && 'bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
               )}
               onClick={() => onMetricChange('skr')}
@@ -994,12 +997,12 @@ function SubjectDistributionCard({
       </div>
 
       {items.length > 0 ? (
-        <div className="grid grid-cols-[minmax(220px,280px)_minmax(0,1fr)] items-center gap-5 max-sm:grid-cols-1">
+        <div className="grid grid-cols-[minmax(220px,280px)_minmax(0,1fr)] items-center gap-5">
           <div className="flex justify-center">
-            <div className="relative size-[220px] max-sm:size-[184px]">
+            <div className="relative size-[220px]">
               <ChartContainerAny
                 config={chartConfig}
-                className="size-full max-h-[220px] max-sm:max-h-[184px]"
+                className="size-full max-h-[220px]"
               >
                 <PieChart>
                   <ChartTooltipAny
@@ -1028,7 +1031,7 @@ function SubjectDistributionCard({
               </ChartContainerAny>
 
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[1.7rem] leading-none font-extrabold tracking-[-0.03em] text-foreground max-sm:text-[1.4rem]">{formatNumber(totalAmount)}</span>
+                <span className="text-[1.7rem] leading-none font-extrabold tracking-[-0.03em] text-foreground">{formatNumber(totalAmount)}</span>
                 <span className="mt-1 text-sm font-semibold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">{unitShort}</span>
                 <span className="mt-1 text-xs text-muted-foreground">
                   ud af {formatNumber(totalPossible)}
@@ -1039,13 +1042,13 @@ function SubjectDistributionCard({
 
           <div className="grid gap-2.5">
             {items.map((item) => (
-              <div key={item.label} className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/82 px-3.5 py-3 dark:bg-background/58">
+              <div key={item.label} className="flex items-start gap-3 rounded-xl border border-border/70 bg-card px-3.5 py-3">
                 <span
                   className="mt-0.5 size-3 shrink-0 rounded-full [background:oklch(0.68_0.14_var(--hold-hue))] shadow-[0_0_0_0.25rem_oklch(0.68_0.14_var(--hold-hue)/0.14)]"
                   style={{ '--hold-hue': item.hue } as any}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-3 max-sm:flex-col max-sm:items-start max-sm:gap-1">
+                  <div className="flex items-baseline justify-between gap-3">
                     <span className="min-w-0 text-sm font-semibold text-foreground">{item.label}</span>
                     <span className="shrink-0 text-sm font-bold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.8_0.08_265)]">{formatPct(item.share)}</span>
                   </div>
@@ -1082,7 +1085,7 @@ function SortHeader({
   const isActive = current === key;
   return (
     <th
-      className={cn("cursor-pointer select-none whitespace-nowrap px-3.5 py-2.5 text-left text-xs font-semibold tracking-[0.04em] uppercase text-muted-foreground transition-colors hover:text-foreground", isActive && "text-foreground")}
+      className={cn("cursor-pointer select-none whitespace-nowrap px-3.5 py-2.5 text-left text-xs font-semibold tracking-[0.04em] uppercase text-muted-foreground transition-[color,background-color] duration-150 hover:text-foreground", isActive && "text-foreground")}
       onClick={() => onSort(key)}
     >
       {label}
@@ -1107,7 +1110,7 @@ function PctCell({ pct, detail }: { pct: string; detail: string }) {
               style={{ width: `${Math.min(num, 100)}%`, background: color }}
             />
           </span>
-          <span className="text-sm font-semibold" style={{ color }}>{pct}</span>
+          <span className="text-sm font-semibold tabular-nums" style={{ color }}>{pct}</span>
           {detail && <span className="text-xs text-muted-foreground/70">{detail}</span>}
         </>
       )}
@@ -1130,7 +1133,7 @@ function RecordCard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-card px-4 py-3 [border-left:3px_solid_oklch(0.65_0.16_var(--hold-hue,265))] transition-[box-shadow,border-color] hover:shadow-[0_2px_8px_oklch(0_0_0/0.05)]',
+        'rounded-xl border border-border bg-card px-4 py-3 border-l-[3px] border-l-[oklch(0.65_0.16_var(--hold-hue,265))] transition-[background-color] duration-150 hover:bg-accent/20',
         isMissing && 'border-l-[oklch(0.65_0.18_50)] bg-[linear-gradient(135deg,oklch(0.99_0.006_50),oklch(0.975_0.018_50)),var(--card)] shadow-[0_10px_22px_oklch(0.78_0.08_50/0.08)] dark:border-l-[oklch(0.60_0.16_50)] dark:bg-[linear-gradient(135deg,oklch(0.22_0.012_50),oklch(0.25_0.02_50)),var(--card)] dark:shadow-[0_10px_22px_oklch(0_0_0/0.2)]',
         record.fravaerType === 'godskrevet' && 'border-l-[oklch(0.65_0.14_145)] opacity-70',
       )}
@@ -1179,7 +1182,7 @@ function RecordCard({
           )}
           {record.editUrl && (
             <button
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.9]"
               onClick={(e) => { e.stopPropagation(); onEdit(record); }}
               title="Rediger årsag"
             >

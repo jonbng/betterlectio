@@ -260,7 +260,7 @@ function SubjectRow({ group }: { group: SubjectGroup }) {
           <tr
             key={`${group.hold}-${label}-${idx}`}
             className={cn(
-              'transition-colors hover:bg-accent/30',
+              'transition-[background-color] duration-150 hover:bg-accent/30',
               isFirst && 'border-t border-border/60',
               !isFirst && 'border-t border-border/20',
             )}
@@ -320,7 +320,7 @@ function SubjectRow({ group }: { group: SubjectGroup }) {
                 {hasNotes && (
                   <button
                     onClick={() => setNotesOpen(!notesOpen)}
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                    className="inline-flex items-center justify-center w-6 h-6 rounded-md hover:bg-accent transition-[background-color] duration-150 cursor-pointer active:scale-[0.9]"
                     title={`${group.notes.length} note${group.notes.length > 1 ? 'r' : ''}`}
                   >
                     <MessageSquareText className="w-3.5 h-3.5 text-muted-foreground" />
@@ -342,7 +342,7 @@ function SubjectRow({ group }: { group: SubjectGroup }) {
                   <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line">
                     {note.note}
                   </p>
-                  <p className="text-[0.6rem] text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {note.dateInitials} · {note.type.replace(/\n/g, ' – ')}
                   </p>
                 </div>
@@ -388,7 +388,7 @@ function SummaryStats({
   if (total === 0 && !diplomaAverage) return null;
 
   return (
-    <div className="flex items-stretch gap-3 flex-wrap">
+    <div className="flex items-stretch gap-3 flex-wrap animate-[bl-fade-in_350ms_var(--ease-out)_100ms_both]">
       {/* Average card */}
       <div className="bg-card border border-border rounded-xl px-5 py-3.5 flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
@@ -398,7 +398,7 @@ function SummaryStats({
           <p className="text-2xl font-black tabular-nums text-foreground leading-none">
             {avgValue}
           </p>
-          <p className="text-[0.6rem] text-muted-foreground uppercase tracking-wide mt-0.5">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mt-0.5">
             {diplomaAverage ? 'Eksamenssnit' : 'Gennemsnit'}
           </p>
         </div>
@@ -432,13 +432,13 @@ function SummaryStats({
                     {g}
                   </span>
                 </span>
-                <span className="text-[0.6rem] text-muted-foreground font-medium">
+                <span className="text-xs text-muted-foreground font-medium">
                   ×{count}
                 </span>
               </div>
             );
           })}
-          <span className="text-[0.6rem] text-muted-foreground ml-1">
+          <span className="text-xs text-muted-foreground ml-1">
             {total} i alt
           </span>
         </div>
@@ -475,15 +475,15 @@ function CollapsibleSection({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2.5 w-full px-4 py-3 bg-card border border-border rounded-xl hover:bg-accent/50 transition-colors cursor-pointer group">
+      <CollapsibleTrigger className="flex items-center gap-2.5 w-full px-4 py-3 bg-card border border-border rounded-xl hover:bg-accent/30 transition-[background-color,transform] duration-150 ease-out active:scale-[0.99] cursor-pointer group">
         <Icon className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground">{title}</span>
         {count !== undefined && count > 0 && (
-          <Badge variant="secondary" className="text-[0.6rem] ml-1">{count}</Badge>
+          <Badge variant="secondary" className="text-xs ml-1">{count}</Badge>
         )}
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-muted-foreground ml-auto transition-transform duration-200',
+            'w-4 h-4 text-muted-foreground ml-auto transition-[transform] duration-200 ease-out',
             open && 'rotate-180',
           )}
         />
@@ -553,11 +553,11 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
   const diplomaAvgClean = avgMatch ? avgMatch[1].replace(',', '.') : '';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-7xl mx-auto px-10 pb-12 pt-8 space-y-6">
       {/* Page header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 border-b border-border pb-5">
         <GraduationCap className="w-7 h-7 text-primary" />
-        <h1 className="text-2xl font-bold text-foreground">Karakterer</h1>
+        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Karakterer</h1>
       </div>
 
       {/* Summary stats */}
@@ -574,7 +574,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
 
       {/* Grades table */}
       {groups.length > 0 ? (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden animate-[bl-fade-in_350ms_var(--ease-out)_both]">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -650,9 +650,10 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
           </div>
         </div>
       ) : data.diplomaLines.length === 0 && data.protocolLines.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <GraduationCap className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Ingen karakterer endnu</p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
+          <GraduationCap className="mb-3 size-7 text-muted-foreground" />
+          <p className="text-base font-semibold text-foreground">Ingen karakterer</p>
+          <p className="text-sm text-muted-foreground">Der er ingen karakterer endnu</p>
         </div>
       ) : null}
 
@@ -791,7 +792,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
                     <span className="font-semibold">{note.grade}</span>
                   </div>
                   <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line">{note.note}</p>
-                  <p className="text-[0.6rem] text-muted-foreground mt-1">{note.dateInitials}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{note.dateInitials}</p>
                 </div>
               ))}
             </div>

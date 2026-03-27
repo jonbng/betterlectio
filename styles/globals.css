@@ -30,6 +30,8 @@
   --input: oklch(0.91 0.008 265);
   --ring: oklch(0.54 0.2 265);
   --radius: 0.625rem;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --sidebar: oklch(0.97 0.006 265);
   --sidebar-foreground: oklch(0.3 0.02 265);
   --sidebar-primary: oklch(0.54 0.2 265);
@@ -969,13 +971,19 @@ html {
   }
 
 
-  /* ── Page-specific keyframes ─────────────── */
+  /* ── Shared entry animation ──────────────── */
+  @keyframes bl-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Legacy aliases — all point to the same unified animation */
   @keyframes opgaver-slide-up {
-    from { opacity: 0; transform: translateY(12px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
   @keyframes lektier-fade-in {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
   @keyframes thread-msg-in {
@@ -987,7 +995,7 @@ html {
     to { opacity: 1; }
   }
   @keyframes lightbox-scale-in {
-    from { opacity: 0; transform: scale(0.95); }
+    from { opacity: 0; transform: scale(0.96); }
     to { opacity: 1; transform: scale(1); }
   }
 
@@ -1157,7 +1165,7 @@ html {
 
   /* Folder title: small label */
   #il-original-content .TreeNode-title {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -1347,7 +1355,7 @@ html {
   #il-original-content .ls-table-layout5 td {
     padding: 0.625rem 1rem;
     border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 
   #il-original-content .ls-table-layout5 tr {
@@ -1448,7 +1456,7 @@ html {
     color: var(--primary-foreground);
     border-radius: 999px;
     font-weight: 500;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     text-decoration: none;
     transition: all 0.15s ease;
     box-shadow: 0 1px 3px oklch(0 0 0 / 0.06);
@@ -1480,7 +1488,7 @@ html {
     border-radius: 0.375rem;
     background: var(--background);
     color: var(--foreground);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 
   #il-original-content input[type="checkbox"] {
@@ -1754,7 +1762,7 @@ html {
 
   #il-forside-schedule-panel .il-brick-subject {
     font-weight: 650;
-    font-size: 1.0625rem;
+    font-size: 1.125rem;
     color: var(--foreground);
     white-space: nowrap;
     overflow: hidden;
@@ -1762,7 +1770,7 @@ html {
   }
 
   #il-forside-schedule-panel .il-brick-room {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: oklch(0.5 0.12 var(--brick-hue, 265));
     background: oklch(0.92 0.03 var(--brick-hue, 265));
@@ -1783,7 +1791,7 @@ html {
   }
 
   #il-forside-schedule-panel .il-brick-topic {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1806,7 +1814,7 @@ html {
 
   #il-forside-schedule-panel .il-brick-cancelled-badge,
   #il-forside-schedule-panel .il-brick-changed-badge {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 600;
     padding: 0.125rem 0.375rem;
     border-radius: 0.3125rem;
@@ -1855,7 +1863,7 @@ html {
   }
 
   #il-forside-schedule-panel .il-module-time {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     color: var(--muted-foreground);
@@ -2005,7 +2013,7 @@ html {
   }
 
   body.il-forside #il-original-content .dashboardLinkHeaderInfoText {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--primary-foreground);
     background: var(--primary);
@@ -2039,7 +2047,7 @@ html {
   }
 
   body.il-forside #il-original-content .il-brick-subject {
-    font-size: 0.95rem;
+    font-size: 1rem;
   }
 
   body.il-forside #il-original-content .il-brick-room {
@@ -2048,7 +2056,7 @@ html {
   }
 
   body.il-forside #il-original-content .il-brick-meta {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 
   body.il-forside #il-original-content .il-brick-topic {
@@ -2295,7 +2303,7 @@ html {
     padding: 0.5rem 0.625rem;
     border-radius: 0.5rem;
     color: var(--foreground);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     line-height: 1.3;
     text-decoration: none;
@@ -2324,7 +2332,7 @@ html {
   body:has(#il-original-content .display-grid-skemany) .lec-context-menu .ls-fonticon,
   .lec-context-menu[style*="top:"][style*="left:"] .ls-fonticon {
     color: var(--muted-foreground);
-    font-size: 1.0625rem;
+    font-size: 1.125rem;
     line-height: 1;
   }
 
@@ -2497,7 +2505,7 @@ html {
     right: calc(100% + 8px);
     top: 50%;
     transform: translateY(-50%);
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     color: oklch(0.63 0.21 25);
     white-space: nowrap;
@@ -2542,7 +2550,7 @@ html {
     writing-mode: vertical-rl;
     text-orientation: mixed;
     color: var(--muted-foreground);
-    font-size: 0.6875rem !important;
+    font-size: 0.75rem !important;
     font-weight: 500;
     line-height: 1.5em;
     padding: 0.375rem 0;
@@ -2608,7 +2616,7 @@ html {
   }
 
   .il-cd-time {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     font-weight: 750;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
@@ -3269,7 +3277,7 @@ html {
   }
 
   .findskema-card-name {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--foreground);
     line-height: 1.3;
@@ -3287,7 +3295,7 @@ html {
   }
 
   .findskema-card-class {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
   }
 
@@ -3514,10 +3522,28 @@ html {
   #il-original-content .ls-label,
   #il-original-content .ls-label-normal,
   #il-original-content .ls-label-block {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--muted-foreground);
     letter-spacing: 0.01em;
+  }
+
+  /* MD3 label-small (0.91666667rem in native Lectio) */
+  #il-original-content .label-small {
+    font-size: 0.875rem;
+  }
+
+  /* Bullet list icons */
+  #il-original-content .prepend-fonticon-bullit::before,
+  #il-original-content .prepend-fonticon-bullit-prio1::before,
+  #il-original-content .prepend-fonticon-bullit-prio2::before,
+  #il-original-content .prepend-fonticon-bullit-prio3::before {
+    font-size: 0.875rem;
+  }
+
+  /* Toolbar icons on native pages */
+  #il-original-content .lectioToolbar .button .ls-fonticon {
+    font-size: 1.25rem;
   }
 
   /* ── Links ───────────────────────────────── */
@@ -3573,7 +3599,7 @@ html {
   #il-original-content table.lf-grid th {
     text-align: left;
     padding: 0.75rem 1rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -3738,7 +3764,7 @@ html {
     align-items: center;
     gap: 0.375rem;
     padding: 0.375rem 0.625rem;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--muted-foreground);
     border-radius: 0.375rem;
@@ -3856,7 +3882,7 @@ html {
   }
 
   #il-original-content .s2skemabrikcontent {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     line-height: 1.4;
   }
 
@@ -4048,7 +4074,7 @@ html {
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-subject {
-    font-size: 0.9375rem;
+    font-size: 1rem;
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-room {
@@ -4057,11 +4083,11 @@ html {
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-meta {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
 
   #il-original-content .s2skemabrik.il-narrow .il-brick-topic {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     -webkit-line-clamp: 1;
   }
 
@@ -4164,14 +4190,14 @@ html {
   }
 
   #il-original-content .s2infoHeader .s2skemabrikIcons .ls-fonticon {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
   }
 
   /* Day headers */
   #il-original-content .s2dayHeader td {
     padding: 0.625rem 0.625rem;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--foreground);
     background: transparent;
@@ -4212,7 +4238,7 @@ html {
 
   /* Cleaned-up module time labels (start at top, end at bottom) */
   #il-original-content .il-module-time {
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     color: var(--muted-foreground);
@@ -4380,7 +4406,7 @@ html {
 
   /* Delivered status */
   #il-original-content [class^="delivered_"] {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: oklch(0.45 0.12 145);
   }
@@ -4419,7 +4445,7 @@ html {
     display: inline-flex;
     align-items: center;
     padding: 0.25rem 0.625rem;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--primary);
     background: var(--card);
@@ -4438,7 +4464,7 @@ html {
   /* ── Dashboard table rows (forside) ──────── */
 
   #il-original-content table.dashboard td.infoCol {
-    font-size: 0.9375rem;
+    font-size: 1rem;
   }
 
   #il-original-content table.dashboard td.countCol {
@@ -4457,7 +4483,7 @@ html {
   /* ── Homework note ───────────────────────── */
 
   #il-original-content .ls-homework-note {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     color: var(--muted-foreground);
     background: var(--muted);
     padding: 0.5rem 0.75rem;
@@ -4512,7 +4538,7 @@ html {
     display: inline-flex;
     align-items: center;
     padding: 0.375rem 0.75rem;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--muted-foreground);
     text-decoration: none;
@@ -4550,7 +4576,7 @@ html {
     border-radius: 0.5rem;
     box-shadow: 0 4px 16px oklch(0 0 0 / 0.1);
     padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     max-width: 24rem;
   }
 
