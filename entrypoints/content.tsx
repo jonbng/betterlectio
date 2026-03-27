@@ -20,6 +20,8 @@ import {
 import { FravaerPage } from "@/components/FravaerPage";
 import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
 import { KaraktererPage, parseKaraktererFromDOM } from "@/components/KaraktererPage";
+import { DokumenterPage } from "@/components/DokumenterPage";
+import { parseDokumenterPage } from "@/lib/dokumenter-parser";
 import { ProfilPage } from "@/components/ProfilPage";
 import { parseProfilFromDOM } from "@/lib/profil-parser";
 import { parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
@@ -370,8 +372,6 @@ function initLayout() {
   }
 
   // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
-  // All Supabase operations run in the background script to avoid Firefox
-  // cross-compartment Promise errors.
   if (schoolId) {
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
       void ensureSupabaseSession(schoolId, 'bootstrap');
@@ -384,7 +384,9 @@ function initLayout() {
   }
 
   // Update page title to cleaner format
-  updatePageTitle();
+  if (settings.visual.cleanPageTitles ?? true) {
+    updatePageTitle();
+  }
 
   // Set cached profile data on window for AppSidebar to use
   const cachedProfile = getCachedProfile();
@@ -468,7 +470,9 @@ function initLayout() {
   }
 
   // Replace Lectio's favicon with our logo
-  replaceFavicon();
+  if (settings.visual.customFavicon ?? true) {
+    replaceFavicon();
+  }
 
   // Inject Geist font
   injectFont();
@@ -564,7 +568,9 @@ function initLayout() {
       // Initialize preloading for faster navigation
       const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1];
       if (schoolId) {
-        initPreloading(schoolId);
+        if (settings.behavior.preloading ?? true) {
+          initPreloading(schoolId);
+        }
 
         // Inject FindSkema page
         if (window.location.pathname.toLowerCase().includes("findskema.aspx")) {
@@ -610,13 +616,21 @@ function initLayout() {
           injectKaraktererPage(schoolId);
         }
 
+        // Inject dokumenter page UI
+        if (window.location.pathname.toLowerCase().includes("dokumentoversigt.aspx")) {
+          injectDokumenterPage(schoolId);
+        }
+
         // Inject profil page UI
         if (window.location.pathname.toLowerCase().includes("studentindstillinger.aspx")) {
           injectProfilPage(schoolId);
         }
 
         // Inject "viewing schedule" header when looking at someone else's schedule
-        if (!isViewingOwnPage()) {
+        if (
+          (settings.schedule.viewingScheduleHeader ?? true) &&
+          !isViewingOwnPage()
+        ) {
           injectViewingScheduleHeader(schoolId);
 
           // Add body class for entity schedules (non-person types like hold, class, room)
@@ -645,7 +659,9 @@ function initLayout() {
       }
 
       // Set up title observer for dynamic updates (e.g., unread message count)
-      observeTitleChanges();
+      if (settings.visual.cleanPageTitles ?? true) {
+        observeTitleChanges();
+      }
 
       // Set up schedule table column widths, clean labels, and highlight today
       injectScheduleColgroup();
@@ -1160,6 +1176,80 @@ function cleanUpModuleLabels() {
 }
 
 /**
+ * Lay out overlapping bricks side-by-side at equal widths within a single container.
+ */
+function layoutOverlappingBricksInContainer(container: HTMLElement) {
+  const bricks = Array.from(
+    container.querySelectorAll<HTMLElement>(".s2skemabrik.s2bgbox"),
+  ).filter((b) => b.style.display !== "none");
+
+  if (bricks.length < 2) return;
+
+  // Parse each brick's vertical extent
+  const parsed = bricks.map((brick) => {
+    const top = parseFloat(brick.style.top) || 0;
+    const height = parseFloat(brick.style.height) || 0;
+    return { brick, top, bottom: top + height };
+  });
+
+  // Build overlap groups using interval overlap detection
+  // A brick overlaps another if their vertical ranges intersect
+  const visited = new Set<number>();
+  const groups: (typeof parsed)[] = [];
+
+  for (let i = 0; i < parsed.length; i++) {
+    if (visited.has(i)) continue;
+
+    const group = [parsed[i]];
+    visited.add(i);
+
+    // Find all bricks that overlap with any brick in this group
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let j = 0; j < parsed.length; j++) {
+        if (visited.has(j)) continue;
+        const b = parsed[j];
+        const overlaps = group.some(
+          (g) => b.top < g.bottom && b.bottom > g.top,
+        );
+        if (overlaps) {
+          group.push(b);
+          visited.add(j);
+          changed = true;
+        }
+      }
+    }
+
+    if (group.length > 1) {
+      groups.push(group);
+    }
+  }
+
+  // Layout each overlap group side-by-side
+  for (const group of groups) {
+    // Sort by original left position so the leftmost brick stays left
+    group.sort(
+      (a, b) =>
+        (parseFloat(a.brick.style.left) || 0) -
+        (parseFloat(b.brick.style.left) || 0),
+    );
+
+    const n = group.length;
+    for (let i = 0; i < n; i++) {
+      const { brick } = group[i];
+      const widthPct = 100 / n;
+      const leftPct = widthPct * i;
+
+      brick.style.width = `calc(${widthPct}% - 1.1em)`;
+      brick.style.maxWidth = `calc(${widthPct}% - 1.1em)`;
+      brick.style.left = `calc(${leftPct}% + 0.55em)`;
+      brick.classList.add("il-narrow");
+    }
+  }
+}
+
+/**
  * Detect overlapping schedule bricks and lay them out side-by-side at half width.
  * Runs after mergeReplacedBricks so hidden cancelled bricks are excluded.
  */
@@ -1167,80 +1257,7 @@ function layoutOverlappingBricks() {
   const containers = document.querySelectorAll<HTMLElement>(
     "#il-original-content .s2skemabrikcontainer",
   );
-
-  containers.forEach((container) => {
-    const bricks = Array.from(
-      container.querySelectorAll<HTMLElement>(".s2skemabrik.s2bgbox"),
-    ).filter((b) => b.style.display !== "none");
-
-    if (bricks.length < 2) return;
-
-    // Parse each brick's vertical extent
-    const parsed = bricks.map((brick) => {
-      const top = parseFloat(brick.style.top) || 0;
-      const height = parseFloat(brick.style.height) || 0;
-      return { brick, top, bottom: top + height };
-    });
-
-    // Build overlap groups using interval overlap detection
-    // A brick overlaps another if their vertical ranges intersect
-    const visited = new Set<number>();
-    const groups: (typeof parsed)[] = [];
-
-    for (let i = 0; i < parsed.length; i++) {
-      if (visited.has(i)) continue;
-
-      const group = [parsed[i]];
-      visited.add(i);
-
-      // Find all bricks that overlap with any brick in this group
-      let changed = true;
-      while (changed) {
-        changed = false;
-        for (let j = 0; j < parsed.length; j++) {
-          if (visited.has(j)) continue;
-          const b = parsed[j];
-          // Check if b overlaps with any brick already in the group
-          const overlaps = group.some(
-            (g) => b.top < g.bottom && b.bottom > g.top,
-          );
-          if (overlaps) {
-            group.push(b);
-            visited.add(j);
-            changed = true;
-          }
-        }
-      }
-
-      if (group.length > 1) {
-        groups.push(group);
-      }
-    }
-
-    // Layout each overlap group side-by-side
-    for (const group of groups) {
-      // Sort by original left position so the leftmost brick stays left
-      group.sort(
-        (a, b) =>
-          (parseFloat(a.brick.style.left) || 0) -
-          (parseFloat(b.brick.style.left) || 0),
-      );
-
-      const n = group.length;
-      for (let i = 0; i < n; i++) {
-        const { brick } = group[i];
-        // Calculate position: divide available width evenly
-        // Container width is roughly 100%, subtract padding
-        const widthPct = 100 / n;
-        const leftPct = widthPct * i;
-
-        brick.style.width = `calc(${widthPct}% - 1.1em)`;
-        brick.style.maxWidth = `calc(${widthPct}% - 1.1em)`;
-        brick.style.left = `calc(${leftPct}% + 0.55em)`;
-        brick.classList.add("il-narrow");
-      }
-    }
-  });
+  containers.forEach(layoutOverlappingBricksInContainer);
 }
 
 /**
@@ -1683,7 +1700,13 @@ function enhanceForsideSchedule(schoolId: string) {
     if (!weekData || weekData.days.length === 0) return;
 
     const enhanceBricks = (container: HTMLElement) => {
-      // Wrap in #il-original-content context temporarily so CSS selectors work
+      // Layout overlapping bricks side-by-side before enhancing
+      container.querySelectorAll<HTMLElement>('.s2skemabrikcontainer').forEach(layoutOverlappingBricksInContainer);
+      // If the container itself holds bricks directly (no sub-containers)
+      if (container.querySelector('.s2skemabrik.s2bgbox') && !container.querySelector('.s2skemabrikcontainer')) {
+        layoutOverlappingBricksInContainer(container);
+      }
+
       container.querySelectorAll<HTMLElement>('.s2skemabrik.s2bgbox').forEach((brick) => {
         if (brick.style.display === 'none') return;
 
@@ -2274,6 +2297,41 @@ function injectKaraktererPage(_schoolId: string) {
     "[BetterLectio] Karakterer page injected with",
     data.grades.length,
     "grade entries",
+  );
+}
+
+function injectDokumenterPage(schoolId: string) {
+  trackFeatureUsed("dokumenter_page", { school_id: schoolId });
+
+  const pageData = parseDokumenterPage();
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const container = document.createElement("div");
+  container.id = "il-dokumenter-page";
+  contentContainer.appendChild(container);
+
+  document.body.classList.add("il-dokumenter-page-active");
+
+  render(
+    <DokumenterPage
+      folders={pageData.folders}
+      files={pageData.files}
+      currentFolder={pageData.currentFolder}
+      selectedFolderId={pageData.selectedFolderId}
+      schoolId={schoolId}
+      hasCheckboxes={pageData.hasCheckboxes}
+    />,
+    container,
+  );
+
+  console.log(
+    "[BetterLectio] Dokumenter page injected with",
+    pageData.files.length,
+    "files and",
+    pageData.folders.length,
+    "top-level folders",
   );
 }
 

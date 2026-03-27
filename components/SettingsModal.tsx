@@ -60,12 +60,14 @@ import {
   FlaskConical,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { DesignPlayground } from "@/components/DesignPlayground";
 
 interface SettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onShowOnboarding?: () => void;
 }
 
 const navItems = [
@@ -187,7 +189,7 @@ function getSchoolNameFromPage(): string | null {
   return el?.textContent?.trim() || null;
 }
 
-export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
+export function SettingsModal({ open, onOpenChange, onShowOnboarding }: SettingsModalProps) {
   const manifest = browser.runtime.getManifest();
   const version = manifest.version;
   const lectioVersion = (document.getElementById("s_m_VersionInfoLink") ?? document.getElementById("m_VersionInfoLink"))?.textContent?.replace(/^\s*Lectio\s+version\s*/i, "")?.trim() ?? null;
@@ -430,7 +432,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 alt="BetterLectio"
                 width={64}
                 height={64}
-                className="size-16 shrink-0"
+                className="size-16 shrink-0 dark:invert dark:brightness-110"
               />
               <h1 className="text-3xl! font-bold! text-foreground">
                 BetterLectio
@@ -1028,6 +1030,31 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </Button>
               </div>
             </SettingsSection>
+
+            {onShowOnboarding && (
+              <SettingsSection title="Velkomstguide">
+                <div className="flex items-center justify-between py-3 px-4">
+                  <div className="space-y-0.5">
+                    <Label className="font-medium">Kør opsætningsguiden igen</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Gennemgå tema, fagfarver og profilopsætning
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onOpenChange(false);
+                      onShowOnboarding();
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Sparkles className="size-4 mr-1.5" />
+                    Vis guide
+                  </Button>
+                </div>
+              </SettingsSection>
+            )}
 
             <SettingsSection title="Nulstil" description="Gendan standardindstillinger">
               <div className="flex items-center justify-between py-3 px-4">

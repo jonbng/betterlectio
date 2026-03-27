@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { reset as resetPostHog } from '@/lib/posthog';
 import { markLogoutIntent } from '@/lib/logout-tracking';
 import {
@@ -69,6 +68,7 @@ import { ActivityClassModal } from './ActivityClassModal';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
 import type { OpgaveEntry } from './OpgaverPage';
 import { ScheduleCountdown } from './ScheduleCountdown';
+import { OnboardingWizard } from './OnboardingWizard';
 
 function getSchoolIdFromUrl(): string {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
@@ -196,8 +196,8 @@ const navMain = [
 
 const navSecondary = [
   { title: 'Karakterer', icon: GraduationCap, page: 'grades/grade_report', settingKey: 'showKarakterer' as const },
-  { title: 'Studieplan', icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' as const },
   { title: 'Dokumenter', icon: FolderOpen, page: 'dokumentoversigt', settingKey: 'showDokumenter' as const },
+  { title: 'Studieplan', icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' as const },
   { title: 'Spørgeskema', icon: HelpCircle, page: 'spoergeskema/spoergeskema_rapport', settingKey: 'showSpoergeskema' as const },
 ];
 
@@ -251,7 +251,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const defaultLogoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
   const soroeLogoUrl = browser.runtime.getURL('/assets/soroeakademi.png');
 
-  const schoolName = schoolInfo.name;
+  const { data: schoolRow } = useQuery<{ id: number; name: string; display_name: string | null }>({
+    schoolId,
+    table: 'schools',
+    select: 'id, name, display_name',
+    filters: [{ column: 'id', op: 'eq', value: Number(schoolId) }],
+    single: true,
+  });
+  const schoolName = schoolRow?.display_name ?? schoolRow?.name ?? schoolInfo.name;
   const cachedProfile = getCachedProfile();
   const { data: sidebarStudent } = useQuery<Student>({
     schoolId,
@@ -441,7 +448,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             />
           )}
           <span className="text-[1.35rem] font-semibold truncate text-sidebar-foreground">
-            {schoolName === 'Sorø Akademis Skole' ? 'Sorø Akademi' : schoolName}
+            {schoolName}
           </span>
         </div>
       </SidebarHeader>
@@ -750,117 +757,17 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       )}
 
       {/* Settings modal */}
-      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} onShowOnboarding={() => setWelcomeOpen(true)} />
 
-      {/* First-run welcome modal */}
-      {welcomeOpen && createPortal(
-        <div
-          className="fixed inset-0 z-200 flex items-center justify-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="bl-welcome-title"
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
-            onClick={closeWelcome}
-            aria-hidden="true"
-          />
-          <div className="relative z-10 mx-4 w-full max-w-3xl rounded-2xl border bg-background shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
-            <div className="space-y-5 p-8 md:p-10">
-              <h2 id="bl-welcome-title" className="text-3xl font-bold tracking-tight md:text-4xl">
-                Velkommen til BetterLectio
-              </h2>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                Hej!
-                <br />
-                Tak fordi du har installeret BetterLectio.
-              </p>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                Jeg har lavet BetterLectio for at gøre Lectio lidt rarere at bruge
-                i hverdagen. Målet er ikke at ændre hvordan Lectio fungerer, men
-                bare at gøre det{" "}
-                <span className="font-semibold text-foreground">
-                  pænere, hurtigere og lettere at navigere rundt i
-                </span>.
-              </p>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                BetterLectio giver blandt andet:
-              </p>
-              <ul className="ml-6 list-disc space-y-2 text-base leading-relaxed text-muted-foreground md:text-lg">
-                <li>
-                  Et{" "}
-                  <span className="font-semibold text-foreground">
-                    mere moderne og overskueligt design
-                  </span>
-                </li>
-                <li>
-                  En <span className="font-semibold text-foreground">sidebar</span>,
-                  så du hurtigt kan hoppe mellem skema, lektier, beskeder osv.
-                </li>
-                <li>
-                  <span className="font-semibold text-foreground">
-                    Bedre overblik over skema, opgaver og beskeder
-                  </span>
-                </li>
-                <li>Mindre ventetid og færre irriterende reloads</li>
-              </ul>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                BetterLectio er stadig i{" "}
-                <span className="font-semibold text-foreground">beta</span>, så der
-                kan være bugs, og nogle ting kommer til at ændre sig løbende.
-              </p>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                Du kan altid åbne{" "}
-                <span className="font-semibold text-foreground">Settings</span> fra{" "}
-                <span className="font-semibold text-foreground">
-                  profilmenuen nederst til venstre
-                </span>.
-              </p>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                Hvis du oplever fejl eller har idéer til forbedringer, må du meget
-                gerne sende feedback via knappen{" "}
-                <span className="font-semibold text-foreground">
-                  "Give Feedback" nederst til højre
-                </span>
-                . Det hjælper virkelig meget.
-              </p>
-              <p className="text-base leading-relaxed text-muted-foreground md:text-lg">
-                - Jonathan Bangert
-              </p>
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3">
-                <p className="text-sm leading-relaxed text-foreground md:text-base">
-                  <span className="font-semibold">⚠️ Lille note:</span>
-                  <br />
-                  Første gang BetterLectio kører, kan Lectio finde på at{" "}
-                  <span className="font-semibold">logge dig ud én gang</span>. Det
-                  er helt normalt. Log bare ind igen, så virker det bagefter.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t px-8 py-5 md:px-10">
-              <button
-                type="button"
-                onClick={closeWelcome}
-                className="inline-flex h-11 items-center rounded-md border border-input bg-background px-5 text-base font-medium transition-colors hover:bg-accent"
-              >
-                Luk
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  closeWelcome();
-                  setSettingsOpen(true);
-                  setMenuOpen(false);
-                }}
-                className="inline-flex h-11 items-center rounded-md bg-primary px-5 text-base font-medium text-primary-foreground transition-colors hover:opacity-90"
-              >
-                Åbn indstillinger
-              </button>
-            </div>
-          </div>
-        </div>,
-        portalTarget,
-      )}
+      {/* First-run onboarding wizard */}
+      <OnboardingWizard
+        open={welcomeOpen}
+        onClose={closeWelcome}
+        schoolId={schoolId}
+        studentId={cachedProfile?.studentId ?? null}
+        portalTarget={portalTarget}
+        onOpenSettings={() => { closeWelcome(); setSettingsOpen(true); }}
+      />
       <ActivityClassModal
         open={activityModalOpen}
         url={activityModalUrl}

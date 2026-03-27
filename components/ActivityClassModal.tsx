@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState, useCallback } from "preact/hooks";
 import { createPortal } from "preact/compat";
 import {
   BookOpen,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -9,8 +10,10 @@ import {
   GraduationCap,
   Link2,
   List,
+  Loader2,
   MapPin,
   User,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -20,8 +23,16 @@ import {
   type ActivityDetail,
   type ActivityHomeworkItem,
 } from "@/lib/activity-detail";
+import { fetchMembersFromUrls, type Member } from "@/lib/members-fetch";
 import { getHoldDisplayName, getHoldHue } from "@/lib/hold-mapping";
 import { getTeacherName, loadTeacherNames, type TeacherCache } from "@/lib/teacher-cache";
+import {
+  useSchoolStudents,
+  getStudentFromLookupId,
+  getPreferredStudentPictureUrl,
+  getPreferredStudentDisplayName,
+  type StudentsMap,
+} from "@/lib/supabase/student-lookup";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +49,10 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
   const [navError, setNavError] = useState<string | null>(null);
   const [lastNavTarget, setLastNavTarget] = useState<string | null>(null);
   const [teacherCache, setTeacherCache] = useState<TeacherCache | null>(null);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !url) return;
@@ -95,10 +110,23 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     };
   }, [open, onOpenChange]);
 
+  const schoolId = useMemo(() => {
+    if (!url) return null;
+    return new URL(url, window.location.origin).pathname.match(/\/lectio\/(\d+)\//)?.[1] || null;
+  }, [url]);
+
+  const { studentsMap } = useSchoolStudents(schoolId || "0");
+
+  // Reset members state when detail changes (navigation)
   useEffect(() => {
-    if (!open || !url) return;
-    const schoolId = new URL(url, window.location.origin).pathname.match(/\/lectio\/(\d+)\//)?.[1];
-    if (!schoolId) return;
+    setMembersOpen(false);
+    setMembers(null);
+    setMembersLoading(false);
+    setMembersError(null);
+  }, [detail?.url]);
+
+  useEffect(() => {
+    if (!open || !url || !schoolId) return;
 
     let cancelled = false;
     loadTeacherNames(schoolId).then((cache) => {
@@ -108,7 +136,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     return () => {
       cancelled = true;
     };
-  }, [open, url]);
+  }, [open, url, schoolId]);
 
   const teacherName = useMemo(() => {
     const rawTeacher = detail?.meta.teacher?.trim() || "";
@@ -163,6 +191,51 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
       setNavigating(false);
     }
   };
+
+  const holdelementId = useMemo(() => {
+    const listUrl = detail?.navigation.hold.listUrl;
+    if (!listUrl) return null;
+    try {
+      const parsed = new URL(listUrl, window.location.origin);
+      return parsed.searchParams.get("holdelementid");
+    } catch {
+      return null;
+    }
+  }, [detail?.navigation.hold.listUrl]);
+
+  const toggleMembers = useCallback(async () => {
+    if (membersOpen) {
+      setMembersOpen(false);
+      return;
+    }
+    setMembersOpen(true);
+    if (members) return; // Already loaded
+
+    if (!holdelementId || !schoolId) {
+      setMembersError("Kunne ikke finde holdmedlemmer.");
+      return;
+    }
+
+    setMembersLoading(true);
+    setMembersError(null);
+    try {
+      const membersUrl = new URL(
+        `/lectio/${schoolId}/subnav/members.aspx`,
+        window.location.origin,
+      );
+      membersUrl.searchParams.set("holdelementid", holdelementId);
+      membersUrl.searchParams.set("showteachers", "1");
+      membersUrl.searchParams.set("showstudents", "1");
+      membersUrl.searchParams.set("reporttype", "withpics");
+
+      const result = await fetchMembersFromUrls([membersUrl.href]);
+      setMembers(result);
+    } catch {
+      setMembersError("Kunne ikke hente medlemmer.");
+    } finally {
+      setMembersLoading(false);
+    }
+  }, [membersOpen, members, holdelementId, schoolId]);
 
   const hasContent =
     !!detail?.note ||
@@ -286,7 +359,43 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                       {tab.label}
                     </a>
                   ))}
+                {holdelementId ? (
+                  <button
+                    type="button"
+                    onClick={toggleMembers}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-base transition-colors cursor-pointer",
+                      membersOpen
+                        ? "border-[oklch(0.58_0.18_var(--accent-hue,265))/0.3] bg-[oklch(0.58_0.18_var(--accent-hue,265))/0.08] text-[oklch(0.4_0.14_var(--accent-hue,265))] dark:border-[oklch(0.6_0.13_var(--accent-hue,265))/0.3] dark:bg-[oklch(0.6_0.13_var(--accent-hue,265))/0.1] dark:text-[oklch(0.75_0.12_var(--accent-hue,265))]"
+                        : "border-border text-muted-foreground hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)] hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <Users size={15} />
+                    Deltagere
+                    {members ? (
+                      <span className="text-xs font-semibold opacity-60">{members.length}</span>
+                    ) : null}
+                    <ChevronDown
+                      size={14}
+                      className={cn(
+                        "transition-transform duration-200",
+                        membersOpen && "rotate-180",
+                      )}
+                    />
+                  </button>
+                ) : null}
               </div>
+
+              {membersOpen ? (
+                <MembersPanel
+                  members={members}
+                  loading={membersLoading}
+                  error={membersError}
+                  studentsMap={studentsMap}
+                  schoolId={schoolId}
+                  accentHue={holdHue}
+                />
+              ) : null}
             </header>
 
             {navError ? (
@@ -461,6 +570,150 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
   const portalTarget = document.getElementById("il-root") || document.body;
   return createPortal(sheet, portalTarget);
+}
+
+function MembersPanel({
+  members,
+  loading,
+  error,
+  studentsMap,
+  schoolId,
+  accentHue,
+}: {
+  members: Member[] | null;
+  loading: boolean;
+  error: string | null;
+  studentsMap: StudentsMap | null;
+  schoolId: string | null;
+  accentHue: number;
+}) {
+  if (loading) {
+    return (
+      <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] px-4 py-5">
+        <Loader2 size={16} className="animate-spin text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Henter deltagere...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-4 rounded-xl border border-[oklch(0.83_0.07_25)] bg-[oklch(0.97_0.02_25)] px-4 py-3 text-sm text-[oklch(0.45_0.1_25)] dark:border-[oklch(0.4_0.05_25)] dark:bg-[oklch(0.2_0.02_25)] dark:text-[oklch(0.75_0.07_25)]">
+        {error}
+      </div>
+    );
+  }
+
+  if (!members || members.length === 0) return null;
+
+  // Teachers first, then students sorted by first name
+  const sorted = [...members].sort((a, b) => {
+    if (a.type !== b.type) return a.type === "T" ? -1 : 1;
+    return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "da");
+  });
+
+  const teachers = sorted.filter((m) => m.type === "T");
+  const students = sorted.filter((m) => m.type === "S");
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] overflow-hidden">
+      {teachers.length > 0 ? (
+        <div className="px-3.5 pt-3 pb-2">
+          <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
+            {teachers.length === 1 ? "Lærer" : "Lærere"}
+          </p>
+          <div className="flex flex-wrap items-start gap-1">
+            {teachers.map((m) => (
+              <MemberChip key={m.id} member={m} studentsMap={studentsMap} schoolId={schoolId} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {students.length > 0 ? (
+        <div className={cn("px-3.5 pb-3", teachers.length > 0 ? "pt-2" : "pt-3")}>
+          <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
+            Elever
+            <span className="ml-1 font-normal opacity-70">{students.length}</span>
+          </p>
+          <div className="flex flex-wrap items-start gap-1">
+            {students.map((m) => (
+              <MemberChip key={m.id} member={m} studentsMap={studentsMap} schoolId={schoolId} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MemberChip({
+  member,
+  studentsMap,
+  schoolId,
+}: {
+  member: Member;
+  studentsMap: StudentsMap | null;
+  schoolId: string | null;
+}) {
+  const student = member.type === "S" ? getStudentFromLookupId(studentsMap, member.id) : null;
+  const pictureUrl = member.type === "S"
+    ? getPreferredStudentPictureUrl(student, member.pictureUrl)
+    : member.pictureUrl;
+  const fullName = member.type === "S"
+    ? getPreferredStudentDisplayName(student, `${member.firstName} ${member.lastName}`)
+    : `${member.firstName} ${member.lastName}`;
+
+  // Only show first and last name (drop middle names)
+  const nameParts = fullName.trim().split(/\s+/);
+  const displayName = nameParts.length <= 2
+    ? fullName
+    : `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
+
+  const scheduleUrl = schoolId
+    ? `/lectio/${schoolId}/SkemaNy.aspx?type=${member.type === "T" ? "laerer" : "elev"}&${member.type === "T" ? "laererid" : "elevid"}=${member.id.slice(1)}`
+    : null;
+
+  const chip = (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-base leading-snug",
+        scheduleUrl
+          ? "transition-colors hover:bg-[color-mix(in_oklch,var(--muted)_80%,transparent)] cursor-pointer"
+          : "",
+      )}
+    >
+      <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+        {pictureUrl ? (
+          <img
+            src={pictureUrl}
+            alt=""
+            className="h-full w-full object-cover object-top"
+            loading="lazy"
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+            {displayName.charAt(0).toUpperCase()}
+          </span>
+        )}
+      </span>
+      <span className="truncate max-w-[140px]">{displayName}</span>
+    </span>
+  );
+
+  if (scheduleUrl) {
+    return (
+      <a
+        href={scheduleUrl}
+        data-no-activity-modal="true"
+        className="no-underline text-foreground"
+        target="_blank"
+      >
+        {chip}
+      </a>
+    );
+  }
+
+  return chip;
 }
 
 function isEmptyHtml(html: string): boolean {

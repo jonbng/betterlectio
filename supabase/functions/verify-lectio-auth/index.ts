@@ -36,6 +36,8 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const qrId = String(body.qrId ?? '');
+    // NOTE: userId here is the QR auth userId from LandingPageQrCode.aspx, NOT the Lectio elevid.
+    // The real elevid is resolved later from SkemaNy.aspx and returned in the response.
     const userId = String(body.userId ?? '');
     const clientSchoolId = body.schoolId ? String(body.schoolId) : null;
 
@@ -165,31 +167,57 @@ Deno.serve(async (req: Request) => {
     // Extract the auth user ID from the generated link
     const supabaseAuthId = data.user?.id ?? null;
 
-    // ── Step 4: Upload profile picture to Supabase Storage ───────────
+    // ── Step 4: Upload profile picture to Supabase Storage (hash-based dedup) ──
     let storedPfpPath: string | null = null;
+    let skipPfpUpload = false;
+    let newHash: string | null = null;
+
     if (pictureUrl) {
       try {
         const picResp = await fetch(pictureUrl, {
           headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
         });
         if (picResp.ok) {
-          const picBlob = await picResp.blob();
-          // Detect extension from content-type, default to jpg
+          const picBuffer = await picResp.arrayBuffer();
           const contentType = picResp.headers.get('content-type') || 'image/jpeg';
-          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-          const storagePath = `${schoolId}/${elevid}.${ext}`;
 
-          const { error: uploadError } = await supabaseAdmin.storage
-            .from('profile-pictures')
-            .upload(storagePath, picBlob, {
-              contentType,
-              upsert: true,
-            });
+          // Compute SHA-256 hash of the image bytes
+          const hashBuffer = await crypto.subtle.digest('SHA-256', picBuffer);
+          newHash = Array.from(new Uint8Array(hashBuffer))
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join('');
 
-          if (uploadError) {
-            console.warn('Failed to upload profile picture:', uploadError);
-          } else {
-            storedPfpPath = storagePath;
+          // Compare with stored hash
+          try {
+            const { data: existingStudent } = await supabaseAdmin
+              .from('students')
+              .select('pfp_hash')
+              .eq('id', elevid)
+              .single();
+
+            if (existingStudent?.pfp_hash === newHash) {
+              skipPfpUpload = true;
+            }
+          } catch {
+            // Student doesn't exist yet — proceed with upload
+          }
+
+          if (!skipPfpUpload) {
+            const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+            const storagePath = `${schoolId}/${elevid}.${ext}`;
+
+            const { error: uploadError } = await supabaseAdmin.storage
+              .from('profile-pictures')
+              .upload(storagePath, new Uint8Array(picBuffer), {
+                contentType,
+                upsert: true,
+              });
+
+            if (uploadError) {
+              console.warn('Failed to upload profile picture:', uploadError);
+            } else {
+              storedPfpPath = storagePath;
+            }
           }
         }
       } catch (e) {
@@ -205,7 +233,6 @@ Deno.serve(async (req: Request) => {
         has_extension: true,
       };
       if (supabaseAuthId) studentRecord.supabase_id = supabaseAuthId;
-      if (name) studentRecord.name = name;
       if (firstName) studentRecord.lectio_first_name = firstName;
       if (lastName) studentRecord.lectio_last_name = lastName;
       if (birthdate) studentRecord.birthdate = birthdate;
@@ -214,7 +241,8 @@ Deno.serve(async (req: Request) => {
           .from('profile-pictures')
           .getPublicUrl(storedPfpPath);
         studentRecord.lectio_pfp_url = urlData.publicUrl;
-      } else if (pictureUrl) {
+        if (newHash) studentRecord.pfp_hash = newHash;
+      } else if (pictureUrl && !skipPfpUpload) {
         // Fallback to original Lectio URL if storage upload failed
         studentRecord.lectio_pfp_url = pictureUrl;
       }
@@ -226,7 +254,7 @@ Deno.serve(async (req: Request) => {
       console.warn('Failed to upsert student record:', e);
     }
 
-    return jsonResponse({ tokenHash: data.properties.hashed_token, schoolId });
+    return jsonResponse({ tokenHash: data.properties.hashed_token, schoolId, elevid });
   } catch (err) {
     console.error('Edge function error:', err);
     return errorResponse('Internal server error', 500, 'unhandled', null);

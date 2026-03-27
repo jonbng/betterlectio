@@ -27,6 +27,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/FindSkemaPage.tsx` - FindSkema redesign with fuzzy search, starred/recents, person cards, Supabase-backed student avatars, and student search that matches both Lectio names and Supabase preferred names
 - `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views. Supabase-backed: shows description, instagram, birthday (if `show_birthday`), BL badge. Own-profile inline edit form for description/instagram/show_birthday.
 - `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`), optional BetterLectio badge, and student name/avatar resolution via Supabase before Lectio fallbacks
+- `components/DokumenterPage.tsx` - Documents page redesign with collapsible folder tree sidebar (hold colors from hold-mapping), file list with extension-based type icons and color-coded badges, breadcrumb navigation, client-side search, in-app image/PDF preview overlay, drag-and-drop file upload, create folder, sort by columns. Parses native Lectio DOM via `lib/dokumenter-parser.ts`
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
 - `components/LektierPage.tsx` - Day-grouped homework cards with Supabase-backed done-state sync (same UI, optimistic local toggle, cross-device persistence)
 - `components/OpgaverPage.tsx` - Urgency-first assignment cards, relative Danish deadlines, color-coded grades
@@ -55,6 +56,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
 - `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA`/`2.4 MA`/`L2d MA`/`2zq MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
 - `lib/hold-mapping-sync.ts` - Supabase v2 hydration + upsert/reset sync bridge for canonical lesson mappings and user overrides
+- `lib/dokumenter-parser.ts` - DOM parser for DokumentOversigt.aspx: folder tree (recursive node walking), document grid (desktop/mobile layouts), breadcrumb builder, file category/extension helpers, move target extraction
 - `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with 1-2 alphanumeric suffixes or dotted numeric suffixes (e.g. `1x`, `2hf`, `2zq`, `1.4`, `L2d`)
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
 - `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
@@ -138,6 +140,7 @@ When adding new CSS overrides for Lectio elements, put them in `@layer component
 
 All custom/injected Preact UI should be styled with Tailwind utility classes directly in `.tsx` components.
 
+- Profile pictures / avatars must use `object-top` (not default `object-center`) so the top of the head is always visible instead of being cropped off in small circular thumbnails.
 - Do not add new component-specific plain CSS blocks for custom UI.
 - Prefer semantic token utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`) so theme switching propagates automatically.
 - Keep `globals.css` for platform-level concerns only:

@@ -183,6 +183,19 @@ Content Scripts (inject into lectio.dk pages)
 |------|---------|
 | `KaraktererPage.tsx` | Grade report redesign: subject cards grouped by hold with big color-coded grade numbers (7-step scale hue mapping), teacher notes inline, summary bar with weighted average + grade distribution, collapsible diploma lines/protocol/remarks sections. Includes `parseKaraktererFromDOM()` parser for all 5 native tables. |
 
+### Documents
+
+| File | Purpose |
+|------|---------|
+| `DokumenterPage.tsx` | Documents page redesign with collapsible folder tree sidebar (hold colors), file list with extension-based type icons and color-coded badges, breadcrumb navigation, client-side search, in-app image/PDF preview overlay, drag-and-drop file upload via `dokumentupload.aspx`, create folder, sort by columns |
+| `lib/dokumenter-parser.ts` | DOM parser for `DokumentOversigt.aspx`: recursive folder tree walking (`#s_m_Content_Content_FolderTreeView`), document grid parsing (desktop + mobile layouts), breadcrumb builder, file category/extension classification, move-target dropdown extraction |
+
+**Folder navigation:** Uses `window.location.href` with `?folderid=XXX` query params (page reload) rather than iframe-post, matching Lectio's native tree navigation. Sort triggers ASP.NET `__doPostBack` natively.
+
+**File upload:** Drag-and-drop uploads POST to `dokumentupload.aspx` (same as `LectioFileUpload.ts`), receive `serializedId` JSON, then trigger Lectio's document chooser postback.
+
+**Preview:** Images render inline via `<img>` pointing to `dokumenthent.aspx?documentid=XXX`. PDFs use `<iframe>` with the same URL. Both open in a modal overlay with download/edit actions.
+
 ### Hold/Subject Mapping
 
 | File | Purpose |

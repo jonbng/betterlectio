@@ -289,6 +289,8 @@ async function clearLock(): Promise<void> {
   await browser.storage.local.remove(LOCK_KEY);
 }
 
+// NOTE: qrData.userId is the QR auth userId, NOT the Lectio elevid.
+// Fine for dedupe keys (just needs to be stable per user), but never use it as a student ID.
 function getAuthDedupeKey(qrData?: { qrId: string; userId: string }, schoolId?: string): string {
   return `${schoolId ?? 'unknown'}:${qrData?.userId ?? 'session'}`;
 }
@@ -298,6 +300,7 @@ interface AuthAttemptResult {
   error?: string;
   authStage?: string;
   authServerSchoolId?: string;
+  elevid?: string;
 }
 
 async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<AuthAttemptResult> {
@@ -325,7 +328,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     }
   }
 
-  const { tokenHash, error, schoolId: serverSchoolId } = await resp.json();
+  const { tokenHash, error, schoolId: serverSchoolId, elevid } = await resp.json();
   if (error || !tokenHash) {
     return {
       success: false,
@@ -346,6 +349,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
       error: verifyError.message,
       authStage: 'verify-otp',
       authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
+      elevid: typeof elevid === 'string' ? elevid : undefined,
     };
   }
 
@@ -353,6 +357,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     success: true,
     authStage: 'verify-otp',
     authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
+    elevid: typeof elevid === 'string' ? elevid : undefined,
   };
 }
 
@@ -365,12 +370,14 @@ async function runEnsureSupabaseSession(
     const supabase = getSupabase();
     const { data } = await supabase.auth.getSession();
     if (data.session?.expires_at && data.session.expires_at > Date.now() / 1000 + 300) {
+      // NOTE: qrData.userId is the QR auth userId from LandingPageQrCode.aspx, NOT the elevid.
+      // We can't use it to match students.id (which stores elevid). Instead, just check
+      // that *some* student row exists for this Supabase auth user.
       if (qrData?.userId && data.session.user?.id) {
         const { data: studentRows, error: studentLookupError } = await supabase
           .from('students')
           .select('id')
           .eq('supabase_id', data.session.user.id)
-          .eq('id', qrData.userId)
           .limit(1);
 
         if (studentLookupError) {
@@ -431,21 +438,25 @@ async function runEnsureSupabaseSession(
     await setLock();
     try {
       const result = await triggerSupabaseAuth(qrData.qrId, qrData.userId, schoolId);
+      // Use the real elevid from the edge function — qrData.userId is the QR auth userId, NOT the elevid
+      const studentId = result.elevid;
       if (result.success) {
         await setFailures({ count: 0, lastAttempt: 0 });
         await browser.storage.local.remove(REAUTH_KEY);
         const { data: newData } = await supabase.auth.getSession();
-        cachedDistinctId = getDistinctId(qrData.userId);
-        identify(getDistinctId(qrData.userId), {
-          school_id: schoolId,
-          extension_version: browser.runtime.getManifest().version,
-        });
-        capture('supabase auth succeeded', getDistinctId(qrData.userId), {
-          school_id: schoolId,
-          source,
-          auth_stage: result.authStage,
-          auth_server_school_id: result.authServerSchoolId,
-        });
+        if (studentId) {
+          cachedDistinctId = getDistinctId(studentId);
+          identify(getDistinctId(studentId), {
+            school_id: schoolId,
+            extension_version: browser.runtime.getManifest().version,
+          });
+          capture('supabase auth succeeded', getDistinctId(studentId), {
+            school_id: schoolId,
+            source,
+            auth_stage: result.authStage,
+            auth_server_school_id: result.authServerSchoolId,
+          });
+        }
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
       }
       // Don't count transient QR errors as failures (race conditions, expired QR)
@@ -453,26 +464,30 @@ async function runEnsureSupabaseSession(
       if (!isTransient) {
         const failures = await getFailures();
         await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
+        // For failed auth, resolve distinctId from existing session if elevid unavailable
+        const distinctId = studentId ? getDistinctId(studentId) : await getCurrentDistinctId();
         await captureSupabaseError(new Error(result.error ?? 'Unknown auth failure'), {
           action: 'auth',
           schoolId,
-          studentId: qrData.userId,
+          studentId,
           source,
           authStage: result.authStage,
           authServerSchoolId: result.authServerSchoolId,
         });
-        identify(getDistinctId(qrData.userId), {
-          school_id: schoolId,
-          extension_version: browser.runtime.getManifest().version,
-        });
-        capture('supabase auth failed', getDistinctId(qrData.userId), {
-          error: result.error,
-          failure_count: failures.count + 1,
-          school_id: schoolId,
-          source,
-          auth_stage: result.authStage,
-          auth_server_school_id: result.authServerSchoolId,
-        });
+        if (distinctId) {
+          identify(distinctId, {
+            school_id: schoolId,
+            extension_version: browser.runtime.getManifest().version,
+          });
+          capture('supabase auth failed', distinctId, {
+            error: result.error,
+            failure_count: failures.count + 1,
+            school_id: schoolId,
+            source,
+            auth_stage: result.authStage,
+            auth_server_school_id: result.authServerSchoolId,
+          });
+        }
       }
       console.warn('[BetterLectio] Auto Supabase auth failed:', result.error);
       return { ok: false, error: result.error };
@@ -485,7 +500,6 @@ async function runEnsureSupabaseSession(
     await captureSupabaseError(err, {
       action: 'auth',
       schoolId,
-      studentId: qrData?.userId,
       source,
       authStage: 'ensure-session',
     });
