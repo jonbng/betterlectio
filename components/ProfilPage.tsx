@@ -27,6 +27,7 @@ import type { Tables } from '@/database.types';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
+import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
 
 type Student = Tables<'students'>;
 
@@ -109,7 +110,9 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
           aria-modal="true"
         >
           {/* Backdrop */}
-          <div
+          <button
+            type="button"
+            aria-label="Luk studiekort"
             className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
             onClick={() => setOpen(false)}
           />
@@ -117,7 +120,6 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
           <div
             ref={contentRef}
             className="relative z-10 bg-background w-full max-w-sm mx-4 rounded-xl border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-lg font-semibold text-foreground mb-4">Studiekort</h2>
 
@@ -134,7 +136,8 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
                 className="relative rounded-2xl overflow-hidden p-4 flex flex-col"
                 style={{ background: 'linear-gradient(160deg, oklch(0.45 0.16 265), oklch(0.38 0.12 280))' }}
               >
-                <div
+                <button
+                  type="button"
                   className="w-full aspect-[3/4] rounded-xl overflow-hidden mb-4 flex items-center justify-center cursor-pointer"
                   style={{ backgroundColor: 'oklch(0.30 0.08 265 / 0.4)' }}
                   onClick={() => setShowQr(!showQr)}
@@ -147,7 +150,7 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
                   ) : (
                     <User className="w-12 h-12" style={{ color: 'oklch(0.65 0.06 265)' }} />
                   )}
-                </div>
+                </button>
                 <p className="text-lg font-bold leading-tight" style={{ color: 'oklch(0.96 0.01 265)' }}>
                   {data.name}
                 </p>
@@ -242,7 +245,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
       initializedRef.current = true;
       setName(student.name || '');
       setDescription(student.description || '');
-      setInstagram(student.instagram || '');
+      setInstagram(formatInstagramHandle(student.instagram));
       setShowBirthday(student.show_birthday ?? false);
     }
   }, [student]);
@@ -346,16 +349,18 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
               value={instagram}
               onInput={(e) => setInstagram((e.target as HTMLInputElement).value)}
               onBlur={() => {
-                if (instagram !== (student?.instagram || '')) {
-                  saveField('instagram', instagram || null);
+                const normalizedInstagram = normalizeInstagramHandle(instagram);
+                if (normalizedInstagram !== normalizeInstagramHandle(student?.instagram)) {
+                  saveField('instagram', normalizedInstagram);
                 }
+                setInstagram(formatInstagramHandle(instagram));
               }}
               placeholder="@brugernavn"
               className="w-full rounded-xl border border-border bg-background pl-11 pr-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150"
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1.5">
-            Dit Instagram-brugernavn
+            Du kan skrive med eller uden @
           </p>
         </div>
       </div>
@@ -500,6 +505,7 @@ function LectioInfoSection({ data }: { data: ProfilData }) {
                 Gemmes direkte i Lectio
               </p>
               <button
+                type="button"
                 onClick={() => {
                   setSaving(true);
                   triggerNativeSave(phone, email, altContact);
@@ -548,9 +554,11 @@ function EditableField({
   hint?: string;
   icon?: typeof Phone;
 }) {
+  const fieldId = `profil-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
   return (
     <div>
-      <label className="text-xs text-muted-foreground font-medium block mb-1.5">
+      <label htmlFor={fieldId} className="text-xs text-muted-foreground font-medium block mb-1.5">
         {label}
       </label>
       <div className="relative">
@@ -558,6 +566,7 @@ function EditableField({
           <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground/40" />
         )}
         <input
+          id={fieldId}
           type={type}
           value={value}
           maxLength={maxLength}

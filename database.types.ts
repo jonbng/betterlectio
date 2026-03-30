@@ -63,7 +63,15 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "homework_entries_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lesson_mappings: {
         Row: {
@@ -346,6 +354,7 @@ export type Database = {
           lectio_last_name: string | null
           lectio_pfp_url: string | null
           name: string | null
+          pfp_hash: string | null
           school_id: number
           show_birthday: boolean
           supabase_id: string
@@ -364,6 +373,7 @@ export type Database = {
           lectio_last_name?: string | null
           lectio_pfp_url?: string | null
           name?: string | null
+          pfp_hash?: string | null
           school_id: number
           show_birthday?: boolean
           supabase_id: string
@@ -382,6 +392,7 @@ export type Database = {
           lectio_last_name?: string | null
           lectio_pfp_url?: string | null
           name?: string | null
+          pfp_hash?: string | null
           school_id?: number
           show_birthday?: boolean
           supabase_id?: string
@@ -523,22 +534,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_school_id: { Args: never; Returns: number }
       get_student_homework_statuses: {
         Args: { p_school_id: number; p_student_id: string }
         Returns: {
-          client_updated_at: string | null
+          client_updated_at: string
           done_updated_at: string
           entry_id: string
           homework_id: string
           is_done: boolean
-          last_modified_by: string | null
+          last_modified_by: string
           lesson_date: string
           school_id: number
           student_id: string
           updated_at: string
         }[]
       }
-      get_my_school_id: { Args: never; Returns: number }
       get_student_lesson_mappings: {
         Args: { p_gym_id: string; p_student_id: string }
         Returns: {
@@ -582,6 +593,59 @@ export type Database = {
         }
         Returns: undefined
       }
+      upsert_student_homework_status:
+        | {
+            Args: {
+              p_client_updated_at?: string
+              p_entry_id: string
+              p_is_done: boolean
+              p_last_modified_by?: string
+              p_school_id: number
+              p_student_id: string
+            }
+            Returns: {
+              client_updated_at: string
+              done_updated_at: string
+              entry_id: string
+              homework_id: string
+              is_done: boolean
+              last_modified_by: string
+              lesson_date: string
+              school_id: number
+              student_id: string
+              updated_at: string
+            }[]
+          }
+        | {
+            Args: {
+              p_client_updated_at?: string
+              p_display_date?: string
+              p_entry_id: string
+              p_hold?: string
+              p_is_done: boolean
+              p_items_json?: Json
+              p_last_modified_by?: string
+              p_lesson_date?: string
+              p_note?: string
+              p_room?: string
+              p_school_id: number
+              p_student_id: string
+              p_teacher?: string
+              p_title?: string
+            }
+            Returns: {
+              client_updated_at: string
+              done_updated_at: string
+              entry_id: string
+              homework_id: string
+              is_done: boolean
+              last_modified_by: string
+              lesson_date: string
+              school_id: number
+              student_id: string
+              updated_at: string
+            }[]
+          }
       upsert_user_lesson_override_v2: {
         Args: {
           p_canonical_key: string
@@ -609,36 +673,6 @@ export type Database = {
           override_display_name: string
           override_icon: string
           override_id: string
-          school_id: number
-          student_id: string
-          updated_at: string
-        }[]
-      }
-      upsert_student_homework_status: {
-        Args: {
-          p_client_updated_at?: string
-          p_display_date?: string
-          p_entry_id: string
-          p_hold?: string
-          p_is_done: boolean
-          p_items_json?: Json
-          p_last_modified_by?: string
-          p_lesson_date?: string
-          p_note?: string
-          p_room?: string
-          p_school_id: number
-          p_student_id: string
-          p_teacher?: string
-          p_title?: string
-        }
-        Returns: {
-          client_updated_at: string | null
-          done_updated_at: string
-          entry_id: string
-          homework_id: string
-          is_done: boolean
-          last_modified_by: string | null
-          lesson_date: string
           school_id: number
           student_id: string
           updated_at: string

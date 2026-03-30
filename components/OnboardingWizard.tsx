@@ -39,6 +39,7 @@ import {
   ADOPTION_CLASS_THRESHOLD,
 } from '@/lib/supabase/student-lookup';
 import { capture, getDistinctId, setPersonProperties } from '@/lib/posthog';
+import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
 import type { Tables } from '@/database.types';
 
 type Student = Tables<'students'>;
@@ -173,7 +174,7 @@ export function OnboardingWizard({
     if (student && !profileInitialized) {
       setProfileName(student.name ?? '');
       setProfileDesc(student.description ?? '');
-      setProfileInsta(student.instagram ?? '');
+      setProfileInsta(formatInstagramHandle(student.instagram));
       setShowBirthday(student.show_birthday ?? false);
       setProfileInitialized(true);
 
@@ -563,11 +564,15 @@ export function OnboardingWizard({
                         type="text"
                         value={profileInsta}
                         onChange={(e) => setProfileInsta((e.target as HTMLInputElement).value)}
-                        onBlur={() => saveProfileField('instagram', profileInsta || null)}
+                        onBlur={() => {
+                          saveProfileField('instagram', normalizeInstagramHandle(profileInsta));
+                          setProfileInsta(formatInstagramHandle(profileInsta));
+                        }}
                         placeholder="@brugernavn"
                         className="flex w-full rounded-xl border border-input bg-background pl-10 pr-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">Du kan skrive med eller uden @</p>
                   </div>
 
                   <div className="flex items-center justify-between rounded-xl border px-4 py-3">

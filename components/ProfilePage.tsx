@@ -19,9 +19,7 @@ import {
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
-import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
-import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
-import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name';
+import { resolveClassId } from '@/lib/resolve-class-id';
 import { PersonCard } from './PersonCard';
 import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
@@ -30,6 +28,7 @@ import { useQuery } from '@/lib/supabase/hooks';
 import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate, getPreferredStudentDisplayName } from '@/lib/supabase/student-lookup';
 import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
 import { getSettings } from '@/lib/settings-storage';
+import { formatInstagramHandle, getInstagramProfileUrl } from '@/lib/instagram';
 
 interface ProfilePageProps {
   name: string;
@@ -342,29 +341,14 @@ export function ProfilePage({
     };
   }, [activeTab, titleSubject]);
 
-  async function resolveClassId(): Promise<string | null> {
+  async function resolveClassIdForProfile(): Promise<string | null> {
     if (classIdRef.current) {
       return classIdRef.current;
     }
 
-    const items = await fetchAvanceretSkemaDropdownItems(schoolId);
-    const classItem = items.find(([itemName, itemId]) => {
-      if (!itemId.startsWith('SC')) return false;
-      if (getFindSkemaTypeKeyFromId(itemId) !== 'K') return false;
-      const raw = itemName.trim();
-      const transformed = transformYearBasedClassName(raw);
-      if (transformed) {
-        return classGroupsMatch(transformed.displayName, subtitle!.trim());
-      }
-      return classGroupsMatch(raw, subtitle!.trim()) || raw === subtitle!.trim();
-    });
-
-    if (!classItem) {
-      return null;
-    }
-
-    classIdRef.current = classItem[1].replace(/^SC/, '');
-    return classIdRef.current;
+    const result = await resolveClassId(schoolId, subtitle!);
+    classIdRef.current = result;
+    return result;
   }
 
   function setMembersTabState(tab: MembersTab, next: Partial<MembersTabState>) {
@@ -399,7 +383,7 @@ export function ProfilePage({
       }
 
       if (urls.length === 0 && isStudentWithClass) {
-        const klasseId = await resolveClassId();
+        const klasseId = await resolveClassIdForProfile();
         if (!klasseId) {
           setMembersTabState(tab, {
             loading: false,
@@ -601,7 +585,11 @@ export function ProfilePage({
                     <InfoChip icon={Cake} label={formatDanishBirthdate(student.birthdate)} />
                   )}
                   {student?.instagram && (
-                    <InfoChip icon={Instagram} label={student.instagram} href={`https://instagram.com/${student.instagram.replace('@', '')}`} />
+                    <InfoChip
+                      icon={Instagram}
+                      label={formatInstagramHandle(student.instagram)}
+                      href={getInstagramProfileUrl(student.instagram) ?? undefined}
+                    />
                   )}
                   {subtitle && <InfoChip icon={GraduationCap} label={subtitle} />}
 

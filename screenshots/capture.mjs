@@ -62,6 +62,120 @@ async function anonymizeFindSkema(page) {
   });
 }
 
+async function anonymizeTeacherNames(page, schoolId = SCHOOL_ID) {
+  await page.evaluate(async ({ schoolId }) => {
+    const first = ["Magnus","Frederik","Oscar","Victor","Oliver","Noah","Lucas","Emil","Mikkel","Sebastian","Mathias","Rasmus","Christian","Emma","Ida","Freja","Clara","Sofie","Laura","Anna","Astrid","Maja","Nora","Ella","Olivia","Alma","Lea"];
+    const last = ["Nielsen","Jensen","Hansen","Pedersen","Andersen","Christensen","Larsen","Sørensen","Rasmussen","Jørgensen","Petersen","Madsen"];
+    let i = 0;
+
+    const nextFakeName = () => {
+      const name = `${first[i % first.length]} ${last[(i * 7 + 3) % last.length]}`;
+      i += 1;
+      return name;
+    };
+
+    const preserveWhitespace = (original, replacement) => {
+      const prefix = original.match(/^\s*/)?.[0] || "";
+      const suffix = original.match(/\s*$/)?.[0] || "";
+      return `${prefix}${replacement}${suffix}`;
+    };
+
+    const teacherByToken = new Map();
+    const teacherEntries = [];
+
+    try {
+      const response = await fetch(`${window.location.origin}/lectio/${schoolId}/FindSkema.aspx?type=laerer`, {
+        credentials: "include",
+      });
+      if (!response.ok) return;
+
+      const html = await response.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const seen = new Set();
+
+      doc.querySelectorAll('a[data-lectioContextCard^="T"], a[data-lectiocontextcard^="T"]').forEach((link) => {
+        const raw = link.textContent?.trim() || "";
+        const match = raw.match(/^(.+?)\s*\(([^)]+)\)$/);
+        if (!match) return;
+
+        const fullName = match[1].trim();
+        const abbrev = match[2].trim();
+        const key = `${fullName}::${abbrev}`;
+        if (!fullName || !abbrev || seen.has(key)) return;
+        seen.add(key);
+
+        const fakeName = nextFakeName();
+        const fakeAbbrev = fakeName
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase();
+
+        teacherEntries.push({ fullName, abbrev, fakeName, fakeAbbrev });
+        teacherByToken.set(fullName, fakeName);
+        teacherByToken.set(`${fullName} (${abbrev})`, `${fakeName} (${fakeAbbrev})`);
+        teacherByToken.set(abbrev, fakeAbbrev);
+      });
+    } catch {
+      return;
+    }
+
+    if (teacherEntries.length === 0) return;
+
+    const abbrevMap = new Map(teacherEntries.map((entry) => [entry.abbrev, entry.fakeAbbrev]));
+    const root = document.body;
+
+    root
+      .querySelectorAll('[data-lectioContextCard^="T"], [data-lectiocontextcard^="T"]')
+      .forEach((el) => {
+        const text = el.textContent?.trim() || "";
+        const replacement = teacherByToken.get(text);
+        if (replacement) {
+          el.textContent = replacement;
+        }
+      });
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (["SCRIPT", "STYLE", "NOSCRIPT"].includes(parent.tagName)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    });
+
+    const textNodes = [];
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode);
+    }
+
+    for (const node of textNodes) {
+      const original = node.textContent || "";
+      const trimmed = original.trim();
+
+      if (!trimmed) continue;
+
+      const directReplacement = teacherByToken.get(trimmed);
+      if (directReplacement) {
+        node.textContent = preserveWhitespace(original, directReplacement);
+        continue;
+      }
+
+      if (/^[A-ZÆØÅ]{1,4}(?:\s*,\s*[A-ZÆØÅ]{1,4})+$/.test(trimmed)) {
+        const tokens = trimmed.split(/\s*,\s*/);
+        if (tokens.every((token) => abbrevMap.has(token))) {
+          const replacement = tokens.map((token) => abbrevMap.get(token)).join(", ");
+          node.textContent = preserveWhitespace(original, replacement);
+        }
+      }
+    }
+  }, { schoolId });
+}
+
 // ─── Screenshot definitions ───────────────────────────────────
 
 const pages = [
@@ -132,6 +246,7 @@ async function captureScreenshots() {
     await page.goto(shot.url, { waitUntil: "domcontentloaded" });
     await waitForIdle(page, 4000);
     if (shot.prep) await shot.prep(page);
+    await anonymizeTeacherNames(page);
     await sleep(2000);
     await page.screenshot({ path: `${OUT_DIR}/${shot.name}.png`, type: "png" });
     console.log(`    -> ${shot.name}.png`);

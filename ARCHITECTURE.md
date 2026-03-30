@@ -137,11 +137,12 @@ Content Scripts (inject into lectio.dk pages)
 | File | Purpose |
 |------|---------|
 | `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections, BetterLectio badges on students, Supabase-backed student display names/avatars, and search aliases for both Lectio + preferred names |
-| `ProfilePage.tsx` | Supabase-backed student profile: description, instagram, birthday (if `show_birthday`), custom pfp, inline edit form for own profile. Tabs: schedule, classmates, teachers, hold/groups, documents |
+| `ProfilePage.tsx` | Supabase-backed student profile: description, instagram, birthday (if `show_birthday`), custom pfp, inline edit form for own profile. Instagram handles accept `handle`, `@handle`, or pasted Instagram URLs and render consistently as `@handle`. Tabs: schedule, classmates, teachers, hold/groups, documents |
+| `lib/instagram.ts` | Shared Instagram helpers for normalizing stored handles and building consistent `@handle` display text + profile URLs |
 | `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params, optional BetterLectio badge, and student name/avatar resolution via Supabase before Lectio fallbacks |
 | `lib/supabase/student-lookup.ts` | Shared `useSchoolStudents` hook (Map for O(1) lookups) plus helpers for `getStudentIdFromPersonId`, lookup-ID-based preferred name/avatar resolution, search aliases, and `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
-| `lib/class-name.ts` | Shared class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes or dotted numeric suffixes (`1x`, `2hf`, `2zq`, `1.4`, `L2d`, year-based dropdown names) |
+| `lib/class-name.ts` | Shared class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes, dotted numeric suffixes, and prefixed/suffixless variants (`1x`, `2hf`, `2zq`, `1.4`, `L2d`, `S2x`, `IB1`, year-based dropdown names) |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
 | `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params + shared in-flight/TTL-cached dropdown loader |
@@ -149,7 +150,7 @@ Content Scripts (inject into lectio.dk pages)
 
 **Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
 
-**Class Code Note:** Schools can use single-letter grade codes (`1x`), two-character alphanumeric suffixes like `2hf` or `2zq`, numeric ones like `1.4`, and letter-prefixed variants like `L2d`. FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025zq`, `2025.4`, or `L2025d`.
+**Class Code Note:** Schools can use single-letter grade codes (`1x`), two-character alphanumeric suffixes like `2hf` or `2zq`, numeric ones like `1.4`, letter-prefixed variants like `L2d` or `S2x`, and suffixless prefixed variants like `IB1`. FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025zq`, `2025.4`, `L2025d`, or `IB2025`.
 
 **Student Identity Resolution Note:** Student-facing UI should prefer `students.name` for display, while keeping native Lectio names as aliases/search terms. For pictures, prefer `students.custom_pfp_url`, then `students.lectio_pfp_url`, and only fall back to Lectio/context-card image fetches when no Supabase-backed student row is available. The shared helpers in `lib/supabase/student-lookup.ts` accept both raw `elevid` values and prefixed lookup IDs like `S727...` so message names/avatars, FindSkema cards/search, member grids, group submissions, and sidebar/profile surfaces stay consistent.
 
@@ -158,7 +159,10 @@ Content Scripts (inject into lectio.dk pages)
 | File | Purpose |
 |------|---------|
 | `ActivityClassModal.tsx` | In-place modal for activity details from schedule/forside links. Renders note, lektier, presentation content, øvrigt indhold, related links, and hold navigation in the side sheet |
+| `PrivatAftaleDialog.tsx` | Inline dialog for creating/editing private appointments. Triggered from toolbar (create) or brick click (edit). Fetches ASP.NET form tokens, submits via hidden iframe POST — no page navigation. Edit mode adds delete. Fields: title, start/end date+time, comment |
+| `ScheduleToolbar.tsx` | Custom schedule toolbar: week nav, view mode toggle, calendar link, private appointment dialog trigger, print menu |
 | `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content, presentation blocks (`ACP*`), øvrigt indhold, navigation/form tokens, and school-scoped localStorage cache (cache key includes `schoolId`) |
+| `lib/privat-aftale.ts` | Fetch/parse `privat_aftale.aspx` form page, extract ASP.NET tokens, submit create/delete via hidden iframe POST |
 | `lib/brick-tooltip.ts` | Custom schedule brick hover tooltip with async-enriched content, including fetched presentation previews when available |
 | `ScheduleCountdown.tsx` | Sidebar countdown: time remaining in current class / until next class |
 | `lib/schedule-cache.ts` | School-scoped fetch + cache for today's schedule (45min TTL) |

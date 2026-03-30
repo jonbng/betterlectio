@@ -9,6 +9,7 @@ import {
   CalendarRange,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PrivatAftaleDialog } from "@/components/PrivatAftaleDialog";
 
 // ── Data ─────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,7 @@ export function parseScheduleToolbar(
 
 export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [paDialogOpen, setPaDialogOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -228,13 +230,21 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
       {/* Right: actions */}
       <div className="flex items-center gap-1">
         {data.privatAftalUrl && (
-          <a
-            href={data.privatAftalUrl}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 no-underline"
-          >
-            <Plus className="size-3.5" />
-            Privat aftale
-          </a>
+          <>
+            <button
+              type="button"
+              onClick={() => setPaDialogOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 active:scale-[0.97]"
+            >
+              <Plus className="size-3.5" />
+              Privat aftale
+            </button>
+            <PrivatAftaleDialog
+              open={paDialogOpen}
+              onOpenChange={setPaDialogOpen}
+              formUrl={data.privatAftalUrl}
+            />
+          </>
         )}
 
         {data.printActions.length > 0 && (

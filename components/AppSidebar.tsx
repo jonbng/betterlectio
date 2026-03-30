@@ -65,6 +65,7 @@ import { useQuery } from '@/lib/supabase/hooks';
 import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
+import { PrivatAftaleDialog } from './PrivatAftaleDialog';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
 import type { OpgaveEntry } from './OpgaverPage';
 import { ScheduleCountdown } from './ScheduleCountdown';
@@ -234,6 +235,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
+  const [paDialogOpen, setPaDialogOpen] = useState(false);
+  const [paDialogUrl, setPaDialogUrl] = useState<string | null>(null);
   const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
   const [opgaveSheetEntry, setOpgaveSheetEntry] = useState<OpgaveEntry | null>(null);
   const schoolInfo = getSchoolInfo();
@@ -374,6 +377,24 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       window.removeEventListener(
         "betterlectio:openActivityModal",
         handleOpenActivityModal as EventListener,
+      );
+  }, []);
+
+  // Listen for custom event to open privat aftale dialog (from schedule brick clicks)
+  useEffect(() => {
+    const handleOpenPA = (event: Event) => {
+      const customEvent = event as CustomEvent<{ url?: string }>;
+      const nextUrl = customEvent.detail?.url;
+      if (!nextUrl) return;
+      setPaDialogUrl(nextUrl);
+      setPaDialogOpen(true);
+    };
+
+    window.addEventListener("betterlectio:openPrivatAftale", handleOpenPA as EventListener);
+    return () =>
+      window.removeEventListener(
+        "betterlectio:openPrivatAftale",
+        handleOpenPA as EventListener,
       );
   }, []);
 
@@ -803,6 +824,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           }
         }}
       />
+      {paDialogUrl && (
+        <PrivatAftaleDialog
+          open={paDialogOpen}
+          onOpenChange={(next) => {
+            setPaDialogOpen(next);
+            if (!next) setPaDialogUrl(null);
+          }}
+          formUrl={paDialogUrl}
+        />
+      )}
       <OpgaveDetailSheet
         open={opgaveSheetOpen}
         onOpenChange={(next) => {

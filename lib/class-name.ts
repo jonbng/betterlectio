@@ -1,9 +1,11 @@
 const CLASS_LETTER = String.raw`A-Za-zÆØÅæøå`;
 const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|\.\d+)`;
+const CLASS_CODE_BODY = String.raw`(?:[${CLASS_LETTER}]+\d+|\d+)`;
+const CLASS_CODE = String.raw`(?:[${CLASS_LETTER}]+\d+|${CLASS_CODE_BODY}${CLASS_SUFFIX})`;
 
-const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})(${CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
-const GRADE_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*\\d+${CLASS_SUFFIX})(?:\\s+(\\d+))?$`, 'i');
-const YEAR_BASED_HOLD_RE = new RegExp(`^([${CLASS_LETTER}]*\\d{4}${CLASS_SUFFIX})\\s+(.+)$`, 'i');
+const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})(${CLASS_SUFFIX}?)(?:\\s+(\\d+))?$`, 'i');
+const GRADE_BASED_CLASS_RE = new RegExp(`^(${CLASS_CODE})(?:\\s+(\\d+))?$`, 'i');
+const YEAR_BASED_HOLD_RE = new RegExp(`^(\\S+)\\s+(.+)$`, 'i');
 const GRADE_PREFIX_RE = new RegExp(`^[${CLASS_LETTER}]*(\\d+)`, 'i');
 
 export function looksLikeAcademicClassPrefix(value: string): boolean {
@@ -32,7 +34,7 @@ export function transformYearBasedClassName(name: string, now: Date = new Date()
   const grade = getCurrentSchoolStartYear(now) - startYear + 1;
   if (grade < 1 || grade > 3) return null;
 
-  const suffix = match[3];
+  const suffix = match[3] || '';
   const studentNumber = match[4] ? ` ${match[4]}` : '';
   return {
     displayName: `${letterPrefix}${grade}${suffix}${studentNumber}`,

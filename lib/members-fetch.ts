@@ -116,7 +116,8 @@ function isLectioErrorDocument(doc: Document): boolean {
 
 /**
  * Parse members from a fetched members.aspx document (withpics format).
- * Columns: Foto, Type, ID, Fornavn, Efternavn
+ * Combined pages have columns: Foto, Type, ID, Fornavn, Efternavn
+ * Single-type pages omit Type: Foto, ID, Fornavn, Efternavn, Hold/Studieretning
  */
 export function parseMembersFromDocument(doc: Document): Member[] {
   const members: Member[] = [];
@@ -126,11 +127,17 @@ export function parseMembersFromDocument(doc: Document): Member[] {
 
   if (!table) return members;
 
+  // Detect column layout from header row — combined pages include a "Type" column
+  const headerCells = table.querySelectorAll('tr:first-child th');
+  const hasTypeColumn = Array.from(headerCells).some(
+    (th) => th.textContent?.trim() === 'Type',
+  );
+
   const rows = table.querySelectorAll('tr:not(:first-child)');
 
   rows.forEach((row) => {
     const cells = row.querySelectorAll('td');
-    if (cells.length < 5) return;
+    if (cells.length < (hasTypeColumn ? 5 : 4)) return;
 
     const contextCard = cells[0].getAttribute('data-lectioContextCard');
     if (!contextCard) return;
@@ -142,13 +149,16 @@ export function parseMembersFromDocument(doc: Document): Member[] {
     const pictureSrc = img?.getAttribute('src') || '';
     const pictureUrl = pictureSrc ? new URL(pictureSrc, window.location.origin).toString() : null;
 
-    const classCodeSpan = cells[2].querySelector('.noWrap');
+    // Column indices shift by 1 when "Type" column is present
+    const offset = hasTypeColumn ? 1 : 0;
+
+    const classCodeSpan = cells[1 + offset].querySelector('.noWrap');
     const classCode = classCodeSpan?.textContent?.trim() || '';
 
-    const firstNameLink = cells[3].querySelector('a');
+    const firstNameLink = cells[2 + offset].querySelector('a');
     const firstName = firstNameLink?.textContent?.trim() || '';
 
-    const lastNameSpan = cells[4].querySelector('.noWrap');
+    const lastNameSpan = cells[3 + offset].querySelector('.noWrap');
     const lastName = lastNameSpan?.textContent?.trim() || '';
 
     members.push({

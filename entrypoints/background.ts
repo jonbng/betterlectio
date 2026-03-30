@@ -30,6 +30,17 @@ const extensionStorage = {
 
 let client: SupabaseClient | null = null;
 let cachedDistinctId: string | null = null;
+let cachedAnalyticsIdentity:
+  | {
+      distinctId: string;
+      properties: {
+        name: string;
+        school_id: number;
+        class_name: string | null;
+        extension_version: string;
+      };
+    }
+  | null = null;
 // Uninstall tracking is intentionally disabled for now until we have a hosted
 // endpoint/page to receive `browser.runtime.setUninstallURL(...)` traffic.
 
@@ -46,25 +57,65 @@ function getSupabase(): SupabaseClient {
   return client;
 }
 
-async function getCurrentDistinctId(): Promise<string | undefined> {
-  if (cachedDistinctId) return cachedDistinctId;
+async function getAnalyticsIdentity(context?: {
+  studentId?: string;
+  schoolId?: string;
+}): Promise<{
+  distinctId: string;
+  properties: {
+    name: string;
+    school_id: number;
+    class_name: string | null;
+    extension_version: string;
+  };
+} | undefined> {
+  if (
+    cachedAnalyticsIdentity
+    && (!context?.studentId || cachedAnalyticsIdentity.distinctId === getDistinctId(context.studentId))
+  ) {
+    return cachedAnalyticsIdentity;
+  }
 
   try {
     const supabase = getSupabase();
-    const { data } = await supabase.auth.getSession();
-    const supabaseUserId = data.session?.user?.id;
-    if (!supabaseUserId) return undefined;
-
-    const { data: studentRows, error } = await supabase
+    let studentQuery = supabase
       .from('students')
-      .select('id')
-      .eq('supabase_id', supabaseUserId)
-      .limit(1);
+      .select('id, name, class_name, school_id');
 
-    if (error || !studentRows?.length) return undefined;
+    if (context?.studentId) {
+      studentQuery = studentQuery.eq('id', context.studentId);
+    } else {
+      const { data } = await supabase.auth.getSession();
+      const supabaseUserId = data.session?.user?.id;
+      if (!supabaseUserId) return undefined;
+      studentQuery = studentQuery.eq('supabase_id', supabaseUserId);
+    }
 
-    cachedDistinctId = getDistinctId(studentRows[0].id);
-    return cachedDistinctId;
+    if (context?.schoolId) {
+      const schoolId = Number(context.schoolId);
+      if (Number.isFinite(schoolId)) {
+        studentQuery = studentQuery.eq('school_id', schoolId);
+      }
+    }
+
+    const { data: studentRows, error } = await studentQuery.limit(1);
+    const student = studentRows?.[0];
+    const name = student?.name?.trim();
+    if (error || !student?.id || !name) return undefined;
+
+    const identity = {
+      distinctId: getDistinctId(student.id),
+      properties: {
+        name,
+        school_id: student.school_id,
+        class_name: student.class_name,
+        extension_version: browser.runtime.getManifest().version,
+      },
+    };
+
+    cachedDistinctId = identity.distinctId;
+    cachedAnalyticsIdentity = identity;
+    return identity;
   } catch {
     return undefined;
   }
@@ -85,10 +136,14 @@ async function captureSupabaseError(
   },
 ): Promise<void> {
   try {
-    const distinctId = context.studentId ? getDistinctId(context.studentId) : await getCurrentDistinctId();
-    if (!distinctId) return;
+    const identity = await getAnalyticsIdentity({
+      studentId: context.studentId,
+      schoolId: context.schoolId,
+    });
+    if (!identity) return;
 
-    captureException(error, distinctId, {
+    identify(identity.distinctId, identity.properties);
+    captureException(error, identity.distinctId, {
       source: 'supabase-background',
       ...context,
     });
@@ -290,9 +345,10 @@ async function clearLock(): Promise<void> {
 }
 
 // NOTE: qrData.userId is the QR auth userId, NOT the Lectio elevid.
-// Fine for dedupe keys (just needs to be stable per user), but never use it as a student ID.
+// Deduping by school is safer than using QR payload values, which can rotate
+// between fetches and cause duplicate one-time magic-link consumption.
 function getAuthDedupeKey(qrData?: { qrId: string; userId: string }, schoolId?: string): string {
-  return `${schoolId ?? 'unknown'}:${qrData?.userId ?? 'session'}`;
+  return qrData ? `qr:${schoolId ?? 'unknown'}` : `session:${schoolId ?? 'unknown'}`;
 }
 
 interface AuthAttemptResult {
@@ -361,6 +417,17 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
   };
 }
 
+async function getUsableSessionExpiry(): Promise<number | null> {
+  try {
+    const { data } = await getSupabase().auth.getSession();
+    const expiresAt = data.session?.expires_at;
+    if (!expiresAt) return null;
+    return expiresAt > Date.now() / 1000 + 300 ? expiresAt : null;
+  } catch {
+    return null;
+  }
+}
+
 async function runEnsureSupabaseSession(
   qrData?: { qrId: string; userId: string },
   schoolId?: string,
@@ -368,12 +435,13 @@ async function runEnsureSupabaseSession(
 ): Promise<SupabaseResponse> {
   try {
     const supabase = getSupabase();
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.expires_at && data.session.expires_at > Date.now() / 1000 + 300) {
+    const existingSessionExpiry = await getUsableSessionExpiry();
+    if (existingSessionExpiry) {
       // NOTE: qrData.userId is the QR auth userId from LandingPageQrCode.aspx, NOT the elevid.
       // We can't use it to match students.id (which stores elevid). Instead, just check
       // that *some* student row exists for this Supabase auth user.
-      if (qrData?.userId && data.session.user?.id) {
+      const { data } = await supabase.auth.getSession();
+      if (qrData?.userId && data.session?.user?.id) {
         const { data: studentRows, error: studentLookupError } = await supabase
           .from('students')
           .select('id')
@@ -386,21 +454,23 @@ async function runEnsureSupabaseSession(
           console.log('[BetterLectio] Existing Supabase session belongs to a different Lectio user, reauthenticating');
         } else {
           await browser.storage.local.remove(REAUTH_KEY);
-          return { ok: true, session: { expires_at: data.session.expires_at } };
+          return { ok: true, session: { expires_at: existingSessionExpiry } };
         }
       } else {
         await browser.storage.local.remove(REAUTH_KEY);
-        return { ok: true, session: { expires_at: data.session.expires_at } };
+        return { ok: true, session: { expires_at: existingSessionExpiry } };
       }
     }
 
+    const { data } = await supabase.auth.getSession();
     if (data.session && qrData?.userId) {
       await supabase.auth.signOut().catch(() => {});
     }
 
-    if (data.session?.expires_at && data.session.expires_at > Date.now() / 1000 + 300 && !qrData) {
+    const sessionExpiryAfterSignout = qrData ? null : await getUsableSessionExpiry();
+    if (sessionExpiryAfterSignout && !qrData) {
       await browser.storage.local.remove(REAUTH_KEY);
-      return { ok: true, session: { expires_at: data.session.expires_at } };
+      return { ok: true, session: { expires_at: sessionExpiryAfterSignout } };
     }
 
     if (!qrData) {
@@ -424,9 +494,9 @@ async function runEnsureSupabaseSession(
       for (let i = 0; i < 15; i++) {
         await new Promise(r => setTimeout(r, 2000));
         // Check if the other attempt succeeded
-        const { data: checkData } = await supabase.auth.getSession();
-        if (checkData.session?.expires_at && checkData.session.expires_at > Date.now() / 1000 + 300) {
-          return { ok: true, session: { expires_at: checkData.session.expires_at } };
+        const inFlightSessionExpiry = await getUsableSessionExpiry();
+        if (inFlightSessionExpiry) {
+          return { ok: true, session: { expires_at: inFlightSessionExpiry } };
         }
         if (!(await isLocked())) break; // lock released, we can try
       }
@@ -444,13 +514,10 @@ async function runEnsureSupabaseSession(
         await setFailures({ count: 0, lastAttempt: 0 });
         await browser.storage.local.remove(REAUTH_KEY);
         const { data: newData } = await supabase.auth.getSession();
-        if (studentId) {
-          cachedDistinctId = getDistinctId(studentId);
-          identify(getDistinctId(studentId), {
-            school_id: schoolId,
-            extension_version: browser.runtime.getManifest().version,
-          });
-          capture('supabase auth succeeded', getDistinctId(studentId), {
+        const identity = await getAnalyticsIdentity({ studentId, schoolId });
+        if (identity) {
+          identify(identity.distinctId, identity.properties);
+          capture('supabase auth succeeded', identity.distinctId, {
             school_id: schoolId,
             source,
             auth_stage: result.authStage,
@@ -459,13 +526,31 @@ async function runEnsureSupabaseSession(
         }
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
       }
+
+      const recoveredSessionExpiry = await getUsableSessionExpiry();
+      if (recoveredSessionExpiry) {
+        await setFailures({ count: 0, lastAttempt: 0 });
+        await browser.storage.local.remove(REAUTH_KEY);
+        const identity = await getAnalyticsIdentity({ studentId, schoolId });
+        if (identity) {
+          identify(identity.distinctId, identity.properties);
+          capture('supabase auth succeeded', identity.distinctId, {
+            school_id: schoolId,
+            source,
+            auth_stage: 'verify-otp-recovered',
+            auth_server_school_id: result.authServerSchoolId,
+            recovered_from_error: result.error,
+          });
+        }
+        return { ok: true, session: { expires_at: recoveredSessionExpiry } };
+      }
+
       // Don't count transient QR errors as failures (race conditions, expired QR)
       const isTransient = result.error?.includes('QR code') || result.error?.includes('elevid');
       if (!isTransient) {
         const failures = await getFailures();
         await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
-        // For failed auth, resolve distinctId from existing session if elevid unavailable
-        const distinctId = studentId ? getDistinctId(studentId) : await getCurrentDistinctId();
+        const identity = await getAnalyticsIdentity({ studentId, schoolId });
         await captureSupabaseError(new Error(result.error ?? 'Unknown auth failure'), {
           action: 'auth',
           schoolId,
@@ -474,12 +559,9 @@ async function runEnsureSupabaseSession(
           authStage: result.authStage,
           authServerSchoolId: result.authServerSchoolId,
         });
-        if (distinctId) {
-          identify(distinctId, {
-            school_id: schoolId,
-            extension_version: browser.runtime.getManifest().version,
-          });
-          capture('supabase auth failed', distinctId, {
+        if (identity) {
+          identify(identity.distinctId, identity.properties);
+          capture('supabase auth failed', identity.distinctId, {
             error: result.error,
             failure_count: failures.count + 1,
             school_id: schoolId,
@@ -541,6 +623,7 @@ function initAuthStateListener(): void {
     supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         cachedDistinctId = null;
+        cachedAnalyticsIdentity = null;
         browser.storage.local.set({ [REAUTH_KEY]: true }).catch(() => {});
       }
     });

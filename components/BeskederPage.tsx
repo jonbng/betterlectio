@@ -40,7 +40,6 @@ import {
   ensureNameIdCache,
   fetchPictureUrl,
   getCachedPictureUrl,
-  getPersonScheduleUrlFromMessage,
   lookupContextCardIdByName,
 } from '@/lib/findskema-storage';
 import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
@@ -274,16 +273,6 @@ function ThreadRow({
     thread.recipients.contextCardId,
     getPersonLabel(thread.recipients),
   );
-  const latestSenderScheduleUrl = getPersonScheduleUrlFromMessage(
-    thread.latestSender.contextCardId,
-    latestSenderName,
-    schoolId,
-  );
-  const recipientsScheduleUrl = getPersonScheduleUrlFromMessage(
-    thread.recipients.contextCardId,
-    recipientsName,
-    schoolId,
-  );
 
   const rowClass = cn(
     'animate-[beskeder-row-in_0.25s_cubic-bezier(0.23,1,0.32,1)_both] relative flex cursor-pointer items-center gap-3 border-b border-border/70 px-4 py-3 transition-[background-color] duration-150 last:border-b-0',
@@ -330,19 +319,6 @@ function ThreadRow({
     toggleThreadCheckbox(thread.ctlIndex, !isSelected);
   };
 
-  const handlePersonNavigate = (e: MouseEvent, url: string | null) => {
-    if (!url) return;
-    e.stopPropagation();
-    window.location.href = url;
-  };
-
-  const handlePersonNavigateByKeyboard = (e: KeyboardEvent, url: string | null) => {
-    if (!url) return;
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    e.preventDefault();
-    e.stopPropagation();
-    window.location.href = url;
-  };
 
   const dateDisplay = formatRelativeDate(thread.dateText, thread.date);
 
@@ -375,34 +351,21 @@ function ThreadRow({
       {thread.isUnread && <div className="absolute left-1 size-1.5 shrink-0 rounded-full bg-primary" />}
 
       {/* Avatar */}
-      <button
-        type="button"
-        className={cn('shrink-0 rounded-full transition-transform hover:scale-[1.03]', !latestSenderScheduleUrl && 'cursor-default')}
-        onClick={(e) => handlePersonNavigate(e, latestSenderScheduleUrl)}
-        onKeyDown={(e) => handlePersonNavigateByKeyboard(e, latestSenderScheduleUrl)}
-        disabled={!latestSenderScheduleUrl}
-        title={latestSenderScheduleUrl ? `Vis ${latestSenderName}s skema` : undefined}
-      >
+      <div className="shrink-0 rounded-full">
         <SenderAvatar person={thread.latestSender} schoolId={schoolId} nameIdReady={nameIdReady} studentsMap={studentsMap} />
-      </button>
+      </div>
 
       {/* Content */}
       <div className="min-w-0 flex-1 pr-18">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
-          <button
-            type="button"
+          <span
             className={cn(
-              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base text-foreground transition-[color] duration-150 hover:text-primary',
+              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base text-foreground',
               thread.isUnread ? 'font-semibold' : 'font-medium',
-              !latestSenderScheduleUrl && 'cursor-default hover:text-foreground',
             )}
-            onClick={(e) => handlePersonNavigate(e, latestSenderScheduleUrl)}
-            onKeyDown={(e) => handlePersonNavigateByKeyboard(e, latestSenderScheduleUrl)}
-            disabled={!latestSenderScheduleUrl}
-            title={latestSenderScheduleUrl ? `Vis ${latestSenderName}s skema` : undefined}
           >
             {latestSenderName}
-          </button>
+          </span>
           <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">{dateDisplay}</span>
         </div>
         <div className="mt-0.5 inline-flex items-center gap-1.5">
@@ -415,19 +378,9 @@ function ThreadRow({
           )}
         </div>
         <div className="mt-0.5 flex items-center">
-          <button
-            type="button"
-            className={cn(
-              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-tight text-muted-foreground transition-[color] duration-150 hover:text-primary',
-              !recipientsScheduleUrl && 'cursor-default hover:text-muted-foreground',
-            )}
-            onClick={(e) => handlePersonNavigate(e, recipientsScheduleUrl)}
-            onKeyDown={(e) => handlePersonNavigateByKeyboard(e, recipientsScheduleUrl)}
-            disabled={!recipientsScheduleUrl}
-            title={recipientsScheduleUrl ? `Vis ${recipientsName}s skema` : undefined}
-          >
+          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-tight text-muted-foreground">
             Til: {recipientsName}
-          </button>
+          </span>
         </div>
       </div>
 

@@ -230,6 +230,11 @@ function isActivityDetailUrl(url: URL): boolean {
   return /\/lectio\/\d+\/aktivitet\/aktivitetforside2\.aspx$/i.test(url.pathname);
 }
 
+/** Check if a URL points to privat_aftale.aspx (create or edit) */
+function isPrivatAftaleUrl(url: URL): boolean {
+  return /\/lectio\/\d+\/privat_aftale\.aspx$/i.test(url.pathname);
+}
+
 function installActivityModalClickInterceptor() {
   if (activityModalInterceptorInstalled) return;
   activityModalInterceptorInstalled = true;
@@ -254,21 +259,33 @@ function installActivityModalClickInterceptor() {
       const href = anchor.getAttribute("href");
       if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
 
-      let activityUrl: URL;
+      let parsedUrl: URL;
       try {
-        activityUrl = new URL(href, window.location.origin);
+        parsedUrl = new URL(href, window.location.origin);
       } catch {
         return;
       }
 
-      if (!isActivityDetailUrl(activityUrl)) return;
+      // Intercept private appointment links (create from context menu + edit from bricks)
+      if (isPrivatAftaleUrl(parsedUrl)) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.dispatchEvent(
+          new CustomEvent("betterlectio:openPrivatAftale", {
+            detail: { url: parsedUrl.href },
+          }),
+        );
+        return;
+      }
+
+      if (!isActivityDetailUrl(parsedUrl)) return;
 
       event.preventDefault();
       event.stopPropagation();
 
       window.dispatchEvent(
         new CustomEvent("betterlectio:openActivityModal", {
-          detail: { url: activityUrl.href },
+          detail: { url: parsedUrl.href },
         }),
       );
     },
@@ -1832,16 +1849,30 @@ function enhanceForsideSchedule(schoolId: string) {
         }
       });
 
-      // Intercept brick clicks for activity modal
+      // Intercept brick clicks for activity modal / privat aftale dialog
       container.querySelectorAll<HTMLAnchorElement>('.s2skemabrik.s2bgbox[href]').forEach((brick) => {
         brick.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
           const href = brick.getAttribute('href') || '';
-          const activityUrl = href.startsWith('/') ? `${window.location.origin}${href}` : href;
+          const fullUrl = href.startsWith('/') ? `${window.location.origin}${href}` : href;
+
+          // Route private appointment bricks to the PA dialog
+          try {
+            const parsed = new URL(fullUrl);
+            if (isPrivatAftaleUrl(parsed)) {
+              window.dispatchEvent(
+                new CustomEvent('betterlectio:openPrivatAftale', {
+                  detail: { url: fullUrl },
+                }),
+              );
+              return;
+            }
+          } catch { /* fall through to activity modal */ }
+
           window.dispatchEvent(
             new CustomEvent('betterlectio:openActivityModal', {
-              detail: { url: activityUrl },
+              detail: { url: fullUrl },
             }),
           );
         });

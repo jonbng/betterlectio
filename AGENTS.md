@@ -26,6 +26,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/AppSidebar.tsx` - Sidebar navigation with collapsible sections; student name/avatar prefer Supabase `name` and `custom_pfp_url`/`lectio_pfp_url` before Lectio DOM data
 - `components/FindSkemaPage.tsx` - FindSkema redesign with fuzzy search, starred/recents, person cards, Supabase-backed student avatars, and student search that matches both Lectio names and Supabase preferred names
 - `components/ProfilePage.tsx` - Student profile header with tabbed skema/classmates/teachers/hold & grupper/native dokumenter views. Supabase-backed: shows description, instagram, birthday (if `show_birthday`), BL badge. Own-profile inline edit form for description/instagram/show_birthday.
+- `lib/instagram.ts` - Shared Instagram helpers that accept `handle`, `@handle`, or pasted Instagram URLs, then normalize storage and format consistent `@handle` display/link values.
 - `components/PersonCard.tsx` - Reusable person/entity card with lazy-loaded pictures, navigation context (`from`, `q`, `name`), optional BetterLectio badge, and student name/avatar resolution via Supabase before Lectio fallbacks
 - `components/DokumenterPage.tsx` - Documents page redesign with collapsible folder tree sidebar (hold colors from hold-mapping), file list with extension-based type icons and color-coded badges, breadcrumb navigation, client-side search, in-app image/PDF preview overlay, drag-and-drop file upload, create folder, sort by columns. Parses native Lectio DOM via `lib/dokumenter-parser.ts`
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
@@ -37,6 +38,8 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/WysiwygEditor.tsx` - contentEditable editor converting BBCode <-> rich HTML
 - `components/BBCodeToolbar.tsx` - Formatting toolbar (bold, italic, underline, link)
 - `components/ActivityClassModal.tsx` - Activity detail modal from skema/forside links, now rendering lektier, presentation content, øvrigt indhold, and related links in the side sheet
+- `components/PrivatAftaleDialog.tsx` - Dialog for creating and editing private appointments (Privat aftale) inline. Triggered from schedule toolbar (create) or by clicking a private appointment brick (edit). Fetches ASP.NET form via `lib/privat-aftale.ts`, submits via hidden iframe POST — no page navigation. Fields: title (20 char max), start/end date+time, optional comment. Edit mode adds delete button. Ctrl+Enter to submit.
+- `components/ScheduleToolbar.tsx` - Schedule toolbar with week navigation, view mode toggle, calendar link, private appointment dialog trigger, and print menu
 - `components/SettingsModal.tsx` - Settings modal (appearance, behavior, sidebar, fag, about)
 - `components/ScheduleCountdown.tsx` - Sidebar countdown widget
 - `components/ForsideGreeting.tsx` - Time-based greeting, live clock
@@ -44,7 +47,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design (parser reused by ForsideDashboard)
 - `components/KaraktererPage.tsx` - Grade report redesign: subject cards with big color-coded grades, teacher notes inline, summary bar, collapsible diploma/protocol/remarks sections, DOM parser
 - `components/DesignPlayground.tsx` - Design system playground from Settings
-- `components/settings/HoldMappingEditor.tsx` - Canonical lesson-key editor for subject names/colors (e.g. `1x MA`/`L2d MA`/`2zq MA` -> `ma`)
+- `components/settings/HoldMappingEditor.tsx` - Canonical lesson-key editor for subject names/colors (e.g. `1x MA`/`L2d MA`/`2zq MA`/`S2x MA`/`IB1 MA` -> `ma`)
 
 ### Libraries
 - `lib/beskeder-thread-parser.ts` - Thread DOM parser, state detection, signature stripping (parsers accept optional `doc: Document`)
@@ -53,11 +56,12 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/bbcode-convert.ts` - BBCode <-> HTML conversion + paste sanitizer
 - `lib/opgave-detail.ts` - Fetch/parse ElevAflevering.aspx, submission API, localStorage cache
 - `lib/activity-detail.ts` - Fetch/parse aktivitetforside2.aspx with rich lektie content, presentation sections, øvrigt indhold, navigation/form tokens + cache
+- `lib/privat-aftale.ts` - Fetch/parse privat_aftale.aspx form, extract ASP.NET tokens, submit create/delete via hidden iframe POST
 - `lib/brick-tooltip.ts` - Schedule brick hover tooltip with async-enriched content
-- `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA`/`2.4 MA`/`L2d MA`/`2zq MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
+- `lib/hold-mapping.ts` - Canonical lesson-key normalization (`1x MA`/`2.4 MA`/`L2d MA`/`2zq MA`/`S2x MA`/`IB1 MA` -> `ma`), shared local mappings, ignored non-academic groups, legacy localStorage migration helpers
 - `lib/hold-mapping-sync.ts` - Supabase v2 hydration + upsert/reset sync bridge for canonical lesson mappings and user overrides
 - `lib/dokumenter-parser.ts` - DOM parser for DokumentOversigt.aspx: folder tree (recursive node walking), document grid (desktop/mobile layouts), breadcrumb builder, file category/extension helpers, move target extraction
-- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with 1-2 alphanumeric suffixes or dotted numeric suffixes (e.g. `1x`, `2hf`, `2zq`, `1.4`, `L2d`)
+- `lib/class-name.ts` - Shared class-name helpers for year->grade transforms and matching grade-based class codes with 1-2 alphanumeric suffixes, dotted numeric suffixes, and prefixed/suffixless variants (e.g. `1x`, `2hf`, `2zq`, `1.4`, `L2d`, `S2x`, `IB1`)
 - `lib/findskema-storage.ts` - Starred people, recents, picture cache, canonical schedule URL generation
 - `lib/findskema-cache.ts` - Resolves AvanceretSkema cache params (`afdeling` + `subcache`) + shared in-flight/TTL cached dropdown loader
 - `lib/findskema-types.ts` - Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE/...`) to filter types
@@ -89,6 +93,8 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Never build the ID string manually. **No anonymous tracking** — all PostHog events require an identified user. Pre-login pages (login) do not send analytics.
 
 **Identify:** On each page load (content.tsx), `identifyIfNeeded()` sets person properties: `name`, `school_id`, `school_name`, `class_name`, `school_year`, `dark_mode`, `theme_id`, `extension_version`, `lectio_version`. PostHog auto-wraps as `$set`, so never wrap in `$set` yourself. Use `setPersonProperties()` for targeted profile updates after settings/theme changes.
+
+**Background analytics rule:** Never call `identify()` from `entrypoints/background.ts` with partial properties like only `school_id` or `extension_version`. Background events/errors must first resolve a named student row from Supabase; if `students.name` is missing, skip the PostHog event rather than creating a nameless person.
 
 **Events:**
 - `extension loaded` (content.tsx) — DAU, school, page. Props: `school_id`, `page`, `extension_version`
@@ -187,7 +193,7 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 
 **FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms. Real AvanceretSkema IDs use `SC*` for stamklasser, `RO*` for lokaler, `RE*` for ressourcer, `HE*` for hold, `GE*` for grupper. Always map by actual ID prefixes.
 
-**Class name parsing:** Do not assume grade-based class codes always end in a single letter (`1x`, `2a`). Support 1-2 alphanumeric suffixes after the grade like `2hf` or `2zq`, dotted numeric suffixes like `1.4` / `2.4`, and letter-prefixed variants like `L2d`. Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across all formats.
+**Class name parsing:** Do not assume grade-based class codes always end in a single letter (`1x`, `2a`). Support 1-2 alphanumeric suffixes after the grade like `2hf` or `2zq`, dotted numeric suffixes like `1.4` / `2.4`, letter-prefixed variants like `L2d` or `S2x`, and suffixless prefixed variants like `IB1`. Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across all formats.
 
 **Lectio Modernizer:** The "Lectio Modernizer" section in `globals.css` restyles native Lectio elements with modern design. Add new overrides to this section under `@layer components`. Key targets: `table.lf-grid`, `.buttonfilled`/`.buttonoutlined`/`.buttonfilledtonal`, `input`/`select`/`textarea`, `.s2skemabrik`, `.lf-island`.
 

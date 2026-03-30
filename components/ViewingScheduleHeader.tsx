@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Pin, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users, ChevronDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Pin, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users, ChevronDown, Loader2, Mail } from 'lucide-react';
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
 import type { ScheduleEntityType } from '@/lib/profile-cache';
 import { fetchMembersFromUrls, getMembersFetchUrlsFromDocument, type Member } from '@/lib/members-fetch';
-import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
-import { getFindSkemaTypeKeyFromId } from '@/lib/findskema-types';
-import { classGroupsMatch, transformYearBasedClassName } from '@/lib/class-name';
+import { resolveClassId } from '@/lib/resolve-class-id';
 import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
 import { getSettings } from '@/lib/settings-storage';
 import { PersonCard } from './PersonCard';
@@ -109,6 +107,8 @@ export function ViewingScheduleHeader({
   const config = ENTITY_CONFIG[type];
   const TypeIcon = config.icon;
   const hasPicture = type === 'student' || type === 'teacher';
+  const canMessage = type === 'teacher';
+  const messageHref = `/lectio/${schoolId}/beskeder2.aspx?mappeid=-70`;
   const membersFetchUrls = getMembersFetchUrlsFromDocument();
   const hasSubnavMembers = membersFetchUrls.length > 0;
   // Students with a class code can show classmates even without subnav members links
@@ -153,23 +153,8 @@ export function ViewingScheduleHeader({
 
       // For students without subnav members links, resolve class code → klasseid
       if (urls.length === 0 && isStudentWithClass) {
-        const items = await fetchAvanceretSkemaDropdownItems(schoolId);
-        // Find a stamklasse (SC prefix) whose name matches the student's class code.
-        // Dropdown names are year-based (e.g. "2025x"), but subtitle is grade-based (e.g. "1x").
-        // Transform dropdown names to grade-based for comparison.
-        const classItem = items.find(([itemName, itemId]) => {
-          if (!itemId.startsWith('SC')) return false;
-          if (getFindSkemaTypeKeyFromId(itemId) !== 'K') return false;
-          const raw = itemName.trim();
-          const transformed = transformYearBasedClassName(raw);
-          if (transformed) {
-            return classGroupsMatch(transformed.displayName, subtitle.trim());
-          }
-          // Fallback: direct match (non-gymnasium schools)
-          return classGroupsMatch(raw, subtitle.trim()) || raw === subtitle.trim();
-        });
-        if (classItem) {
-          const klasseId = classItem[1].replace(/^SC/, '');
+        const klasseId = await resolveClassId(schoolId, subtitle);
+        if (klasseId) {
           const membersUrl = new URL(
             `/lectio/${schoolId}/subnav/members.aspx`,
             window.location.origin,
@@ -332,6 +317,22 @@ export function ViewingScheduleHeader({
             )}
           </div>
         </div>
+
+        {canMessage && (
+          <button
+            type="button"
+            onClick={() => {
+              const contextId = config.storagePrefix + entityId;
+              sessionStorage.setItem('bl-compose-to', JSON.stringify({ contextId, name }));
+              window.location.href = messageHref;
+            }}
+            className="ml-auto inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-[color,background-color] duration-150 shadow-sm"
+            title={`Send besked til ${firstName}`}
+          >
+            <Mail className="size-4" />
+            <span>Skriv besked</span>
+          </button>
+        )}
       </div>
 
       {supportsMembersPanel && membersOpen && (
