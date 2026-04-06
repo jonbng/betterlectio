@@ -187,7 +187,7 @@ async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }
     query = query.limit(msg.limit);
   }
   if (msg.single) {
-    query = query.single();
+    query = query.maybeSingle();
   }
 
   const { data, error } = await query;
