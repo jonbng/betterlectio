@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,8 @@ import {
 
 type Student = {
   id: string;
-  name: string | null;
+  lectio_first_name: string | null;
+  lectio_last_name: string | null;
   class_name: string | null;
   school_id: number;
   has_extension: boolean;
@@ -28,14 +30,20 @@ type Student = {
   schools: { name: string } | null;
 };
 
+function studentName(s: Student) {
+  return [s.lectio_first_name, s.lectio_last_name].filter(Boolean).join(" ") || "Unknown";
+}
+
 export function StudentsTable({ students }: { students: Student[] }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
 
   const filtered = students.filter((s) => {
     if (!search) return true;
     const q = search.toLowerCase();
+    const name = studentName(s).toLowerCase();
     return (
-      s.name?.toLowerCase().includes(q) ||
+      name.includes(q) ||
       s.class_name?.toLowerCase().includes(q) ||
       s.schools?.name?.toLowerCase().includes(q) ||
       s.id.includes(q)
@@ -64,7 +72,7 @@ export function StudentsTable({ students }: { students: Student[] }) {
           </TableHeader>
           <TableBody>
             {filtered.map((s) => (
-              <TableRow key={s.id}>
+              <TableRow key={s.id} className="cursor-pointer" onClick={() => router.push(`/students/${s.id}`)}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="size-8">
@@ -73,12 +81,12 @@ export function StudentsTable({ students }: { students: Student[] }) {
                         className="object-top"
                       />
                       <AvatarFallback className="text-xs">
-                        {(s.name ?? "?").slice(0, 2).toUpperCase()}
+                        {studentName(s).slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">
-                        {s.name ?? "Unknown"}
+                        {studentName(s)}
                       </div>
                       <div className="truncate text-xs text-muted-foreground font-mono">
                         {s.id}

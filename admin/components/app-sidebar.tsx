@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   School,
+  Shield,
 } from "lucide-react";
 
 import {
@@ -24,6 +25,7 @@ const navItems = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
   { title: "Students", href: "/students", icon: Users },
   { title: "Schools", href: "/schools", icon: School },
+  { title: "Moderation", href: "/moderation", icon: Shield },
 ];
 
 export function AppSidebar() {

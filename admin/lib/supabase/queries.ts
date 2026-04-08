@@ -5,7 +5,7 @@ import { supabaseAdmin } from "./admin";
 export async function getOverviewStats() {
   const [
     { count: totalStudents },
-    { count: totalSchools },
+    { data: schoolIds },
     { count: extensionUsers },
     { count: appUsers },
     { count: recentSignups },
@@ -14,8 +14,8 @@ export async function getOverviewStats() {
       .from("students")
       .select("*", { count: "exact", head: true }),
     supabaseAdmin
-      .from("schools")
-      .select("*", { count: "exact", head: true }),
+      .from("students")
+      .select("school_id"),
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
@@ -33,9 +33,11 @@ export async function getOverviewStats() {
       ),
   ]);
 
+  const activeSchools = new Set((schoolIds ?? []).map((s) => s.school_id)).size;
+
   return {
     totalStudents: totalStudents ?? 0,
-    totalSchools: totalSchools ?? 0,
+    totalSchools: activeSchools,
     extensionUsers: extensionUsers ?? 0,
     appUsers: appUsers ?? 0,
     recentSignups: recentSignups ?? 0,
@@ -86,7 +88,8 @@ export async function getTopSchools(limit = 10) {
   const { data: schools } = await supabaseAdmin.from("schools").select("*");
 
   return (schools ?? [])
-    .map((s) => ({ ...s, studentCount: schoolCounts[s.id] ?? 0 }))
+    .filter((s) => (schoolCounts[s.id] ?? 0) > 0)
+    .map((s) => ({ ...s, studentCount: schoolCounts[s.id] }))
     .sort((a, b) => b.studentCount - a.studentCount)
     .slice(0, limit);
 }
@@ -100,6 +103,69 @@ export async function getStudents() {
     .order("created_at", { ascending: false });
 
   return data ?? [];
+}
+
+// ── Schools ─────────────────────────────────────────────────────────
+
+export async function getStudent(id: string) {
+  const { data: student } = await supabaseAdmin
+    .from("students")
+    .select("*, schools(name, display_name)")
+    .eq("id", id)
+    .single();
+
+  if (!student) return null;
+
+  const [{ data: homeworkStatuses }, { data: lessonOverrides }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("student_homework")
+        .select("*, homework_entries(entry_id, hold, title, lesson_date)")
+        .eq("student_id", id)
+        .order("done_updated_at", { ascending: false })
+        .limit(50),
+      supabaseAdmin
+        .from("user_lesson_overrides")
+        .select("*, school_lesson_mappings(canonical_key, default_name)")
+        .eq("student_id", id)
+        .is("deleted_at", null),
+    ]);
+
+  return {
+    ...student,
+    homeworkStatuses: homeworkStatuses ?? [],
+    lessonOverrides: lessonOverrides ?? [],
+  };
+}
+
+// ── Moderation ──────────────────────────────────────────────────────
+
+export async function getStudentsWithProfiles() {
+  const { data } = await supabaseAdmin
+    .from("students")
+    .select("*, schools(name)")
+    .or("description.neq.,instagram.neq.")
+    .order("created_at", { ascending: false });
+
+  // Filter client-side since .neq. with null is tricky
+  return (data ?? []).filter((s) => s.description || s.instagram);
+}
+
+export async function clearStudentField(
+  studentId: string,
+  field: "description" | "instagram",
+) {
+  if (field === "description") {
+    await supabaseAdmin
+      .from("students")
+      .update({ description: null })
+      .eq("id", studentId);
+  } else {
+    await supabaseAdmin
+      .from("students")
+      .update({ instagram: null })
+      .eq("id", studentId);
+  }
 }
 
 // ── Schools ─────────────────────────────────────────────────────────
@@ -129,8 +195,10 @@ export async function getSchools() {
     if (s.has_app) entry.app++;
   }
 
-  return (schools ?? []).map((s) => ({
-    ...s,
-    stats: statsMap[s.id] ?? { total: 0, extension: 0, app: 0 },
-  }));
+  return (schools ?? [])
+    .filter((s) => statsMap[s.id]?.total > 0)
+    .map((s) => ({
+      ...s,
+      stats: statsMap[s.id],
+    }));
 }
