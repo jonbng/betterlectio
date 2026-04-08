@@ -129,7 +129,8 @@ export function StudentsTable({ students }: { students: Student[] }) {
                   </div>
                 </TableCell>
                 <TableCell className="text-right text-sm text-muted-foreground">
-                  {new Date(s.created_at).toLocaleDateString("da-DK")}
+                  {new Date(s.created_at).toLocaleDateString("da-DK")}{" "}
+                  {new Date(s.created_at).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}
                 </TableCell>
               </TableRow>
             ))}
