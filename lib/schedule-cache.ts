@@ -1,4 +1,4 @@
-import { getHoldDisplayName } from '@/lib/hold-mapping';
+import { getHoldDisplayName, hasHoldMapping } from '@/lib/hold-mapping';
 
 const CACHE_KEY = 'bl-schedule-today';
 const LEGACY_CACHE_KEY = 'il-schedule-today';
@@ -101,7 +101,10 @@ function parseScheduleFromDoc(doc: Document): ScheduleBlock[] {
       holdCode = holdLine[1].split(',')[0].trim();
     }
 
-    const label = holdCode ? getHoldDisplayName(holdCode) : extractTitleFromTooltip(tooltip);
+    // Match brick title fallback: mapped hold name → topic/title → raw hold code
+    const label = holdCode && hasHoldMapping(holdCode)
+      ? getHoldDisplayName(holdCode)
+      : extractTitleFromTooltip(tooltip) || holdCode || 'Lektion';
 
     blocks.push({ start, end, label, holdCode, ...(isCancelled ? { cancelled: true } : {}) });
   });

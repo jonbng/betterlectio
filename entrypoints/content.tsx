@@ -475,7 +475,7 @@ function initLayout() {
     };
 
     const _origFetch = window.fetch;
-    window.fetch = async (...args: Parameters<typeof fetch>) => {
+    const _patchedFetch = async (...args: Parameters<typeof fetch>) => {
       const res = await _origFetch(...args);
       if (res.status >= 400) {
         const req = args[0] instanceof Request ? args[0] : null;
@@ -518,6 +518,10 @@ function initLayout() {
       }
       return res;
     };
+    // Firefox content scripts mark window.fetch as read-only; use defineProperty as fallback
+    try { window.fetch = _patchedFetch; } catch {
+      try { Object.defineProperty(window, 'fetch', { value: _patchedFetch, writable: true, configurable: true }); } catch { /* give up — fetch monitoring won't work */ }
+    }
 
     const _origXhrOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (method: string, url: string | URL, ...rest: any[]) {
@@ -1372,20 +1376,34 @@ function layoutOverlappingBricksInContainer(container: HTMLElement) {
     }
   }
 
-  // Layout each overlap group side-by-side
+  // Layout each overlap group using greedy column assignment
+  // so non-overlapping bricks within the same group can share a column
   for (const group of groups) {
-    // Sort by original left position so the leftmost brick stays left
-    group.sort(
-      (a, b) =>
-        (parseFloat(a.brick.style.left) || 0) -
-        (parseFloat(b.brick.style.left) || 0),
-    );
+    // Sort by top position so we assign columns top-to-bottom
+    group.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
 
-    const n = group.length;
-    for (let i = 0; i < n; i++) {
+    // Greedy interval graph coloring: assign each brick the lowest
+    // column that doesn't conflict with any overlapping brick
+    const columns: number[] = new Array(group.length);
+    for (let i = 0; i < group.length; i++) {
+      const usedCols = new Set<number>();
+      for (let j = 0; j < i; j++) {
+        // Check if brick j overlaps brick i
+        if (group[j].bottom > group[i].top && group[j].top < group[i].bottom) {
+          usedCols.add(columns[j]);
+        }
+      }
+      // Find lowest available column
+      let col = 0;
+      while (usedCols.has(col)) col++;
+      columns[i] = col;
+    }
+
+    const numCols = Math.max(...columns) + 1;
+    for (let i = 0; i < group.length; i++) {
       const { brick } = group[i];
-      const widthPct = 100 / n;
-      const leftPct = widthPct * i;
+      const widthPct = 100 / numCols;
+      const leftPct = widthPct * columns[i];
 
       brick.style.width = `calc(${widthPct}% - 1.1em)`;
       brick.style.maxWidth = `calc(${widthPct}% - 1.1em)`;
