@@ -275,9 +275,15 @@ export function captureFeatureUsedOncePerSession(
   );
 }
 
+// ── Rate limiting for error capture ─────────────────────────────────
+
+const MAX_ERRORS_PER_PAGE = 15;
+let _errorCount = 0;
+
 /**
  * Capture an exception/error.
  * Only captures if a distinctId is provided (no anonymous fallback).
+ * Rate-limited to MAX_ERRORS_PER_PAGE per page load to protect free tier quota.
  */
 export function captureException(
   error: unknown,
@@ -286,8 +292,32 @@ export function captureException(
 ): void {
   try {
     if (isOptedOut() || !distinctId) return;
-    getClient().captureException(error, distinctId, additionalProperties);
+    if (++_errorCount > MAX_ERRORS_PER_PAGE) return;
+    getClient().captureException(error, distinctId, {
+      ...additionalProperties,
+      error_count: _errorCount,
+      ...(additionalProperties?.current_page ? {} : getErrorContext()),
+    });
   } catch {
     // Non-critical
+  }
+}
+
+/**
+ * Get current page context for error enrichment.
+ */
+function getErrorContext(): Record<string, unknown> {
+  try {
+    if (typeof window === 'undefined') return {};
+    const path = window.location.pathname;
+    const page = path.split('/').pop()?.split('?')[0] ?? 'unknown';
+    const profile = (window as any).__IL_CACHED_PROFILE__;
+    return {
+      current_page: page,
+      current_url: window.location.href,
+      school_id: profile?.schoolId,
+    };
+  } catch {
+    return {};
   }
 }

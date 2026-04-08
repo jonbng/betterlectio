@@ -657,6 +657,16 @@ export default defineBackground(() => {
   // Load analytics opt-out flag from extension storage (no localStorage in service workers)
   loadOptOutFlag();
 
+  // Capture uncaught errors in the background/service worker
+  self.addEventListener('error', (e) => {
+    const id = cachedDistinctId;
+    if (id) captureException(e.error ?? e.message, id, { source: 'background' });
+  });
+  self.addEventListener('unhandledrejection', (e) => {
+    const id = cachedDistinctId;
+    if (id) captureException(e.reason, id, { source: 'background' });
+  });
+
   initLifecycleTracking();
   initAuthStateListener();
 

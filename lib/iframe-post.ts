@@ -5,9 +5,19 @@
 // parse back into a Document for further processing.
 
 import { captureException } from './posthog';
+import { getDistinctId } from './posthog';
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEBUG_IFRAME_POST = false;
+
+function getIframeDistinctId(): string | undefined {
+  try {
+    const profile = (window as any).__IL_CACHED_PROFILE__;
+    return profile?.studentId ? getDistinctId(profile.studentId) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * POST a form to Lectio via a hidden iframe, returning the response Document.
@@ -50,7 +60,14 @@ export async function postFormViaHiddenIframe(
 
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Submission timeout'));
+      const err = new Error('Submission timeout');
+      captureException(err, getIframeDistinctId(), {
+        source: 'iframe-post',
+        iframe_action: action,
+        iframe_timeout_ms: timeoutMs,
+        iframe_fields: Object.keys(fields).join(','),
+      });
+      reject(err);
     }, timeoutMs);
 
     iframe.addEventListener('load', () => {
@@ -78,11 +95,27 @@ export async function postFormViaHiddenIframe(
         clearTimeout(timeout);
         cleanup();
         const parser = new DOMParser();
-        resolve(parser.parseFromString(html, 'text/html'));
+        const resultDoc = parser.parseFromString(html, 'text/html');
+
+        // Track when iframe response is a session-expired login redirect
+        if (isSessionExpired(resultDoc)) {
+          captureException(new Error('Iframe POST returned session-expired login page'), getIframeDistinctId(), {
+            source: 'iframe-post',
+            iframe_action: action,
+            iframe_fields: Object.keys(fields).join(','),
+            session_expired: true,
+          });
+        }
+
+        resolve(resultDoc);
       } catch (err) {
         clearTimeout(timeout);
         cleanup();
-        captureException(err, undefined, { source: 'iframe-post' });
+        captureException(err, getIframeDistinctId(), {
+          source: 'iframe-post',
+          iframe_action: action,
+          iframe_fields: Object.keys(fields).join(','),
+        });
         reject(err);
       }
     });

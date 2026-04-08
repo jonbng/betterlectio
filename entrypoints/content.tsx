@@ -48,7 +48,7 @@ import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
-import { captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import {
   clearLogoutIntent,
@@ -445,6 +445,135 @@ function initLayout() {
         );
       }
     }).catch(() => {});
+
+    // Capture uncaught errors and console.error to PostHog
+    window.addEventListener('error', (e) => {
+      captureException(e.error ?? e.message, phDistinctId);
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      captureException(e.reason, phDistinctId);
+    });
+    const _origConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      captureException(new Error(args.map(String).join(' ')), phDistinctId);
+      _origConsoleError.apply(console, args);
+    };
+
+    // Capture failed HTTP requests to Lectio URLs
+    const isLectioUrl = (url: string) => url.includes('lectio.dk');
+
+    const serializeBody = (body: unknown): string | undefined => {
+      if (!body) return undefined;
+      if (typeof body === 'string') return body.slice(0, 2000);
+      if (body instanceof URLSearchParams) return body.toString().slice(0, 2000);
+      if (body instanceof FormData) {
+        const entries: string[] = [];
+        body.forEach((v, k) => entries.push(`${k}=${v instanceof File ? `[File: ${v.name}]` : v}`));
+        return entries.join('&').slice(0, 2000);
+      }
+      try { return JSON.stringify(body).slice(0, 2000); } catch { return '[unserializable]'; }
+    };
+
+    const _origFetch = window.fetch;
+    window.fetch = async (...args: Parameters<typeof fetch>) => {
+      const res = await _origFetch(...args);
+      if (res.status >= 400) {
+        const req = args[0] instanceof Request ? args[0] : null;
+        const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : req!.url;
+        if (isLectioUrl(url)) {
+          const opts = args[1];
+          const method = opts?.method ?? req?.method ?? 'GET';
+          const body = serializeBody(opts?.body ?? req?.body);
+          const headers = opts?.headers ?? req?.headers;
+          const headerObj = headers instanceof Headers
+            ? Object.fromEntries(headers.entries())
+            : headers ?? undefined;
+          // Clone response to read body without consuming the original
+          let responseBody: string | undefined;
+          try {
+            const cloned = res.clone();
+            responseBody = (await cloned.text()).slice(0, 1000);
+          } catch { /* ignore */ }
+          captureException(new Error(`HTTP ${res.status} ${res.statusText}`), phDistinctId, {
+            url,
+            status: res.status,
+            method,
+            request_body: body,
+            request_headers: headerObj,
+            response_body: responseBody,
+            query_params: new URL(url, window.location.origin).search || undefined,
+          });
+        }
+      }
+      // Detect fetch redirected to login.aspx (session loss via 302 -> 200)
+      if (res.redirected && res.url.includes('login.aspx') && isLectioUrl(res.url)) {
+        const reqUrl = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
+        captureException(new Error('Fetch redirected to login.aspx (session expired)'), phDistinctId, {
+          source: 'fetch-session-loss',
+          original_url: reqUrl,
+          redirected_url: res.url,
+          method: args[1]?.method ?? (args[0] instanceof Request ? args[0].method : 'GET'),
+          session_expired: true,
+        });
+      }
+      return res;
+    };
+
+    const _origXhrOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method: string, url: string | URL, ...rest: any[]) {
+      this.__blMethod = method;
+      this.__blUrl = typeof url === 'string' ? url : url.href;
+      return _origXhrOpen.apply(this, [method, url, ...rest] as any);
+    };
+    const _origXhrSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (...args: any[]) {
+      const body = serializeBody(args[0]);
+      this.addEventListener('loadend', () => {
+        if (this.status >= 400 && isLectioUrl(this.__blUrl ?? '')) {
+          captureException(new Error(`HTTP ${this.status} ${this.statusText}`), phDistinctId, {
+            url: this.__blUrl,
+            status: this.status,
+            method: this.__blMethod ?? 'GET',
+            request_body: body,
+            query_params: (() => { try { return new URL(this.__blUrl!, window.location.origin).search || undefined; } catch { return undefined; } })(),
+          });
+        }
+      }, { once: true });
+      return _origXhrSend.apply(this, args as any);
+    };
+
+    // Capture CSP violations
+    document.addEventListener('securitypolicyviolation', (e) => {
+      captureException(new Error(`CSP violation: ${e.violatedDirective}`), phDistinctId, {
+        source: 'csp-violation',
+        blocked_uri: e.blockedURI,
+        violated_directive: e.violatedDirective,
+        original_policy: e.originalPolicy?.slice(0, 500),
+        source_file: e.sourceFile,
+        line_number: e.lineNumber,
+        column_number: e.columnNumber,
+      });
+    });
+
+    // Capture unexpected navigation errors (redirect loops, unexpected login redirects)
+    const _origLocationAssign = window.location.assign;
+    const _currentPage = window.location.pathname;
+    const navigationObserver = new MutationObserver(() => {
+      // Check if the page unexpectedly navigated to login.aspx (session loss)
+      // This complements the existing `lectio session lost` event with error tracking
+      try {
+        const formAction = (document.getElementById('aspnetForm') as HTMLFormElement)?.getAttribute('action') ?? '';
+        if (formAction.includes('login.aspx') && !_currentPage.includes('login.aspx')) {
+          captureException(new Error('Unexpected navigation to login page'), phDistinctId, {
+            source: 'navigation-error',
+            from_page: _currentPage,
+            form_action: formAction,
+          });
+          navigationObserver.disconnect();
+        }
+      } catch { /* ignore */ }
+    });
+    navigationObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
