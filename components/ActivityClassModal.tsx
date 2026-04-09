@@ -752,6 +752,8 @@ function ContentCard({ item }: { item: ActivityHomeworkItem }) {
               key={`${link.url}-${index}`}
               href={link.url}
               data-no-activity-modal="true"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
             >
               <FileText size={14} />
