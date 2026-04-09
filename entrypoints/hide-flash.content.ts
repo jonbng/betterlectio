@@ -163,6 +163,11 @@ function isLoginPage(): boolean {
     return true;
   }
 
+  // Integration/callback pages (UniLogin OAuth, etc.)
+  if (/\/lectio\/integration\//i.test(path)) {
+    return true;
+  }
+
   return false;
 }
 

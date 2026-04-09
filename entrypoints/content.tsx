@@ -305,6 +305,13 @@ function initLayout() {
   const wasPrerendered =
     (window as any).__IL_PRERENDERED__ && !(document as any).prerendering;
 
+  // Skip injection on integration/callback pages (UniLogin OAuth, etc.)
+  const isIntegrationPage = /\/lectio\/integration\//i.test(window.location.pathname);
+  if (isIntegrationPage) {
+    document.documentElement.classList.add("il-ready");
+    return;
+  }
+
   // Check if this is the login.aspx page (session expired redirect, e.g. /lectio/94/login.aspx)
   const isLoginAspx = /\/lectio\/\d+\/login\.aspx/.test(
     window.location.pathname,
