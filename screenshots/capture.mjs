@@ -3,6 +3,7 @@ import { resolve } from "path";
 import { setTimeout as sleep } from "timers/promises";
 import { mkdtempSync, readFileSync, existsSync } from "fs";
 import { tmpdir } from "os";
+import { execSync } from "child_process";
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import sharp from "sharp";
@@ -43,13 +44,101 @@ async function waitForAuthenticated(page, timeoutMs = 300_000) {
   throw new Error("Authentication timeout");
 }
 
-async function anonymizeFindSkema(page) {
+async function anonymizeStudents(page) {
   await page.evaluate(() => {
     const first = ["Magnus","Frederik","Oscar","Victor","Oliver","Noah","Lucas","Emil","Mikkel","Sebastian","Mathias","Rasmus","Christian","Emma","Ida","Freja","Clara","Sofie","Laura","Anna","Astrid","Maja","Nora","Ella","Olivia","Alma","Lea"];
     const last = ["Nielsen","Jensen","Hansen","Pedersen","Andersen","Christensen","Larsen","Sørensen","Rasmussen","Jørgensen","Petersen","Madsen"];
     let i = 0;
     const fake = () => { const n = `${first[i%first.length]} ${last[(i*7+3)%last.length]}`; i++; return n; };
+    const initials = (name) => name.split(" ").map(p => p[0]).join("").toUpperCase();
 
+    const root = document.querySelector("#il-root");
+    if (!root) return;
+
+    // ── 1. Sidebar footer: own name + avatar ──
+    const footer = root.querySelector('[data-sidebar="footer"]');
+    if (footer) {
+      footer.querySelectorAll("span.truncate").forEach(el => {
+        if (el.textContent.trim().length > 1) el.textContent = fake();
+      });
+      footer.querySelectorAll('[data-slot="avatar-image"], img').forEach(img => {
+        img.style.filter = "blur(12px) grayscale(1) brightness(1.1)";
+        img.style.transform = "scale(1.3)";
+      });
+    }
+
+    // ── 2. Forside greeting: "God morgen, <Name>" ──
+    root.querySelectorAll("h1").forEach(h1 => {
+      const text = h1.textContent || "";
+      const commaIdx = text.indexOf(",");
+      if (commaIdx !== -1) {
+        const fakeName = fake();
+        h1.textContent = text.slice(0, commaIdx + 1) + " " + fakeName.split(" ")[0];
+      }
+    });
+
+    // ── 3. All avatar images in BetterLectio UI ──
+    // Matches: rounded-full profile pics, data-slot="avatar-image", PersonCard images
+    root.querySelectorAll('img[class*="object-top"], [data-slot="avatar-image"]').forEach(img => {
+      img.style.filter = "blur(12px) grayscale(1) brightness(1.1)";
+      img.style.transform = "scale(1.3)";
+      // Prevent overflow from scaled blur
+      const parent = img.parentElement;
+      if (parent) parent.style.overflow = "hidden";
+    });
+
+    // ── 4. Avatar fallback initials ──
+    // Small rounded-full containers with 1-3 character initials
+    root.querySelectorAll('.rounded-full').forEach(el => {
+      if (el.tagName === "IMG" || el.querySelector("img")) return;
+      const text = el.textContent?.trim() || "";
+      if (text.length >= 1 && text.length <= 3 && /^[A-ZÆØÅ]+$/i.test(text)) {
+        const n = fake();
+        el.textContent = initials(n);
+      }
+    });
+
+    // ── 5. PersonCard names (FindSkema) ──
+    // Name spans inside card padding below the image
+    root.querySelectorAll('.p-3\\.5 span.font-semibold.line-clamp-2, .p-3\\.5 span.font-bold').forEach(el => {
+      el.textContent = fake();
+    });
+
+    // ── 6. FindSkema starred/recent names ──
+    root.querySelectorAll('[class*="findskema"] span, [class*="FindSkema"] span').forEach(el => {
+      const text = el.textContent?.trim() || "";
+      // Names are typically 2+ words, skip short labels/badges
+      if (text.split(/\s+/).length >= 2 && text.length > 4 && text.length < 50) {
+        el.textContent = fake();
+      }
+    });
+
+    // ── 7. Message sender names ──
+    root.querySelectorAll('button.text-lg.font-semibold.tracking-tight, span.text-lg.font-semibold.tracking-tight').forEach(el => {
+      el.textContent = fake();
+    });
+
+    // ── 8. Message preview sender names (forside dashboard) ──
+    root.querySelectorAll('span.truncate.text-xs.text-muted-foreground[title]').forEach(el => {
+      if (el.title && el.title.length > 3) {
+        const n = fake();
+        el.textContent = n;
+        el.title = n;
+      }
+    });
+
+    // ── 9. Native Lectio student context cards (S-prefix only, skip hold/subject cards) ──
+    document.querySelectorAll('[data-lectioContextCard^="S"], [data-lectiocontextcard^="S"]').forEach(el => {
+      const text = el.textContent?.trim() || "";
+      if (text.length > 2) el.textContent = fake();
+    });
+
+    // ── 10. Fullscreen image overlays ──
+    document.querySelectorAll('div.fixed.inset-0 img').forEach(img => {
+      img.style.filter = "blur(20px) grayscale(1) brightness(1.1)";
+    });
+
+    // ── 11. Native Lectio FindSkema fallbacks (in case original DOM is still visible) ──
     document.querySelectorAll(".findskema-card-name").forEach(el => { el.textContent = fake(); });
     document.querySelectorAll(".findskema-card-image-container").forEach(c => {
       c.style.overflow = "hidden";
@@ -59,6 +148,14 @@ async function anonymizeFindSkema(page) {
       if (fb) { const n = fake(); fb.textContent = n[0] + n.split(" ")[1][0]; }
     });
     document.querySelectorAll(".findskema-starred-name, .findskema-recent-name").forEach(el => { el.textContent = fake(); });
+
+    // ── 12. Native Lectio profile images outside #il-root ──
+    document.querySelectorAll('#il-original-content img[src*="GetImage"], #il-original-content img[src*="LectioDetailedStudentCardCtrl"]').forEach(img => {
+      img.style.filter = "blur(12px) grayscale(1) brightness(1.1)";
+      img.style.transform = "scale(1.3)";
+      const parent = img.parentElement;
+      if (parent) parent.style.overflow = "hidden";
+    });
   });
 }
 
@@ -153,18 +250,31 @@ async function anonymizeTeacherNames(page, schoolId = SCHOOL_ID) {
       textNodes.push(walker.currentNode);
     }
 
+    // Build a set of full teacher names (not abbreviations) for safe text-node replacement.
+    // Abbreviations like "MA", "EN", "DA" collide with subject codes on schedule bricks,
+    // so we only replace those when they appear as comma-separated lists (teacher lists)
+    // or inside explicitly teacher-attributed elements (handled above).
+    const fullNameMap = new Map();
+    for (const entry of teacherEntries) {
+      fullNameMap.set(entry.fullName, entry.fakeName);
+      fullNameMap.set(`${entry.fullName} (${entry.abbrev})`, `${entry.fakeName} (${entry.fakeAbbrev})`);
+    }
+
     for (const node of textNodes) {
       const original = node.textContent || "";
       const trimmed = original.trim();
 
       if (!trimmed) continue;
 
-      const directReplacement = teacherByToken.get(trimmed);
-      if (directReplacement) {
-        node.textContent = preserveWhitespace(original, directReplacement);
+      // Replace full teacher names (safe — won't match subject codes)
+      const fullNameReplacement = fullNameMap.get(trimmed);
+      if (fullNameReplacement) {
+        node.textContent = preserveWhitespace(original, fullNameReplacement);
         continue;
       }
 
+      // Replace comma-separated abbreviation lists (e.g. "MA, EN" as teacher initials)
+      // Only when ALL tokens are known teacher abbreviations — avoids replacing subject lists
       if (/^[A-ZÆØÅ]{1,4}(?:\s*,\s*[A-ZÆØÅ]{1,4})+$/.test(trimmed)) {
         const tokens = trimmed.split(/\s*,\s*/);
         if (tokens.every((token) => abbrevMap.has(token))) {
@@ -205,7 +315,6 @@ const pages = [
       await ensureSidebarExpanded(page);
       const input = await page.$('#il-findskema-root input[type="text"], #il-findskema-root input[placeholder]');
       if (input) { await input.click(); await input.type("a", { delay: 50 }); await sleep(2500); }
-      await anonymizeFindSkema(page);
     },
   },
   {
@@ -217,6 +326,13 @@ const pages = [
 ];
 
 // ─── Phase 1: Capture raw screenshots ─────────────────────────
+
+async function buildExtension() {
+  console.log("\n═══ PHASE 0: Build Extension ═══\n");
+  console.log("  Running: bun run build ...");
+  execSync("bun run build", { cwd: resolve(import.meta.dirname, ".."), stdio: "inherit" });
+  console.log("  Build complete.\n");
+}
 
 async function captureScreenshots() {
   console.log("\n═══ PHASE 1: Capture Screenshots ═══\n");
@@ -241,12 +357,44 @@ async function captureScreenshots() {
   await waitForAuthenticated(page);
   await sleep(2000);
 
+  // Dismiss the onboarding wizard so it doesn't appear in screenshots
+  await page.evaluate(() => {
+    localStorage.setItem("bl-welcome-popup-seen-v1", "true");
+  });
+
+  // Block background fetches of missing assignments (OpgaverElev.aspx from forside)
+  await page.route("**/OpgaverElev.aspx*", (route, request) => {
+    // Only block background fetches triggered by fetchMissingOpgaver, not direct navigations
+    if (request.resourceType() === "document") return route.continue();
+    return route.fulfill({ status: 200, contentType: "text/html", body: "<html><body></body></html>" });
+  });
+
+  // Early DOM mutation: remove exercisemissing indicators before the extension reads them.
+  // addInitScript runs in every new navigation before any page scripts execute.
+  await page.addInitScript(() => {
+    // Run as soon as DOM is interactive (before content.tsx at document_idle)
+    const strip = () => {
+      document.querySelectorAll('.exercisemissing').forEach(el => {
+        // Remove the entire table row containing a missing assignment
+        const row = el.closest('tr');
+        if (row) row.remove();
+        else el.remove();
+      });
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', strip);
+    } else {
+      strip();
+    }
+  });
+
   for (const shot of pages) {
     console.log(`  Capturing: ${shot.label}...`);
     await page.goto(shot.url, { waitUntil: "domcontentloaded" });
     await waitForIdle(page, 4000);
     if (shot.prep) await shot.prep(page);
     await anonymizeTeacherNames(page);
+    await anonymizeStudents(page);
     await sleep(2000);
     await page.screenshot({ path: `${OUT_DIR}/${shot.name}.png`, type: "png" });
     console.log(`    -> ${shot.name}.png`);
@@ -648,6 +796,11 @@ async function generatePromoImages() {
 
 async function main() {
   const skipCapture = process.argv.includes("--promo-only");
+  const skipBuild = process.argv.includes("--skip-build");
+
+  if (!skipCapture && !skipBuild) {
+    await buildExtension();
+  }
 
   if (!skipCapture) {
     await captureScreenshots();

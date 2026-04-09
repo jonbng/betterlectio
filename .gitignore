@@ -6,6 +6,8 @@ node_modules
 .wxt
 dist
 
+lectio-html
+
 # Packaged extensions
 *.zip
 *.xpi
