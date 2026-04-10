@@ -4,20 +4,10 @@
 // reloading the page. The iframe receives the server response, which we
 // parse back into a Document for further processing.
 
-import { captureException } from './posthog';
-import { getDistinctId } from './posthog';
+import { captureException, getContentDistinctId } from './posthog';
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const DEBUG_IFRAME_POST = false;
-
-function getIframeDistinctId(): string | undefined {
-  try {
-    const profile = (window as any).__IL_CACHED_PROFILE__;
-    return profile?.studentId ? getDistinctId(profile.studentId) : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * POST a form to Lectio via a hidden iframe, returning the response Document.
@@ -61,7 +51,7 @@ export async function postFormViaHiddenIframe(
     const timeout = window.setTimeout(() => {
       cleanup();
       const err = new Error('Submission timeout');
-      captureException(err, getIframeDistinctId(), {
+      captureException(err, getContentDistinctId(), {
         source: 'iframe-post',
         iframe_action: action,
         iframe_timeout_ms: timeoutMs,
@@ -99,7 +89,7 @@ export async function postFormViaHiddenIframe(
 
         // Track when iframe response is a session-expired login redirect
         if (isSessionExpired(resultDoc)) {
-          captureException(new Error('Iframe POST returned session-expired login page'), getIframeDistinctId(), {
+          captureException(new Error('Iframe POST returned session-expired login page'), getContentDistinctId(), {
             source: 'iframe-post',
             iframe_action: action,
             iframe_fields: Object.keys(fields).join(','),
@@ -111,7 +101,7 @@ export async function postFormViaHiddenIframe(
       } catch (err) {
         clearTimeout(timeout);
         cleanup();
-        captureException(err, getIframeDistinctId(), {
+        captureException(err, getContentDistinctId(), {
           source: 'iframe-post',
           iframe_action: action,
           iframe_fields: Object.keys(fields).join(','),

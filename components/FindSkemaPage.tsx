@@ -57,6 +57,7 @@ const ALL_FILTER_KEYS = ['S', 'T', 'K', 'L', 'R', 'H', 'G'];
 
 function getBrowseLimit(typeKey: string, singleFilter: boolean): number {
   if (singleFilter) {
+    if (typeKey === 'G') return Number.POSITIVE_INFINITY;
     if (typeKey === 'S' || typeKey === 'T') return 32;
     return 50;
   }

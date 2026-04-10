@@ -284,7 +284,7 @@ export function extractViewedEntity(): ViewedEntity | null {
       resource: ['RE', 'R'],
       hold: ['H'],
       group: ['GE', 'G'],
-      holdelement: ['HE', 'H'],
+      holdelement: ['HE', 'H', 'GE', 'G'],
     };
 
     const candidates = (prefixes[viewed.type] || []).map(prefix => `${prefix}${viewed.id}`);

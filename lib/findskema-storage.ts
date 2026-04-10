@@ -174,11 +174,9 @@ export function getScheduleUrl(id: string, schoolId: string, options?: ScheduleU
   const genericIdMap: Record<string, { typeValue: string; start: number }> = {
     RO: { typeValue: 'lokale', start: 2 },
     RE: { typeValue: 'ressource', start: 2 },
-    GE: { typeValue: 'gruppe', start: 2 },
     // Single-char variants
     L: { typeValue: 'lokale', start: 1 },
     R: { typeValue: 'ressource', start: 1 },
-    G: { typeValue: 'gruppe', start: 1 },
   };
 
   const genericMatch = genericIdMap[prefix2] || genericIdMap[prefix1];
@@ -198,6 +196,8 @@ export function getScheduleUrl(id: string, schoolId: string, options?: ScheduleU
   const twoCharMap: Record<string, { param: string; start: number; type?: 'stamklasse' | 'holdelement' }> = {
     SC: { param: 'klasseid', start: 2, type: 'stamklasse' },
     HE: { param: 'holdelementid', start: 2, type: 'holdelement' },
+    // Grupper in AvanceretSkema use GE* context cards; schedule URL is holdelement (same as native Lectio).
+    GE: { param: 'holdelementid', start: 2, type: 'holdelement' },
   };
 
   const oneCharMap: Record<string, { param: string; start: number; type?: 'stamklasse' | 'holdelement' }> = {
@@ -205,6 +205,7 @@ export function getScheduleUrl(id: string, schoolId: string, options?: ScheduleU
     T: { param: 'laererid', start: 1 },
     K: { param: 'klasseid', start: 1, type: 'stamklasse' },
     H: { param: 'holdid', start: 1 },
+    G: { param: 'holdelementid', start: 1, type: 'holdelement' },
   };
 
   const mapped = twoCharMap[prefix2] || oneCharMap[prefix1] || { param: 'elevid', start: 1 };

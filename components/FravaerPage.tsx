@@ -1,23 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import {
-  PieChart, Pie, Cell,
-  ResponsiveContainer,
-} from 'recharts';
-import {
   AlertTriangle,
-  Calendar,
   ChevronDown,
   ChevronUp,
-  Clock,
   Edit3,
-  Filter,
   Search,
-  TrendingDown,
   X,
   CheckCircle2,
   Info,
   Loader2,
-  BarChart3,
 } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName, registerHold } from '@/lib/hold-mapping';
 import {
@@ -28,25 +19,31 @@ import {
   submitPeriodChange,
 } from '@/lib/fravaer-parse';
 import { FravaerEditSheet } from '@/components/FravaerEditSheet';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart';
 import { cn } from '@/lib/utils';
-
-const PieAny = Pie as any;
-const PieChartAny = PieChart as any;
-const ResponsiveContainerAny = ResponsiveContainer as any;
-const ChartContainerAny = ChartContainer as any;
-const ChartTooltipAny = ChartTooltip as any;
 
 // ── Types ──────────────────────────────────────────────────────────────
 
 interface FravaerPageProps {
   data: FravaerPageData;
   schoolId: string;
+}
+
+// ── Date formatting ────────────────────────────────────────────────────
+
+const DANISH_DAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+const DANISH_MONTHS = [
+  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
+  'juli', 'august', 'september', 'oktober', 'november', 'december',
+];
+
+function formatFullDate(dateISO: string, fallback: string): string {
+  if (!dateISO) return fallback || '—';
+  const [y, m, d] = dateISO.split('-').map(Number);
+  if (!y || !m || !d) return fallback || '—';
+  const date = new Date(y, m - 1, d);
+  const dayName = DANISH_DAYS[date.getDay()];
+  const capitalDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  return `${capitalDay} ${d}. ${DANISH_MONTHS[m - 1]}`;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -58,7 +55,6 @@ function parsePct(str: string): number {
 
 function parseFraction(str: string): { amount: number; total: number } {
   if (!str) return { amount: 0, total: 0 };
-
   const [amountPart = '', totalPart = ''] = str.split('/');
   return {
     amount: parseFloat(amountPart.trim().replace(',', '.')) || 0,
@@ -75,110 +71,31 @@ function formatNumber(n: number): string {
   return n.toFixed(1).replace('.', ',');
 }
 
-/** OKLCH color for a given absence percentage (green → yellow → orange → red) */
 function absenceColor(pct: number): string {
-  if (pct <= 0) return 'oklch(0.72 0.17 145)';   // green
-  if (pct < 5) return 'oklch(0.75 0.15 145)';     // green-ish
-  if (pct < 10) return 'oklch(0.78 0.14 80)';     // yellow-green
-  if (pct < 15) return 'oklch(0.75 0.16 55)';     // orange
-  if (pct < 20) return 'oklch(0.68 0.18 40)';     // dark orange
-  return 'oklch(0.62 0.2 25)';                     // red
+  if (pct <= 0) return 'oklch(0.72 0.17 145)';
+  if (pct < 5) return 'oklch(0.75 0.15 145)';
+  if (pct < 10) return 'oklch(0.78 0.14 80)';
+  if (pct < 15) return 'oklch(0.75 0.16 55)';
+  if (pct < 20) return 'oklch(0.68 0.18 40)';
+  return 'oklch(0.62 0.2 25)';
 }
 
-/** OKLCH fill for donut chart segments */
-function donutSegmentColor(pct: number, isAbsence: boolean): string {
-  if (!isAbsence) return 'oklch(0.85 0.02 265)';  // light muted (attendance)
-  return absenceColor(pct);
+function absenceColorClass(pct: number): string {
+  if (pct <= 0) return 'text-[oklch(0.72_0.17_145)]';
+  if (pct < 5) return 'text-[oklch(0.62_0.17_145)]';
+  if (pct < 10) return 'text-[oklch(0.65_0.16_80)]';
+  if (pct < 15) return 'text-[oklch(0.60_0.18_55)]';
+  if (pct < 20) return 'text-[oklch(0.55_0.20_40)]';
+  return 'text-[oklch(0.52_0.22_25)]';
 }
 
-// ── Period Presets ─────────────────────────────────────────────────────
-
-interface PeriodPreset {
-  key: string;
-  label: string;
-  getRange: () => { start: string; end: string };
-}
-
-/** Lectio date format: dd/mm-yyyy */
-function ddmmyyyy(d: Date): string {
-  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getFullYear()}`;
-}
-
-/** Convert Lectio dd/mm-yyyy to HTML date input yyyy-mm-dd */
-function lectioToISO(lectio: string): string {
-  const m = lectio.match(/^(\d{2})\/(\d{2})-(\d{4})$/);
-  if (!m) return '';
-  return `${m[3]}-${m[2]}-${m[1]}`;
-}
-
-/** Convert HTML date input yyyy-mm-dd to Lectio dd/mm-yyyy */
-function isoToLectio(iso: string): string {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return '';
-  return `${m[3]}/${m[2]}-${m[1]}`;
-}
-
-function getPeriodPresets(): PeriodPreset[] {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth(); // 0-based
-
-  // Danish school year: Aug 1 → Jun 30
-  const schoolYearStart = month >= 7
-    ? new Date(year, 7, 1)      // Aug 1 this year
-    : new Date(year - 1, 7, 1); // Aug 1 last year
-  const schoolYearEnd = month >= 7
-    ? new Date(year + 1, 5, 30)
-    : new Date(year, 5, 30);
-
-  return [
-    {
-      key: 'year',
-      label: 'Hele året',
-      getRange: () => ({ start: ddmmyyyy(schoolYearStart), end: ddmmyyyy(schoolYearEnd) }),
-    },
-    {
-      key: '30d',
-      label: 'Sidste 30 dage',
-      getRange: () => {
-        const from = new Date(now);
-        from.setDate(from.getDate() - 30);
-        return { start: ddmmyyyy(from), end: ddmmyyyy(now) };
-      },
-    },
-    {
-      key: '90d',
-      label: 'Sidste 3 mdr.',
-      getRange: () => {
-        const from = new Date(now);
-        from.setMonth(from.getMonth() - 3);
-        return { start: ddmmyyyy(from), end: ddmmyyyy(now) };
-      },
-    },
-    {
-      key: 'month',
-      label: 'Denne måned',
-      getRange: () => {
-        const from = new Date(year, month, 1);
-        const to = new Date(year, month + 1, 0);
-        return { start: ddmmyyyy(from), end: ddmmyyyy(to) };
-      },
-    },
-  ];
-}
-
-// ── Sort helpers ──────────────────────────────────────────────────────
-
-type SortKey = 'hold' | 'almOpgjort' | 'almAar' | 'skrOpgjort' | 'skrAar';
-type SortDir = 'asc' | 'desc';
-type DistributionMetric = 'alm' | 'skr';
-
-interface SubjectDistributionItem {
-  label: string;
-  hue: number;
-  amount: number;
-  total: number;
-  share: number;
+function statusLabel(pct: number): string {
+  if (pct <= 0) return 'Perfekt';
+  if (pct < 5) return 'Fint';
+  if (pct < 10) return 'Okay';
+  if (pct < 15) return 'Højt';
+  if (pct < 20) return 'Kritisk';
+  return 'Meget kritisk';
 }
 
 function hasHoldAbsence(hold: FravaerHoldEntry): boolean {
@@ -190,80 +107,43 @@ function hasHoldAbsence(hold: FravaerHoldEntry): boolean {
   );
 }
 
-function sortHolds(holds: FravaerHoldEntry[], key: SortKey, dir: SortDir): FravaerHoldEntry[] {
-  const sorted = [...holds];
-  sorted.sort((a, b) => {
-    let cmp: number;
-    switch (key) {
-      case 'hold':
-        cmp = getHoldDisplayName(a.hold).localeCompare(getHoldDisplayName(b.hold), 'da');
-        break;
-      case 'almOpgjort':
-        cmp = parsePct(a.almOpgjortPct) - parsePct(b.almOpgjortPct);
-        break;
-      case 'almAar':
-        cmp = parsePct(a.almAarPct) - parsePct(b.almAarPct);
-        break;
-      case 'skrOpgjort':
-        cmp = parsePct(a.skrOpgjortPct) - parsePct(b.skrOpgjortPct);
-        break;
-      case 'skrAar':
-        cmp = parsePct(a.skrAarPct) - parsePct(b.skrAarPct);
-        break;
-      default:
-        cmp = 0;
-    }
-    return dir === 'asc' ? cmp : -cmp;
-  });
-  return sorted;
+function isMissingReasonRecord(record: FravaerRecord): boolean {
+  return !record.aarsag && !!record.editUrl;
 }
 
-function buildSubjectDistribution(holds: FravaerHoldEntry[], metric: DistributionMetric): {
-  items: SubjectDistributionItem[];
-  totalAmount: number;
-  totalPossible: number;
-} {
-  const grouped = new Map<string, { label: string; hue: number; amount: number; total: number }>();
+// ── Distribution helpers ───────────────────────────────────────────────
+
+interface DistributionSlice {
+  label: string;
+  hue: number;
+  amount: number;
+  total: number;
+  pct: number;
+}
+
+function buildDistribution(holds: FravaerHoldEntry[]): DistributionSlice[] {
+  const items: DistributionSlice[] = [];
+  let totalAmount = 0;
 
   for (const hold of holds) {
-    const detail = metric === 'alm' ? hold.almOpgjortModuler : hold.skrOpgjortTid;
-    const { amount, total } = parseFraction(detail);
+    const { amount } = parseFraction(hold.almOpgjortModuler);
     if (amount <= 0) continue;
-
-    const label = getHoldDisplayName(hold.hold) || hold.hold;
-    const key = label.toLowerCase();
-    const existing = grouped.get(key);
-
-    if (existing) {
-      existing.amount += amount;
-      existing.total += total;
-      continue;
-    }
-
-    grouped.set(key, {
-      label,
+    totalAmount += amount;
+    const { total } = parseFraction(hold.almOpgjortModuler);
+    items.push({
+      label: getHoldDisplayName(hold.hold) || hold.hold,
       hue: getHoldHue(hold.hold),
       amount,
       total,
+      pct: 0,
     });
   }
 
-  const values = Array.from(grouped.values());
-  const totalAmount = values.reduce((sum, item) => sum + item.amount, 0);
-  const totalPossible = values.reduce((sum, item) => sum + item.total, 0);
+  for (const item of items) {
+    item.pct = totalAmount > 0 ? (item.amount / totalAmount) * 100 : 0;
+  }
 
-  const items = values
-    .sort((a, b) => b.amount - a.amount)
-    .map((item) => ({
-      ...item,
-      share: totalAmount > 0 ? (item.amount / totalAmount) * 100 : 0,
-    }));
-
-  return { items, totalAmount, totalPossible };
-}
-
-function isMissingReasonRecord(record: FravaerRecord): boolean {
-  return !record.aarsag && !!record.editUrl;
+  return items.sort((a, b) => b.amount - a.amount);
 }
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -272,85 +152,27 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const [data, setData] = useState<FravaerPageData>(initialData);
   const [loading, setLoading] = useState(false);
 
-  // Period inputs
-  const [periodStart, setPeriodStart] = useState(data.period.start);
-  const [periodEnd, setPeriodEnd] = useState(data.period.end);
+  const [showAllSubjects, setShowAllSubjects] = useState(false);
+  const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
 
-  // Table sort
-  const [sortKey, setSortKey] = useState<SortKey>('almOpgjort');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [showZeroAbsenceHolds, setShowZeroAbsenceHolds] = useState(false);
-
-  // Records filters
+  // Records
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
   const [showOnlyMissing, setShowOnlyMissing] = useState(false);
   const [recordSearch, setRecordSearch] = useState('');
   const [visibleRecords, setVisibleRecords] = useState(20);
   const searchRef = useRef<HTMLInputElement>(null);
-  const [showAllTopMissing, setShowAllTopMissing] = useState(false);
 
   // Edit sheet
   const [editRecord, setEditRecord] = useState<FravaerRecord | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
 
-  const [distributionMetric, setDistributionMetric] = useState<DistributionMetric>('alm');
-
-  // Register holds for the hold-mapping system
   useEffect(() => {
     for (const entry of data.holds) {
       registerHold(entry.hold, entry.holdelementId);
     }
   }, [data.holds]);
 
-  // Sync period inputs when data changes
-  useEffect(() => {
-    setPeriodStart(data.period.start);
-    setPeriodEnd(data.period.end);
-  }, [data.period]);
-
-  useEffect(() => {
-    setShowZeroAbsenceHolds(false);
-  }, [data.holds]);
-
-  const hasWrittenDistribution = data.holds.some((hold) => parseFraction(hold.skrOpgjortTid).amount > 0);
-
-  useEffect(() => {
-    if (distributionMetric === 'skr' && !hasWrittenDistribution) {
-      setDistributionMetric('alm');
-    }
-  }, [distributionMetric, hasWrittenDistribution]);
-
-  // ── Period change handler ──────────────────────────────────────────
-
-  const handlePeriodSubmit = useCallback(async (start: string, end: string) => {
-    setLoading(true);
-    try {
-      const result = await submitPeriodChange(start, end);
-      if (result) {
-        setData(result);
-        setVisibleRecords(20);
-      }
-    } catch (err) {
-      console.error('[BetterLectio] Period change failed:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const handlePreset = (preset: PeriodPreset) => {
-    const { start, end } = preset.getRange();
-    setPeriodStart(start);
-    setPeriodEnd(end);
-    handlePeriodSubmit(start, end);
-  };
-
-  const handleCustomPeriod = () => {
-    if (periodStart && periodEnd) {
-      handlePeriodSubmit(periodStart, periodEnd);
-    }
-  };
-
-  // ── Edit handler ───────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────
 
   const handleEditClick = (record: FravaerRecord) => {
     setEditRecord(record);
@@ -358,7 +180,6 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   };
 
   const handleEditSaved = useCallback(async () => {
-    // Refetch data to get updated reasons
     setLoading(true);
     try {
       const result = await submitPeriodChange(data.period.start, data.period.end);
@@ -368,43 +189,40 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     }
   }, [data.period]);
 
-  // ── Sorted holds ──────────────────────────────────────────────────
+  // ── Derived data ─────────────────────────────────────────────────────
 
-  const sortedHolds = sortHolds(data.holds, sortKey, sortDir);
-  const nonZeroHolds = sortedHolds.filter(hasHoldAbsence);
-  const zeroAbsenceHolds = sortedHolds.filter((hold) => !hasHoldAbsence(hold));
-  const visibleHolds = showZeroAbsenceHolds ? sortedHolds : nonZeroHolds;
+  const almOpgjort = parsePct(data.totals?.almOpgjortPct || '');
+  const almAar = parsePct(data.totals?.almAarPct || '');
+  const skrOpgjort = parsePct(data.totals?.skrOpgjortPct || '');
+  const skrAar = parsePct(data.totals?.skrAarPct || '');
+  const hasSkr = skrOpgjort > 0 || skrAar > 0 || data.holds.some(h => parsePct(h.skrOpgjortPct) > 0 || parsePct(h.skrAarPct) > 0);
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDir('desc');
-    }
-  };
+  const subjectsWithAbsence = data.holds
+    .filter(hasHoldAbsence)
+    .sort((a, b) => parsePct(b.almOpgjortPct) - parsePct(a.almOpgjortPct));
+  const subjectsWithoutAbsence = data.holds.filter(h => !hasHoldAbsence(h));
 
-  // ── Records filtering ─────────────────────────────────────────────
+  const visibleSubjects = showAllSubjects
+    ? [...subjectsWithAbsence, ...subjectsWithoutAbsence]
+    : subjectsWithAbsence;
 
-  // Convert current Lectio period (dd/mm-yyyy) to ISO for date comparison
-  const periodStartISO = lectioToISO(periodStart);
-  const periodEndISO = lectioToISO(periodEnd);
+  const hasMissingReasons = data.missingReasons.length > 0;
 
+  const distribution = buildDistribution(data.holds);
+
+  // Records filtering
   const allRecords = showOnlyMissing
     ? data.missingReasons
-    : [...data.missingReasons, ...data.records].filter((record, index, records) =>
-        records.findIndex((candidate) => candidate.absid === record.absid) === index,
+    : [...data.missingReasons, ...data.records].filter(
+        (record, index, records) =>
+          records.findIndex(c => c.absid === record.absid) === index,
       );
   const queryLower = recordSearch.toLowerCase().trim();
 
   const filteredRecords = allRecords.filter(r => {
-    // Client-side period filter (fraværsårsager page has no server-side period filter)
-    if (r.dateISO && periodStartISO && periodEndISO) {
-      if (r.dateISO < periodStartISO || r.dateISO > periodEndISO) return false;
-    }
     if (selectedHold && r.hold !== selectedHold) return false;
     if (queryLower) {
-      const searchIn = `${r.hold} ${r.date} ${r.teacher} ${r.aarsag} ${r.note} ${r.bemaerkning} ${r.module}`.toLowerCase();
+      const searchIn = `${r.hold} ${getHoldDisplayName(r.hold)} ${r.date} ${r.teacher} ${r.aarsag} ${r.note} ${r.bemaerkning} ${r.module}`.toLowerCase();
       if (!searchIn.includes(queryLower)) return false;
     }
     return true;
@@ -418,259 +236,143 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     });
 
   const shownRecords = prioritizedRecords.slice(0, visibleRecords);
-  const hasMissingReasons = data.missingReasons.length > 0;
-  const topMissingRecords = showAllTopMissing ? data.missingReasons : data.missingReasons.slice(0, 4);
-  const hasCollapsedTopMissing = data.missingReasons.length > 4;
 
-  // ── Chart data ────────────────────────────────────────────────────
-
-  const almOpgjort = parsePct(data.totals?.almOpgjortPct || '');
-  const skrOpgjort = parsePct(data.totals?.skrOpgjortPct || '');
-
-  const donutAlm = [
-    { name: 'Fravær', value: almOpgjort, isAbsence: true },
-    { name: 'Fremmøde', value: Math.max(0, 100 - almOpgjort), isAbsence: false },
-  ];
-  const donutSkr = [
-    { name: 'Fravær', value: skrOpgjort, isAbsence: true },
-    { name: 'Fremmøde', value: Math.max(0, 100 - skrOpgjort), isAbsence: false },
-  ];
-
-  const subjectDistribution = buildSubjectDistribution(data.holds, distributionMetric);
-
-  // Unique holds from records for filter pills
-  const recordHolds = [...new Set(allRecords.map(r => r.hold))].filter(Boolean).sort((a, b) =>
-    getHoldDisplayName(a).localeCompare(getHoldDisplayName(b), 'da')
-  );
-
-  const presets = getPeriodPresets();
+  const recordHolds = [...new Set(allRecords.map(r => r.hold))]
+    .filter(Boolean)
+    .sort((a, b) => getHoldDisplayName(a).localeCompare(getHoldDisplayName(b), 'da'));
 
   return (
-    <div className={cn("mx-auto max-w-7xl space-y-4 px-10 pb-12 pt-8", loading && "pointer-events-none opacity-70")}>
-      {/* ── Header ─────────────────────────────── */}
-      <div className="border-b border-border pb-5 mb-3">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Fravær</h1>
-          {data.studentName && (
-            <span className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-sm font-medium text-muted-foreground">{data.studentName}</span>
-          )}
-        </div>
-        <p className="mt-1.5 text-base text-muted-foreground">
-          {data.holds.length} fag &middot; {data.records.length} registreringer
+    <div className={cn('mx-auto max-w-7xl px-10 pb-12 pt-8', loading && 'pointer-events-none opacity-60')}>
+
+      {/* ── Header (matches Lektier/Opgaver) ── */}
+      <div className="border-b border-border pb-5 mb-7">
+        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Fravær</h1>
+        <p className="mt-1 text-base text-muted-foreground">
+          {data.studentName && <>{data.studentName} &middot; </>}
+          {data.holds.length} fag &middot; {data.records.length + data.missingReasons.length} registreringer
         </p>
       </div>
 
+      {/* ── Missing reasons banner ────────────── */}
       {hasMissingReasons && (
-        <section className="mb-5 rounded-xl border border-[oklch(0.85_0.08_50)] bg-[oklch(0.99_0.005_50)] p-5 dark:border-[oklch(0.35_0.06_50)] dark:bg-[oklch(0.16_0.012_50)] animate-[bl-fade-in_350ms_var(--ease-out)_both]">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.93_0.06_50)] text-[oklch(0.5_0.18_50)] dark:bg-[oklch(0.28_0.05_50)] dark:text-[oklch(0.75_0.14_50)]">
-              <AlertTriangle size={16} />
-            </div>
-            <div>
-              <p className="text-base font-bold leading-tight text-foreground">
-                {data.missingReasons.length} registrering{data.missingReasons.length === 1 ? '' : 'er'} mangler fraværsårsag
-              </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Disse kræver din handling.
-              </p>
-            </div>
-          </div>
+        <MissingReasonsBanner
+          records={data.missingReasons}
+          onEdit={handleEditClick}
+        />
+      )}
 
-          <div className="mt-4 grid gap-2.5">
-            {topMissingRecords.map((record, index) => (
-              <TopMissingReasonCard
-                key={`${record.absid}-${index}`}
-                record={record}
-                onEdit={handleEditClick}
+      {/* ── Summary section ───────────────────── */}
+      {data.totals && (
+        <section className="mb-8 animate-[bl-fade-in_350ms_var(--ease-out)_both]">
+          <div className={cn(
+            'grid gap-5',
+            hasSkr ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2',
+          )}>
+            {/* Almindeligt card */}
+            <SummaryCard
+              title="Almindeligt fravær"
+              opgjortPct={almOpgjort}
+              opgjortDetail={data.totals.almOpgjortModuler}
+              aarPct={almAar}
+              aarDetail={data.totals.almAarModuler}
+              opgjortLabel="Opgjort"
+              aarLabel="For året"
+              unitLabel="moduler"
+            />
+
+            {/* Skriftligt card */}
+            {hasSkr && (
+              <SummaryCard
+                title="Skriftligt fravær"
+                opgjortPct={skrOpgjort}
+                opgjortDetail={data.totals.skrOpgjortTid}
+                aarPct={skrAar}
+                aarDetail={data.totals.skrAarTid}
+                opgjortLabel="Opgjort"
+                aarLabel="For året"
+                unitLabel="elevtimer"
+              />
+            )}
+
+            {/* Distribution donut */}
+            {distribution.length > 0 && (
+              <DistributionCard slices={distribution} />
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Per-subject breakdown ─────────────── */}
+      {data.holds.length > 0 && (
+        <section className="mb-8 space-y-3 animate-[bl-fade-in_350ms_var(--ease-out)_100ms_both]">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            Fravær per fag
+          </h2>
+
+          <div className="space-y-1.5">
+            {visibleSubjects.map((hold, i) => (
+              <SubjectRow
+                key={hold.hold}
+                hold={hold}
+                hasSkr={hasSkr}
+                isExpanded={expandedSubject === hold.hold}
+                onToggle={() =>
+                  setExpandedSubject(expandedSubject === hold.hold ? null : hold.hold)
+                }
+                onFilterRecords={() => {
+                  setSelectedHold(selectedHold === hold.hold ? null : hold.hold);
+                  document.getElementById('il-fravaer-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                style={{ animationDelay: `${140 + i * 25}ms` }}
               />
             ))}
           </div>
 
-          {hasCollapsedTopMissing && (
+          {subjectsWithoutAbsence.length > 0 && (
             <button
-              className="mt-3 inline-flex items-center justify-center px-3 py-1.5 text-sm font-bold text-[oklch(0.45_0.14_50)] transition-[background-color,transform] duration-150 hover:underline hover:underline-offset-[0.18rem] active:scale-[0.97]"
-              onClick={() => setShowAllTopMissing((value) => !value)}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
+              onClick={() => setShowAllSubjects(v => !v)}
             >
-              {showAllTopMissing
-                ? 'Vis færre'
-                : `Vis alle ${data.missingReasons.length} manglende`}
+              {showAllSubjects ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {showAllSubjects
+                ? `Skjul ${subjectsWithoutAbsence.length} fag uden fravær`
+                : `${subjectsWithoutAbsence.length} fag uden fravær`}
             </button>
           )}
         </section>
       )}
 
-      {/* ── Period picker ──────────────────────── */}
-      <div className="mb-5 flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Calendar size={14} className="mr-0.5 shrink-0 text-muted-foreground/50" />
-          {presets.map(p => (
-            <button
-              key={p.key}
-              className="rounded-full border border-border bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={() => handlePreset(p)}
-              disabled={loading}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+      {/* ── Bemærkninger ──────────────────────── */}
+      {data.warnings.length > 0 && (
+        <WarningsSection warnings={data.warnings} />
+      )}
+
+      {/* ── Records ───────────────────────────── */}
+      <section id="il-fravaer-records" className="mb-8 space-y-3 animate-[bl-fade-in_350ms_var(--ease-out)_200ms_both]">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+          Registreringer
+          <span className="ml-1.5 tabular-nums text-muted-foreground/70">
+            {filteredRecords.length}
+          </span>
+        </h2>
+
+        {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="date"
-            className="h-9 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-            value={lectioToISO(periodStart)}
-            onInput={(e) => {
-              const iso = (e.target as HTMLInputElement).value;
-              if (iso) setPeriodStart(isoToLectio(iso));
-            }}
-          />
-          <span className="text-sm text-muted-foreground">&ndash;</span>
-          <input
-            type="date"
-            className="h-9 rounded-md border border-border bg-card px-2.5 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-            value={lectioToISO(periodEnd)}
-            onInput={(e) => {
-              const iso = (e.target as HTMLInputElement).value;
-              if (iso) setPeriodEnd(isoToLectio(iso));
-            }}
-          />
-          <button
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,opacity,transform] duration-150 hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={handleCustomPeriod}
-            disabled={loading || !periodStart || !periodEnd}
-          >
-            {loading ? <Loader2 size={14} className="animate-spin text-primary" /> : 'Vis'}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Summary donuts ─────────────────────── */}
-      {data.totals && (
-        <div className="mb-8 grid grid-cols-2 gap-4">
-          <DonutCard
-            label="Almindeligt"
-            pct={almOpgjort}
-            chartData={donutAlm}
-            detail={data.totals.almOpgjortModuler}
-            subLabel={data.totals.almAarPct ? `Året: ${data.totals.almAarPct}` : ''}
-          />
-          <DonutCard
-            label="Skriftligt"
-            pct={skrOpgjort}
-            chartData={donutSkr}
-            detail={data.totals.skrOpgjortTid}
-            subLabel={data.totals.skrAarPct ? `Året: ${data.totals.skrAarPct}` : ''}
-          />
-        </div>
-      )}
-
-      {/* ── Per-hold breakdown ─────────────────── */}
-      {data.holds.length > 0 && (
-        <section className="mb-10 space-y-3">
-          <div className="mb-4">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-              <BarChart3 size={18} />
-              Fravær per fag
-            </h2>
-          </div>
-
-          <SubjectDistributionCard
-            metric={distributionMetric}
-            hasWrittenDistribution={hasWrittenDistribution}
-            items={subjectDistribution.items}
-            totalAmount={subjectDistribution.totalAmount}
-            totalPossible={subjectDistribution.totalPossible}
-            onMetricChange={setDistributionMetric}
-          />
-
-          <div className="overflow-x-auto rounded-xl border border-border bg-card animate-[bl-fade-in_350ms_var(--ease-out)_both]">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <SortHeader label="Fag" sortKey="hold" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  <SortHeader label="Alm. opgjort" sortKey="almOpgjort" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  <SortHeader label="Alm. år" sortKey="almAar" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  <SortHeader label="Skr. opgjort" sortKey="skrOpgjort" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  <SortHeader label="Skr. år" sortKey="skrAar" current={sortKey} dir={sortDir} onSort={handleSort} />
-                </tr>
-              </thead>
-              <tbody>
-                {visibleHolds.length === 0 && (
-                  <tr>
-                    <td className="bg-muted/35 px-3.5 py-4 text-center text-sm text-muted-foreground" colSpan={5}>
-                      Ingen fag med registreret fravær i den valgte periode.
-                    </td>
-                  </tr>
-                )}
-
-                {visibleHolds.map((h, i) => {
-                  const hue = getHoldHue(h.hold);
-                  return (
-                    <tr key={i} className="border-t border-border/50 transition-[background-color] duration-150 hover:bg-accent/30" style={{ '--hold-hue': hue } as any}>
-                      <td className="flex items-center gap-2 whitespace-nowrap px-3.5 py-4 font-medium text-foreground">
-                        <span className="size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
-                        {getHoldDisplayName(h.hold)}
-                        {getHoldDisplayName(h.hold) !== h.hold && (
-                          <span className="ml-1 text-xs text-muted-foreground/70">{h.hold}</span>
-                        )}
-                      </td>
-                      <td className="px-3.5 py-4">
-                        <PctCell pct={h.almOpgjortPct} detail={h.almOpgjortModuler} />
-                      </td>
-                      <td className="px-3.5 py-4">
-                        <PctCell pct={h.almAarPct} detail={h.almAarModuler} />
-                      </td>
-                      <td className="px-3.5 py-4">
-                        <PctCell pct={h.skrOpgjortPct} detail={h.skrOpgjortTid} />
-                      </td>
-                      <td className="px-3.5 py-4">
-                        <PctCell pct={h.skrAarPct} detail={h.skrAarTid} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {zeroAbsenceHolds.length > 0 && (
-            <button
-              className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
-              onClick={() => setShowZeroAbsenceHolds((value) => !value)}
-            >
-              {showZeroAbsenceHolds ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              {showZeroAbsenceHolds
-                ? `Skjul ${zeroAbsenceHolds.length} fag uden fravær`
-                : `Vis ${zeroAbsenceHolds.length} fag uden fravær`}
-            </button>
-          )}
-        </section>
-      )}
-
-      {/* ── Records section ────────────────────── */}
-      <section className="mb-8 space-y-3">
-        <div className="mb-4">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <Clock size={18} />
-            Fraværsregistreringer
-            <span className="ml-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{filteredRecords.length}</span>
-          </h2>
-        </div>
-
-        {/* Records toolbar */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[240px] flex-1">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative min-w-[200px] flex-1">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
             <input
               ref={searchRef}
               type="text"
-              className="h-11 w-full rounded-lg border border-border bg-card pl-9 pr-10 text-base text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-9 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               placeholder="Søg i registreringer..."
               value={recordSearch}
-              onInput={(e) => setRecordSearch((e.target as HTMLInputElement).value)}
+              onInput={e => setRecordSearch((e.target as HTMLInputElement).value)}
             />
             {recordSearch && (
-              <button className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground" onClick={() => setRecordSearch('')}>
+              <button
+                className="absolute right-2 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+                onClick={() => setRecordSearch('')}
+              >
                 <X size={14} />
               </button>
             )}
@@ -679,71 +381,47 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           {hasMissingReasons && (
             <button
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
-                showOnlyMissing && 'border-[oklch(0.50_0.14_50)] bg-[oklch(0.50_0.14_50)] text-[oklch(0.98_0.01_50)] dark:border-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.55_0.14_50)]',
+                'inline-flex h-10 items-center gap-1.5 rounded-lg border px-3.5 text-sm font-medium transition-colors duration-150 active:scale-[0.97]',
+                showOnlyMissing
+                  ? 'border-[oklch(0.65_0.12_50)] bg-[oklch(0.65_0.12_50)] text-white dark:border-[oklch(0.58_0.12_50)] dark:bg-[oklch(0.45_0.10_50)]'
+                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
-              onClick={() => { setShowOnlyMissing(!showOnlyMissing); setVisibleRecords(20); }}
+              onClick={() => { setShowOnlyMissing(v => !v); setVisibleRecords(20); }}
             >
               <AlertTriangle size={13} />
-              {showOnlyMissing ? 'Vis alle' : 'Kun manglende'}
+              Kun manglende
             </button>
           )}
         </div>
 
         {/* Hold filter pills */}
         {recordHolds.length > 1 && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
-                selectedHold === null && 'border-primary/40 bg-primary/10 text-foreground',
-                selectedHold !== null && 'text-muted-foreground',
-              )}
+          <div className="flex flex-wrap gap-1.5">
+            <FilterPill
+              active={selectedHold === null}
               onClick={() => setSelectedHold(null)}
             >
               Alle fag
-            </button>
+            </FilterPill>
             {recordHolds.map(hold => (
-              <button
+              <FilterPill
                 key={hold}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]',
-                  selectedHold === hold && 'border-[oklch(0.6_0.12_var(--hold-hue,265))] bg-[oklch(0.94_0.06_var(--hold-hue,265))] text-[oklch(0.4_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.24_0.06_var(--hold-hue,265))] dark:text-[oklch(0.75_0.12_var(--hold-hue,265))]',
-                  selectedHold !== hold && 'text-muted-foreground',
-                )}
+                active={selectedHold === hold}
+                hue={getHoldHue(hold)}
                 onClick={() => setSelectedHold(selectedHold === hold ? null : hold)}
-                style={{ '--hold-hue': getHoldHue(hold) } as any}
               >
-                <span className="inline-block size-2 rounded-full [background:oklch(0.65_0.16_var(--hold-hue,265))]" />
                 {getHoldDisplayName(hold)}
-              </button>
+              </FilterPill>
             ))}
           </div>
         )}
 
         {/* Records list */}
         {filteredRecords.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background px-8 py-12 text-center text-muted-foreground">
-            {recordSearch || selectedHold || showOnlyMissing ? (
-              <>
-                <Search className="mb-1 size-10 text-muted-foreground/30" />
-                <p className="text-base font-semibold text-foreground">Ingen resultater</p>
-                <p className="text-sm text-muted-foreground">Prøv at ændre dine filtre</p>
-                <button
-                  className="mt-3 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-[color,background-color] duration-150 hover:bg-accent"
-                  onClick={() => { setRecordSearch(''); setSelectedHold(null); setShowOnlyMissing(false); }}
-                >
-                  Nulstil filtre
-                </button>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="mb-1 size-10 text-muted-foreground/30" />
-                <p className="text-base font-semibold text-foreground">Ingen registreringer</p>
-                <p className="text-sm text-muted-foreground">Intet fravær i den valgte periode</p>
-              </>
-            )}
-          </div>
+          <EmptyRecords
+            hasFilters={!!(recordSearch || selectedHold || showOnlyMissing)}
+            onReset={() => { setRecordSearch(''); setSelectedHold(null); setShowOnlyMissing(false); }}
+          />
         ) : (
           <div className="space-y-2">
             {shownRecords.map(({ record, isMissing }, i) => (
@@ -759,41 +437,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
         {filteredRecords.length > visibleRecords && (
           <button
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-muted px-4 py-3.5 text-base font-medium text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.98]"
-            onClick={() => setVisibleRecords(v => v + 20)}
+            className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-3 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.99]"
+            onClick={() => setVisibleRecords(v => v + 30)}
           >
-            <ChevronDown size={16} />
+            <ChevronDown size={15} />
             Vis flere ({filteredRecords.length - visibleRecords} resterende)
           </button>
         )}
       </section>
-
-      {/* ── Bemærkninger (samtaler etc.) ────────── */}
-      {data.warnings.length > 0 && (
-        <section className="rounded-xl border border-border bg-card p-4">
-          <span className="inline-flex items-center gap-1 text-xs font-bold tracking-[0.05em] uppercase text-muted-foreground">
-            <Info size={13} />
-            Bemærkninger
-          </span>
-          <div className="mt-3 grid gap-2.5">
-            {data.warnings.map((w, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-border/75 bg-card px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-foreground">{w.dato}</span>
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">{w.type}</span>
-                  <span className="text-xs text-muted-foreground">{w.initialer}</span>
-                </div>
-                {w.note && (
-                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{w.note}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* ── Edit Sheet ─────────────────────────── */}
       <FravaerEditSheet
@@ -803,10 +454,9 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
         onSaved={handleEditSaved}
       />
 
-      {/* Loading overlay */}
       {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[oklch(1_0_0/0.5)] pointer-events-none dark:bg-[oklch(0.15_0_0/0.5)]">
-          <Loader2 size={24} className="animate-spin text-primary" />
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-[oklch(1_0_0/0.4)] dark:bg-[oklch(0.1_0_0/0.5)]">
+          <Loader2 size={22} className="animate-spin text-primary" />
         </div>
       )}
     </div>
@@ -815,303 +465,472 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
-function TopMissingReasonCard({
-  record,
+function AbsenceRing({ pct, size, strokeWidth }: { pct: number; size: number; strokeWidth: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(pct, 100) / 100) * circumference;
+
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        strokeWidth={strokeWidth}
+        className="stroke-muted/40"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        stroke={absenceColor(pct)}
+        className="transition-[stroke-dashoffset] duration-700"
+        style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+      />
+    </svg>
+  );
+}
+
+function SummaryCard({
+  title,
+  opgjortPct,
+  opgjortDetail,
+  aarPct,
+  aarDetail,
+  opgjortLabel,
+  aarLabel,
+  unitLabel,
+}: {
+  title: string;
+  opgjortPct: number;
+  opgjortDetail: string;
+  aarPct: number;
+  aarDetail: string;
+  opgjortLabel: string;
+  aarLabel: string;
+  unitLabel: string;
+}) {
+  return (
+    <div className="flex items-start gap-5 rounded-xl border border-border bg-card p-5">
+      <div className="relative flex shrink-0 items-center justify-center">
+        <AbsenceRing pct={opgjortPct} size={96} strokeWidth={8} />
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={cn('text-xl font-extrabold tabular-nums tracking-tight', absenceColorClass(opgjortPct))}>
+            {formatPct(opgjortPct)}
+          </span>
+          <span className={cn('text-[0.6rem] font-bold uppercase tracking-widest', absenceColorClass(opgjortPct))}>
+            {statusLabel(opgjortPct)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-3 pt-1">
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="text-xs text-muted-foreground">{opgjortLabel}</span>
+            <div className="mt-0.5 flex items-baseline gap-1.5">
+              <span className={cn('text-base font-bold tabular-nums', absenceColorClass(opgjortPct))}>
+                {formatPct(opgjortPct)}
+              </span>
+            </div>
+            {opgjortDetail && (
+              <span className="text-xs tabular-nums text-muted-foreground">{opgjortDetail} {unitLabel}</span>
+            )}
+          </div>
+
+          <div>
+            <span className="text-xs text-muted-foreground">{aarLabel}</span>
+            <div className="mt-0.5 flex items-baseline gap-1.5">
+              <span className={cn('text-base font-bold tabular-nums', absenceColorClass(aarPct))}>
+                {aarPct > 0 ? formatPct(aarPct) : '—'}
+              </span>
+            </div>
+            {aarDetail && (
+              <span className="text-xs tabular-nums text-muted-foreground">{aarDetail} {unitLabel}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
+  const totalAmount = slices.reduce((sum, s) => sum + s.amount, 0);
+
+  // Build SVG donut segments
+  const donutSize = 96;
+  const strokeWidth = 14;
+  const radius = (donutSize - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  let cumulativeOffset = 0;
+  const segments = slices.map(slice => {
+    const segLen = (slice.pct / 100) * circumference;
+    const gap = slices.length > 1 ? 3 : 0;
+    const seg = {
+      ...slice,
+      dasharray: `${Math.max(0, segLen - gap)} ${circumference - Math.max(0, segLen - gap)}`,
+      dashoffset: -cumulativeOffset,
+    };
+    cumulativeOffset += segLen;
+    return seg;
+  });
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 sm:col-span-2 lg:col-span-1">
+      <span className="text-sm font-semibold text-foreground">Fordeling</span>
+
+      <div className="mt-3 flex items-center gap-5">
+        {/* SVG donut */}
+        <div className="relative flex shrink-0 items-center justify-center">
+          <svg width={donutSize} height={donutSize} className="-rotate-90">
+            <circle
+              cx={donutSize / 2}
+              cy={donutSize / 2}
+              r={radius}
+              fill="none"
+              strokeWidth={strokeWidth}
+              className="stroke-muted/30"
+            />
+            {segments.map((seg, i) => (
+              <circle
+                key={i}
+                cx={donutSize / 2}
+                cy={donutSize / 2}
+                r={radius}
+                fill="none"
+                strokeWidth={strokeWidth}
+                strokeLinecap="butt"
+                strokeDasharray={seg.dasharray}
+                strokeDashoffset={seg.dashoffset}
+                stroke={`oklch(0.62 0.15 ${seg.hue})`}
+              />
+            ))}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-lg font-extrabold tabular-nums text-foreground">{formatNumber(totalAmount)}</span>
+            <span className="text-xs text-muted-foreground">moduler</span>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-1 flex-col gap-1.5 overflow-hidden">
+          {slices.slice(0, 5).map(slice => (
+            <div key={slice.label} className="flex items-center gap-2">
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ background: `oklch(0.62 0.15 ${slice.hue})` }}
+              />
+              <span className="min-w-0 truncate text-sm text-foreground">{slice.label}</span>
+              <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+                {formatNumber(slice.amount)}
+              </span>
+            </div>
+          ))}
+          {slices.length > 5 && (
+            <span className="pl-[1.125rem] text-xs text-muted-foreground">
+              +{slices.length - 5} fag mere
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MissingReasonsBanner({
+  records,
   onEdit,
 }: {
-  record: FravaerRecord;
+  records: FravaerRecord[];
   onEdit: (r: FravaerRecord) => void;
 }) {
-  const hue = record.hold ? getHoldHue(record.hold) : 200;
-  const holdName = record.hold ? getHoldDisplayName(record.hold) : '';
-  const secondaryText = [record.teacher, record.room].filter(Boolean).join(' · ');
-  const detailText = record.bemaerkning || record.note;
+  const [expanded, setExpanded] = useState(false);
+  const preview = expanded ? records : records.slice(0, 3);
+  const hasMore = records.length > 3;
+
+  return (
+    <section className="mb-7 animate-[bl-fade-in_350ms_var(--ease-out)_both]">
+      <div className="overflow-hidden rounded-xl border border-[oklch(0.82_0.08_50)] bg-[oklch(0.99_0.005_50)] dark:border-[oklch(0.32_0.05_50)] dark:bg-[oklch(0.15_0.01_50)]">
+        <div className="flex items-center gap-3 px-5 py-3.5">
+          <div className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.92_0.06_50)] text-[oklch(0.52_0.18_50)] dark:bg-[oklch(0.26_0.05_50)] dark:text-[oklch(0.78_0.14_50)]">
+            <AlertTriangle size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-foreground">
+              {records.length} registrering{records.length === 1 ? '' : 'er'} mangler fraværsårsag
+            </p>
+            <p className="text-sm text-muted-foreground">Kræver din handling</p>
+          </div>
+        </div>
+
+        <div className="border-t border-[oklch(0.90_0.04_50)] px-3 pb-2.5 dark:border-[oklch(0.25_0.03_50)]">
+          {preview.map((record, i) => {
+            const hue = record.hold ? getHoldHue(record.hold) : 200;
+            const holdName = record.hold ? getHoldDisplayName(record.hold) : '';
+            return (
+              <div
+                key={`${record.absid}-${i}`}
+                className="flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[oklch(0.96_0.01_50)] dark:hover:bg-[oklch(0.20_0.01_50)]"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ background: `oklch(0.65 0.16 ${hue})` }}
+                  />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-foreground">
+                      {formatFullDate(record.dateISO, record.date || record.uge)}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {holdName && <span className="font-medium">{holdName}</span>}
+                      {holdName && record.module && <span>&middot;</span>}
+                      {record.module && <span>{record.module}</span>}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[oklch(0.78_0.08_50/0.5)] bg-card px-3 py-1.5 text-xs font-bold text-[oklch(0.48_0.14_50)] transition-all duration-150 hover:bg-[oklch(0.97_0.01_50)] active:scale-[0.95] dark:border-[oklch(0.45_0.08_50/0.4)] dark:text-[oklch(0.82_0.10_50)] dark:hover:bg-[oklch(0.25_0.01_50)]"
+                  onClick={() => onEdit(record)}
+                >
+                  <Edit3 size={12} />
+                  Angiv årsag
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {hasMore && (
+          <button
+            className="w-full border-t border-[oklch(0.90_0.04_50)] px-4 py-2.5 text-sm font-bold text-[oklch(0.48_0.14_50)] transition-colors hover:bg-[oklch(0.97_0.01_50)] dark:border-[oklch(0.25_0.03_50)] dark:text-[oklch(0.78_0.12_50)] dark:hover:bg-[oklch(0.20_0.01_50)]"
+            onClick={() => setExpanded(v => !v)}
+          >
+            {expanded ? 'Vis færre' : `Vis alle ${records.length}`}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SubjectRow({
+  hold,
+  hasSkr,
+  isExpanded,
+  onToggle,
+  onFilterRecords,
+  style,
+}: {
+  hold: FravaerHoldEntry;
+  hasSkr: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onFilterRecords: () => void;
+  style?: any;
+}) {
+  const hue = getHoldHue(hold.hold);
+  const displayName = getHoldDisplayName(hold.hold);
+  const almPct = parsePct(hold.almOpgjortPct);
+  const almAarPct = parsePct(hold.almAarPct);
+  const skrPct = parsePct(hold.skrOpgjortPct);
+  const hasAbsence = hasHoldAbsence(hold);
 
   return (
     <div
-      className="flex items-start justify-between gap-3 rounded-xl border border-border/75 bg-card p-3.5 border-l-[3px] border-l-[oklch(0.65_0.16_var(--hold-hue,50))]"
-      style={{ '--hold-hue': hue } as any}
+      className="animate-[bl-fade-in_300ms_var(--ease-out)_both] overflow-hidden rounded-xl border border-border bg-card transition-colors"
+      style={style}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-bold text-foreground">{record.date || record.uge}</span>
-          {record.module && (
-            <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{record.module}</span>
-          )}
-          <span className="text-xs font-extrabold" style={{ color: absenceColor(record.fravaerPct) }}>
-            {record.fravaerPct}%
-          </span>
-        </div>
-
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          {holdName && (
-            <span className="font-bold text-[oklch(0.5_0.1_var(--hold-hue,265))] dark:text-[oklch(0.74_0.1_var(--hold-hue,265))]" style={{ '--hold-hue': hue } as any}>
-              {holdName}
-            </span>
-          )}
-          {secondaryText && (
-            <span className="opacity-80">{secondaryText}</span>
-          )}
-        </div>
-
-        {detailText && (
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{detailText}</p>
-        )}
-      </div>
-
       <button
-        className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1 rounded-full border border-[oklch(0.72_0.12_50/0.45)] bg-[oklch(0.99_0.006_50/0.9)] px-3.5 py-1.5 text-xs font-bold text-[oklch(0.45_0.14_50)] transition-[background-color,transform] duration-150 hover:bg-[oklch(0.97_0.01_50)] active:scale-[0.95] dark:border-[oklch(0.58_0.11_50/0.42)] dark:bg-[oklch(0.3_0.018_50/0.9)] dark:text-[oklch(0.86_0.09_50)]"
-        onClick={() => onEdit(record)}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-accent/30 active:scale-[0.998]"
+        onClick={onToggle}
       >
-        <Edit3 size={13} />
-        Rediger
-      </button>
-    </div>
-  );
-}
+        <span
+          className="size-3 shrink-0 rounded-full"
+          style={{ background: `oklch(0.65 0.16 ${hue})` }}
+        />
 
-function DonutCard({
-  label,
-  pct,
-  chartData,
-  detail,
-  subLabel,
-}: {
-  label: string;
-  pct: number;
-  chartData: Array<{ name: string; value: number; isAbsence: boolean }>;
-  detail: string;
-  subLabel: string;
-}) {
-  const color = absenceColor(pct);
-
-  return (
-    <div className="flex items-start gap-5 rounded-xl border border-border bg-card px-6 py-5 animate-[bl-fade-in_350ms_var(--ease-out)_both]">
-      <div className="relative size-[120px] shrink-0">
-        <ResponsiveContainerAny width={120} height={120}>
-          <PieChartAny>
-            <PieAny
-              data={chartData}
-              dataKey="value"
-              innerRadius={38}
-              outerRadius={54}
-              startAngle={90}
-              endAngle={-270}
-              paddingAngle={2}
-              stroke="none"
-            >
-              {chartData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={donutSegmentColor(pct, entry.isAbsence)}
-                />
-              ))}
-            </PieAny>
-          </PieChartAny>
-        </ResponsiveContainerAny>
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xl font-bold tabular-nums tracking-tight" style={{ color }}>
-          {formatPct(pct)}
-        </div>
-      </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm font-semibold text-foreground">{label}</span>
-        {detail && <span className="text-sm text-muted-foreground">{detail}</span>}
-        {subLabel && <span className="text-xs text-muted-foreground/80">{subLabel}</span>}
-      </div>
-    </div>
-  );
-}
-
-function SubjectDistributionCard({
-  metric,
-  hasWrittenDistribution,
-  items,
-  totalAmount,
-  totalPossible,
-  onMetricChange,
-}: {
-  metric: DistributionMetric;
-  hasWrittenDistribution: boolean;
-  items: SubjectDistributionItem[];
-  totalAmount: number;
-  totalPossible: number;
-  onMetricChange: (metric: DistributionMetric) => void;
-}) {
-  const unitShort = metric === 'alm' ? 'mod.' : 'elevt.';
-  const unitLong = metric === 'alm' ? 'moduler' : 'elevtimer';
-  const topSubject = items[0];
-  const chartData = items.map((item, index) => ({
-    ...item,
-    configKey: `subject${index}`,
-    fill: `var(--color-subject${index})`,
-  }));
-  const chartConfig = chartData.reduce((acc, item) => {
-    acc[item.configKey] = {
-      label: item.label,
-      color: `oklch(0.68 0.14 ${item.hue})`,
-    };
-    return acc;
-  }, {
-    amount: {
-      label: unitLong,
-    },
-  } as ChartConfig);
-
-  return (
-    <div className="mb-4 rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-base font-bold text-foreground">Fordeling af fravær</h3>
-          <p className="text-sm text-muted-foreground">
-            Se hvilke fag dit opgjorte fravær fylder mest i.
-          </p>
-          {topSubject && (
-            <p className="text-sm text-[oklch(0.44_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">
-              Mest i <strong>{topSubject.label}</strong> med {formatPct(topSubject.share)}
-            </p>
+        <span className="min-w-0 flex-1">
+          <span className="text-sm font-semibold text-foreground">{displayName}</span>
+          {displayName !== hold.hold && (
+            <span className="ml-1.5 text-xs text-muted-foreground/60">{hold.hold}</span>
           )}
-        </div>
+        </span>
 
-        {hasWrittenDistribution && (
-          <div className="flex overflow-hidden rounded-md border border-border">
-            <button
-              className={cn(
-                'bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground',
-                metric === 'alm' && 'bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
-              )}
-              onClick={() => onMetricChange('alm')}
-            >
-              Almindeligt
-            </button>
-            <button
-              className={cn(
-                'border-l border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground',
-                metric === 'skr' && 'bg-[oklch(0.94_0.06_265)] text-[oklch(0.4_0.16_265)] dark:bg-[oklch(0.3_0.06_265)] dark:text-[oklch(0.8_0.1_265)]',
-              )}
-              onClick={() => onMetricChange('skr')}
-            >
-              Skriftligt
-            </button>
-          </div>
-        )}
-      </div>
-
-      {items.length > 0 ? (
-        <div className="grid grid-cols-[minmax(220px,280px)_minmax(0,1fr)] items-center gap-5">
-          <div className="flex justify-center">
-            <div className="relative size-[220px]">
-              <ChartContainerAny
-                config={chartConfig}
-                className="size-full max-h-[220px]"
-              >
-                <PieChart>
-                  <ChartTooltipAny
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <PieAny
-                    data={chartData}
-                    dataKey="amount"
-                    nameKey="configKey"
-                    innerRadius={58}
-                    outerRadius={88}
-                    startAngle={90}
-                    endAngle={-270}
-                    paddingAngle={chartData.length > 1 ? 2 : 0}
-                    strokeWidth={0}
-                  >
-                    {chartData.map((item) => (
-                      <Cell
-                        key={item.label}
-                        fill={item.fill}
-                      />
-                    ))}
-                  </PieAny>
-                </PieChart>
-              </ChartContainerAny>
-
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[1.7rem] leading-none font-extrabold tracking-[-0.03em] text-foreground">{formatNumber(totalAmount)}</span>
-                <span className="mt-1 text-sm font-semibold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.78_0.08_265)]">{unitShort}</span>
-                <span className="mt-1 text-xs text-muted-foreground">
-                  ud af {formatNumber(totalPossible)}
-                </span>
+        {hasAbsence ? (
+          <div className="flex items-center gap-4">
+            {/* Mini bar */}
+            <div className="hidden w-28 sm:block">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
+                <div
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{
+                    width: `${Math.min(almPct * 2, 100)}%`,
+                    background: absenceColor(almPct),
+                    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="grid gap-2.5">
-            {items.map((item) => (
-              <div key={item.label} className="flex items-start gap-3 rounded-xl border border-border/70 bg-card px-3.5 py-3">
-                <span
-                  className="mt-0.5 size-3 shrink-0 rounded-full [background:oklch(0.68_0.14_var(--hold-hue))] shadow-[0_0_0_0.25rem_oklch(0.68_0.14_var(--hold-hue)/0.14)]"
-                  style={{ '--hold-hue': item.hue } as any}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 text-sm font-semibold text-foreground">{item.label}</span>
-                    <span className="shrink-0 text-sm font-bold text-[oklch(0.45_0.12_265)] dark:text-[oklch(0.8_0.08_265)]">{formatPct(item.share)}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {formatNumber(item.amount)}/{formatNumber(item.total)} {unitLong}
-                  </div>
-                </div>
-              </div>
-            ))}
+            <span className={cn('min-w-[3.5rem] text-right text-sm font-bold tabular-nums', absenceColorClass(almPct))}>
+              {hold.almOpgjortPct || '0%'}
+            </span>
           </div>
-        </div>
-      ) : (
-        <div className="rounded-xl bg-muted/55 px-4 py-3 text-sm text-muted-foreground">
-          Intet {metric === 'alm' ? 'almindeligt' : 'skriftligt'} fravær i den valgte periode.
+        ) : (
+          <span className="text-sm text-muted-foreground/40">0%</span>
+        )}
+
+        <ChevronDown
+          size={15}
+          className={cn(
+            'shrink-0 text-muted-foreground/40 transition-transform duration-200',
+            isExpanded && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {isExpanded && (
+        <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+            <DetailCell label="Alm. opgjort" value={hold.almOpgjortPct} detail={hold.almOpgjortModuler} />
+            <DetailCell label="Alm. for året" value={hold.almAarPct} detail={hold.almAarModuler} />
+            <DetailCell label="Skr. opgjort" value={hold.skrOpgjortPct} detail={hold.skrOpgjortTid} />
+            <DetailCell label="Skr. for året" value={hold.skrAarPct} detail={hold.skrAarTid} />
+          </div>
+          <button
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition-colors hover:text-primary/80 active:scale-[0.97]"
+            onClick={e => { e.stopPropagation(); onFilterRecords(); }}
+          >
+            <Search size={13} />
+            Se registreringer for {displayName}
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function SortHeader({
-  label,
-  sortKey: key,
-  current,
-  dir,
-  onSort,
-}: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  dir: SortDir;
-  onSort: (key: SortKey) => void;
-}) {
-  const isActive = current === key;
+function DetailCell({ label, value, detail }: { label: string; value: string; detail: string }) {
+  const pct = parsePct(value);
   return (
-    <th
-      className={cn("cursor-pointer select-none whitespace-nowrap px-3.5 py-2.5 text-left text-xs font-semibold tracking-[0.04em] uppercase text-muted-foreground transition-[color,background-color] duration-150 hover:text-foreground", isActive && "text-foreground")}
-      onClick={() => onSort(key)}
-    >
-      {label}
-      {isActive && (
-        dir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />
-      )}
-    </th>
+    <div>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="mt-1 flex items-baseline gap-1.5">
+        {value ? (
+          <>
+            <span className={cn('text-base font-bold tabular-nums', absenceColorClass(pct))}>{value}</span>
+            {detail && <span className="text-xs tabular-nums text-muted-foreground">{detail}</span>}
+          </>
+        ) : (
+          <span className="text-sm text-muted-foreground/40">&mdash;</span>
+        )}
+      </div>
+    </div>
   );
 }
 
-function PctCell({ pct, detail }: { pct: string; detail: string }) {
-  const num = parsePct(pct);
-  const color = absenceColor(num);
-
+function WarningsSection({ warnings }: { warnings: FravaerWarning[] }) {
   return (
-    <div className="flex min-w-20 flex-col gap-1">
-      {pct && (
+    <section className="mb-8 space-y-2 animate-[bl-fade-in_350ms_var(--ease-out)_150ms_both]">
+      <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+        <Info size={13} />
+        Bemærkninger
+      </h2>
+      {warnings.map((w, i) => (
+        <div key={i} className="rounded-xl border border-border bg-card px-5 py-3.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">{w.dato}</span>
+            <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{w.type}</span>
+            <span className="text-xs text-muted-foreground">{w.initialer}</span>
+          </div>
+          {w.note && (
+            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{w.note}</p>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function FilterPill({
+  active,
+  hue,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  hue?: number;
+  onClick: () => void;
+  children: any;
+}) {
+  return (
+    <button
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-150 active:scale-[0.96]',
+        active
+          ? hue != null
+            ? 'border-transparent text-foreground'
+            : 'border-primary/30 bg-primary/10 text-foreground'
+          : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+      )}
+      style={
+        active && hue != null
+          ? {
+              background: `oklch(0.94 0.05 ${hue})`,
+              color: `oklch(0.38 0.12 ${hue})`,
+              borderColor: `oklch(0.85 0.08 ${hue})`,
+            }
+          : undefined
+      }
+      onClick={onClick}
+    >
+      {hue != null && (
+        <span
+          className="size-2 rounded-full"
+          style={{ background: `oklch(0.65 0.16 ${hue})` }}
+        />
+      )}
+      {children}
+    </button>
+  );
+}
+
+function EmptyRecords({
+  hasFilters,
+  onReset,
+}: {
+  hasFilters: boolean;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-8 py-12 text-center">
+      {hasFilters ? (
         <>
-          <span className="block h-1 w-full overflow-hidden rounded bg-muted/60">
-            <span
-              className="block h-full rounded transition-[width]"
-              style={{ width: `${Math.min(num, 100)}%`, background: color }}
-            />
-          </span>
-          <span className="text-sm font-semibold tabular-nums" style={{ color }}>{pct}</span>
-          {detail && <span className="text-xs text-muted-foreground/70">{detail}</span>}
+          <Search className="size-9 text-muted-foreground/20" />
+          <p className="text-sm font-semibold text-foreground">Ingen resultater</p>
+          <p className="text-sm text-muted-foreground">Prøv at ændre filtrene</p>
+          <button
+            className="mt-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+            onClick={onReset}
+          >
+            Nulstil filtre
+          </button>
+        </>
+      ) : (
+        <>
+          <CheckCircle2 className="size-9 text-[oklch(0.72_0.17_145)]/30" />
+          <p className="text-sm font-semibold text-foreground">Ingen registreringer</p>
+          <p className="text-sm text-muted-foreground">Intet fravær registreret</p>
         </>
       )}
     </div>
@@ -1133,77 +952,92 @@ function RecordCard({
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-card px-4 py-3 border-l-[3px] border-l-[oklch(0.65_0.16_var(--hold-hue,265))] transition-[background-color] duration-150 hover:bg-accent/20',
-        isMissing && 'border-l-[oklch(0.65_0.18_50)] bg-[linear-gradient(135deg,oklch(0.99_0.006_50),oklch(0.975_0.018_50)),var(--card)] shadow-[0_10px_22px_oklch(0.78_0.08_50/0.08)] dark:border-l-[oklch(0.60_0.16_50)] dark:bg-[linear-gradient(135deg,oklch(0.22_0.012_50),oklch(0.25_0.02_50)),var(--card)] dark:shadow-[0_10px_22px_oklch(0_0_0/0.2)]',
-        record.fravaerType === 'godskrevet' && 'border-l-[oklch(0.65_0.14_145)] opacity-70',
+        'rounded-xl border border-border bg-card px-5 py-3.5 transition-colors duration-150 hover:bg-accent/20',
+        isMissing && 'border-[oklch(0.85_0.06_50)] bg-[oklch(0.995_0.004_50)] dark:border-[oklch(0.30_0.04_50)] dark:bg-[oklch(0.16_0.008_50)]',
+        record.fravaerType === 'godskrevet' && 'opacity-55',
       )}
-      style={{ '--hold-hue': hue } as any}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-foreground">{record.date || record.uge}</span>
-            {record.module && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{record.module}</span>
-            )}
-            <span className="text-xs font-bold" style={{ color: absenceColor(record.fravaerPct) }}>
-              {record.fravaerPct}%
+        <div className="min-w-0 flex-1 space-y-1">
+          {/* Date line */}
+          <div className="flex items-center gap-2">
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ background: `oklch(0.65 0.16 ${hue})` }}
+            />
+            <span className="text-sm font-semibold text-foreground">
+              {formatFullDate(record.dateISO, record.date || record.uge)}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+
+          {/* Hold + module + teacher */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-[1.125rem]">
             {holdName && (
-              <span className="text-[oklch(0.50_0.10_var(--hold-hue,265))] dark:text-[oklch(0.72_0.10_var(--hold-hue,265))]" style={{ '--hold-hue': hue } as any}>
+              <span
+                className="text-sm font-medium"
+                style={{ color: `oklch(0.50 0.12 ${hue})` }}
+              >
                 {holdName}
               </span>
             )}
+            {record.module && (
+              <span className="text-sm text-muted-foreground">{record.module}</span>
+            )}
             {record.teacher && (
-              <span className="opacity-80">{record.teacher}</span>
+              <span className="text-xs text-muted-foreground">&middot; {record.teacher}</span>
             )}
             {record.room && (
-              <span className="opacity-80">{record.room}</span>
+              <span className="text-xs text-muted-foreground">{record.room}</span>
+            )}
+          </div>
+
+          {/* Notes */}
+          {(record.bemaerkning || record.note) && (
+            <p className="pl-[1.125rem] text-sm text-muted-foreground">
+              {record.bemaerkning || record.note}
+            </p>
+          )}
+        </div>
+
+        {/* Right side */}
+        <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
+          <span className={cn('text-sm font-bold tabular-nums', absenceColorClass(record.fravaerPct))}>
+            {record.fravaerPct}%
+          </span>
+
+          <div className="flex items-center gap-1.5">
+            {record.fravaerType === 'godskrevet' && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-[oklch(0.95_0.03_145)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.50_0.14_145)] dark:bg-[oklch(0.22_0.03_145)] dark:text-[oklch(0.72_0.12_145)]">
+                <CheckCircle2 size={11} />
+                Godskrevet
+              </span>
+            )}
+
+            {record.aarsag && (
+              <span className="max-w-40 truncate rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {record.aarsag}
+              </span>
+            )}
+
+            {isMissing && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-[oklch(0.95_0.03_50)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.52_0.14_50)] dark:bg-[oklch(0.22_0.03_50)] dark:text-[oklch(0.78_0.12_50)]">
+                <AlertTriangle size={11} />
+                Mangler årsag
+              </span>
+            )}
+
+            {record.editUrl && (
+              <button
+                className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.9]"
+                onClick={e => { e.stopPropagation(); onEdit(record); }}
+                title="Rediger årsag"
+              >
+                <Edit3 size={13} />
+              </button>
             )}
           </div>
         </div>
-        <div className="shrink-0 flex items-center gap-2">
-          {record.fravaerType === 'godskrevet' && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_145)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.55_0.14_145)] dark:bg-[oklch(0.25_0.03_145)] dark:text-[oklch(0.72_0.12_145)]">
-              <CheckCircle2 size={13} />
-              Godskrevet
-            </span>
-          )}
-          {record.aarsag && (
-            <span className="max-w-48 truncate rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{record.aarsag}</span>
-          )}
-          {isMissing && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[oklch(0.96_0.03_50)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.55_0.14_50)] dark:bg-[oklch(0.25_0.03_50)] dark:text-[oklch(0.75_0.12_50)]">
-              <AlertTriangle size={12} />
-              Mangler årsag
-            </span>
-          )}
-          {record.editUrl && (
-            <button
-              className="inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.9]"
-              onClick={(e) => { e.stopPropagation(); onEdit(record); }}
-              title="Rediger årsag"
-            >
-              <Edit3 size={13} />
-            </button>
-          )}
-        </div>
       </div>
-      {(record.bemaerkning || record.note) && (
-        <div className="mt-2 flex flex-col gap-1 border-t border-border/40 pt-2">
-          {record.bemaerkning && (
-            <span className="flex items-start gap-1 text-xs leading-relaxed text-muted-foreground">
-              <Info size={12} />
-              {record.bemaerkning}
-            </span>
-          )}
-          {record.note && (
-            <span className="flex items-start gap-1 text-xs leading-relaxed text-muted-foreground">{record.note}</span>
-          )}
-        </div>
-      )}
     </div>
   );
 }

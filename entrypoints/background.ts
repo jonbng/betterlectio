@@ -7,7 +7,7 @@ import type {
   TableName,
 } from '@/lib/supabase/messages';
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
-import { capture, captureException, identify, getDistinctId, loadOptOutFlag } from '@/lib/posthog';
+import { capture, captureException, identify, getDistinctId, isLectioStudentDistinctId, loadOptOutFlag } from '@/lib/posthog';
 import { queueLifecycleEvent } from '@/lib/posthog-lifecycle';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -103,8 +103,11 @@ async function getAnalyticsIdentity(context?: {
     const name = student?.name?.trim();
     if (error || !student?.id || !name) return undefined;
 
+    const distinctId = getDistinctId(student.id);
+    if (!isLectioStudentDistinctId(distinctId)) return undefined;
+
     const identity = {
-      distinctId: getDistinctId(student.id),
+      distinctId,
       properties: {
         name,
         school_id: student.school_id,
@@ -113,7 +116,7 @@ async function getAnalyticsIdentity(context?: {
       },
     };
 
-    cachedDistinctId = identity.distinctId;
+    cachedDistinctId = distinctId;
     cachedAnalyticsIdentity = identity;
     return identity;
   } catch {
@@ -770,11 +773,24 @@ export default defineBackground(() => {
   // Capture uncaught errors in the background/service worker
   self.addEventListener('error', (e) => {
     const id = cachedDistinctId;
-    if (id) captureException(e.error ?? e.message, id, { source: 'background' });
+    if (!id) return;
+    const err =
+      e.error instanceof Error
+        ? e.error
+        : typeof e.error === 'string'
+          ? new Error(e.error)
+          : new Error(typeof e.message === 'string' && e.message ? e.message : 'worker error');
+    captureException(err, id, {
+      source: 'background',
+      error_filename: e.filename || undefined,
+      error_lineno: e.lineno || undefined,
+      error_colno: e.colno || undefined,
+    });
   });
   self.addEventListener('unhandledrejection', (e) => {
     const id = cachedDistinctId;
-    if (id) captureException(e.reason, id, { source: 'background' });
+    if (!id) return;
+    captureException(e.reason, id, { source: 'background-unhandledrejection' });
   });
 
   initLifecycleTracking();

@@ -1,4 +1,6 @@
 import { PostHog } from 'posthog-node';
+import { getCachedProfile } from '@/lib/profile-cache';
+import { getRecentUrls } from '@/lib/url-history';
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string;
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
@@ -131,6 +133,36 @@ function getBrowserName(): string {
   }
 }
 
+// ── Distinct ID: canonical Lectio student only (no anonymous) ─────────
+
+const LECTIO_DISTINCT_PREFIX = 'lectio:';
+
+/**
+ * Raw Lectio elevid / `students.id` — bounded alphanumerics only.
+ * Rejects empty, whitespace-only, or odd strings so we never emit events
+ * under a garbage distinct id.
+ */
+function isValidRawStudentId(raw: string | null | undefined): boolean {
+  if (raw == null) return false;
+  const s = String(raw).trim();
+  if (!s || s.length > 48) return false;
+  return /^[0-9A-Za-z_-]+$/.test(s);
+}
+
+/**
+ * True when `distinctId` is our canonical PostHog id for a Lectio student
+ * (`lectio:` + non-empty elevid). All SDK calls funnel through this check.
+ */
+export function isLectioStudentDistinctId(distinctId: string | null | undefined): distinctId is string {
+  if (!distinctId || typeof distinctId !== 'string') return false;
+  if (!distinctId.startsWith(LECTIO_DISTINCT_PREFIX)) return false;
+  return isValidRawStudentId(distinctId.slice(LECTIO_DISTINCT_PREFIX.length));
+}
+
+function requireLectioStudentDistinctId(distinctId: string | null | undefined): string | undefined {
+  return isLectioStudentDistinctId(distinctId) ? distinctId : undefined;
+}
+
 // ── Public helpers ───────────────────────────────────────────────────
 
 /**
@@ -138,12 +170,41 @@ function getBrowserName(): string {
  * Synchronous — use when the studentId is available.
  */
 export function getDistinctId(studentId: string): string {
-  return `lectio:${studentId}`;
+  return `${LECTIO_DISTINCT_PREFIX}${String(studentId).trim()}`;
+}
+
+/**
+ * Resolved Lectio distinct ID in a content-script / page context when callers
+ * don't have `studentId` handy. Uses the same sources as iframe-post error
+ * reporting so `captureException(err, undefined, …)` still attributes to the
+ * logged-in student when possible (never anonymous — returns undefined if unknown).
+ */
+export function getContentDistinctId(): string | undefined {
+  try {
+    if (typeof window === 'undefined') return undefined;
+    const sid =
+      (window as { __IL_CACHED_PROFILE__?: { studentId?: string | null } }).__IL_CACHED_PROFILE__
+        ?.studentId
+      ?? getCachedProfile()?.studentId;
+    const raw = sid != null ? String(sid).trim() : '';
+    if (!isValidRawStudentId(raw)) return undefined;
+    return `${LECTIO_DISTINCT_PREFIX}${raw}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveDistinctIdForCapture(explicit?: string): string | undefined {
+  const trimmed = explicit?.trim();
+  const candidate =
+    trimmed && trimmed.length > 0 ? trimmed : getContentDistinctId();
+  return requireLectioStudentDistinctId(candidate);
 }
 
 /**
  * Capture an analytics event.
  * Only call when you have an identified user (distinctId from getDistinctId).
+ * Invalid or non-`lectio:` ids are dropped (never anonymous).
  */
 export function capture(
   event: string,
@@ -152,8 +213,10 @@ export function capture(
 ): void {
   try {
     if (isOptedOut()) return;
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id) return;
     getClient().capture({
-      distinctId,
+      distinctId: id,
       event,
       properties: { ...getAutoProperties(), ...properties },
     });
@@ -173,7 +236,9 @@ export function identify(
 ): void {
   try {
     if (isOptedOut()) return;
-    getClient().identify({ distinctId, properties });
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id) return;
+    getClient().identify({ distinctId: id, properties });
   } catch {
     // Non-critical
   }
@@ -199,11 +264,13 @@ export function identifyIfNeeded(
 ): void {
   try {
     if (isOptedOut()) return;
-    const fingerprint = JSON.stringify({ distinctId, ...properties });
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id) return;
+    const fingerprint = JSON.stringify({ distinctId: id, ...properties });
     const prev = sessionStorage.getItem(SESSION_IDENTIFY_KEY);
     if (prev === fingerprint) return;
 
-    getClient().identify({ distinctId, properties });
+    getClient().identify({ distinctId: id, properties });
     sessionStorage.setItem(SESSION_IDENTIFY_KEY, fingerprint);
   } catch {
     // Non-critical
@@ -248,11 +315,13 @@ export function captureOncePerSessionByKey(
 ): void {
   try {
     if (isOptedOut()) return;
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id) return;
     const key = `bl-posthog-once:${keySuffix}`;
     if (sessionStorage.getItem(key)) return;
 
     getClient().capture({
-      distinctId,
+      distinctId: id,
       event,
       properties: { ...getAutoProperties(), ...properties },
     });
@@ -277,12 +346,37 @@ export function captureFeatureUsedOncePerSession(
 
 // ── Rate limiting for error capture ─────────────────────────────────
 
-const MAX_ERRORS_PER_PAGE = 15;
+const MAX_ERRORS_PER_PAGE = 25;
 let _errorCount = 0;
 
 /**
+ * Auto props for `$exception` events: same dimensions as normal `capture()`
+ * where possible, plus safe fallbacks in service workers (no `window`).
+ */
+function getExceptionAutoProperties(): Record<string, unknown> {
+  try {
+    const extension_version =
+      typeof browser !== 'undefined' ? browser.runtime.getManifest().version : undefined;
+    if (typeof window === 'undefined') {
+      return {
+        extension_version,
+        runtime: 'service-worker',
+        $os: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      };
+    }
+    return {
+      ...getAutoProperties(),
+      runtime: 'content-script',
+    };
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Capture an exception/error.
- * Only captures if a distinctId is provided (no anonymous fallback).
+ * Resolves `distinctId` from the cached Lectio profile in content scripts when
+ * omitted so library-level catches still attribute correctly (no anonymous).
  * Rate-limited to MAX_ERRORS_PER_PAGE per page load to protect free tier quota.
  */
 export function captureException(
@@ -291,12 +385,15 @@ export function captureException(
   additionalProperties?: Record<string, unknown>,
 ): void {
   try {
-    if (isOptedOut() || !distinctId) return;
+    if (isOptedOut()) return;
+    const resolvedId = resolveDistinctIdForCapture(distinctId);
+    if (!resolvedId) return;
     if (++_errorCount > MAX_ERRORS_PER_PAGE) return;
-    getClient().captureException(error, distinctId, {
+    getClient().captureException(error, resolvedId, {
+      ...getExceptionAutoProperties(),
+      ...(additionalProperties?.current_page ? {} : getErrorContext()),
       ...additionalProperties,
       error_count: _errorCount,
-      ...(additionalProperties?.current_page ? {} : getErrorContext()),
     });
   } catch {
     // Non-critical
@@ -311,11 +408,18 @@ function getErrorContext(): Record<string, unknown> {
     if (typeof window === 'undefined') return {};
     const path = window.location.pathname;
     const page = path.split('/').pop()?.split('?')[0] ?? 'unknown';
-    const profile = (window as any).__IL_CACHED_PROFILE__;
+    const profile =
+      (window as { __IL_CACHED_PROFILE__?: { schoolId?: string | null; studentId?: string | null; className?: string | null } })
+        .__IL_CACHED_PROFILE__ ?? getCachedProfile();
     return {
       current_page: page,
+      $pathname: path,
       current_url: window.location.href,
-      school_id: profile?.schoolId,
+      school_id: profile?.schoolId ?? undefined,
+      student_id: profile?.studentId ?? undefined,
+      class_name: profile?.className ?? undefined,
+      recent_urls: getRecentUrls(5),
+      referrer: document.referrer || undefined,
     };
   } catch {
     return {};

@@ -31,7 +31,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/DokumenterPage.tsx` - Documents page redesign with collapsible folder tree sidebar (hold colors from hold-mapping), file list with extension-based type icons and color-coded badges, breadcrumb navigation, client-side search, in-app image/PDF preview overlay, drag-and-drop file upload, create folder, sort by columns. Parses native Lectio DOM via `lib/dokumenter-parser.ts`
 - `components/ViewingScheduleHeader.tsx` - Header when viewing another schedule (star/back + expandable "Medlemmer" panel)
 - `components/LektierPage.tsx` - Day-grouped homework cards with Supabase-backed done-state sync (same UI, optimistic local toggle, cross-device persistence)
-- `components/OpgaverPage.tsx` - Urgency-first assignment cards, relative Danish deadlines, color-coded grades
+- `components/OpgaverPage.tsx` - Single chronological timeline of all assignments grouped by week, auto-scrolls to current week, compact rows with status indicators (missing/waiting/completed), fravær badges, hold pills, grade badges, ignore-missing toggle on hover, combined elevtimer per week header
 - `components/OpgaveDetailSheet.tsx` - Assignment detail side sheet with submission history, comment/file upload, and group-member names/avatars that prefer Supabase student data
 - `components/BeskederThreadView.tsx` - Thread view with sender names/avatars preferring Supabase student data, WYSIWYG reply, no-reload reply/attach
 - `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor; student recipients prefer Supabase names/avatars for display while keeping Lectio names for postbacks
@@ -71,7 +71,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/members-fetch.ts` - Fetch/parse `members.aspx` for klasse/holdelement
 - `lib/schedule-cache.ts` - Today's schedule cache (45min TTL)
 - `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
-- `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers
+- `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers; `getContentDistinctId()` + enriched `$exception` properties
 - `lib/lectio-error-popup.ts` - MutationObserver-based detector for Lectio's native `.ls-alertbox`/`[data-title^="Fejl"]` error popups (rendered via `LectioAlertBox.RegisterAlerts`). Extracts title + body, dedupes per DOM element.
 - `lib/url-history.ts` - Tiny per-tab (sessionStorage) URL breadcrumb trail used to enrich error reports with recent navigation context.
 - `lib/supabase/resources/homework.ts` - Homework queries + `upsert_student_homework_status` RPC bridge for synced completion state
@@ -92,7 +92,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 
 Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightweight server-style event capture that works in both content scripts and MV3 service workers.
 
-**Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Never build the ID string manually. **No anonymous tracking** — all PostHog events require an identified user. Pre-login pages (login) do not send analytics.
+**Distinct ID convention:** `lectio:${studentId}` where `studentId` is the raw Lectio `elevid` (globally unique across schools). Never build the ID string manually. **No anonymous tracking** — all PostHog events require an identified user. Pre-login pages (login) do not send analytics. `lib/posthog.ts` enforces this at egress: `capture`, `identify`, `identifyIfNeeded`, `captureOncePerSessionByKey` / `captureFeatureUsedOncePerSession`, and `captureException` only call the SDK when `isLectioStudentDistinctId(distinctId)` passes (canonical `lectio:` prefix + non-empty trimmed elevid, `[0-9A-Za-z_-]{1,48}`). Invalid ids are dropped silently.
 
 **Identify:** On each page load (content.tsx), `identifyIfNeeded()` sets person properties: `name`, `school_id`, `school_name`, `class_name`, `school_year`, `dark_mode`, `theme_id`, `extension_version`, `lectio_version`. PostHog auto-wraps as `$set`, so never wrap in `$set` yourself. Use `setPersonProperties()` for targeted profile updates after settings/theme changes.
 
@@ -107,11 +107,11 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 - `feature used` — once-per-session feature telemetry (`findskema`, `forside_dashboard`, `lektier_page`, `homework_toggle`, `beskeder_*`, `hold_mapping_editor`, etc.)
 - `lectio session lost` — passive logout detection when an identified user is unexpectedly sent back to `login.aspx` or another school page without the normal authenticated shell, excluding recent explicit logout clicks
 - `lectio native error` — Lectio's native error popup (`LectioAlertBox.RegisterAlerts` / `[data-title^="Fejl"]`) fired on the current page. Usually indicates the extension broke a postback/form. Props: `error_title`, `error_body`, `dialog_html`, `recent_urls` (last 3 visited in this tab), `previous_url`, `school_id`, `page`, `trigger_path`, `referrer`. Also fires a paired `captureException` with the same props. The user sees a Sonner `toast.info` confirming the error was reported.
-- `captureException` — error tracking (only when distinctId is available)
+- `captureException` — sent via posthog-node `$exception` pipeline. In content scripts, `distinctId` can be omitted: `getContentDistinctId()` resolves from `__IL_CACHED_PROFILE__` / `getCachedProfile()` so library catches still attribute (still no anonymous). Each exception merges the same auto props as `capture()` plus `recent_urls`, `referrer`, `student_id`, `class_name`, and `runtime` (`content-script` vs `service-worker`). Global handlers tag `source` (`window.error`, `unhandledrejection`, `console.error` — throttled), `background`, `background-unhandledrejection`. Rate limit: 25/page in the content script.
 
 **Adding new events:** Be conservative — we're on PostHog's free tier. Import helpers from `@/lib/posthog`. Only capture events when you have an identified user. Prefer `captureFeatureUsedOncePerSession()` for feature-adoption telemetry and `identifyIfNeeded()` / `setPersonProperties()` for person updates. All calls are try/catch wrapped.
 
-**Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`.
+**Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`. `captureException()` merges the same set in page contexts (service worker sends `extension_version`, `runtime`, and `$os` as user agent).
 
 **Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Optional: `VITE_POSTHOG_UNINSTALL_URL` for hosted uninstall tracking via `browser.runtime.setUninstallURL(...)`. Host permission for `https://eu.i.posthog.com/*` in manifest.
 

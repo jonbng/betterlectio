@@ -464,14 +464,33 @@ function initLayout() {
 
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
-      captureException(e.error ?? e.message, phDistinctId);
+      const err =
+        e.error instanceof Error
+          ? e.error
+          : typeof e.error === 'string'
+            ? new Error(e.error)
+            : new Error(typeof e.message === 'string' && e.message ? e.message : 'window.error');
+      captureException(err, phDistinctId, {
+        source: 'window.error',
+        error_filename: e.filename || undefined,
+        error_lineno: e.lineno || undefined,
+        error_colno: e.colno || undefined,
+      });
     });
     window.addEventListener('unhandledrejection', (e) => {
-      captureException(e.reason, phDistinctId);
+      captureException(e.reason, phDistinctId, { source: 'unhandledrejection' });
     });
+    let _blConsoleErrorCaptures = 0;
     const _origConsoleError = console.error;
+    const MAX_CONSOLE_ERROR_REPORTS = 12;
     console.error = (...args: unknown[]) => {
-      captureException(new Error(args.map(String).join(' ')), phDistinctId);
+      if (_blConsoleErrorCaptures < MAX_CONSOLE_ERROR_REPORTS) {
+        _blConsoleErrorCaptures++;
+        captureException(new Error(args.map(String).join(' ')), phDistinctId, {
+          source: 'console.error',
+          console_error_index: _blConsoleErrorCaptures,
+        });
+      }
       _origConsoleError.apply(console, args);
     };
 
