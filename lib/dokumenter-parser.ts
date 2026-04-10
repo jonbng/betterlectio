@@ -412,6 +412,21 @@ export function parseDokumenterPage(
 /**
  * Find the direct children (subfolders) of the currently selected folder.
  */
+/** Walk the folder tree and return the node with the given id, if any. */
+export function findFolderById(
+  folders: DocFolder[],
+  id: string,
+): DocFolder | null {
+  for (const node of folders) {
+    if (node.id === id) return node;
+    if (node.children.length > 0) {
+      const found = findFolderById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 export function getSubfoldersOfSelected(
   folders: DocFolder[],
   selectedId: string | null,

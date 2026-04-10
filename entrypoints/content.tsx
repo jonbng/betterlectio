@@ -2529,6 +2529,11 @@ function injectDokumenterPage(schoolId: string) {
 
   const pageData = parseDokumenterPage();
 
+  const viewedEntity = getViewedEntityId();
+  const viewingOtherStudentDocs =
+    viewedEntity?.type === "student" && !isViewingOwnPage();
+  const viewedStudentInfo = viewingOtherStudentDocs ? extractViewedEntity() : null;
+
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
@@ -2546,6 +2551,8 @@ function injectDokumenterPage(schoolId: string) {
       selectedFolderId={pageData.selectedFolderId}
       schoolId={schoolId}
       hasCheckboxes={pageData.hasCheckboxes}
+      viewedStudentElevid={viewedStudentInfo?.id ?? null}
+      viewedStudentNameHint={viewedStudentInfo?.name ?? null}
     />,
     container,
   );

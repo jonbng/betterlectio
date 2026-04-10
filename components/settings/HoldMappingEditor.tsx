@@ -46,6 +46,128 @@ function normalizeHue(value: number): number {
   return ((rounded % 360) + 360) % 360;
 }
 
+/** Smooth OKLCH hue ring (conic); module-level to avoid recomputing each render */
+const HUE_RING_CONIC = (() => {
+  const parts: string[] = [];
+  for (let i = 0; i <= 24; i++) {
+    const h = Math.round((i / 24) * 360);
+    parts.push(`oklch(0.65 0.18 ${h})`);
+  }
+  return `conic-gradient(from 0deg, ${parts.join(', ')})`;
+})();
+
+const HUE_RING_SIZE = 200;
+/** Distance from center to thumb (middle of the colored band) */
+function hueRingThumbRadiusPx(): number {
+  return HUE_RING_SIZE * 0.36;
+}
+
+function clientToHue(clientX: number, clientY: number, rect: DOMRect): number {
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const dx = clientX - cx;
+  const dy = clientY - cy;
+  const deg = Math.atan2(dy, dx) * (180 / Math.PI);
+  return normalizeHue(deg + 90);
+}
+
+function HueRingPicker({
+  value,
+  onChange,
+  labelledBy,
+}: {
+  value: number;
+  onChange: (hue: number) => void;
+  labelledBy: string;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+
+  const applyFromClient = (clientX: number, clientY: number) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    onChange(clientToHue(clientX, clientY, el.getBoundingClientRect()));
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    applyFromClient(e.clientX, e.clientY);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    applyFromClient(e.clientX, e.clientY);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    draggingRef.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      onChange(normalizeHue(value - step));
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      onChange(normalizeHue(value + step));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      onChange(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      onChange(359);
+    }
+  };
+
+  const rad = ((value - 90) * Math.PI) / 180;
+  const rPx = hueRingThumbRadiusPx();
+  const thumbX = Math.cos(rad) * rPx;
+  const thumbY = Math.sin(rad) * rPx;
+
+  return (
+    <div
+      ref={wrapRef}
+      role="slider"
+      tabIndex={0}
+      aria-valuemin={0}
+      aria-valuemax={359}
+      aria-valuenow={value}
+      aria-labelledby={labelledBy}
+      className="relative mx-auto cursor-grab touch-none select-none outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover rounded-full"
+      style={{ width: HUE_RING_SIZE, height: HUE_RING_SIZE }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onKeyDown={onKeyDown}
+    >
+      <div
+        className="pointer-events-none absolute inset-0 rounded-full shadow-[inset_0_0_0_1px_oklch(0_0_0/0.12),0_8px_28px_oklch(0_0_0/0.12)] dark:shadow-[inset_0_0_0_1px_oklch(1_0_0/0.08),0_8px_28px_oklch(0_0_0/0.35)]"
+        style={{ background: HUE_RING_CONIC }}
+      />
+      <div className="pointer-events-none absolute inset-[28%] rounded-full border border-border bg-popover shadow-[inset_0_1px_0_oklch(1_0_0/0.06)]" />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 size-5 rounded-full border-[2.5px] border-white bg-[oklch(0.65_0.18_var(--thumb-hue,265))] shadow-[0_2px_8px_oklch(0_0_0/0.25),0_0_0_1px_oklch(0_0_0/0.2)]"
+        style={
+          {
+            '--thumb-hue': value,
+            transform: `translate(calc(-50% + ${thumbX}px), calc(-50% + ${thumbY}px))`,
+          } as React.CSSProperties
+        }
+      />
+      <span className="sr-only">Brug muse eller piletaster for at vælge nuance. Hold Shift for større spring.</span>
+    </div>
+  );
+}
+
 function syncErrorMessage(prefix: string, error: unknown): string {
   const details = error instanceof Error ? error.message : String(error);
   console.warn(`[BetterLectio] ${prefix}:`, details);
@@ -324,43 +446,41 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
             aria-label="Vælg brugerdefineret farve"
           >
             <div className="flex flex-col gap-1">
-              <h3 className="m-0 text-[0.95rem] font-semibold text-foreground">Brugerdefineret farve</h3>
+              <h3 id={`custom-hue-title-${mapping.kind}-${mapping.id}`} className="m-0 text-[0.95rem] font-semibold text-foreground">
+                Brugerdefineret farve
+              </h3>
               <p className="m-0 text-sm text-muted-foreground">
-                Vælg præcis hue (0-359) til dette fag.
+                Træk på ringen for at vælge nuance, eller tast et tal (0–359).
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/45 px-3 py-2.5">
-              <div
-                className="size-9 shrink-0 rounded-full border-2 border-border bg-[oklch(0.65_0.18_var(--custom-hue,265))]"
-                style={{ '--custom-hue': customHue } as React.CSSProperties}
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 rounded-lg border border-border bg-muted/45 px-3 py-3">
+              <HueRingPicker
+                value={customHue}
+                onChange={setCustomHue}
+                labelledBy={`custom-hue-title-${mapping.kind}-${mapping.id}`}
               />
-              <div className="font-mono text-sm text-foreground">{customHue}deg</div>
+              <div className="flex shrink-0 flex-col items-center gap-2 sm:items-end">
+                <div
+                  className="size-12 rounded-full border-2 border-border bg-[oklch(0.65_0.18_var(--custom-hue,265))] shadow-inner"
+                  style={{ '--custom-hue': customHue } as React.CSSProperties}
+                  aria-hidden
+                />
+                <label className="flex w-full flex-col gap-1 sm:w-[min(100%,7.5rem)]" htmlFor={`custom-hue-num-${mapping.kind}-${mapping.id}`}>
+                  <span className="text-xs font-semibold text-muted-foreground">Nuance (°)</span>
+                  <input
+                    id={`custom-hue-num-${mapping.kind}-${mapping.id}`}
+                    type="number"
+                    min={0}
+                    max={359}
+                    step={1}
+                    value={customHue}
+                    onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
+                    className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-center font-mono text-sm text-foreground tabular-nums outline-none transition-[border-color,box-shadow] focus:border-ring focus:ring-2 focus:ring-ring/25"
+                  />
+                </label>
+              </div>
             </div>
-
-            <label className="text-xs font-semibold text-muted-foreground" htmlFor={`custom-hue-${mapping.kind}-${mapping.id}`}>
-              Hue
-            </label>
-            <input
-              id={`custom-hue-${mapping.kind}-${mapping.id}`}
-              type="range"
-              min={0}
-              max={359}
-              step={1}
-              value={customHue}
-              onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
-              className="w-full cursor-pointer accent-primary"
-            />
-
-            <input
-              type="number"
-              min={0}
-              max={359}
-              step={1}
-              value={customHue}
-              onInput={(e) => setCustomHue(normalizeHue(Number((e.target as HTMLInputElement).value)))}
-              className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none transition-[border-color,box-shadow] focus:border-ring focus:ring-2 focus:ring-ring/25"
-            />
 
             <div className="flex justify-end gap-2">
               <button

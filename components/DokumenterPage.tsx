@@ -35,6 +35,7 @@ import {
   type BreadcrumbItem,
   type FileCategory,
   buildBreadcrumbs,
+  findFolderById,
   getFileCategory,
   getSubfoldersOfSelected,
   isPreviewable,
@@ -55,6 +56,7 @@ import {
   type DocAffiliation,
   type FolderDetail,
 } from '@/lib/dokumenter-actions';
+import { useSchoolStudents } from '@/lib/supabase/student-lookup';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -131,16 +133,26 @@ function FolderTreeItem({
   schoolId,
   expandedIds,
   onToggle,
+  possessivePersonalLabel,
 }: {
   folder: DocFolder;
   selectedId: string | null;
   schoolId: string;
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
+  /** When viewing another student's documents, replaces "Egne dokumenter" */
+  possessivePersonalLabel: string | null;
 }) {
   const isSelected = folder.id === selectedId;
   const isExpanded = expandedIds.has(folder.id);
   const hasChildren = folder.children.length > 0;
+
+  const treeLabel =
+    possessivePersonalLabel && folder.icon === 'personal'
+      ? possessivePersonalLabel
+      : folder.icon === 'hold' && folder.holdCode
+        ? getHoldDisplayName(folder.holdCode)
+        : folder.name;
 
   // Hold color dot
   let holdHue: number | null = null;
@@ -225,11 +237,9 @@ function FolderTreeItem({
           href={folderUrl}
           onClick={handleClick}
           className="truncate min-w-0 flex-1"
-          title={folder.comment || folder.name}
+          title={folder.comment || treeLabel}
         >
-          {folder.icon === 'hold' && folder.holdCode
-            ? getHoldDisplayName(folder.holdCode)
-            : folder.name}
+          {treeLabel}
         </a>
       </div>
 
@@ -244,6 +254,7 @@ function FolderTreeItem({
               schoolId={schoolId}
               expandedIds={expandedIds}
               onToggle={onToggle}
+              possessivePersonalLabel={possessivePersonalLabel}
             />
           ))}
         </div>
@@ -256,8 +267,10 @@ function FolderTreeItem({
 
 function Breadcrumbs({
   items,
+  resolveLabel,
 }: {
   items: BreadcrumbItem[];
+  resolveLabel?: (item: BreadcrumbItem) => string;
 }) {
   if (items.length === 0) return null;
 
@@ -265,6 +278,7 @@ function Breadcrumbs({
     <nav className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 overflow-hidden">
       {items.map((item, i) => {
         const isLast = i === items.length - 1;
+        const label = resolveLabel ? resolveLabel(item) : item.label;
         return (
           <span key={item.folderId} className="flex items-center gap-1 min-w-0">
             {i > 0 && (
@@ -272,7 +286,7 @@ function Breadcrumbs({
             )}
             {isLast ? (
               <span className="truncate font-medium text-foreground">
-                {item.label}
+                {label}
               </span>
             ) : (
               <a
@@ -285,7 +299,7 @@ function Breadcrumbs({
                   window.location.href = url.toString();
                 }}
               >
-                {item.label}
+                {label}
               </a>
             )}
           </span>
@@ -1453,6 +1467,8 @@ export function DokumenterPage({
   selectedFolderId,
   schoolId,
   hasCheckboxes,
+  viewedStudentElevid,
+  viewedStudentNameHint,
 }: {
   folders: DocFolder[];
   files: DocFile[];
@@ -1460,7 +1476,30 @@ export function DokumenterPage({
   selectedFolderId: string | null;
   schoolId: string;
   hasCheckboxes: boolean;
+  /** Set when URL `elevid` is another student (not logged-in user) */
+  viewedStudentElevid?: string | null;
+  /** From `extractViewedEntity()` page title; Supabase name preferred when loaded */
+  viewedStudentNameHint?: string | null;
 }) {
+  const { studentsMap } = useSchoolStudents(schoolId);
+
+  const viewedDisplayName =
+    (viewedStudentElevid && studentsMap?.get(viewedStudentElevid)?.name) ??
+    viewedStudentNameHint ??
+    null;
+
+  const possessivePersonalLabel =
+    viewedStudentElevid != null && viewedStudentElevid !== ''
+      ? viewedDisplayName
+        ? `${viewedDisplayName}s dokumenter`
+        : 'Elevens dokumenter'
+      : null;
+
+  const sidebarFolders = useMemo(() => {
+    if (!viewedStudentElevid) return folders;
+    return folders.filter((f) => f.icon !== 'recent');
+  }, [folders, viewedStudentElevid]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [previewFile, setPreviewFile] = useState<DocFile | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -1518,6 +1557,23 @@ export function DokumenterPage({
     () => buildBreadcrumbs(folders, selectedFolderId),
     [folders, selectedFolderId],
   );
+
+  const resolveBreadcrumbLabel = useCallback(
+    (item: BreadcrumbItem) => {
+      if (!possessivePersonalLabel) return item.label;
+      const node = findFolderById(folders, item.folderId);
+      if (node?.icon === 'personal') return possessivePersonalLabel;
+      return item.label;
+    },
+    [folders, possessivePersonalLabel],
+  );
+
+  const emptyStateFolderName = useMemo(() => {
+    if (!possessivePersonalLabel || !selectedFolderId) return currentFolder.label;
+    const node = findFolderById(folders, selectedFolderId);
+    if (node?.icon === 'personal') return possessivePersonalLabel;
+    return currentFolder.label;
+  }, [currentFolder.label, folders, possessivePersonalLabel, selectedFolderId]);
 
   // Subfolders of the current folder (to show in file list)
   const subfolders = useMemo(
@@ -1683,7 +1739,10 @@ export function DokumenterPage({
 
         {/* Breadcrumbs */}
         <div className="flex-1 min-w-0">
-          <Breadcrumbs items={breadcrumbs} />
+          <Breadcrumbs
+            items={breadcrumbs}
+            resolveLabel={possessivePersonalLabel ? resolveBreadcrumbLabel : undefined}
+          />
         </div>
 
         {/* Search */}
@@ -1813,7 +1872,7 @@ export function DokumenterPage({
         {/* Folder tree sidebar */}
         {!sidebarCollapsed && (
           <aside className="w-[260px] shrink-0 border-r border-border/50 overflow-y-auto py-2 px-2">
-            {folders.map((folder) => (
+            {sidebarFolders.map((folder) => (
               <FolderTreeItem
                 key={folder.id}
                 folder={folder}
@@ -1821,6 +1880,7 @@ export function DokumenterPage({
                 schoolId={schoolId}
                 expandedIds={expandedIds}
                 onToggle={handleToggle}
+                possessivePersonalLabel={possessivePersonalLabel}
               />
             ))}
           </aside>
@@ -1895,7 +1955,7 @@ export function DokumenterPage({
               </p>
             </div>
           ) : (
-            <EmptyState folderName={currentFolder.label} />
+            <EmptyState folderName={emptyStateFolderName} />
           )}
         </main>
       </div>

@@ -317,6 +317,12 @@ export function extractViewedEntity(): ViewedEntity | null {
       if (match) {
         name = match[1].trim();
         subtitle = match[2];
+      } else {
+        // e.g. DokumentOversigt: "Eleven Navn - Dokumenter" (no klasse segment)
+        const noClass = titleText.match(/^Eleven\s+(.+?)(?:\([^)]+\))?\s*-\s*/);
+        if (noClass) {
+          name = noClass[1].trim();
+        }
       }
       break;
     }
