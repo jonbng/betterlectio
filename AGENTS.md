@@ -159,6 +159,17 @@ All custom/injected Preact UI should be styled with Tailwind utility classes dir
   - layer/base plumbing
   - native Lectio overrides and isolation (`#il-original-content`, `.ls-*`, `.s2*`)
 
+### Typography / hierarchy (injected UI)
+
+Use Tailwind step utilities (`text-xs`, `text-sm`, `text-base`, …) plus weight and color—not one-off `text-[11px]` for the same role. Hierarchy:
+
+- **Page or card title** — `text-base font-semibold` (or existing card title pattern).
+- **Primary line in a list row** — `text-sm font-medium text-foreground`.
+- **Secondary / description** — `text-sm text-muted-foreground` (same size as primary; mute for hierarchy).
+- **Meta** — `text-xs text-muted-foreground` (timestamps, “kl.” lines, tight table headers).
+- **Section chrome** — `text-xs font-semibold uppercase tracking-wide text-muted-foreground` (strip labels like “LEKTER”).
+- **Badges / pills / counts / initials in tiny circles** — `text-xs` or smaller only where the control is physically small.
+
 ## Color System — OKLCH Only
 
 **All colors MUST use `oklch()`.** Never use `hsl()`, `rgb()`, `rgba()`, or hex (`#rrggbb`) anywhere in the codebase.

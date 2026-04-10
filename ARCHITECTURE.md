@@ -271,6 +271,8 @@ Extension CSS automatically beats Lectio CSS without `!important`. Only ~99 `!im
 
 All custom/injected Preact UI should be styled with Tailwind utility classes directly in `.tsx` components.
 
+Typography roles for injected UI (title, primary/secondary body, meta, section chrome) are documented in `AGENTS.md` under **Typography / hierarchy**.
+
 - Do not add new component-specific plain CSS blocks for custom UI.
 - Prefer semantic token utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`) so theme switching propagates automatically.
 - Keep `globals.css` for platform-level concerns only:

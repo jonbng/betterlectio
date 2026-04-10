@@ -287,7 +287,7 @@ function SubjectRow({ group }: { group: SubjectGroup }) {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground leading-none">
+                    <span className="text-sm text-muted-foreground leading-none">
                       {holdName || group.hold}
                     </span>
                   </div>
@@ -675,7 +675,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
                     <th className="px-3 py-2 font-medium text-muted-foreground text-center" colSpan={3}>Årskarakter</th>
                     <th className="px-3 py-2 font-medium text-muted-foreground text-center" colSpan={3}>Eksamenskarakter</th>
                   </tr>
-                  <tr className="border-b border-border/50 text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+                  <tr className="border-b border-border/50 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-1"></th>
                     <th className="px-3 py-1 text-center font-medium">Vægt</th>
                     <th className="px-3 py-1 text-center font-medium">Kar.</th>
@@ -718,7 +718,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+                  <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-2 font-medium">Termin</th>
                     <th className="px-3 py-2 font-medium">Type</th>
                     <th className="px-3 py-2 font-medium text-center">Medtæller</th>

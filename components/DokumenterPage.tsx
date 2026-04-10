@@ -356,7 +356,7 @@ function FileRow({
           <ExtBadge ext={file.extension} />
         </div>
         {file.comment && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">
+          <p className="text-sm text-muted-foreground truncate mt-0.5">
             {file.comment}
           </p>
         )}
@@ -377,7 +377,7 @@ function FileRow({
               {file.changedBy.initials.slice(0, 2).toUpperCase()}
             </div>
             <span
-              className="text-xs text-muted-foreground truncate"
+              className="text-sm text-muted-foreground truncate"
               title={file.changedBy.name}
             >
               {file.changedBy.initials}
@@ -454,14 +454,14 @@ function DeleteFileButton({ file }: { file: DocFile }) {
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="inline-flex items-center gap-1 h-6 px-2 rounded bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+          className="inline-flex items-center gap-1 h-6 px-2 rounded bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
         >
           {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
           {deleting ? 'Sletter' : 'Slet'}
         </button>
         <button
           onClick={() => setConfirming(false)}
-          className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
+          className="h-6 px-1.5 rounded text-sm text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
         >
           <X size={12} />
         </button>
@@ -533,7 +533,7 @@ function SubfolderRow({
             {displayName}
           </span>
           {folder.comment && folder.comment !== folder.name && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5">
+            <p className="text-sm text-muted-foreground truncate mt-0.5">
               {folder.comment}
             </p>
           )}
@@ -576,7 +576,7 @@ function EmptyState({ folderName }: { folderName: string }) {
       <h3 className="text-sm font-medium text-foreground mb-1">
         Ingen dokumenter
       </h3>
-      <p className="text-xs text-muted-foreground max-w-[240px]">
+      <p className="text-sm text-muted-foreground max-w-[240px]">
         Der er ingen dokumenter i &ldquo;{folderName}&rdquo; endnu.
       </p>
     </div>
@@ -704,7 +704,7 @@ function PreviewOverlay({
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                 >
                   {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                   {deleting ? 'Sletter...' : 'Slet'}
@@ -779,7 +779,7 @@ function PreviewOverlay({
         </div>
 
         {/* Footer metadata */}
-        <div className="flex items-center gap-4 px-4 py-2.5 border-t text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 px-4 py-2.5 border-t text-sm text-muted-foreground">
           {file.size && <span>{file.size}</span>}
           {file.date && <span>{file.date}</span>}
           {file.changedBy && (
@@ -816,7 +816,7 @@ function AffiliationRow({
   };
 
   return (
-    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/40 text-xs">
+    <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/40 text-sm">
       <div className="flex-1 min-w-0">
         <span className="font-medium text-foreground truncate block">
           {affiliation.name}
@@ -949,7 +949,7 @@ function EditDocumentModal({
           ) : detail ? (
             <>
               {/* File info */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 text-sm">
                 {detail.size && (
                   <div>
                     <span className="text-muted-foreground">Størrelse</span>
@@ -972,7 +972,7 @@ function EditDocumentModal({
 
               {/* Comment */}
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
                   Kommentar
                 </label>
                 <textarea
@@ -1013,7 +1013,7 @@ function EditDocumentModal({
               {/* Affiliations / Deling */}
               {detail.affiliations.length > 0 && (
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">
                     Delt med
                   </label>
                   <div className="space-y-1">
@@ -1054,7 +1054,7 @@ function EditDocumentModal({
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={deleting}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
               >
                 <Trash2 size={14} />
                 Slet
@@ -1064,14 +1064,14 @@ function EditDocumentModal({
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                 >
                   {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                   {deleting ? 'Sletter...' : 'Bekræft slet'}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
+                  className="h-8 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                 >
                   Annuller
                 </button>
@@ -1083,7 +1083,7 @@ function EditDocumentModal({
               href={file.downloadUrl}
               target="_blank"
               rel="noopener"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border/60 text-xs font-medium hover:bg-muted transition-[color,background-color] duration-150"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted transition-[color,background-color] duration-150"
             >
               <Download size={14} />
               Download
@@ -1092,7 +1092,7 @@ function EditDocumentModal({
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
               >
                 {saving ? 'Gemmer...' : 'Gem'}
               </button>
@@ -1207,7 +1207,7 @@ function EditFolderModal({
           ) : detail ? (
             <>
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
                   Mappenavn
                 </label>
                 <input
@@ -1220,7 +1220,7 @@ function EditFolderModal({
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
                   Kommentar
                 </label>
                 <textarea
@@ -1270,7 +1270,7 @@ function EditFolderModal({
               {!confirmDelete ? (
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
                 >
                   <Trash2 size={14} />
                   Slet mappe
@@ -1280,14 +1280,14 @@ function EditFolderModal({
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-xs font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                   >
                     {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                     {deleting ? 'Sletter...' : 'Bekræft slet'}
                   </button>
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
+                    className="h-8 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                   >
                     Annuller
                   </button>
@@ -1297,7 +1297,7 @@ function EditFolderModal({
             <button
               onClick={handleSave}
               disabled={saving || !name.trim()}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
             >
               {saving ? 'Gemmer...' : 'Gem'}
             </button>
@@ -1335,7 +1335,7 @@ function SortHeader({
     <button
       onClick={handleSort}
       className={cn(
-        'flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 font-medium',
+        'flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 font-medium',
         className,
       )}
     >
@@ -1450,7 +1450,7 @@ function DropZone({
         <p className="text-sm font-medium text-foreground">
           Slip filen her for at uploade
         </p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Filen vil blive uploadet til den aktuelle mappe
         </p>
       </div>
@@ -1840,7 +1840,7 @@ export function DokumenterPage({
                     setFolderComment((e.target as HTMLTextAreaElement).value)
                   }
                   rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150 mb-2"
+                  className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150 mb-2"
                 />
                 <div className="flex justify-end gap-2">
                   <button
@@ -1849,14 +1849,14 @@ export function DokumenterPage({
                       setFolderName('');
                       setFolderComment('');
                     }}
-                    className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
+                    className="h-8 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                   >
                     Annuller
                   </button>
                   <button
                     onClick={handleCreateFolder}
                     disabled={!folderName.trim() || isCreatingFolder}
-                    className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
+                    className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                   >
                     {isCreatingFolder ? 'Opretter...' : 'Opret'}
                   </button>
@@ -1935,7 +1935,7 @@ export function DokumenterPage({
               ))}
 
               {/* File count */}
-              <div className="px-3 py-3 text-xs text-muted-foreground">
+              <div className="px-3 py-3 text-sm text-muted-foreground">
                 {filteredSubfolders.length > 0 && (
                   <span>{filteredSubfolders.length} {filteredSubfolders.length === 1 ? 'mappe' : 'mapper'}, </span>
                 )}
@@ -1950,7 +1950,7 @@ export function DokumenterPage({
               <h3 className="text-sm font-medium text-foreground mb-1">
                 Ingen resultater
               </h3>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Ingen filer matcher &ldquo;{searchQuery}&rdquo;
               </p>
             </div>

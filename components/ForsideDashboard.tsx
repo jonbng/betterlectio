@@ -334,7 +334,7 @@ function CardHeader({
       <div className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Icon size={15} strokeWidth={2} />
       </div>
-      <span className="text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground">{title}</span>
+      <span className="text-base font-semibold tracking-[-0.01em] text-foreground">{title}</span>
       {count != null && count > 0 && (
         <span className={cn(
           "inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold leading-none",
@@ -425,7 +425,7 @@ function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: 
           <div key={gi}>
             {/* Date group label */}
             <div className={cn(
-              "flex items-center gap-2 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground",
+              "flex items-center gap-2 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground",
               gi > 0 && "border-t border-border",
             )}>
               {group.label}
@@ -458,7 +458,7 @@ function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: 
                     {displayName}
                   </span>
                   {/* Description */}
-                  <span className="min-w-0 flex-1 truncate text-sm leading-[1.5] text-foreground/90 group-hover/lektie:text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium leading-[1.5] text-foreground group-hover/lektie:text-foreground">
                     {lektie.description}
                   </span>
                 </a>
@@ -589,12 +589,12 @@ function OpgaverCard({ initialEntries, schoolId }: { initialEntries: ForsideOpga
               {/* Content */}
               <div className="min-w-0 flex-1 flex flex-col gap-px">
                 <div className="flex items-baseline gap-[0.3125rem]">
-                  <span className={cn("text-sm leading-[1.3] whitespace-nowrap", URGENCY_DEADLINE[info.urgency])}>
+                  <span className={cn("text-sm font-medium leading-[1.3] whitespace-nowrap", URGENCY_DEADLINE[info.urgency])}>
                     {info.label}
                   </span>
                   <span className="text-xs text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
                 </div>
-                <span className="truncate text-xs leading-[1.4] text-muted-foreground">{opgave.title}</span>
+                <span className="truncate text-sm leading-[1.4] text-muted-foreground">{opgave.title}</span>
               </div>
 
               {/* Hold pill + dismiss */}
@@ -772,7 +772,7 @@ function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry
                     {relativeTime(besked.timeRaw)}
                   </span>
                 </div>
-                <span className="truncate text-xs leading-[1.4] text-muted-foreground" title={displayName}>
+                <span className="truncate text-sm leading-[1.4] text-muted-foreground" title={displayName}>
                   {besked.senderType === 'teacher' && teacherCache
                     ? (getTeacherName(teacherCache, besked.senderShort) || besked.senderShort)
                     : displayName}

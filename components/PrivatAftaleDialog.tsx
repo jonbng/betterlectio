@@ -269,7 +269,7 @@ export function PrivatAftaleDialog({
               <h2 className="text-base font-semibold text-foreground leading-tight m-0">
                 {isEditing ? "Rediger privat aftale" : "Privat aftale"}
               </h2>
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 m-0">
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5 m-0">
                 <Lock className="size-3" />
                 Kan kun ses af dig
               </p>
@@ -290,7 +290,7 @@ export function PrivatAftaleDialog({
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="text-xs text-muted-foreground hover:text-foreground underline transition-colors duration-150"
+                className="text-sm text-muted-foreground hover:text-foreground underline transition-colors duration-150"
               >
                 Luk
               </button>
@@ -316,7 +316,7 @@ export function PrivatAftaleDialog({
                   placeholder="Tandlæge, træning, …"
                   className={inputClass}
                 />
-                <span className="text-[11px] text-muted-foreground/60 tabular-nums text-right">
+                <span className="text-xs text-muted-foreground/60 tabular-nums text-right">
                   {title.length}/20
                 </span>
               </div>
@@ -428,7 +428,7 @@ export function PrivatAftaleDialog({
                 </button>
               )}
               {!isEditing && (
-                <span className="hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground/50">
+                <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground/50">
                   <kbd className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded bg-muted border border-border/50 text-[10px] font-mono">
                     Ctrl
                   </kbd>

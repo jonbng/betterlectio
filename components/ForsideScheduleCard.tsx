@@ -462,7 +462,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
                 );
               }}
               className={cn(
-                "rounded-md bg-muted/50 px-3 py-1.5 text-[0.8125rem] no-underline transition-[color,background-color] duration-150",
+                "rounded-md bg-muted/50 px-3 py-1.5 text-sm no-underline transition-[color,background-color] duration-150",
                 note.url && "cursor-pointer hover:bg-muted",
               )}
             >

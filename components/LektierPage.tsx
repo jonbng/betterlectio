@@ -803,7 +803,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                 <span className="ml-1.5 text-muted-foreground font-normal">&mdash; {entry.activityTitle}</span>
                               )}
                             </a>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-sm text-muted-foreground">
                               {entry.module && <span>{entry.module}</span>}
                               {entry.module && entry.timeRange && <span className="mx-1">&middot;</span>}
                               {entry.timeRange && <span>{entry.timeRange}</span>}
@@ -824,7 +824,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                         >
                           <div className="overflow-hidden">
                             <div className="space-y-3 px-4 pb-4 pt-0">
-                              <div className="flex flex-wrap items-center gap-1.5 pl-9 text-[0.9375rem] text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-1.5 pl-9 text-sm text-muted-foreground">
                                 {entry.teacherName && (
                                   <span title={entry.teacherAbbrev || undefined}>{entry.teacherName}</span>
                                 )}
@@ -838,7 +838,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                 <div className="space-y-3 border-t border-border pt-3 pl-9">
                                   {/* Teacher instruction */}
                                   {entry.note && (
-                                    <div className="rounded-md border-l-[3px] border-l-[oklch(0.7_0.15_var(--hold-hue,265))] bg-[oklch(0.96_0.025_var(--hold-hue,265))] px-3 py-2.5 text-[0.9375rem] text-foreground dark:border-l-[oklch(0.5_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.22_0.04_var(--hold-hue,265))]">
+                                    <div className="rounded-md border-l-[3px] border-l-[oklch(0.7_0.15_var(--hold-hue,265))] bg-[oklch(0.96_0.025_var(--hold-hue,265))] px-3 py-2.5 text-sm text-foreground dark:border-l-[oklch(0.5_0.14_var(--hold-hue,265))] dark:bg-[oklch(0.22_0.04_var(--hold-hue,265))]">
                                       {entry.note}
                                     </div>
                                   )}
@@ -859,7 +859,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                               <span className="text-sm text-foreground">{item.text}</span>
                                             )}
                                             {item.note && (
-                                              <div className="text-xs text-muted-foreground">{item.note}</div>
+                                              <div className="text-sm text-muted-foreground">{item.note}</div>
                                             )}
                                           </div>
                                         </div>
@@ -878,7 +878,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                                           <div className="min-w-0 flex-1">
                                             <span className="block truncate text-sm font-medium text-foreground">{item.text}</span>
                                             {item.note && (
-                                              <span className="block truncate text-xs text-muted-foreground">{item.note}</span>
+                                              <span className="block truncate text-sm text-muted-foreground">{item.note}</span>
                                             )}
                                           </div>
                                           <Download size={16} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />

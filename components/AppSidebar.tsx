@@ -549,7 +549,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarSeparator className="my-2 opacity-50" />
 
         <SidebarGroup className="py-2">
-          <SidebarGroupLabel className="text-[0.9rem]! font-semibold! text-muted-foreground! px-3 mb-1.5">Mere</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground px-3 mb-1.5">Mere</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
               {visibleNavSecondary.map((item) => (
@@ -570,7 +570,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
         {((sidebarSettings.showFindSkema ?? true) || (sidebarSettings.showAendringer ?? true)) && (
           <SidebarGroup className="py-2">
-            <SidebarGroupLabel className="text-[0.9rem]! font-semibold! text-muted-foreground! px-3 mb-1.5">Skemaer</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-muted-foreground px-3 mb-1.5">Skemaer</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {/* Find Skema collapsible */}
@@ -588,7 +588,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuSub className="ml-4 mt-1 border-l-0 pl-4">
                           {findSkemaItems.map((item) => (
                             <SidebarMenuSubItem key={item.type}>
-                              <SidebarMenuSubButton asChild className="py-2! text-[0.9rem]! rounded-lg!">
+                              <SidebarMenuSubButton asChild className="py-2! text-sm! rounded-lg!">
                                 <a href={`${baseUrl}/FindSkema.aspx?type=${item.type}`}>
                                   <item.icon className="size-4 opacity-70" />
                                   <span>{item.title}</span>
@@ -597,7 +597,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                             </SidebarMenuSubItem>
                           ))}
                           <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild className="py-2! text-[0.9rem]! rounded-lg!">
+                            <SidebarMenuSubButton asChild className="py-2! text-sm! rounded-lg!">
                               <a href={`${baseUrl}/FindSkemaAdv.aspx`}>
                                 <Search className="size-4 opacity-70" />
                                 <span>Avanceret</span>
@@ -625,7 +625,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuSub className="ml-4 mt-1 border-l-0 pl-4">
                           {calendarItems.map((item) => (
                             <SidebarMenuSubItem key={item.page}>
-                              <SidebarMenuSubButton asChild className="py-2! text-[0.9rem]! rounded-lg!">
+                              <SidebarMenuSubButton asChild className="py-2! text-sm! rounded-lg!">
                                 <a href={`${baseUrl}/${item.page}.aspx`}>
                                   <span>{item.title}</span>
                                 </a>
@@ -698,14 +698,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     </Avatar>
                     <div className="grid flex-1 text-left leading-tight">
                       <span className="truncate font-semibold text-[1rem]!">{userName}</span>
-                      <span className="truncate text-[0.85rem] text-muted-foreground">{userClass}</span>
+                      <span className="truncate text-sm text-muted-foreground">{userClass}</span>
                     </div>
                   </div>
                 </div>
                 <div className="p-1.5">
                   <a
                     href={`${baseUrl}/indstillinger/studentIndstillinger.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <User className="size-[1.1rem] opacity-70" />
                     Profil
@@ -713,7 +713,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   {hasSps && (
                     <a
                       href={`${baseUrl}/Elev_SPS.aspx`}
-                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
+                      className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                     >
                       <ListChecks className="size-[1.1rem] opacity-70" />
                       SPS
@@ -722,7 +722,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   {hasBooks && (
                     <a
                       href={`${baseUrl}/bd/userreservations.aspx`}
-                      className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
+                      className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                     >
                       <Library className="size-[1.1rem] opacity-70" />
                       Bøger
@@ -730,7 +730,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   )}
                   <a
                     href={`${baseUrl}/studieplan/uvb_list_off.aspx`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <BookMarked className="size-[1.1rem] opacity-70" />
                     UV-beskrivelser
@@ -743,7 +743,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                       setSettingsOpen(true);
                       setMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <Settings className="size-[1.1rem] opacity-70" />
                     Indstillinger
@@ -766,7 +766,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                           window.location.href = 'https://www.lectio.dk';
                         });
                     }}
-                    className="flex items-center gap-3 px-3 py-2.5 text-[0.9rem] rounded-lg hover:bg-destructive/10 transition-[color,background-color] duration-150 text-destructive"
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-destructive/10 transition-[color,background-color] duration-150 text-destructive"
                   >
                     <LogOut className="size-[1.1rem]" />
                     Log ud
@@ -796,7 +796,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left leading-snug">
-                <span className="truncate font-medium text-[0.95rem]!">{userName}</span>
+                <span className="truncate text-base font-medium">{userName}</span>
                 <span className="truncate text-sm text-muted-foreground/80">{userClass}</span>
               </div>
               <ChevronUp className={`size-4 opacity-40 transition-transform duration-200 ${menuOpen ? '' : 'rotate-180'}`} />

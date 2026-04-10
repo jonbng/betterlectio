@@ -438,9 +438,9 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                         loading="lazy"
                       />
                     </button>
-                    <div className="flex items-center gap-1.5 border-t border-border/60 px-2.5 py-1.5 text-xs">
+                    <div className="flex items-center gap-1.5 border-t border-border/60 px-2.5 py-1.5 text-sm">
                       <FileImage size={14} className="shrink-0 text-[oklch(0.59_0.11_215)]" />
-                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{att.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{att.name}</span>
                       <span className="shrink-0 text-xs font-medium text-muted-foreground">
                         {att.sizeLabel || (ext ? ext.toUpperCase() : '')}
                       </span>
@@ -468,8 +468,8 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                     <Icon size={16} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">{att.name}</span>
-                    <span className="block text-xs font-medium uppercase tracking-[0.01em] text-muted-foreground">
+                    <span className="block truncate text-sm font-medium text-foreground">{att.name}</span>
+                    <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       {att.sizeLabel || (ext ? ext.toUpperCase() : 'Fil')}
                     </span>
                   </span>
@@ -773,7 +773,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[1.5rem] font-[800] tracking-[-0.02em] text-foreground">{data.threadSubject}</h1>
-          <div className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="mt-0.5 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <Users size={13} className="text-muted-foreground" />
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
               {recipientEntries.map((recipient, index) => (
@@ -802,7 +802,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         </div>
 
         <div>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             {messages.length} {messages.length === 1 ? 'besked' : 'beskeder'}
           </span>
         </div>
@@ -849,7 +849,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
           {attachedFiles.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5 px-4 pt-2">
               {attachedFiles.map((file, i) => (
-                <span key={`${file.deleteArgument}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 text-xs text-foreground">
+                <span key={`${file.deleteArgument}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 text-sm text-foreground">
                   {removingIndex === i ? (
                     <Loader2 size={12} className="animate-spin" />
                   ) : (
@@ -881,14 +881,14 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                     onChange={handleFileSelect}
                   />
                   {uploadingFileName ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Loader2 size={14} className="animate-spin" />
                       <span>Uploader {uploadingFileName}...</span>
                     </span>
                   ) : (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                       onClick={() => fileInputRef.current?.click()}
                       title="Vedhæft fil"
                     >
@@ -900,16 +900,16 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
               )}
               <div
                 ref={notifyRef}
-                className="empty:hidden [&_select]:rounded-md [&_select]:border [&_select]:border-border [&_select]:bg-background [&_select]:px-2 [&_select]:py-1.5 [&_select]:text-xs [&_select]:text-foreground [&_select]:outline-none [&_select]:focus:border-primary [&_select]:focus:ring-2 [&_select]:focus:ring-primary/15"
+                className="empty:hidden [&_select]:rounded-md [&_select]:border [&_select]:border-border [&_select]:bg-background [&_select]:px-2 [&_select]:py-1.5 [&_select]:text-sm [&_select]:text-foreground [&_select]:outline-none [&_select]:focus:border-primary [&_select]:focus:ring-2 [&_select]:focus:ring-primary/15"
               />
             </div>
             <div className="ml-auto inline-flex items-center gap-2">
-              <span className="text-xs text-muted-foreground/60">
+              <span className="text-sm text-muted-foreground/60">
                 Ctrl+Enter for at sende
               </span>
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={handleSend}
                 disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null}
               >
