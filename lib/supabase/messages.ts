@@ -63,6 +63,13 @@ export interface UnsubscribeMessage {
 export interface AuthEnsureMessage {
   type: 'bl-sb:auth:ensure';
   schoolId: string;
+  /**
+   * Raw Lectio `elevid` for the currently logged-in student on this page.
+   * When present, the background will verify that any existing Supabase
+   * session is actually owned by this student before accepting it, and
+   * otherwise sign the stale session out so the caller can re-auth.
+   */
+  expectedStudentId?: string;
   qrData?: { qrId: string; userId: string };
   source?: string;
 }

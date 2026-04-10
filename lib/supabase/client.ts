@@ -82,7 +82,13 @@ export async function cachedQuery<T>(opts: CachedQueryOpts): Promise<T> {
   // 1. Try cache
   const cached = await readCache<T>(key);
 
-  if (cached) {
+  // Treat a previously-cached null single-row result as a cache miss. Older
+  // extension versions could poison the cache with `null` when the query ran
+  // before auth landed (RLS returned an empty row). Keep the safety net in
+  // both directions so existing users get unstuck without waiting for TTL.
+  const cachedIsNullSingle = Boolean(cached && opts.single && cached.data === null);
+
+  if (cached && !cachedIsNullSingle) {
     if (cached.isFresh) {
       return cached.data;
     }
@@ -117,7 +123,15 @@ export async function cachedQuery<T>(opts: CachedQueryOpts): Promise<T> {
   }
 
   const data = resp.data as T;
-  await writeCache(key, data, opts.table);
+  // Don't persist an empty single-row result. An empty result here is almost
+  // always "the row isn't readable yet" (RLS blocked before auth landed, row
+  // not upserted yet, transient race) — caching null would mask the next
+  // retry for the whole table TTL. Non-single queries can legitimately return
+  // `[]`, so only null-guard the single-row case.
+  const shouldCache = !(opts.single && data === null);
+  if (shouldCache) {
+    await writeCache(key, data, opts.table);
+  }
   return data;
 }
 

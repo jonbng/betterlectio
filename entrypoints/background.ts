@@ -121,6 +121,41 @@ async function getAnalyticsIdentity(context?: {
   }
 }
 
+// Transient network failures ("Failed to fetch", offline, service-worker
+// shutdown mid-request, blocker extensions, aborted requests, etc.) are not
+// actionable bugs — they're noise. Supabase's SDK surfaces these as error
+// objects with a `Failed to fetch` / `NetworkError` message, and posthog-node
+// wraps them with a synthetic stack that all points at its own internals.
+// Suppress them before they burn PostHog free-tier quota.
+function isTransientNetworkError(error: unknown): boolean {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+      ? error
+      : typeof (error as { message?: unknown })?.message === 'string'
+        ? (error as { message: string }).message
+        : '';
+  if (!message) return false;
+  return /failed to fetch|networkerror|network request failed|load failed|err_network|err_internet_disconnected|the user aborted|request aborted|signal is aborted/i.test(message);
+}
+
+// Non-actionable PostgREST query-contract errors. The caller already receives
+// the error via the query response and handles it (null fallback, retry, etc.).
+// Reporting these as exceptions is noise — posthog-edge synthesizes an
+// identical minified stack for every background-side capture, so a single
+// chatty case (e.g. the old `.single()` path before commit 4cfd779, where
+// first-render queries against not-yet-upserted student rows raised PGRST116)
+// can swamp the error tracker and fingerprint-collide with genuinely
+// actionable errors.
+function isNonActionablePostgrestError(error: unknown): boolean {
+  const code = typeof (error as { code?: unknown })?.code === 'string'
+    ? (error as { code: string }).code
+    : '';
+  // PGRST116 = "Cannot coerce the result to a single JSON object" — query
+  // returned the wrong row count for a single-row accessor.
+  return code === 'PGRST116';
+}
+
 async function captureSupabaseError(
   error: unknown,
   context: {
@@ -136,6 +171,9 @@ async function captureSupabaseError(
   },
 ): Promise<void> {
   try {
+    if (isTransientNetworkError(error)) return;
+    if (isNonActionablePostgrestError(error)) return;
+
     const identity = await getAnalyticsIdentity({
       studentId: context.studentId,
       schoolId: context.schoolId,
@@ -428,38 +466,104 @@ async function getUsableSessionExpiry(): Promise<number | null> {
   }
 }
 
+/**
+ * Verifies that the current Supabase session owns the student/school the
+ * caller is acting on behalf of. Returns `true` if no validation is
+ * requested, if ownership checks out, or if the DB lookup fails (we stay
+ * permissive on transient errors to avoid cascading auth loops).
+ *
+ * Returns `false` only when we can confirm the session belongs to a
+ * different Lectio user — in that case the caller should sign out the
+ * stale session and re-authenticate via QR.
+ */
+async function isSessionOwnedByExpected(
+  expectedStudentId: string | undefined,
+  expectedSchoolId: string | undefined,
+  qrUserPresent: boolean,
+): Promise<boolean> {
+  if (!expectedStudentId && !qrUserPresent) return true;
+
+  try {
+    const supabase = getSupabase();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUserId = sessionData.session?.user?.id;
+    if (!sessionUserId) return false;
+
+    if (expectedStudentId) {
+      // Strong check: the student with this elevid must be linked to the
+      // current Supabase auth user (and optionally to the expected school).
+      let query = supabase
+        .from('students')
+        .select('id')
+        .eq('id', expectedStudentId)
+        .eq('supabase_id', sessionUserId);
+
+      if (expectedSchoolId) {
+        const schoolIdNum = Number(expectedSchoolId);
+        if (Number.isFinite(schoolIdNum)) {
+          query = query.eq('school_id', schoolIdNum);
+        }
+      }
+
+      const { data, error } = await query.limit(1);
+      if (error) {
+        console.warn('[BetterLectio] Could not validate session ownership:', error.message);
+        return true; // transient DB error — stay permissive
+      }
+      if (!data?.length) {
+        console.log('[BetterLectio] Existing Supabase session does not own expected student, reauthenticating');
+        return false;
+      }
+      return true;
+    }
+
+    // Legacy check used when only qrData is available: verify *some* student
+    // row exists for this auth user. This protects against completely stale
+    // sessions even when the caller did not pass an expected studentId.
+    const { data: studentRows, error: studentLookupError } = await supabase
+      .from('students')
+      .select('id')
+      .eq('supabase_id', sessionUserId)
+      .limit(1);
+
+    if (studentLookupError) {
+      console.warn('[BetterLectio] Could not validate existing Supabase session owner:', studentLookupError.message);
+      return true;
+    }
+    if (!studentRows?.length) {
+      console.log('[BetterLectio] Existing Supabase session belongs to a different Lectio user, reauthenticating');
+      return false;
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 async function runEnsureSupabaseSession(
   qrData?: { qrId: string; userId: string },
   schoolId?: string,
   source = 'unknown',
+  expectedStudentId?: string,
 ): Promise<SupabaseResponse> {
   try {
     const supabase = getSupabase();
     const existingSessionExpiry = await getUsableSessionExpiry();
     if (existingSessionExpiry) {
-      // NOTE: qrData.userId is the QR auth userId from LandingPageQrCode.aspx, NOT the elevid.
-      // We can't use it to match students.id (which stores elevid). Instead, just check
-      // that *some* student row exists for this Supabase auth user.
-      const { data } = await supabase.auth.getSession();
-      if (qrData?.userId && data.session?.user?.id) {
-        const { data: studentRows, error: studentLookupError } = await supabase
-          .from('students')
-          .select('id')
-          .eq('supabase_id', data.session.user.id)
-          .limit(1);
-
-        if (studentLookupError) {
-          console.warn('[BetterLectio] Could not validate existing Supabase session owner:', studentLookupError.message);
-        } else if (!studentRows?.length) {
-          console.log('[BetterLectio] Existing Supabase session belongs to a different Lectio user, reauthenticating');
-        } else {
-          await browser.storage.local.remove(REAUTH_KEY);
-          return { ok: true, session: { expires_at: existingSessionExpiry } };
-        }
-      } else {
+      const ownershipOk = await isSessionOwnedByExpected(
+        expectedStudentId,
+        schoolId,
+        !!qrData?.userId,
+      );
+      if (ownershipOk) {
         await browser.storage.local.remove(REAUTH_KEY);
         return { ok: true, session: { expires_at: existingSessionExpiry } };
       }
+      // Session is stale for the caller's Lectio user. Sign it out so any
+      // subsequent reauth (or short-circuit below) sees a clean slate — if
+      // we skipped this, the `sessionExpiryAfterSignout` fallback further
+      // down would accept the stale session again when no qrData is given.
+      await supabase.auth.signOut().catch(() => {});
     }
 
     const { data } = await supabase.auth.getSession();
@@ -593,13 +697,19 @@ async function ensureSupabaseSession(
   qrData?: { qrId: string; userId: string },
   schoolId?: string,
   source = 'unknown',
+  expectedStudentId?: string,
 ): Promise<SupabaseResponse> {
   const dedupeKey = getAuthDedupeKey(qrData, schoolId);
   if (inFlightAuth && inFlightAuth.key === dedupeKey) {
     return inFlightAuth.promise;
   }
 
-  const promise = runEnsureSupabaseSession(qrData, schoolId, source).finally(() => {
+  const promise = runEnsureSupabaseSession(
+    qrData,
+    schoolId,
+    source,
+    expectedStudentId,
+  ).finally(() => {
     if (inFlightAuth?.promise === promise) {
       inFlightAuth = null;
     }
@@ -712,7 +822,12 @@ export default defineBackground(() => {
 
       // ── Auth ────────────────────────────────────────────────────
       case 'bl-sb:auth:ensure':
-        ensureSupabaseSession(msg.qrData, msg.schoolId, msg.source).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        ensureSupabaseSession(
+          msg.qrData,
+          msg.schoolId,
+          msg.source,
+          msg.expectedStudentId,
+        ).then(sendResponse).catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:auth:session': {

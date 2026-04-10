@@ -25,16 +25,21 @@ async function getSyncContext() {
   const studentId = getLoggedInUserId();
 
   if (!schoolId || !studentId) return null;
-  let authenticated = await isAuthenticated();
-  if (!authenticated) {
-    try {
-      const { ensureSupabaseSession } = await import('@/lib/supabase/session');
-      await ensureSupabaseSession(schoolId, 'hold-mapping-sync');
-      authenticated = await isAuthenticated();
-    } catch {
-      authenticated = false;
-    }
+
+  // Always run ensureSupabaseSession with the expected studentId so the
+  // background can validate that any existing session is actually owned
+  // by this Lectio user. Otherwise a stale session left over from a
+  // different account would slip past `isAuthenticated()` here and cause
+  // `upsert_user_lesson_override_v2` to raise "Unauthorized" server-side.
+  try {
+    const { ensureSupabaseSession } = await import('@/lib/supabase/session');
+    await ensureSupabaseSession(schoolId, 'hold-mapping-sync', studentId);
+  } catch {
+    // ensureSupabaseSession is fire-and-forget; ignore failures and fall
+    // through to the isAuthenticated gate below.
   }
+
+  const authenticated = await isAuthenticated();
   if (!authenticated) return null;
 
   return { schoolId, studentId };

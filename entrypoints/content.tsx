@@ -48,8 +48,11 @@ import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
-import { captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
+import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
+import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
+import { toast } from "sonner";
 import {
   clearLogoutIntent,
   getLastAuthenticatedActivity,
@@ -294,6 +297,11 @@ function installActivityModalClickInterceptor() {
 }
 
 function initLayout() {
+  // Push the current URL into the per-tab breadcrumb trail so error reports
+  // (e.g. lectio-error-popup) can include recent navigation context. Runs
+  // unconditionally so even bounces through integration/login pages are tracked.
+  pushUrlToHistory();
+
   // Sync analytics opt-out to extension storage so background script can read it
   try {
     const stored = localStorage.getItem('bl-feature-settings') ?? localStorage.getItem('il-feature-settings');
@@ -397,8 +405,9 @@ function initLayout() {
 
   // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
   if (schoolId) {
+    const bootstrapStudentId = currentProfile?.studentId ?? undefined;
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
-      void ensureSupabaseSession(schoolId, 'bootstrap');
+      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId);
     }).catch(() => {});
 
     // Prefetch all school students into cache (for BL badges + profile data)
@@ -465,6 +474,36 @@ function initLayout() {
       captureException(new Error(args.map(String).join(' ')), phDistinctId);
       _origConsoleError.apply(console, args);
     };
+
+    // Detect Lectio's native error popup. These usually mean something in our
+    // extension broke a postback or ASP.NET form — critical signal, report it
+    // with as much context as possible and let the user know we saw it.
+    installLectioErrorDetector((payload) => {
+      const recentUrls = getRecentUrls(3);
+      const errorProps = {
+        source: 'lectio-native-error-popup',
+        error_title: payload.title,
+        error_body: payload.body,
+        dialog_html: payload.dialogHtml,
+        recent_urls: recentUrls,
+        previous_url: recentUrls[1],
+        school_id: cachedProfile.schoolId,
+        page: pageProps.page,
+        trigger_path: window.location.pathname,
+        referrer: document.referrer || undefined,
+      };
+      capture('lectio native error', phDistinctId, errorProps);
+      captureException(
+        new Error(`Lectio native error: ${payload.title}`),
+        phDistinctId,
+        errorProps,
+      );
+      try {
+        toast.info("Fejlen er rapporteret", {
+          description: "Tak for hjælpen — vi kigger på det.",
+        });
+      } catch { /* non-critical */ }
+    });
 
     // Capture failed HTTP requests to Lectio URLs
     const isLectioUrl = (url: string) => url.includes('lectio.dk');

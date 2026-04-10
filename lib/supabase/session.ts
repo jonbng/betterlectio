@@ -7,7 +7,10 @@ import { fetchQrUrl } from '@/lib/profil-parser';
 
 type AuthSource = 'bootstrap' | 'hold-mapping-sync' | 'unknown';
 
-const inFlightAuthBySchool = new Map<string, Promise<void>>();
+// Dedupe is keyed by `schoolId:studentId` (or `schoolId:` when unknown) so
+// a later call that supplies a studentId doesn't reuse an earlier unchecked
+// promise and skip the ownership validation on an existing stale session.
+const inFlightAuthByKey = new Map<string, Promise<void>>();
 
 async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
   const resp = await browser.runtime.sendMessage(msg);
@@ -18,20 +21,35 @@ async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
 /**
  * Ensures a valid Supabase session exists. Runs silently — never throws.
  * Safe to call fire-and-forget from any content script.
+ *
+ * When `studentId` (raw Lectio elevid) is provided, the background will
+ * additionally verify that any existing session is actually owned by that
+ * student. Stale sessions from a previously logged-in Lectio user are
+ * signed out and a fresh QR-based reauth is attempted.
  */
-export async function ensureSupabaseSession(schoolId: string, source: AuthSource = 'unknown'): Promise<void> {
-  const existing = inFlightAuthBySchool.get(schoolId);
+export async function ensureSupabaseSession(
+  schoolId: string,
+  source: AuthSource = 'unknown',
+  studentId?: string,
+): Promise<void> {
+  const dedupeKey = `${schoolId}:${studentId ?? ''}`;
+  const existing = inFlightAuthByKey.get(dedupeKey);
   if (existing) {
     return existing;
   }
 
   const promise = (async () => {
     try {
-      // Quick check: is session already valid?
-      const check = await send({ type: 'bl-sb:auth:session' });
-      if (check?.ok && check.session?.expires_at && check.session.expires_at > Date.now() / 1000 + 300) {
-        return;
-      }
+      // Quick path: delegate to the background, which will return ok
+      // immediately if the existing session is both valid AND owned by the
+      // expected student. No QR fetch needed in that common case.
+      const quick = await send({
+        type: 'bl-sb:auth:ensure',
+        schoolId,
+        expectedStudentId: studentId,
+        source,
+      });
+      if (quick?.ok) return;
 
       // Fetch QR data from Lectio (requires page cookies — must run in content script)
       const qrUrl = await fetchQrUrl(schoolId);
@@ -53,6 +71,7 @@ export async function ensureSupabaseSession(schoolId: string, source: AuthSource
       const result = await send({
         type: 'bl-sb:auth:ensure',
         schoolId,
+        expectedStudentId: studentId,
         qrData: { qrId, userId },
         source,
       });
@@ -64,11 +83,11 @@ export async function ensureSupabaseSession(schoolId: string, source: AuthSource
       console.warn('[BetterLectio] Auto Supabase auth error:', err);
     }
   })().finally(() => {
-    if (inFlightAuthBySchool.get(schoolId) === promise) {
-      inFlightAuthBySchool.delete(schoolId);
+    if (inFlightAuthByKey.get(dedupeKey) === promise) {
+      inFlightAuthByKey.delete(dedupeKey);
     }
   });
 
-  inFlightAuthBySchool.set(schoolId, promise);
+  inFlightAuthByKey.set(dedupeKey, promise);
   return promise;
 }

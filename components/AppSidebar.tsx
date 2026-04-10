@@ -57,6 +57,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { clearLoginState } from '@/lib/profile-cache';
+import { getCachedSchoolDisplayName, cacheSchoolDisplayName } from '@/lib/school-storage';
 import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
@@ -98,10 +99,16 @@ function getSchoolNameFromPage(): string | null {
 
 function getSchoolInfo(): { id: string; name: string } {
   const cached = getCachedProfile();
-  return {
-    id: cached?.schoolId || getSchoolIdFromUrl(),
-    name: cached?.schoolName || getSchoolNameFromPage() || 'Lectio',
-  };
+  const id = cached?.schoolId || getSchoolIdFromUrl();
+  // Prefer the Supabase display name mirror (sync localStorage) so the
+  // sidebar renders the curated school label instantly on every page load,
+  // with the Lectio meta tag / page title as a first-ever-load fallback.
+  const name =
+    getCachedSchoolDisplayName(id) ||
+    cached?.schoolName ||
+    getSchoolNameFromPage() ||
+    'Lectio';
+  return { id, name };
 }
 
 interface CachedProfile {
@@ -261,7 +268,17 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     filters: [{ column: 'id', op: 'eq', value: Number(schoolId) }],
     single: true,
   });
-  const schoolName = schoolRow?.display_name ?? schoolRow?.name ?? schoolInfo.name;
+  // Supabase query is async (even on cache hit — `browser.storage.local` is
+  // a promise). `schoolInfo.name` already resolves synchronously from the
+  // sync localStorage mirror, so keep showing it until Supabase produces a
+  // real value. When it does, mirror it back to the sync cache for next load.
+  const supabaseSchoolName = schoolRow?.display_name ?? schoolRow?.name ?? null;
+  const schoolName = supabaseSchoolName ?? schoolInfo.name;
+  useEffect(() => {
+    if (supabaseSchoolName) {
+      cacheSchoolDisplayName(schoolId, supabaseSchoolName);
+    }
+  }, [supabaseSchoolName, schoolId]);
   const cachedProfile = getCachedProfile();
   const { data: sidebarStudent } = useQuery<Student>({
     schoolId,

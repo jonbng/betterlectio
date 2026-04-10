@@ -72,6 +72,8 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `lib/schedule-cache.ts` - Today's schedule cache (45min TTL)
 - `lib/page-data-cache.ts` - School-scoped page-presence cache for optional sidebar links (books/SPS)
 - `lib/posthog.ts` - PostHog analytics singleton (posthog-node edge build), capture/identify/captureException helpers
+- `lib/lectio-error-popup.ts` - MutationObserver-based detector for Lectio's native `.ls-alertbox`/`[data-title^="Fejl"]` error popups (rendered via `LectioAlertBox.RegisterAlerts`). Extracts title + body, dedupes per DOM element.
+- `lib/url-history.ts` - Tiny per-tab (sessionStorage) URL breadcrumb trail used to enrich error reports with recent navigation context.
 - `lib/supabase/resources/homework.ts` - Homework queries + `upsert_student_homework_status` RPC bridge for synced completion state
 - `lib/supabase/student-lookup.ts` - Shared student lookup/display helpers: `useSchoolStudents(schoolId)` (returns `studentsMap` Map for O(1) lookups), `getStudentIdFromPersonId()`, lookup-ID-based preferred name/avatar resolution, search aliases, and `formatDanishBirthdate()`
 - `lib/school-storage.ts` - Last school persistence
@@ -104,6 +106,7 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 - `betterlectio profile updated` — own BetterLectio profile edits (`description`, `instagram`, `show_birthday`)
 - `feature used` — once-per-session feature telemetry (`findskema`, `forside_dashboard`, `lektier_page`, `homework_toggle`, `beskeder_*`, `hold_mapping_editor`, etc.)
 - `lectio session lost` — passive logout detection when an identified user is unexpectedly sent back to `login.aspx` or another school page without the normal authenticated shell, excluding recent explicit logout clicks
+- `lectio native error` — Lectio's native error popup (`LectioAlertBox.RegisterAlerts` / `[data-title^="Fejl"]`) fired on the current page. Usually indicates the extension broke a postback/form. Props: `error_title`, `error_body`, `dialog_html`, `recent_urls` (last 3 visited in this tab), `previous_url`, `school_id`, `page`, `trigger_path`, `referrer`. Also fires a paired `captureException` with the same props. The user sees a Sonner `toast.info` confirming the error was reported.
 - `captureException` — error tracking (only when distinctId is available)
 
 **Adding new events:** Be conservative — we're on PostHog's free tier. Import helpers from `@/lib/posthog`. Only capture events when you have an identified user. Prefer `captureFeatureUsedOncePerSession()` for feature-adoption telemetry and `identifyIfNeeded()` / `setPersonProperties()` for person updates. All calls are try/catch wrapped.
@@ -117,6 +120,8 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Edge function:** `supabase/functions/verify-lectio-auth/index.ts` handles QR-code-based auth. Flow: QR login → extract session cookies → fetch student profile from `digitaltStudiekort.aspx` plus `SkemaNy.aspx` (with short retries for `elevid` propagation) → generate magic link → upload profile picture to storage → upsert student record.
 
 **Background auth dedupe:** `entrypoints/background.ts` is the single coordinator for Supabase auth. Startup auth should originate from `entrypoints/content.tsx`; feature code should only call `ensureSupabaseSession(...)` as a fallback when auth is still missing. The background script dedupes concurrent auth attempts per `schoolId:userId` so multiple content-script callers do not burn the same one-time magic-link token and produce false `Email link is invalid or has expired` failures.
+
+**Session ownership validation:** `ensureSupabaseSession(schoolId, source, studentId?)` accepts the current page's raw Lectio `elevid` as `studentId`. When provided, the background validates that any existing session actually owns that specific student (`students.id = elevid AND supabase_id = auth.uid()`) before accepting it. Stale sessions left over from a previously logged-in Lectio user (shared browsers, account switches) are signed out and a fresh QR reauth is triggered. Always pass `studentId` from callers that are about to write student-scoped RPCs (e.g. `upsert_user_lesson_override_v2`, `upsert_student_homework_status`) so we don't end up calling security-definer RPCs that raise `'Unauthorized'` server-side. The content-script bootstrap and `hold-mapping-sync.ts` already do this.
 
 **Auth UID:** The edge function sets `supabase_id` on the `students` table from `data.user.id` returned by `generateLink()`. This links the Lectio student ID to the Supabase auth user.
 

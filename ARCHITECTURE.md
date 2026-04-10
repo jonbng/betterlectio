@@ -244,6 +244,8 @@ Content Scripts (inject into lectio.dk pages)
 | `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}` (raw elevid). Identify sends name, school, class, year, dark mode, and theme. Includes once-per-session feature helpers plus page-hide flushing to keep request volume lower without losing short-lived events. All calls silently caught. |
 | `lib/posthog-lifecycle.ts` | Queues deferred lifecycle events (`extension installed` / `extension updated`) in extension storage until an identified user is available in a content script. |
 | `lib/logout-tracking.ts` | Passive Lectio logout/session-loss heuristics. Stores last authenticated activity and recent explicit logout intent so unexpected returns to `login.aspx` can be tracked without touching auth flow. |
+| `lib/lectio-error-popup.ts` | MutationObserver detector for Lectio's native error popup (`LectioAlertBox.RegisterAlerts` renders elements with `[data-title^="Fejl"]`). Extracts title + body, dedupes per DOM element. Wired in `content.tsx` to fire a `lectio native error` PostHog event + paired `captureException` + `toast.info` confirming the report to the user. |
+| `lib/url-history.ts` | Per-tab (sessionStorage) URL breadcrumb trail (`pushUrlToHistory` / `getRecentUrls`) used to enrich error reports with recent navigation context. |
 | `lib/utils.ts` | Helper functions (`cn()`) |
 
 ---
