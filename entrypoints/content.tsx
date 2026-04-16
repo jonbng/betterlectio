@@ -52,6 +52,7 @@ import { capture, captureException, captureFeatureUsedOncePerSession, captureOnc
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
+import { isBypassActive, consumeBypass } from "@/lib/bypass-redesigns";
 import { toast } from "sonner";
 import {
   clearLogoutIntent,
@@ -297,6 +298,16 @@ function installActivityModalClickInterceptor() {
 }
 
 function initLayout() {
+  // One-shot escape hatch: user armed `bl-bypass-redesigns` from the sidebar.
+  // Consume the flag here (so the next load is normal again) and skip all
+  // injection. `hide-flash.content.ts` already skipped the CSS layer-wrap, so
+  // Lectio's native DOM renders with its original styles.
+  if (isBypassActive()) {
+    consumeBypass();
+    document.documentElement.classList.add("il-ready");
+    return;
+  }
+
   // Push the current URL into the per-tab breadcrumb trail so error reports
   // (e.g. lectio-error-popup) can include recent navigation context. Runs
   // unconditionally so even bounces through integration/login pages are tracked.

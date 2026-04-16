@@ -70,6 +70,22 @@ function flushClient(): void {
   }
 }
 
+/**
+ * Await PostHog flush — guarantees enqueued events reach the server before a
+ * caller-initiated navigation (e.g. `window.location.reload()` that would
+ * otherwise kill any in-flight fetch). Resolves even on error; never throws.
+ */
+export async function flushAnalytics(): Promise<void> {
+  try {
+    const client = getClient() as any;
+    if (typeof client.flush === 'function') {
+      await client.flush();
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
 function registerFlushHandlers(): void {
   if (_flushHandlersRegistered) return;
 

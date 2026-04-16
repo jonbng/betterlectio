@@ -32,6 +32,7 @@ import {
   Settings,
   Sun,
   Moon,
+  EyeOff,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -62,6 +63,9 @@ import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
 import { setUserJotTheme } from '@/lib/userjot';
+import { armBypassForNextLoad } from '@/lib/bypass-redesigns';
+import { captureBypassEngaged } from '@/lib/bypass-analytics';
+import { toast } from 'sonner';
 import { useQuery } from '@/lib/supabase/hooks';
 import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
 import { SettingsModal } from './SettingsModal';
@@ -680,6 +684,32 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             title={isDark ? 'Skift til lys tilstand' : 'Skift til mørk tilstand'}
           >
             {isDark ? <Sun className="size-[1.1rem]" /> : <Moon className="size-[1.1rem]" />}
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              // Every press is a strong "something is broken" signal. Fire the
+              // rich analytics event (with page/context/any-visible-error
+              // popup) and await its flush so the HTTP request isn't killed by
+              // the reload that follows.
+              armBypassForNextLoad();
+              try {
+                toast.info('Viser original Lectio', {
+                  description: 'Siden genindlæses uden BetterLectio. Fejlen er rapporteret.',
+                });
+              } catch { /* non-critical */ }
+              // Race analytics flush against a 1500ms cap so a slow/hung
+              // PostHog request never strands the user on a broken page.
+              await Promise.race([
+                captureBypassEngaged(),
+                new Promise((r) => setTimeout(r, 1500)),
+              ]);
+              window.location.reload();
+            }}
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
+            title="Vis original Lectio for denne side (næste sidenavigation bringer BetterLectio tilbage)"
+          >
+            <EyeOff className="size-[1.1rem]" />
           </button>
         </div>
         <div className="relative" ref={menuRef}>

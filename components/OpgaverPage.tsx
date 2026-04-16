@@ -446,9 +446,12 @@ interface OpgaverPageProps {
   schoolId: string;
 }
 
+type StatusFilter = 'venter' | 'mangler' | 'afleveret';
+
 export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ignoredMissingIds, setIgnoredMissingIds] = useState<Set<string>>(new Set());
@@ -462,9 +465,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
   // Position the scroll container so current week is at the top — runs
   // synchronously before paint so the user never sees it jump.
+  // Offset matches the content wrapper's pt-28 so the current week lands
+  // below the 160px top fade (in its transparent tail), not buried under it.
   useLayoutEffect(() => {
     if (!scrollRef.current || !currentWeekRef.current || entries.length === 0) return;
-    scrollRef.current.scrollTop = currentWeekRef.current.offsetTop - 12;
+    scrollRef.current.scrollTop = currentWeekRef.current.offsetTop - 100;
   }, [entries.length]);
 
   useEffect(() => {
@@ -505,7 +510,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const scrollToCurrentWeek = () => {
     if (scrollRef.current && currentWeekRef.current) {
       scrollRef.current.scrollTo({
-        top: currentWeekRef.current.offsetTop - 12,
+        top: currentWeekRef.current.offsetTop - 100,
         behavior: 'smooth',
       });
     }
@@ -515,6 +520,14 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const queryLower = searchQuery.toLowerCase().trim();
   const filtered = entries.filter(e => {
     if (selectedHold && e.hold !== selectedHold) return false;
+    if (statusFilter) {
+      if (e.status !== statusFilter) return false;
+      // When filtering to "mangler", exclude ignored so the list matches the count.
+      if (statusFilter === 'mangler') {
+        const eid = getExerciseIdFromUrl(e.url);
+        if (eid && ignoredMissingIds.has(eid)) return false;
+      }
+    }
     if (queryLower && !e.title.toLowerCase().includes(queryLower) &&
         !e.hold.toLowerCase().includes(queryLower) &&
         !getHoldDisplayName(e.hold).toLowerCase().includes(queryLower)) return false;
@@ -539,7 +552,11 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const submittedCount = entries.filter(e => e.status === 'afleveret').length;
   const waitingCount = entries.filter(e => e.status === 'venter').length;
 
-  const hasActiveFilters = selectedHold !== null || queryLower !== '';
+  const hasActiveFilters = selectedHold !== null || queryLower !== '' || statusFilter !== null;
+
+  const toggleStatusFilter = (next: StatusFilter) => {
+    setStatusFilter(prev => (prev === next ? null : next));
+  };
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden">
@@ -550,16 +567,47 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           <div className="flex flex-wrap items-end justify-between gap-6 pb-5">
             <div>
               <h1 className="text-[2.5rem] font-[800] tracking-[-0.02em] text-foreground">Opgaver</h1>
-              <p className="mt-1.5 text-lg text-muted-foreground">
-                {entries.length} opgaver
-                {waitingCount > 0 && <> &middot; {waitingCount} kommende</>}
-                {missingCount > 0 && (
-                  <span className="text-[oklch(0.55_0.18_25)] dark:text-[oklch(0.72_0.16_25)]">
-                    {' '}&middot; {missingCount} mangler
-                  </span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-lg text-muted-foreground">
+                <span className="px-0.5">
+                  <span className="tabular-nums">{entries.length}</span> opgaver
+                </span>
+                {waitingCount > 0 && (
+                  <>
+                    <span aria-hidden className="text-muted-foreground/30">&middot;</span>
+                    <StatusPill
+                      tone="waiting"
+                      active={statusFilter === 'venter'}
+                      onToggle={() => toggleStatusFilter('venter')}
+                    >
+                      <span className="tabular-nums">{waitingCount}</span> kommende
+                    </StatusPill>
+                  </>
                 )}
-                {submittedCount > 0 && <> &middot; {submittedCount} afleveret</>}
-              </p>
+                {missingCount > 0 && (
+                  <>
+                    <span aria-hidden className="text-muted-foreground/30">&middot;</span>
+                    <StatusPill
+                      tone="missing"
+                      active={statusFilter === 'mangler'}
+                      onToggle={() => toggleStatusFilter('mangler')}
+                    >
+                      <span className="tabular-nums">{missingCount}</span> mangler
+                    </StatusPill>
+                  </>
+                )}
+                {submittedCount > 0 && (
+                  <>
+                    <span aria-hidden className="text-muted-foreground/30">&middot;</span>
+                    <StatusPill
+                      tone="done"
+                      active={statusFilter === 'afleveret'}
+                      onToggle={() => toggleStatusFilter('afleveret')}
+                    >
+                      <span className="tabular-nums">{submittedCount}</span> afleveret
+                    </StatusPill>
+                  </>
+                )}
+              </div>
             </div>
             <button
               type="button"
@@ -655,7 +703,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           ref={scrollRef}
           className="h-full overflow-y-auto px-10"
         >
-          <div className="mx-auto max-w-7xl pb-16 pt-6">
+          <div className="mx-auto max-w-7xl pb-16 pt-28">
             {/* ── Empty state ──────────────────── */}
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-8 py-20 text-center">
@@ -667,7 +715,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                     <button
                       type="button"
                       className="mt-6 rounded-xl border border-border bg-background px-6 py-3 text-base font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]"
-                      onClick={() => { setSearchQuery(''); setSelectedHold(null); }}
+                      onClick={() => { setSearchQuery(''); setSelectedHold(null); setStatusFilter(null); }}
                     >
                       Nulstil
                     </button>
@@ -952,6 +1000,85 @@ function AssignmentRow({
         )}
       </div>
     </a>
+  );
+}
+
+// ── StatusPill ─────────────────────────────────────────────────────────
+// The status counts in the header ("X mangler", "X kommende", "X afleveret")
+// are themselves the filter control. At rest they read as prose. On hover, a
+// soft colored chip materialises under the words. When active, the chip fills
+// in and a small × slides in to clear. No new toolbar row, no layout shift —
+// the information *is* the interaction.
+
+type StatusTone = 'waiting' | 'missing' | 'done';
+
+const STATUS_PILL_STYLES: Record<StatusTone, { inactive: string; active: string }> = {
+  // hue 80 — amber/yellow-green for venter
+  waiting: {
+    inactive:
+      'text-muted-foreground hover:bg-[oklch(0.96_0.035_80)] hover:text-[oklch(0.42_0.14_80)] '
+      + 'dark:hover:bg-[oklch(0.24_0.045_80)] dark:hover:text-[oklch(0.78_0.13_80)]',
+    active:
+      'bg-[oklch(0.93_0.075_80)] text-[oklch(0.36_0.15_80)] shadow-[inset_0_0_0_1px_oklch(0.82_0.08_80)] '
+      + 'dark:bg-[oklch(0.28_0.08_80)] dark:text-[oklch(0.84_0.15_80)] dark:shadow-[inset_0_0_0_1px_oklch(0.40_0.10_80)]',
+  },
+  // hue 25 — red for mangler (the star of the show)
+  missing: {
+    inactive:
+      'text-[oklch(0.55_0.18_25)] hover:bg-[oklch(0.94_0.055_25)] hover:text-[oklch(0.44_0.21_25)] '
+      + 'dark:text-[oklch(0.72_0.16_25)] dark:hover:bg-[oklch(0.26_0.065_25)] dark:hover:text-[oklch(0.82_0.19_25)]',
+    active:
+      'bg-[oklch(0.91_0.095_25)] text-[oklch(0.38_0.23_25)] shadow-[inset_0_0_0_1px_oklch(0.78_0.12_25)] '
+      + 'dark:bg-[oklch(0.32_0.12_25)] dark:text-[oklch(0.88_0.19_25)] dark:shadow-[inset_0_0_0_1px_oklch(0.46_0.15_25)]',
+  },
+  // hue 145 — green for afleveret
+  done: {
+    inactive:
+      'text-muted-foreground hover:bg-[oklch(0.96_0.035_145)] hover:text-[oklch(0.40_0.14_145)] '
+      + 'dark:hover:bg-[oklch(0.24_0.045_145)] dark:hover:text-[oklch(0.76_0.13_145)]',
+    active:
+      'bg-[oklch(0.93_0.075_145)] text-[oklch(0.34_0.15_145)] shadow-[inset_0_0_0_1px_oklch(0.80_0.09_145)] '
+      + 'dark:bg-[oklch(0.28_0.08_145)] dark:text-[oklch(0.82_0.15_145)] dark:shadow-[inset_0_0_0_1px_oklch(0.40_0.10_145)]',
+  },
+};
+
+function StatusPill({
+  tone,
+  active,
+  onToggle,
+  children,
+}: {
+  tone: StatusTone;
+  active: boolean;
+  onToggle: () => void;
+  children: any;
+}) {
+  const styles = STATUS_PILL_STYLES[tone];
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      title={active ? 'Fjern filter' : 'Vis kun disse'}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium',
+        'cursor-pointer select-none',
+        'transition-[background-color,color,box-shadow,transform] duration-200 ease-out',
+        'active:scale-[0.96]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+        active ? styles.active : styles.inactive,
+      )}
+    >
+      {children}
+      {active && (
+        <X
+          size={12}
+          strokeWidth={2.75}
+          className="-mr-0.5 shrink-0 opacity-70 animate-[bl-fade-in_180ms_ease-out_both]"
+          aria-hidden
+        />
+      )}
+    </button>
   );
 }
 
