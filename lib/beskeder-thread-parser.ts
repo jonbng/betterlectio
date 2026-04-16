@@ -444,7 +444,7 @@ export function parseComposeFromDOM(doc: Document = document): ComposeFormData |
   const cancelMatch = cancelOnclick.match(/__doPostBack\('([^']+)'/);
 
   // Recipients from ThreadRecipientsGV
-  // Each row: <td>Name</td><td><a href="javascript:__doPostBack('...GV','DEL$0')">...</a></td>
+  // Each row: <td>Name</td><td>...<a onclick="javascript:__doPostBack('...GV','DEL$0'); return false;">...</a>...</td>
   const recipients: ComposeRecipient[] = [];
   const recipientTable = doc.getElementById(
     's_m_Content_Content_MessageThreadCtrl_ThreadRecipientsGV',
@@ -460,11 +460,14 @@ export function parseComposeFromDOM(doc: Document = document): ComposeFormData |
       const name = (nameCell.textContent || '').trim();
       if (!name) continue;
 
-      // Remove link uses href="javascript:__doPostBack(...)", not onclick
-      const removeLink = row.querySelector('a[href*="__doPostBack"]') as HTMLAnchorElement | null;
-      const removeHref = removeLink?.getAttribute('href') || '';
-      const removeMatch = removeHref.match(/__doPostBack\(&#39;([^&]+)&#39;,&#39;([^&]+)&#39;\)/)
-        || removeHref.match(/__doPostBack\('([^']+)','([^']+)'\)/);
+      const removeLink = (
+        row.querySelector('a[onclick*="__doPostBack"]')
+        ?? row.querySelector('a[href*="__doPostBack"]')
+      ) as HTMLAnchorElement | null;
+      const removeAttr = removeLink?.getAttribute('onclick')
+        || removeLink?.getAttribute('href') || '';
+      const removeMatch = removeAttr.match(/__doPostBack\(&#39;([^&]+)&#39;,&#39;([^&]+)&#39;\)/)
+        || removeAttr.match(/__doPostBack\('([^']+)','([^']+)'\)/);
 
       if (removeMatch) {
         // postback target = first arg, argument = second (e.g. 'DEL$0')

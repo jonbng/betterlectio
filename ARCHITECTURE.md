@@ -212,6 +212,8 @@ Content Scripts (inject into lectio.dk pages)
 
 **No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Non-idempotent operations (send/reply/delete) avoid automatic native fallback on uncertain parse errors to prevent duplicate side effects.
 
+**Lectio DOM quirk — recipient GridView links:** In `ThreadRecipientsGV`, the delete links use `onclick="javascript:__doPostBack(...)"` with `href="#"`, not `href="javascript:__doPostBack(...)"`. Parsers must check the `onclick` attribute first, then `href` as a fallback — never rely solely on `a[href*="__doPostBack"]` selectors for this table.
+
 | File | Purpose |
 |------|---------|
 | `BeskederPage.tsx` (in content.tsx) | Thread list with folder pills, sender names/avatars preferring Supabase student data, optimistic flag/read/delete, search, bulk actions |

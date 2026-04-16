@@ -207,6 +207,8 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 
 **Beskeder safety:** For non-idempotent iframe-post actions (send/reply/delete), do not auto-fallback to native postback on uncertain/parse errors — this can duplicate side effects. Show a refresh/retry prompt instead.
 
+**Beskeder recipient GridView links:** In `ThreadRecipientsGV`, Lectio renders delete links as `<a href="#" onclick="javascript:__doPostBack(...)">`, not `href="javascript:__doPostBack(...)"`. When parsing recipient remove targets, always check the `onclick` attribute first (then `href` as a fallback) — `a[href*="__doPostBack"]` will never match this table.
+
 **FindSkema type mapping:** Do not assume `K*` means classes or `L*` means rooms. Real AvanceretSkema IDs use `SC*` for stamklasser, `RO*` for lokaler, `RE*` for ressourcer, `HE*` for hold, `GE*` for grupper. Always map by actual ID prefixes.
 
 **Class name parsing:** Do not assume grade-based class codes always end in a single letter (`1x`, `2a`). Support 1-2 alphanumeric suffixes after the grade like `2hf` or `2zq`, dotted numeric suffixes like `1.4` / `2.4`, letter-prefixed variants like `L2d` or `S2x`, and suffixless prefixed variants like `IB1`. Reuse `lib/class-name.ts` so year-based dropdown names and student class codes stay comparable across all formats.
