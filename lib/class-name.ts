@@ -1,15 +1,27 @@
 const CLASS_LETTER = String.raw`A-Za-zÆØÅæøå`;
-const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|\.\d+)`;
+const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|\.[${CLASS_LETTER}0-9]+)`;
 const CLASS_CODE_BODY = String.raw`(?:[${CLASS_LETTER}]+\d+|\d+)`;
-const CLASS_CODE = String.raw`(?:[${CLASS_LETTER}]+\d+|${CLASS_CODE_BODY}${CLASS_SUFFIX})`;
+const CLASS_CODE = String.raw`(?:[${CLASS_LETTER}]+\d+(?:${CLASS_SUFFIX})*|${CLASS_CODE_BODY}(?:${CLASS_SUFFIX})+)`;
 
-const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})(${CLASS_SUFFIX}?)(?:\\s+(\\d+))?$`, 'i');
+const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})((?:${CLASS_SUFFIX})*)(?:\\s+(\\d+))?$`, 'i');
 const GRADE_BASED_CLASS_RE = new RegExp(`^(${CLASS_CODE})(?:\\s+(\\d+))?$`, 'i');
 const YEAR_BASED_HOLD_RE = new RegExp(`^(\\S+)\\s+(.+)$`, 'i');
 const GRADE_PREFIX_RE = new RegExp(`^[${CLASS_LETTER}]*(\\d+)`, 'i');
 
+/**
+ * Some Lectio schedule titles surface a hold identifier like `t25htxvx_1vx`
+ * instead of a stamklasse. When the segment after the last underscore is itself
+ * a valid grade-based class code, treat that as the canonical class name.
+ */
+export function normalizeClassCode(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed || !trimmed.includes('_')) return trimmed;
+  const tail = trimmed.slice(trimmed.lastIndexOf('_') + 1);
+  return GRADE_BASED_CLASS_RE.test(tail) ? tail : trimmed;
+}
+
 export function looksLikeAcademicClassPrefix(value: string): boolean {
-  return GRADE_BASED_CLASS_RE.test(value.trim());
+  return GRADE_BASED_CLASS_RE.test(normalizeClassCode(value));
 }
 
 function getCurrentSchoolStartYear(now: Date): number {
@@ -54,9 +66,9 @@ export function transformYearBasedHoldName(name: string, now: Date = new Date())
 }
 
 export function extractClassGroup(classCode: string): string {
-  const trimmed = classCode.trim();
-  const match = trimmed.match(GRADE_BASED_CLASS_RE);
-  return match ? match[1] : trimmed;
+  const normalized = normalizeClassCode(classCode);
+  const match = normalized.match(GRADE_BASED_CLASS_RE);
+  return match ? match[1] : normalized;
 }
 
 export function classGroupsMatch(left: string, right: string): boolean {
@@ -66,11 +78,12 @@ export function classGroupsMatch(left: string, right: string): boolean {
 }
 
 export function getSchoolYearFromClassName(name: string, now: Date = new Date()): number | null {
-  const transformed = transformYearBasedClassName(name, now);
+  const normalized = normalizeClassCode(name);
+
+  const transformed = transformYearBasedClassName(normalized, now);
   if (transformed) return transformed.grade;
 
-  const trimmed = name.trim();
-  const match = trimmed.match(GRADE_PREFIX_RE);
+  const match = normalized.match(GRADE_PREFIX_RE);
   if (!match) return null;
 
   const grade = Number.parseInt(match[1], 10);
