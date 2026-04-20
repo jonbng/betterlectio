@@ -124,6 +124,15 @@ async function getAnalyticsIdentity(context?: {
   }
 }
 
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (typeof (error as { message?: unknown })?.message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return '';
+}
+
 // Transient network failures ("Failed to fetch", offline, service-worker
 // shutdown mid-request, blocker extensions, aborted requests, etc.) are not
 // actionable bugs — they're noise. Supabase's SDK surfaces these as error
@@ -131,15 +140,22 @@ async function getAnalyticsIdentity(context?: {
 // wraps them with a synthetic stack that all points at its own internals.
 // Suppress them before they burn PostHog free-tier quota.
 function isTransientNetworkError(error: unknown): boolean {
-  const message = error instanceof Error
-    ? error.message
-    : typeof error === 'string'
-      ? error
-      : typeof (error as { message?: unknown })?.message === 'string'
-        ? (error as { message: string }).message
-        : '';
+  const message = extractErrorMessage(error);
   if (!message) return false;
   return /failed to fetch|networkerror|network request failed|load failed|err_network|err_internet_disconnected|the user aborted|request aborted|signal is aborted/i.test(message);
+}
+
+// RPC ownership-check errors from our security-definer functions (lesson
+// mapping + homework status upserts). These raise `'Unauthorized'` when
+// `students.supabase_id != auth.uid()` for the targeted student/school —
+// i.e. the session is stale or never owned this student. The content-
+// script `sendRpc` now force-reauths and retries once on these, so every
+// such error is either about to be recovered or represents a user who is
+// logged out of Lectio (recovery impossible). Either way, not actionable.
+function isAuthOwnershipError(error: unknown): boolean {
+  const message = extractErrorMessage(error);
+  if (!message) return false;
+  return /\bunauthorized\b/i.test(message);
 }
 
 // Non-actionable PostgREST query-contract errors. The caller already receives
@@ -176,6 +192,7 @@ async function captureSupabaseError(
   try {
     if (isTransientNetworkError(error)) return;
     if (isNonActionablePostgrestError(error)) return;
+    if (context.action === 'rpc' && isAuthOwnershipError(error)) return;
 
     const identity = await getAnalyticsIdentity({
       studentId: context.studentId,

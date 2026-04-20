@@ -43,11 +43,59 @@ export async function sendMutation(
   return send({ type: 'bl-sb:mutate', ...opts });
 }
 
+function isAuthorizationError(resp: SupabaseResponse): boolean {
+  if (resp.ok) return false;
+  const message = typeof resp.error === 'string' ? resp.error : '';
+  return /\bunauthorized\b/i.test(message);
+}
+
+function extractRpcIdentity(args: Record<string, unknown>): {
+  schoolId: string | null;
+  studentId: string | undefined;
+} {
+  const rawSchool = args.p_school_id ?? (args as { schoolId?: unknown }).schoolId;
+  const schoolId =
+    typeof rawSchool === 'number' && Number.isFinite(rawSchool)
+      ? String(rawSchool)
+      : typeof rawSchool === 'string' && rawSchool
+        ? rawSchool
+        : null;
+  const rawStudent = args.p_student_id;
+  const studentId = typeof rawStudent === 'string' && rawStudent ? rawStudent : undefined;
+  return { schoolId, studentId };
+}
+
 export async function sendRpc(
   fn: FunctionName,
   args: Record<string, unknown>,
 ): Promise<SupabaseResponse> {
-  return send({ type: 'bl-sb:rpc', fn, args });
+  const resp = await send({ type: 'bl-sb:rpc', fn, args });
+
+  // Our security-definer RPCs (`upsert_user_lesson_override_v2`,
+  // `reset_user_lesson_override_v2`, `upsert_student_homework_status`)
+  // raise `'Unauthorized'` when the current Supabase session doesn't own
+  // the (student_id, school_id) tuple the caller is acting on. That
+  // usually means the session is stale (different Lectio user on a
+  // shared device, or a students row whose `supabase_id` never landed).
+  // Sign out + reauth via QR and retry the RPC once. The reauth helper
+  // is deduped + cooldown-gated, so a burst of mutations (e.g. the
+  // 40-upsert hold-mapping seed loop) drives at most one reauth.
+  if (isAuthorizationError(resp)) {
+    const { schoolId, studentId } = extractRpcIdentity(args);
+    if (schoolId) {
+      const { forceReauthenticate } = await import('./session');
+      const reauthed = await forceReauthenticate(
+        schoolId,
+        'rpc-unauthorized-retry',
+        studentId,
+      );
+      if (reauthed) {
+        return send({ type: 'bl-sb:rpc', fn, args });
+      }
+    }
+  }
+
+  return resp;
 }
 
 // ── Cached query (stale-while-revalidate) ───────────────────────────

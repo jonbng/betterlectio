@@ -2591,6 +2591,80 @@ html {
     background: var(--accent) !important;
   }
 
+  /* ── 4-week / 16-week schedule grid ─────────────
+     Native Lectio hard-codes light-mode colors for .skemaweek* grid cells
+     (background: white, #eeeeee, oklch(0.976 ...), color: #00687a, etc.) so
+     theme tokens never propagate. Override with theme-aware variables so the
+     grid follows the active theme (incl. dark mode) in SkemaNy.aspx and
+     forside schedule. */
+
+  #il-original-content .skemaweekContainer,
+  #il-forside-schedule-panel .skemaweekContainer {
+    background-color: var(--background) !important;
+    border-color: var(--border) !important;
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content .skemaweekWeek,
+  #il-forside-schedule-panel .skemaweekWeek {
+    color: var(--foreground) !important;
+    background-color: var(--muted) !important;
+    border-bottom-color: var(--border) !important;
+  }
+
+  #il-original-content .skemaweekWeekDay,
+  #il-forside-schedule-panel .skemaweekWeekDay {
+    background-color: var(--muted) !important;
+    color: var(--muted-foreground) !important;
+    border-bottom-color: var(--border) !important;
+    border-left-color: var(--border) !important;
+  }
+
+  #il-original-content .skemaweekWeekDayAlle,
+  #il-forside-schedule-panel .skemaweekWeekDayAlle {
+    background-color: var(--muted) !important;
+    color: var(--muted-foreground) !important;
+    border-color: var(--border) !important;
+  }
+
+  #il-original-content .skemaweekModuleContainer,
+  #il-forside-schedule-panel .skemaweekModuleContainer {
+    background-color: var(--muted) !important;
+    border-color: var(--border) !important;
+  }
+
+  #il-original-content .skemaweekModuleContainer > span,
+  #il-forside-schedule-panel .skemaweekModuleContainer > span {
+    color: var(--muted-foreground) !important;
+  }
+
+  #il-original-content .skemaweekModuleContainer[data-rowcol~="c1"] > span,
+  #il-forside-schedule-panel .skemaweekModuleContainer[data-rowcol~="c1"] > span {
+    color: var(--foreground) !important;
+  }
+
+  #il-original-content .skemaweekSkemabrikContainer,
+  #il-forside-schedule-panel .skemaweekSkemabrikContainer {
+    background: var(--background) !important;
+    border-bottom-color: var(--border) !important;
+  }
+
+  #il-original-content .skemaweekSkemabrikContainer.holiday,
+  #il-original-content .skemaweekModuleContainer.holiday,
+  #il-forside-schedule-panel .skemaweekSkemabrikContainer.holiday,
+  #il-forside-schedule-panel .skemaweekModuleContainer.holiday {
+    background: var(--muted) !important;
+    border-bottom-color: var(--border) !important;
+  }
+
+  /* Ambient/greyed-out bricks in the skemaweek grid (e.g. placeholders) */
+  #il-original-content .skemaweekContainer a.s2ambient,
+  #il-forside-schedule-panel .skemaweekContainer a.s2ambient {
+    background-color: var(--muted) !important;
+    border-left-color: var(--border) !important;
+    color: var(--muted-foreground) !important;
+  }
+
   /* ── Sidebar Schedule Countdown ── */
   .il-cd {
     border-radius: 0.5rem;

@@ -17,6 +17,21 @@ function getCurrentSchoolId(): string | null {
   return match?.[1] ?? null;
 }
 
+// `upsert_user_lesson_override_v2` / `reset_user_lesson_override_v2` raise
+// `'Unauthorized'` when the current Supabase session doesn't own the
+// targeted student. `sendRpc` already force-reauths and retries once on
+// these; anything that escapes up to here means recovery also failed
+// (typically the user is logged out of Lectio). Not an actionable bug —
+// don't spam PostHog with it.
+function isAuthOwnershipError(error: unknown): boolean {
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+      ? error
+      : '';
+  return /\bunauthorized\b/i.test(message);
+}
+
 let hydratePromise: Promise<boolean> | null = null;
 let seedPromise: Promise<void> | null = null;
 
@@ -56,11 +71,13 @@ export async function hydrateHoldMappingsFromSupabase(force = false): Promise<bo
       const rows = await getStudentLessonMappingsV2(context.schoolId, context.studentId);
       return applySupabaseLessonMappings(rows);
     } catch (error) {
-      captureException(error, getDistinctId(context.studentId), {
-        source: 'hold-mapping-sync',
-        action: 'hydrate',
-        school_id: context.schoolId,
-      });
+      if (!isAuthOwnershipError(error)) {
+        captureException(error, getDistinctId(context.studentId), {
+          source: 'hold-mapping-sync',
+          action: 'hydrate',
+          school_id: context.schoolId,
+        });
+      }
       throw error;
     }
   })();
@@ -100,12 +117,14 @@ export async function syncHoldMappingOverrideToSupabase(
       clientUpdatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    captureException(error, getDistinctId(context.studentId), {
-      source: 'hold-mapping-sync',
-      action: 'sync-override',
-      canonical_key: canonicalKey,
-      school_id: context.schoolId,
-    });
+    if (!isAuthOwnershipError(error)) {
+      captureException(error, getDistinctId(context.studentId), {
+        source: 'hold-mapping-sync',
+        action: 'sync-override',
+        canonical_key: canonicalKey,
+        school_id: context.schoolId,
+      });
+    }
     throw error;
   }
 }
@@ -132,7 +151,7 @@ export async function seedKnownHoldMappingsToSupabase(): Promise<void> {
     }
   })().catch((error) => {
     const studentId = getLoggedInUserId();
-    if (studentId) {
+    if (studentId && !isAuthOwnershipError(error)) {
       captureException(error, getDistinctId(studentId), {
         source: 'hold-mapping-sync',
         action: 'seed-known-mappings',

@@ -190,8 +190,83 @@ function extractExtension(filename: string): string {
 }
 
 function extractDocumentId(href: string): string {
-  const match = href.match(/documentid=(\d+)/i) ?? href.match(/dokumentid=(\d+)/i);
-  return match?.[1] ?? '';
+  // Regular download links: /lectio/XX/dokumenthent.aspx?documentid=12345
+  const documentIdMatch =
+    href.match(/documentid=(\d+)/i) ?? href.match(/dokumentid=(\d+)/i);
+  if (documentIdMatch) return documentIdMatch[1];
+
+  // Aktiviteter links: /lectio/XX/lc/{activityId}/res/{resourceId}
+  const lcMatch = href.match(/\/lc\/\d+\/res\/(\d+)/i);
+  if (lcMatch) return lcMatch[1];
+
+  return '';
+}
+
+/** Column type identified from header text or sort command. */
+type GridColumn =
+  | 'filename'
+  | 'comment'
+  | 'changedBy'
+  | 'date'
+  | 'size'
+  | 'checkbox'
+  | 'edit'
+  | 'unknown';
+
+/**
+ * Build a column map from the header row. Lectio uses different column
+ * orders for different folder types — e.g. Aktiviteter shows only
+ * [Dato, Filnavn, Kommentar, Størrelse] while hold/personal folders also
+ * include Ændret af and a checkbox.
+ */
+function parseHeaderColumns(headerRow: Element): GridColumn[] {
+  const cells = headerRow.querySelectorAll('th');
+  const columns: GridColumn[] = [];
+
+  for (const th of cells) {
+    // Checkbox column
+    if (th.querySelector('input[type="checkbox"]')) {
+      columns.push('checkbox');
+      continue;
+    }
+
+    // Sort commands are the most reliable signal
+    const sortLink = th.querySelector<HTMLAnchorElement>('a[href*="Sort$"]');
+    const sortHref = sortLink?.getAttribute('href') ?? '';
+    if (/Sort\$Name\b/i.test(sortHref)) {
+      columns.push('filename');
+      continue;
+    }
+    if (/Sort\$Comments\b/i.test(sortHref)) {
+      columns.push('comment');
+      continue;
+    }
+    if (/Sort\$ChangedBy\b/i.test(sortHref)) {
+      columns.push('changedBy');
+      continue;
+    }
+    if (/Sort\$(UploadedDate|StartDateTime)\b/i.test(sortHref)) {
+      columns.push('date');
+      continue;
+    }
+    if (/Sort\$Bytes\b/i.test(sortHref)) {
+      columns.push('size');
+      continue;
+    }
+
+    // Fallback to header text
+    const text = th.textContent?.trim().toLowerCase() ?? '';
+    if (text.includes('filnavn')) columns.push('filename');
+    else if (text.includes('kommentar')) columns.push('comment');
+    else if (text.includes('ændret af') || text.includes('andret af'))
+      columns.push('changedBy');
+    else if (text.includes('dato')) columns.push('date');
+    else if (text.includes('størrelse') || text.includes('storrelse'))
+      columns.push('size');
+    else columns.push('unknown');
+  }
+
+  return columns;
 }
 
 export function parseDocumentGrid(doc: Document = document): {
@@ -218,9 +293,10 @@ export function parseDocumentGrid(doc: Document = document): {
   const rows = altTable.querySelectorAll('tr');
   if (rows.length < 2) return { files: [], hasCheckboxes: false };
 
-  // Detect if header has checkbox column
+  // Parse header to determine column layout for this folder type
   const headerRow = rows[0];
-  const hasCheckboxes = !!headerRow?.querySelector('input[type="checkbox"]');
+  const columns = parseHeaderColumns(headerRow);
+  const hasCheckboxes = columns.includes('checkbox');
 
   const files: DocFile[] = [];
 
@@ -229,62 +305,69 @@ export function parseDocumentGrid(doc: Document = document): {
     // Skip rows that are just the noRecord message
     if (row.querySelector('.noRecord')) continue;
 
-    // Use desktop cells (OnlyDesktop) — they have the structured data
-    const desktopCells = row.querySelectorAll('td.OnlyDesktop');
-    if (desktopCells.length < 4) {
-      // Fallback: try mobile layout
-      const mobileCell = row.querySelector('td.OnlyMobile');
-      if (mobileCell) {
-        const file = parseMobileCell(mobileCell, hasCheckboxes);
-        if (file) files.push(file);
-      }
+    const file = parseDesktopRow(row, columns, hasCheckboxes);
+    if (file) {
+      files.push(file);
       continue;
     }
 
-    const file = parseDesktopRow(desktopCells, hasCheckboxes);
-    if (file) files.push(file);
+    // Fallback: try mobile layout
+    const mobileCell = row.querySelector('td.OnlyMobile');
+    if (mobileCell) {
+      const mobileFile = parseMobileCell(mobileCell, hasCheckboxes);
+      if (mobileFile) files.push(mobileFile);
+    }
   }
 
   return { files, hasCheckboxes };
 }
 
+/** Match both the legacy dokumenthent.aspx format and the Aktiviteter /lc/…/res/ format. */
+const FILE_LINK_SELECTOR =
+  'a[href*="dokumenthent"], a[href*="DokumentHent"], a[href*="/lc/"]';
+
 function parseDesktopRow(
-  cells: NodeListOf<Element>,
+  row: Element,
+  columns: GridColumn[],
   hasCheckboxes: boolean,
 ): DocFile | null {
-  // Column layout depends on whether checkboxes are present:
-  // With checkboxes: [0]=checkbox [1]=filename [2]=comment [3]=changed-by [4]=date [5]=size [6]=edit
-  // Without checkboxes: [0]=filename [1]=comment [2]=changed-by [3]=date [4]=size [5]=edit
-  const offset = hasCheckboxes ? 1 : 0;
+  const cells = row.querySelectorAll(':scope > td');
+  if (cells.length === 0) return null;
 
-  const filenameCell = cells[offset];
-  const commentCell = cells[offset + 1];
-  const changedByCell = cells[offset + 2];
-  const dateCell = cells[offset + 3];
-  const sizeCell = cells[offset + 4];
-  const editCell = cells[offset + 5];
+  // Map each known column to its cell, ignoring 'unknown'/'edit' slots
+  const cellByColumn = new Map<GridColumn, Element>();
+  for (let i = 0; i < columns.length && i < cells.length; i++) {
+    const col = columns[i];
+    if (col !== 'unknown' && !cellByColumn.has(col)) {
+      cellByColumn.set(col, cells[i]);
+    }
+  }
 
+  const filenameCell = cellByColumn.get('filename');
   if (!filenameCell) return null;
 
-  // Filename + download URL
-  const fileLink = filenameCell.querySelector('a[href*="dokumenthent"]');
+  const fileLink = filenameCell.querySelector<HTMLAnchorElement>(
+    FILE_LINK_SELECTOR,
+  );
   if (!fileLink) return null;
 
-  const downloadUrl = (fileLink as HTMLAnchorElement).href;
+  const downloadUrl = fileLink.href;
   const id = extractDocumentId(downloadUrl);
   const name = fileLink.textContent?.trim() ?? '';
   const extension = extractExtension(name);
 
   // Comment
+  const commentCell = cellByColumn.get('comment');
   const commentSpan = commentCell?.querySelector('span[title]');
   const comment =
-    commentSpan?.getAttribute('title') ??
+    commentSpan?.getAttribute('title')?.trim() ??
     commentSpan?.textContent?.trim() ??
     commentCell?.textContent?.trim() ??
     '';
 
   // Changed by
   let changedBy: DocChangedBy | null = null;
+  const changedByCell = cellByColumn.get('changedBy');
   if (changedByCell) {
     const personSpan = changedByCell.querySelector(
       '.prepend-fonticon-teacher, .prepend-fonticon-student',
@@ -303,15 +386,15 @@ function parseDesktopRow(
     }
   }
 
-  // Date
-  const date = dateCell?.textContent?.trim() ?? '';
+  // Date and size
+  const date = cellByColumn.get('date')?.textContent?.trim() ?? '';
+  const size = cellByColumn.get('size')?.textContent?.trim() ?? '';
 
-  // Size
-  const size = sizeCell?.textContent?.trim() ?? '';
-
-  // Edit URL
-  const editLink = editCell?.querySelector('a[href*="dokumentrediger"]');
-  const editUrl = (editLink as HTMLAnchorElement)?.href ?? '';
+  // Edit URL — look anywhere in the row since column mapping doesn't track it
+  const editLink = row.querySelector<HTMLAnchorElement>(
+    'a[href*="dokumentrediger"]',
+  );
+  const editUrl = editLink?.href ?? '';
 
   return {
     id,
@@ -328,7 +411,7 @@ function parseDesktopRow(
 }
 
 function parseMobileCell(cell: Element, hasCheckboxes: boolean): DocFile | null {
-  const filenameLink = cell.querySelector('a[href*="dokumenthent"]');
+  const filenameLink = cell.querySelector<HTMLAnchorElement>(FILE_LINK_SELECTOR);
   if (!filenameLink) return null;
 
   const downloadUrl = (filenameLink as HTMLAnchorElement).href;

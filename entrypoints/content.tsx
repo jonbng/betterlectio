@@ -239,6 +239,28 @@ function isPrivatAftaleUrl(url: URL): boolean {
   return /\/lectio\/\d+\/privat_aftale\.aspx$/i.test(url.pathname);
 }
 
+/**
+ * Build an aktivitetforside2.aspx URL for the current Lectio school and the
+ * given absid. Returns null if the current pathname doesn't belong to a Lectio
+ * school (so we can't build a safe URL).
+ */
+function buildActivityUrlFromAbsid(absid: string): string | null {
+  const schoolMatch = window.location.pathname.match(/\/lectio\/(\d+)\//);
+  if (!schoolMatch) return null;
+  const prevurl = encodeURIComponent(window.location.pathname.replace(/^\/lectio\/\d+\//, '') + window.location.search);
+  return `${window.location.origin}/lectio/${schoolMatch[1]}/aktivitet/aktivitetforside2.aspx?absid=${absid}${prevurl ? `&prevurl=${prevurl}` : ''}`;
+}
+
+/**
+ * Extract an absid from a schedule brick's `data-brikid` attribute.
+ * Lectio encodes the identifier as `ABS<numeric-id>` for activity bricks.
+ */
+function getAbsidFromBrick(brick: Element): string | null {
+  const brikId = brick.getAttribute('data-brikid') || '';
+  const match = brikId.match(/^ABS(\d+)$/);
+  return match ? match[1] : null;
+}
+
 function installActivityModalClickInterceptor() {
   if (activityModalInterceptorInstalled) return;
   activityModalInterceptorInstalled = true;
@@ -247,49 +269,81 @@ function installActivityModalClickInterceptor() {
     "click",
     (event) => {
       const target = event.target as HTMLElement | null;
-      const anchor = target?.closest("a[href]") as HTMLAnchorElement | null;
-      if (!anchor) return;
+      if (!target) return;
 
-      if (anchor.closest("[data-no-activity-modal]")) return;
+      if (target.closest("[data-no-activity-modal]")) return;
       if (window.location.pathname.toLowerCase().includes("/aktivitet/aktivitetforside2.aspx")) {
         return;
       }
 
       if (event.defaultPrevented || event.button !== 0) return;
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      if (anchor.target && anchor.target !== "_self") return;
-      if (anchor.hasAttribute("download")) return;
 
-      const href = anchor.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
 
-      let parsedUrl: URL;
-      try {
-        parsedUrl = new URL(href, window.location.origin);
-      } catch {
-        return;
+      // Primary path: the click is on an anchor with a real href. This catches
+      // 1-week schedule bricks, forside bricks, and the inline links we inject.
+      if (anchor) {
+        if (anchor.target && anchor.target !== "_self") return;
+        if (anchor.hasAttribute("download")) return;
+
+        const href = anchor.getAttribute("href");
+        if (href && !href.startsWith("#") && !href.startsWith("javascript:")) {
+          let parsedUrl: URL;
+          try {
+            parsedUrl = new URL(href, window.location.origin);
+          } catch {
+            return;
+          }
+
+          // Intercept private appointment links (create from context menu + edit from bricks)
+          if (isPrivatAftaleUrl(parsedUrl)) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.dispatchEvent(
+              new CustomEvent("betterlectio:openPrivatAftale", {
+                detail: { url: parsedUrl.href },
+              }),
+            );
+            return;
+          }
+
+          if (isActivityDetailUrl(parsedUrl)) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.dispatchEvent(
+              new CustomEvent("betterlectio:openActivityModal", {
+                detail: { url: parsedUrl.href },
+              }),
+            );
+            return;
+          }
+        }
       }
 
-      // Intercept private appointment links (create from context menu + edit from bricks)
-      if (isPrivatAftaleUrl(parsedUrl)) {
-        event.preventDefault();
-        event.stopPropagation();
-        window.dispatchEvent(
-          new CustomEvent("betterlectio:openPrivatAftale", {
-            detail: { url: parsedUrl.href },
-          }),
-        );
-        return;
-      }
+      // Fallback path: the 4-week / 16-week schedule grid renders its bricks
+      // as `<a class="skemaweekSkemabrik">` elements that rely on a jQuery
+      // delegated click handler + `__doPostBack` instead of a real href (so
+      // the anchor branch above skips them). Reconstruct the activity URL
+      // from `data-brikid` ("ABS<absid>") so clicks still open the sidebar.
+      const brick = target.closest<HTMLElement>(
+        ".skemaweekSkemabrik[data-brikid], .s2skemabrik[data-brikid]",
+      );
+      if (!brick) return;
+      // Skip shadow/ambient bricks (placeholders) and non-activity bricks (e.g. PRH)
+      if (brick.classList.contains("s2ambient")) return;
 
-      if (!isActivityDetailUrl(parsedUrl)) return;
+      const absid = getAbsidFromBrick(brick);
+      if (!absid) return;
+
+      const activityUrl = buildActivityUrlFromAbsid(absid);
+      if (!activityUrl) return;
 
       event.preventDefault();
       event.stopPropagation();
-
       window.dispatchEvent(
         new CustomEvent("betterlectio:openActivityModal", {
-          detail: { url: parsedUrl.href },
+          detail: { url: activityUrl },
         }),
       );
     },
