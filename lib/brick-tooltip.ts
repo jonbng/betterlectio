@@ -53,6 +53,10 @@ let activeFetchController: AbortController | null = null;
 let fetchingForBrick: HTMLElement | null = null;
 /** Cached teacher name lookup (loaded once from localStorage or network) */
 let teacherCache: TeacherCache | null = null;
+/** Prevent duplicate global hover listeners across repeated init calls */
+let globalHoverListenersBound = false;
+/** Prevent rebinding the original schedule scroll listener repeatedly */
+let originalScheduleScrollBound = false;
 
 function getSchoolId(): string | null {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
@@ -944,6 +948,7 @@ export function initBrickTooltips(container?: HTMLElement) {
   const bricks = root.querySelectorAll<HTMLElement>(selector);
 
   bricks.forEach((brick) => {
+    if (brick.dataset.ilTooltipBound === "1") return;
     const raw = brick.getAttribute("data-tooltip");
     if (raw) {
       brick.dataset.ilTooltip = raw;
@@ -953,33 +958,37 @@ export function initBrickTooltips(container?: HTMLElement) {
     brick.addEventListener("mouseleave", () => hideTooltip());
     brick.addEventListener("focus", () => showTooltip(brick));
     brick.addEventListener("blur", () => hideTooltip());
+    brick.dataset.ilTooltipBound = "1";
   });
 
   // Tooltip and bridge hover listeners — cancel hide when hovering them
-  document.addEventListener("mouseover", (e) => {
-    const target = e.target as HTMLElement;
-    if (target.closest("#bl-brick-tooltip") || target.id === "bl-brick-tooltip-bridge") {
-      cancelHide();
-    }
-  });
+  if (!globalHoverListenersBound) {
+    document.addEventListener("mouseover", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("#bl-brick-tooltip") || target.id === "bl-brick-tooltip-bridge") {
+        cancelHide();
+      }
+    });
 
-  document.addEventListener("mouseout", (e) => {
-    const target = e.target as HTMLElement;
-    const related = e.relatedTarget as HTMLElement | null;
+    document.addEventListener("mouseout", (e) => {
+      const target = e.target as HTMLElement;
+      const related = e.relatedTarget as HTMLElement | null;
 
-    if (
-      (target.closest("#bl-brick-tooltip") || target.id === "bl-brick-tooltip-bridge") &&
-      !related?.closest("#bl-brick-tooltip") &&
-      related?.id !== "bl-brick-tooltip-bridge" &&
-      !related?.closest(".s2skemabrik[data-il-tooltip]")
-    ) {
-      hideTooltip();
-    }
-  });
+      if (
+        (target.closest("#bl-brick-tooltip") || target.id === "bl-brick-tooltip-bridge") &&
+        !related?.closest("#bl-brick-tooltip") &&
+        related?.id !== "bl-brick-tooltip-bridge" &&
+        !related?.closest(".s2skemabrik[data-il-tooltip]")
+      ) {
+        hideTooltip();
+      }
+    });
+    globalHoverListenersBound = true;
+  }
 
   // Also hide on scroll (the schedule can scroll)
   const scheduleContainer = document.querySelector("#il-original-content .s2skema");
-  if (scheduleContainer) {
+  if (scheduleContainer && !originalScheduleScrollBound) {
     scheduleContainer.addEventListener("scroll", () => {
       if (activeBrick) {
         if (showTimeout) {
@@ -989,6 +998,7 @@ export function initBrickTooltips(container?: HTMLElement) {
         hideTooltip();
       }
     }, { passive: true });
+    originalScheduleScrollBound = true;
   }
 
   // Hide the native cluetip element if it exists

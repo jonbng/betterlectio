@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, formatWeekdayCapitalized } from '@/lib/i18n';
 import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
@@ -53,8 +53,6 @@ interface DeadlineInfo {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
-
-const DANISH_WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
 
 function fmt2(n: number) {
   return n.toString().padStart(2, '0');
@@ -115,9 +113,8 @@ function getDeadlineInfo(deadline: Date, isMissing?: boolean): DeadlineInfo {
     label = 'I overmorgen';
     sub = timeStr;
   } else if (calDays <= 7) {
-    const wd = DANISH_WEEKDAYS[deadline.getDay()];
     label = `Om ${calDays} dage`;
-    sub = `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${timeStr}`;
+    sub = `${formatWeekdayCapitalized(deadline)} ${timeStr}`;
   } else {
     label = `${deadline.getDate()}/${deadline.getMonth() + 1}`;
     sub = timeStr;

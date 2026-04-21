@@ -9,5 +9,5 @@
     },
     "skipLibCheck": true
   },
-  "exclude": ["admin", "lectio-scripts", "lectio-html", "node_modules", "supabase"]
+  "exclude": ["admin", "lectio-scripts", "lectio-html", "node_modules", "supabase", "refs", "tools", "vendor"]
 }

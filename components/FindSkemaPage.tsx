@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { X, Clock, Pin, Users, Search, GraduationCap, School, DoorOpen, Box, UsersRound, LayoutGrid, Sparkles } from 'lucide-react';
 import { PersonCard } from './PersonCard';
 import { getCachedProfile } from '../lib/profile-cache';
@@ -31,15 +32,15 @@ import { useSchoolStudents, getStudentIdFromPersonId, getNameAliasesFromLookupId
 
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
-// Filter configuration with icons and labels
+// Filter configuration with icons — labels are translated at render time
 const FILTER_CONFIG = [
-  { key: 'S', label: 'Elever', icon: Users, type: 'elev' },
-  { key: 'T', label: 'Lærere', icon: GraduationCap, type: 'laerer' },
-  { key: 'K', label: 'Klasser', icon: School, type: 'stamklasse' },
-  { key: 'L', label: 'Lokaler', icon: DoorOpen, type: 'lokale' },
-  { key: 'R', label: 'Ressourcer', icon: Box, type: 'ressource' },
-  { key: 'H', label: 'Hold', icon: UsersRound, type: 'hold' },
-  { key: 'G', label: 'Grupper', icon: LayoutGrid, type: 'gruppe' },
+  { key: 'S', labelKey: 'findSkemaPage.filterStudents' as const, icon: Users, type: 'elev' },
+  { key: 'T', labelKey: 'findSkemaPage.filterTeachers' as const, icon: GraduationCap, type: 'laerer' },
+  { key: 'K', labelKey: 'findSkemaPage.filterClasses' as const, icon: School, type: 'stamklasse' },
+  { key: 'L', labelKey: 'findSkemaPage.filterRooms' as const, icon: DoorOpen, type: 'lokale' },
+  { key: 'R', labelKey: 'findSkemaPage.filterResources' as const, icon: Box, type: 'ressource' },
+  { key: 'H', labelKey: 'findSkemaPage.filterGroups' as const, icon: UsersRound, type: 'hold' },
+  { key: 'G', labelKey: 'findSkemaPage.filterTeams' as const, icon: LayoutGrid, type: 'gruppe' },
 ] as const;
 
 // Map search type to prefix
@@ -71,6 +72,7 @@ interface FindSkemaPageProps {
 }
 
 export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPageProps) {
+  const { t } = useTranslation();
   // Initialize query from URL param if returning from a schedule page
   const [query, setQuery] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -105,11 +107,11 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   // Get placeholder text based on active filter
   const placeholderText = useMemo(() => {
     if (activeFilter === 'all') {
-      return 'Søg efter elever, lærere, klasser, hold...';
+      return t('findSkemaPage.searchAllPlaceholder');
     }
     const config = FILTER_CONFIG.find(f => f.key === activeFilter);
-    return config ? `Søg efter ${config.label.toLowerCase()}...` : 'Søg...';
-  }, [activeFilter]);
+    return config ? t('findSkemaPage.searchTypePlaceholder', { type: t(config.labelKey).toLowerCase() }) : t('findSkemaPage.searchPlaceholder');
+  }, [activeFilter, t]);
 
   // Load autocomplete data - always load ALL items
   useEffect(() => {
@@ -184,7 +186,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         if (nameMappings.length > 0) registerNameIdMappings(schoolId, nameMappings);
       } catch (err) {
         console.error('[FindSkemaPage] Failed to load data:', err);
-        setError('Kunne ikke indlæse søgedata');
+        setError(t('findSkemaPage.loadError'));
         setLoading(false);
       }
     }
@@ -424,7 +426,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             type="text"
             value={query}
             onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
-            placeholder={loading ? 'Indlæser...' : placeholderText}
+            placeholder={loading ? t('findSkemaPage.loading') : placeholderText}
             disabled={loading || !!error}
             className="w-full h-16 pl-14 pr-20 text-xl rounded-2xl border-2 border-border bg-background text-foreground shadow-[0_4px_12px_oklch(0_0_0/0.05)] transition-all duration-200 placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:shadow-[0_4px_12px_oklch(0_0_0/0.1),0_0_0_3px_color-mix(in_oklch,var(--ring)_20%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed"
           />
@@ -458,9 +460,9 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
               : 'bg-background text-muted-foreground border-border hover:bg-muted hover:text-foreground'
           }`}
         >
-          Alle
+          {t('findSkemaPage.all')}
         </button>
-        {FILTER_CONFIG.map(({ key, label, icon: Icon }) => (
+        {FILTER_CONFIG.map(({ key, labelKey, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -472,7 +474,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
             }`}
           >
             <Icon className="size-4" />
-            <span>{label}</span>
+            <span>{t(labelKey)}</span>
           </button>
         ))}
       </div>
@@ -482,7 +484,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         <section className="mb-6">
           <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Search className="size-4" />
-            <span>Søgeresultater ({filteredItems.length})</span>
+            <span>{t('findSkemaPage.searchResults', { n: String(filteredItems.length) })}</span>
           </div>
           {filteredItems.length > 0 ? (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
@@ -509,17 +511,17 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
               })}
             </div>
           ) : (
-            <p className="px-6 py-8 text-center text-muted-foreground">Ingen resultater fundet</p>
+            <p className="px-6 py-8 text-center text-muted-foreground">{t('findSkemaPage.noResults')}</p>
           )}
         </section>
       )}
 
       {/* Browse Sections */}
-      {!showSearchResults && browseSections.map(({ key, label, icon: Icon, items: sectionItems, limit }) => (
+      {!showSearchResults && browseSections.map(({ key, labelKey, icon: Icon, items: sectionItems, limit }) => (
         <section key={key} className="mb-6">
           <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Icon className="size-4" />
-            <span>{label} (viser {sectionItems.length}{sectionItems.length >= limit ? '+' : ''})</span>
+            <span>{t('findSkemaPage.browseSection', { label: t(labelKey), n: String(sectionItems.length), plus: sectionItems.length >= limit ? '+' : '' })}</span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {sectionItems.map(item => {
@@ -552,7 +554,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         <section className="mb-6">
           <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Clock className="size-4" />
-            <span>Seneste</span>
+            <span>{t('findSkemaPage.recents')}</span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {filteredRecents.map(recent => (
@@ -582,7 +584,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         <section className="mb-6">
           <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <Pin className="size-4" />
-            <span>Fastgjorte</span>
+            <span>{t('findSkemaPage.pinned')}</span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {filteredStarred.map(person => (
@@ -620,7 +622,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
         <section className="mb-6">
           <div className="flex items-center gap-2 px-6 py-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             <GraduationCap className="size-4" />
-            <span>Mine lærere</span>
+            <span>{t('findSkemaPage.myTeachers')}</span>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 px-6">
             {myTeachers.map(item => {
@@ -654,7 +656,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
           <div className="flex items-center justify-between px-6 py-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               <Users className="size-4" />
-              <span>Klassekammerater ({userProfile?.className})</span>
+              <span>{t('findSkemaPage.classmates', { class: userProfile?.className ?? '' })}</span>
             </div>
             {showBLFilter && (
               <button
@@ -701,7 +703,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
       {loading && (
         <div className="flex flex-col items-center justify-center gap-4 px-6 py-12 text-muted-foreground">
           <div className="size-8 border-2 border-border border-t-primary rounded-full animate-spin" />
-          <span>Indlæser data...</span>
+          <span>{t('findSkemaPage.loadingData')}</span>
         </div>
       )}
     </div>

@@ -484,9 +484,7 @@ function initLayout() {
   }
 
   // Update page title to cleaner format
-  if (settings.visual.cleanPageTitles ?? true) {
-    updatePageTitle();
-  }
+  updatePageTitle();
 
   // Set cached profile data on window for AppSidebar to use
   const cachedProfile = getCachedProfile();
@@ -657,13 +655,13 @@ function initLayout() {
     }
 
     const _origXhrOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method: string, url: string | URL, ...rest: any[]) {
+    XMLHttpRequest.prototype.open = function (this: XMLHttpRequest & { __blMethod?: string; __blUrl?: string }, method: string, url: string | URL, ...rest: any[]) {
       this.__blMethod = method;
       this.__blUrl = typeof url === 'string' ? url : url.href;
       return _origXhrOpen.apply(this, [method, url, ...rest] as any);
     };
     const _origXhrSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function (...args: any[]) {
+    XMLHttpRequest.prototype.send = function (this: XMLHttpRequest & { __blMethod?: string; __blUrl?: string }, ...args: any[]) {
       const body = serializeBody(args[0]);
       this.addEventListener('loadend', () => {
         if (this.status >= 400 && isLectioUrl(this.__blUrl ?? '')) {
@@ -753,9 +751,7 @@ function initLayout() {
   }
 
   // Replace Lectio's favicon with our logo
-  if (settings.visual.customFavicon ?? true) {
-    replaceFavicon();
-  }
+  replaceFavicon();
 
   // Inject Geist font
   injectFont();
@@ -851,9 +847,7 @@ function initLayout() {
       // Initialize preloading for faster navigation
       const schoolId = window.location.pathname.match(/\/lectio\/(\d+)\//)?.[1];
       if (schoolId) {
-        if (settings.behavior.preloading ?? true) {
-          initPreloading(schoolId);
-        }
+        initPreloading(schoolId);
 
         // Inject FindSkema page
         if (window.location.pathname.toLowerCase().includes("findskema.aspx")) {
@@ -918,10 +912,7 @@ function initLayout() {
         }
 
         // Inject "viewing schedule" header when looking at someone else's schedule
-        if (
-          (settings.schedule.viewingScheduleHeader ?? true) &&
-          !isViewingOwnPage()
-        ) {
+        if (!isViewingOwnPage()) {
           injectViewingScheduleHeader(schoolId);
 
           // Add body class for entity schedules (non-person types like hold, class, room)
@@ -950,9 +941,7 @@ function initLayout() {
       }
 
       // Set up title observer for dynamic updates (e.g., unread message count)
-      if (settings.visual.cleanPageTitles ?? true) {
-        observeTitleChanges();
-      }
+      observeTitleChanges();
 
       // Set up schedule table column widths, clean labels, and highlight today
       injectScheduleColgroup();

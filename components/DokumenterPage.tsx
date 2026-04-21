@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import {
   FileText,
   FileSpreadsheet,
@@ -318,6 +319,7 @@ function FileRow({
   file: DocFile;
   schoolId: string;
 }) {
+  const { t } = useTranslation();
   const canPreview = isPreviewable(file.extension);
 
   const handleFileClick = (e: Event) => {
@@ -403,7 +405,7 @@ function FileRow({
           target="_blank"
           rel="noopener"
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
-          title="Download"
+          title={t('dokumenterPage.download')}
         >
           <Download size={15} />
         </a>
@@ -416,7 +418,7 @@ function FileRow({
               );
             }}
             className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
-            title="Rediger"
+            title={t('dokumenterPage.titleEdit')}
           >
             <Pencil size={15} />
           </button>
@@ -432,6 +434,7 @@ function FileRow({
 // ── Inline delete button with confirmation ──────────────────────────────
 
 function DeleteFileButton({ file }: { file: DocFile }) {
+  const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -439,10 +442,10 @@ function DeleteFileButton({ file }: { file: DocFile }) {
     setDeleting(true);
     const success = await deleteDocument(file.editUrl);
     if (success) {
-      toast.success(`${file.name} slettet`);
+      toast.success(t('dokumenterPage.success.documentDeleted'));
       window.location.reload();
     } else {
-      toast.error('Kunne ikke slette dokument');
+      toast.error(t('dokumenterPage.errors.deleteFailed'));
       setDeleting(false);
       setConfirming(false);
     }
@@ -457,7 +460,7 @@ function DeleteFileButton({ file }: { file: DocFile }) {
           className="inline-flex items-center gap-1 h-6 px-2 rounded bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
         >
           {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-          {deleting ? 'Sletter' : 'Slet'}
+          {deleting ? t('dokumenterPage.deleting') : t('dokumenterPage.delete')}
         </button>
         <button
           onClick={() => setConfirming(false)}
@@ -477,7 +480,7 @@ function DeleteFileButton({ file }: { file: DocFile }) {
         setConfirming(true);
       }}
       className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150"
-      title="Slet"
+      title={t('dokumenterPage.delete')}
     >
       <Trash2 size={15} />
     </button>
@@ -493,6 +496,7 @@ function SubfolderRow({
   folder: DocFolder;
   onEdit?: (folderId: string, name: string) => void;
 }) {
+  const { t } = useTranslation();
   const holdHue =
     folder.icon === 'hold' && folder.holdCode
       ? getHoldHue(folder.holdCode)
@@ -548,7 +552,7 @@ function SubfolderRow({
               onEdit(folder.id, displayName);
             }}
             className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
-            title="Rediger mappe"
+            title={t('dokumenterPage.editFolderTitle')}
           >
             <Pencil size={15} />
           </button>
@@ -568,16 +572,17 @@ function SubfolderRow({
 // ── Empty state ─────────────────────────────────────────────────────────
 
 function EmptyState({ folderName }: { folderName: string }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-16 h-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
         <FolderOpen size={28} className="text-muted-foreground/60" />
       </div>
       <h3 className="text-sm font-medium text-foreground mb-1">
-        Ingen dokumenter
+        {t('dokumenterPage.emptyTitle')}
       </h3>
       <p className="text-sm text-muted-foreground max-w-[240px]">
-        Der er ingen dokumenter i &ldquo;{folderName}&rdquo; endnu.
+        {t('dokumenterPage.emptyMessage', { name: folderName })}
       </p>
     </div>
   );
@@ -588,6 +593,7 @@ function EmptyState({ folderName }: { folderName: string }) {
 // ── PDF preview (fetches blob to bypass Content-Disposition: attachment) ─
 
 function PdfPreview({ url, title }: { url: string; title: string }) {
+  const { t } = useTranslation();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
@@ -615,7 +621,7 @@ function PdfPreview({ url, title }: { url: string; title: string }) {
     return (
       <div className="flex flex-col items-center gap-3 text-center py-8">
         <FileText size={48} className="text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">Kunne ikke indlæse PDF</p>
+        <p className="text-sm text-muted-foreground">{t('dokumenterPage.pdfLoadFailed')}</p>
         <a
           href={url}
           target="_blank"
@@ -623,7 +629,7 @@ function PdfPreview({ url, title }: { url: string; title: string }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150"
         >
           <Download size={14} />
-          Download i stedet
+          {t('dokumenterPage.downloadInstead')}
         </a>
       </div>
     );
@@ -655,6 +661,7 @@ function PreviewOverlay({
   schoolId: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const category = getFileCategory(file.extension);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -664,10 +671,10 @@ function PreviewOverlay({
     setDeleting(true);
     const success = await deleteDocument(file.editUrl);
     if (success) {
-      toast.success(`${file.name} slettet`);
+      toast.success(t('dokumenterPage.success.documentDeleted'));
       window.location.reload();
     } else {
-      toast.error('Kunne ikke slette dokument');
+      toast.error(t('dokumenterPage.errors.deleteFailed'));
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -694,7 +701,7 @@ function PreviewOverlay({
               <button
                 onClick={() => setConfirmDelete(true)}
                 className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150"
-                title="Slet"
+                title={t('dokumenterPage.delete')}
               >
                 <Trash2 size={16} />
               </button>
@@ -707,7 +714,7 @@ function PreviewOverlay({
                   className="inline-flex items-center gap-1 h-7 px-2.5 rounded-md bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                 >
                   {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                  {deleting ? 'Sletter...' : 'Slet'}
+                  {deleting ? t('dokumenterPage.deletingDots') : t('dokumenterPage.delete')}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
@@ -722,7 +729,7 @@ function PreviewOverlay({
               target="_blank"
               rel="noopener"
               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
-              title="Download"
+              title={t('dokumenterPage.download')}
             >
               <Download size={16} />
             </a>
@@ -735,7 +742,7 @@ function PreviewOverlay({
                   );
                 }}
                 className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
-                title="Rediger"
+                title={t('dokumenterPage.titleEdit')}
               >
                 <Pencil size={16} />
               </button>
@@ -763,7 +770,7 @@ function PreviewOverlay({
             <div className="flex flex-col items-center gap-3 text-center py-8">
               <FileTypeIcon extension={file.extension} size={48} />
               <p className="text-sm text-muted-foreground">
-                Forhåndsvisning er ikke tilgængelig for denne filtype.
+                {t('dokumenterPage.previewUnavailable')}
               </p>
               <a
                 href={file.downloadUrl}
@@ -772,7 +779,7 @@ function PreviewOverlay({
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150"
               >
                 <Download size={14} />
-                Download fil
+                {t('dokumenterPage.downloadFile')}
               </a>
             </div>
           )}
@@ -783,7 +790,7 @@ function PreviewOverlay({
           {file.size && <span>{file.size}</span>}
           {file.date && <span>{file.date}</span>}
           {file.changedBy && (
-            <span>Ændret af {file.changedBy.name || file.changedBy.initials}</span>
+            <span>{t('dokumenterPage.changedBy', { name: file.changedBy.name || file.changedBy.initials })}</span>
           )}
         </div>
       </div>
@@ -802,6 +809,7 @@ function AffiliationRow({
   detail: DocumentDetail;
   onRemoved: () => void;
 }) {
+  const { t } = useTranslation();
   const [removing, setRemoving] = useState(false);
 
   const handleRemove = async () => {
@@ -810,7 +818,7 @@ function AffiliationRow({
     if (success) {
       onRemoved();
     } else {
-      toast.error('Kunne ikke fjerne deling');
+      toast.error(t('dokumenterPage.errors.removeSharingFailed'));
       setRemoving(false);
     }
   };
@@ -822,7 +830,7 @@ function AffiliationRow({
           {affiliation.name}
         </span>
         <span className="text-muted-foreground">
-          {affiliation.canEdit ? 'Kan redigere' : 'Kun læse'}
+          {affiliation.canEdit ? t('dokumenterPage.canEdit') : t('dokumenterPage.readOnly')}
           {affiliation.folder !== '\\' && ` · ${affiliation.folder}`}
         </span>
       </div>
@@ -830,7 +838,7 @@ function AffiliationRow({
         onClick={handleRemove}
         disabled={removing}
         className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-[color,background-color] duration-150 shrink-0 disabled:opacity-50"
-        title="Fjern deling"
+        title={t('dokumenterPage.titleRemoveSharing')}
       >
         {removing ? (
           <Loader2 size={13} className="animate-spin" />
@@ -857,6 +865,7 @@ function EditDocumentModal({
   onSaved: () => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
@@ -894,10 +903,10 @@ function EditDocumentModal({
     setSaving(true);
     const success = await saveDocumentEdits(detail, comment, isPublic);
     if (success) {
-      toast.success('Dokument gemt');
+      toast.success(t('dokumenterPage.success.documentSaved'));
       onSaved();
     } else {
-      toast.error('Kunne ikke gemme');
+      toast.error(t('dokumenterPage.errors.saveFailed'));
       setSaving(false);
     }
   };
@@ -907,10 +916,10 @@ function EditDocumentModal({
     setDeleting(true);
     const success = await deleteDocument(file.editUrl);
     if (success) {
-      toast.success('Dokument slettet');
+      toast.success(t('dokumenterPage.success.documentDeleted'));
       onDeleted();
     } else {
-      toast.error('Kunne ikke slette dokument');
+      toast.error(t('dokumenterPage.errors.deleteFailed'));
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -952,19 +961,19 @@ function EditDocumentModal({
               <div className="grid grid-cols-2 gap-2 text-sm">
                 {detail.size && (
                   <div>
-                    <span className="text-muted-foreground">Størrelse</span>
+                    <span className="text-muted-foreground">{t('dokumenterPage.labelSize')}</span>
                     <p className="font-medium">{detail.size}</p>
                   </div>
                 )}
                 {detail.createdBy && (
                   <div>
-                    <span className="text-muted-foreground">Oprettet af</span>
+                    <span className="text-muted-foreground">{t('dokumenterPage.labelCreatedBy')}</span>
                     <p className="font-medium">{detail.createdBy}</p>
                   </div>
                 )}
                 {detail.changedBy && (
                   <div className="col-span-2">
-                    <span className="text-muted-foreground">Ændret</span>
+                    <span className="text-muted-foreground">{t('dokumenterPage.labelChanged')}</span>
                     <p className="font-medium">{detail.changedBy}</p>
                   </div>
                 )}
@@ -973,14 +982,14 @@ function EditDocumentModal({
               {/* Comment */}
               <div>
                 <label className="text-sm font-medium text-muted-foreground block mb-1">
-                  Kommentar
+                  {t('dokumenterPage.labelComment')}
                 </label>
                 <textarea
                   value={comment}
                   onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
                   rows={3}
                   maxLength={1000}
-                  placeholder="Tilføj kommentar..."
+                  placeholder={t('dokumenterPage.commentPlaceholder')}
                   className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150"
                 />
               </div>
@@ -1001,7 +1010,7 @@ function EditDocumentModal({
                     </svg>
                   )}
                 </span>
-                <span className="text-foreground">Offentlig</span>
+                <span className="text-foreground">{t('dokumenterPage.labelPublic')}</span>
                 <input
                   type="checkbox"
                   checked={isPublic}
@@ -1014,7 +1023,7 @@ function EditDocumentModal({
               {detail.affiliations.length > 0 && (
                 <div>
                   <label className="text-sm font-medium text-muted-foreground block mb-1.5">
-                    Delt med
+                    {t('dokumenterPage.labelSharedWith')}
                   </label>
                   <div className="space-y-1">
                     {detail.affiliations.map((aff) => (
@@ -1042,7 +1051,7 @@ function EditDocumentModal({
             </>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Kunne ikke hente dokumentdetaljer.
+              {t('dokumenterPage.fetchDocumentFailed')}
             </p>
           )}
         </div>
@@ -1057,7 +1066,7 @@ function EditDocumentModal({
                 className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
               >
                 <Trash2 size={14} />
-                Slet
+                {t('dokumenterPage.delete')}
               </button>
             ) : (
               <div className="flex items-center gap-2">
@@ -1067,13 +1076,13 @@ function EditDocumentModal({
                   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                 >
                   {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  {deleting ? 'Sletter...' : 'Bekræft slet'}
+                  {deleting ? t('dokumenterPage.deletingDots') : t('dokumenterPage.confirmDelete')}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
                   className="h-8 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                 >
-                  Annuller
+                  {t('dokumenterPage.cancel')}
                 </button>
               </div>
             )}
@@ -1086,7 +1095,7 @@ function EditDocumentModal({
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted transition-[color,background-color] duration-150"
             >
               <Download size={14} />
-              Download
+              {t('dokumenterPage.download')}
             </a>
             {detail && (
               <button
@@ -1094,7 +1103,7 @@ function EditDocumentModal({
                 disabled={saving}
                 className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
               >
-                {saving ? 'Gemmer...' : 'Gem'}
+                {saving ? t('dokumenterPage.saving') : t('dokumenterPage.save')}
               </button>
             )}
           </div>
@@ -1121,6 +1130,7 @@ function EditFolderModal({
   onSaved: () => void;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<FolderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -1153,10 +1163,10 @@ function EditFolderModal({
     setSaving(true);
     const success = await saveFolderEdits(detail, name.trim(), comment, isPublic);
     if (success) {
-      toast.success('Mappe gemt');
+      toast.success(t('dokumenterPage.success.folderSaved'));
       onSaved();
     } else {
-      toast.error('Kunne ikke gemme mappe');
+      toast.error(t('dokumenterPage.errors.saveFolderFailed'));
       setSaving(false);
     }
   };
@@ -1166,10 +1176,10 @@ function EditFolderModal({
     setDeleting(true);
     const success = await deleteFolder(detail);
     if (success) {
-      toast.success('Mappe slettet');
+      toast.success(t('dokumenterPage.success.folderDeleted'));
       onDeleted();
     } else {
-      toast.error('Kunne ikke slette mappe');
+      toast.error(t('dokumenterPage.errors.deleteFailed'));
       setDeleting(false);
       setConfirmDelete(false);
     }
@@ -1188,7 +1198,7 @@ function EditFolderModal({
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div className="flex items-center gap-2 min-w-0">
             <Folder size={18} className="text-muted-foreground shrink-0" />
-            <h2 className="text-sm font-semibold truncate">Rediger mappe</h2>
+            <h2 className="text-sm font-semibold truncate">{t('dokumenterPage.editFolderTitle')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -1208,7 +1218,7 @@ function EditFolderModal({
             <>
               <div>
                 <label className="text-sm font-medium text-muted-foreground block mb-1">
-                  Mappenavn
+                  {t('dokumenterPage.labelFolderName')}
                 </label>
                 <input
                   type="text"
@@ -1221,13 +1231,13 @@ function EditFolderModal({
 
               <div>
                 <label className="text-sm font-medium text-muted-foreground block mb-1">
-                  Kommentar
+                  {t('dokumenterPage.labelComment')}
                 </label>
                 <textarea
                   value={comment}
                   onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
                   rows={2}
-                  placeholder="Valgfrit..."
+                  placeholder={t('dokumenterPage.optionalPlaceholder')}
                   className="w-full px-3 py-2 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 resize-none transition-[color,background-color] duration-150"
                 />
               </div>
@@ -1247,7 +1257,7 @@ function EditFolderModal({
                     </svg>
                   )}
                 </span>
-                <span className="text-foreground">Offentlig</span>
+                <span className="text-foreground">{t('dokumenterPage.labelPublic')}</span>
                 <input
                   type="checkbox"
                   checked={isPublic}
@@ -1258,7 +1268,7 @@ function EditFolderModal({
             </>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Kunne ikke hente mappedetaljer.
+              {t('dokumenterPage.fetchFolderFailed')}
             </p>
           )}
         </div>
@@ -1273,7 +1283,7 @@ function EditFolderModal({
                   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-[color,background-color] duration-150"
                 >
                   <Trash2 size={14} />
-                  Slet mappe
+                  {t('dokumenterPage.titleDeleteFolder')}
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
@@ -1283,13 +1293,13 @@ function EditFolderModal({
                     className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-white text-sm font-medium hover:bg-destructive/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                   >
                     {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                    {deleting ? 'Sletter...' : 'Bekræft slet'}
+                    {deleting ? t('dokumenterPage.deletingDots') : t('dokumenterPage.confirmDelete')}
                   </button>
                   <button
                     onClick={() => setConfirmDelete(false)}
                     className="h-8 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                   >
-                    Annuller
+                    {t('dokumenterPage.cancel')}
                   </button>
                 </div>
               )}
@@ -1299,7 +1309,7 @@ function EditFolderModal({
               disabled={saving || !name.trim()}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
             >
-              {saving ? 'Gemmer...' : 'Gem'}
+              {saving ? t('dokumenterPage.saving') : t('dokumenterPage.save')}
             </button>
           </div>
         )}
@@ -1356,6 +1366,7 @@ function DropZone({
   schoolId: string;
   onUploadComplete: () => void;
 }) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadFileName, setUploadFileName] = useState('');
@@ -1400,10 +1411,10 @@ function DropZone({
 
       const success = await uploadDocumentToFolder(file, folderId, schoolId);
       if (success) {
-        toast.success(`${file.name} uploadet`);
+        toast.success(t('dokumenterPage.success.fileUploaded', { name: file.name }));
         window.location.reload();
       } else {
-        toast.error('Upload fejlede');
+        toast.error(t('dokumenterPage.errors.uploadFailed'));
         setIsUploading(false);
         setUploadFileName('');
       }
@@ -1433,7 +1444,7 @@ function DropZone({
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
         <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-background border shadow-lg">
           <Loader2 size={24} className="animate-spin text-primary" />
-          <p className="text-sm font-medium">Uploader {uploadFileName}...</p>
+          <p className="text-sm font-medium">{t('dokumenterPage.uploadingNamed', { name: uploadFileName })}</p>
         </div>
       </div>
     );
@@ -1448,10 +1459,10 @@ function DropZone({
           <Upload size={24} className="text-primary" />
         </div>
         <p className="text-sm font-medium text-foreground">
-          Slip filen her for at uploade
+          {t('dokumenterPage.dropToUpload')}
         </p>
         <p className="text-sm text-muted-foreground">
-          Filen vil blive uploadet til den aktuelle mappe
+          {t('dokumenterPage.dropUploadingToFolder')}
         </p>
       </div>
     </div>
@@ -1481,6 +1492,7 @@ export function DokumenterPage({
   /** From `extractViewedEntity()` page title; Supabase name preferred when loaded */
   viewedStudentNameHint?: string | null;
 }) {
+  const { t } = useTranslation();
   const { studentsMap } = useSchoolStudents(schoolId);
 
   const viewedDisplayName =
@@ -1491,8 +1503,8 @@ export function DokumenterPage({
   const possessivePersonalLabel =
     viewedStudentElevid != null && viewedStudentElevid !== ''
       ? viewedDisplayName
-        ? `${viewedDisplayName}s dokumenter`
-        : 'Elevens dokumenter'
+        ? t('dokumenterPage.possessiveDocuments', { name: viewedDisplayName })
+        : t('dokumenterPage.studentDocuments')
       : null;
 
   const sidebarFolders = useMemo(() => {
@@ -1674,13 +1686,13 @@ export function DokumenterPage({
         schoolId,
         (status) => {
           if (status === 'error') {
-            toast.error('Upload fejlede');
+            toast.error(t('dokumenterPage.errors.uploadFailed'));
             setIsUploading(false);
           }
         },
       );
       if (success) {
-        toast.success(`${file.name} uploadet`);
+        toast.success(t('dokumenterPage.success.fileUploaded', { name: file.name }));
         window.location.reload();
       } else {
         setIsUploading(false);
@@ -1716,10 +1728,10 @@ export function DokumenterPage({
       folderComment.trim() || undefined,
     );
     if (success) {
-      toast.success(`Mappe "${folderName.trim()}" oprettet`);
+      toast.success(t('dokumenterPage.success.folderCreated', { name: folderName.trim() }));
       window.location.reload();
     } else {
-      toast.error('Kunne ikke oprette mappe');
+      toast.error(t('dokumenterPage.errors.createFolderFailed'));
       setIsCreatingFolder(false);
     }
   }, [folderName, folderComment, currentFolder.folderId, schoolId]);
@@ -1732,7 +1744,7 @@ export function DokumenterPage({
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150"
-          title={sidebarCollapsed ? 'Vis mapper' : 'Skjul mapper'}
+          title={sidebarCollapsed ? t('dokumenterPage.showFolders') : t('dokumenterPage.hideFolders')}
         >
           <FolderTree size={16} />
         </button>
@@ -1754,7 +1766,7 @@ export function DokumenterPage({
           <input
             ref={searchRef}
             type="text"
-            placeholder="Søg dokumenter..."
+            placeholder={t('dokumenterPage.searchPlaceholder')}
             value={searchQuery}
             onInput={(e) => {
               const val = (e.target as HTMLInputElement).value;
@@ -1788,10 +1800,10 @@ export function DokumenterPage({
             <button
               onClick={() => setShowFolderDialog(!showFolderDialog)}
               className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border/60 text-sm font-medium text-foreground hover:bg-muted transition-[color,background-color] duration-150"
-              title="Opret ny mappe"
+              title={t('dokumenterPage.titleNewFolder')}
             >
               <FolderPlus size={15} />
-              <span className="hidden lg:inline">Ny mappe</span>
+              <span className="hidden lg:inline">{t('dokumenterPage.newFolder')}</span>
             </button>
 
             {/* Upload button */}
@@ -1805,16 +1817,16 @@ export function DokumenterPage({
               ) : (
                 <Upload size={15} />
               )}
-              {isUploading ? 'Uploader...' : 'Upload'}
+              {isUploading ? t('dokumenterPage.uploading') : t('dokumenterPage.upload')}
             </button>
 
             {/* Folder creation popover */}
             {showFolderDialog && (
               <div className="absolute top-full right-0 mt-2 w-[300px] p-3 rounded-xl bg-background border shadow-lg z-20 animate-in fade-in slide-in-from-top-2 duration-150">
-                <p className="text-sm font-medium mb-2">Ny mappe</p>
+                <p className="text-sm font-medium mb-2">{t('dokumenterPage.newFolder')}</p>
                 <input
                   type="text"
-                  placeholder="Mappenavn..."
+                  placeholder={t('dokumenterPage.folderNamePlaceholder')}
                   value={folderName}
                   onInput={(e) =>
                     setFolderName((e.target as HTMLInputElement).value)
@@ -1834,7 +1846,7 @@ export function DokumenterPage({
                   className="w-full h-9 px-3 rounded-lg border border-border/60 bg-muted/30 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-[color,background-color] duration-150 mb-2"
                 />
                 <textarea
-                  placeholder="Kommentar (valgfrit)..."
+                  placeholder={t('dokumenterPage.commentOptionalPlaceholder')}
                   value={folderComment}
                   onInput={(e) =>
                     setFolderComment((e.target as HTMLTextAreaElement).value)
@@ -1851,14 +1863,14 @@ export function DokumenterPage({
                     }}
                     className="h-8 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-[color,background-color] duration-150"
                   >
-                    Annuller
+                    {t('dokumenterPage.cancel')}
                   </button>
                   <button
                     onClick={handleCreateFolder}
                     disabled={!folderName.trim() || isCreatingFolder}
                     className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150 disabled:opacity-60"
                   >
-                    {isCreatingFolder ? 'Opretter...' : 'Opret'}
+                    {isCreatingFolder ? t('dokumenterPage.creating') : t('dokumenterPage.create')}
                   </button>
                 </div>
               </div>
@@ -1894,21 +1906,21 @@ export function DokumenterPage({
               <div className="flex items-center gap-3 px-3 py-1.5 mb-1">
                 <div className="w-10 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <SortHeader label="Navn" column="Name" />
+                  <SortHeader label={t('dokumenterPage.sortName')} column="Name" />
                 </div>
                 <div className="hidden md:block min-w-[110px]">
-                  <SortHeader label="Ændret af" column="ChangedBy" />
+                  <SortHeader label={t('dokumenterPage.sortChangedBy')} column="ChangedBy" />
                 </div>
                 <div className="hidden sm:block w-[75px] text-right">
                   <SortHeader
-                    label="Dato"
+                    label={t('dokumenterPage.sortDate')}
                     column="UploadedDate"
                     className="justify-end"
                   />
                 </div>
                 <div className="hidden lg:block w-[75px] text-right">
                   <SortHeader
-                    label="Størrelse"
+                    label={t('dokumenterPage.sortSize')}
                     column="Bytes"
                     className="justify-end"
                   />
@@ -1937,21 +1949,28 @@ export function DokumenterPage({
               {/* File count */}
               <div className="px-3 py-3 text-sm text-muted-foreground">
                 {filteredSubfolders.length > 0 && (
-                  <span>{filteredSubfolders.length} {filteredSubfolders.length === 1 ? 'mappe' : 'mapper'}, </span>
+                  <span>
+                    {filteredSubfolders.length === 1
+                      ? t('dokumenterPage.folderSingular', { n: String(filteredSubfolders.length) })
+                      : t('dokumenterPage.foldersPlural', { n: String(filteredSubfolders.length) })
+                    },{' '}
+                  </span>
                 )}
                 {filteredFiles.length === files.length
-                  ? `${files.length} ${files.length === 1 ? 'dokument' : 'dokumenter'}`
-                  : `${filteredFiles.length} af ${files.length} dokumenter`}
+                  ? (files.length === 1
+                      ? t('dokumenterPage.documentSingular', { n: String(files.length) })
+                      : t('dokumenterPage.documentsPlural', { n: String(files.length) }))
+                  : t('dokumenterPage.documentsFiltered', { n: String(filteredFiles.length), total: String(files.length) })}
               </div>
             </div>
           ) : searchQuery ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Search size={28} className="text-muted-foreground/40 mb-3" />
               <h3 className="text-sm font-medium text-foreground mb-1">
-                Ingen resultater
+                {t('dokumenterPage.noResults')}
               </h3>
               <p className="text-sm text-muted-foreground">
-                Ingen filer matcher &ldquo;{searchQuery}&rdquo;
+                {t('dokumenterPage.noFilesMatch', { query: searchQuery })}
               </p>
             </div>
           ) : (
@@ -2006,7 +2025,7 @@ export function DokumenterPage({
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-background border shadow-lg">
             <Loader2 size={24} className="animate-spin text-primary" />
-            <p className="text-sm font-medium">Uploader fil...</p>
+            <p className="text-sm font-medium">{t('dokumenterPage.uploadingFile')}</p>
           </div>
         </div>
       )}

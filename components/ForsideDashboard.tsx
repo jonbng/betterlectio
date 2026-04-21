@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, formatWeekdayCapitalized } from '@/lib/i18n';
 import { ArrowUpRight, Info, AlertTriangle, BookOpen, Mail, Clock, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
@@ -192,8 +192,6 @@ type Urgency = 'overdue' | 'imminent' | 'soon' | 'later' | 'missing';
 
 function fmt2(n: number) { return n.toString().padStart(2, '0'); }
 
-const DANISH_WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
-
 function getDeadlineInfo(deadline: Date, isMissing?: boolean) {
   const now = new Date();
   const diffMs = deadline.getTime() - now.getTime();
@@ -246,9 +244,8 @@ function getDeadlineInfo(deadline: Date, isMissing?: boolean) {
     label = 'I overmorgen';
     sub = timeStr;
   } else if (calDays <= 7) {
-    const wd = DANISH_WEEKDAYS[deadline.getDay()];
     label = `Om ${calDays} dage`;
-    sub = `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${timeStr}`;
+    sub = `${formatWeekdayCapitalized(deadline)} ${timeStr}`;
   } else {
     label = `${deadline.getDate()}/${deadline.getMonth() + 1}`;
     sub = timeStr;

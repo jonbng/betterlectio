@@ -40,6 +40,8 @@ import {
   isSupportedLocale,
   setLocale,
   useTranslation,
+  formatLocaleDate,
+  getLocaleTag,
   type LocaleCode,
 } from "@/lib/i18n";
 import {
@@ -142,7 +144,7 @@ function getVersionInfo(currentVersion: string): VersionInfo {
 
 function formatDate(isoString: string): string {
   const date = new Date(isoString);
-  return date.toLocaleDateString("da-DK", {
+  return formatLocaleDate(date, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -731,7 +733,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   <p className="text-xs text-muted-foreground">
                     {t('settings.about.dbDescription')}
                     {supabaseStatus === 'authenticated' && supabaseExpiry && (
-                      <>{t('settings.about.sessionExpires', { date: new Date(supabaseExpiry * 1000).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</>
+                      <>{t('settings.about.sessionExpires', { date: new Date(supabaseExpiry * 1000).toLocaleString(getLocaleTag(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</>
                     )}
                   </p>
                 </div>

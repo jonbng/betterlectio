@@ -28,6 +28,7 @@ import { useQuery, useMutation } from '@/lib/supabase/hooks';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
+import { useTranslation } from '@/lib/i18n';
 
 type Student = Tables<'students'>;
 
@@ -63,6 +64,7 @@ function Skeleton({ className }: { className?: string }) {
 // ── Studiekort Dialog ────────────────────────────────────────────────────
 
 function StudiekortDialog({ schoolId }: { schoolId: string }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<StudiekortData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -112,7 +114,7 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
           {/* Backdrop */}
           <button
             type="button"
-            aria-label="Luk studiekort"
+            aria-label={t('profilPage.closeStudiekort')}
             className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200"
             onClick={() => setOpen(false)}
           />
@@ -121,7 +123,7 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
             ref={contentRef}
             className="relative z-10 bg-background w-full max-w-sm mx-4 rounded-xl border shadow-lg p-6 animate-in fade-in-0 zoom-in-95 duration-200"
           >
-            <h2 className="text-lg font-semibold text-foreground mb-4">Studiekort</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">{t('profilPage.studiekort')}</h2>
 
             {loading && (
               <div className="space-y-4">
@@ -141,12 +143,12 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
                   className="w-full aspect-[3/4] rounded-xl overflow-hidden mb-4 flex items-center justify-center cursor-pointer"
                   style={{ backgroundColor: 'oklch(0.30 0.08 265 / 0.4)' }}
                   onClick={() => setShowQr(!showQr)}
-                  title={showQr ? 'Klik for at vise foto' : 'Klik for at vise QR kode'}
+                  title={showQr ? t('profilPage.showPhoto') : t('profilPage.showQr')}
                 >
                   {showQr && data.qrUrl ? (
-                    <img src={data.qrUrl} alt="QR kode" className="w-full h-full object-contain bg-white p-3" />
+                    <img src={data.qrUrl} alt={t('profilPage.showQr')} className="w-full h-full object-contain bg-white p-3" />
                   ) : data.photoUrl ? (
-                    <img src={data.photoUrl} alt="Foto" className="w-full h-full object-cover object-top" />
+                    <img src={data.photoUrl} alt={t('profilPage.showPhoto')} className="w-full h-full object-cover object-top" />
                   ) : (
                     <User className="w-12 h-12" style={{ color: 'oklch(0.65 0.06 265)' }} />
                   )}
@@ -170,7 +172,7 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
 
             {!loading && !data && (
               <p className="text-sm text-muted-foreground py-8 text-center">
-                Kunne ikke hente studiekort.
+                {t('profilPage.fetchStudiekortFailed')}
               </p>
             )}
           </div>
@@ -187,7 +189,7 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
         className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all duration-150 cursor-pointer active:scale-[0.97]"
       >
         <IdCard className="size-4" />
-        Studiekort
+        {t('profilPage.studiekort')}
       </button>
       {modal}
     </>
@@ -197,6 +199,7 @@ function StudiekortDialog({ schoolId }: { schoolId: string }) {
 // ── Saved indicator ─────────────────────────────────────────────────────
 
 function SavedIndicator({ visible }: { visible: boolean }) {
+  const { t } = useTranslation();
   return (
     <span
       className={cn(
@@ -207,7 +210,7 @@ function SavedIndicator({ visible }: { visible: boolean }) {
       )}
     >
       <Check className="size-3.5" strokeWidth={2.5} />
-      Gemt
+      {t('profilPage.saved')}
     </span>
   );
 }
@@ -215,6 +218,7 @@ function SavedIndicator({ visible }: { visible: boolean }) {
 // ── Social Profile Section ──────────────────────────────────────────────
 
 function SocialProfileSection({ schoolId }: { schoolId: string }) {
+  const { t } = useTranslation();
   const loggedInId = getLoggedInUserId();
   const distinctId = loggedInId ? getDistinctId(loggedInId) : null;
 
@@ -298,10 +302,10 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
     <div className="space-y-6">
       <div className="flex items-baseline justify-between">
         <h2 className="text-xl font-semibold text-foreground tracking-tight">
-          Rediger profil
+          {t('profilPage.editProfile')}
         </h2>
         <p className="text-sm text-muted-foreground">
-          Synlig for andre BetterLectio brugere
+          {t('profilPage.visibleToOthers')}
         </p>
       </div>
 
@@ -311,7 +315,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label htmlFor="bl-name" className="text-sm font-medium text-foreground">
-              Visningsnavn
+              {t('profilPage.displayName')}
             </label>
             <SavedIndicator visible={savedField === 'name'} />
           </div>
@@ -325,11 +329,11 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
                 saveField('name', name || null);
               }
             }}
-            placeholder="Dit navn"
+            placeholder={t('profilPage.displayNamePlaceholder')}
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150"
           />
           <p className="text-xs text-muted-foreground mt-1.5">
-            Andre ser dette i stedet for dit Lectio-navn
+            {t('profilPage.displayNameHint')}
           </p>
         </div>
 
@@ -355,12 +359,12 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
                 }
                 setInstagram(formatInstagramHandle(instagram));
               }}
-              placeholder="@brugernavn"
+              placeholder={t('profilPage.instagramPlaceholder')}
               className="w-full rounded-xl border border-border bg-background pl-11 pr-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150"
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1.5">
-            Du kan skrive med eller uden @
+            {t('profilPage.instagramHint')}
           </p>
         </div>
       </div>
@@ -369,7 +373,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <label htmlFor="bl-desc" className="text-sm font-medium text-foreground">
-            Bio
+            {t('profilPage.bio')}
           </label>
           <SavedIndicator visible={savedField === 'description'} />
         </div>
@@ -384,7 +388,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
           }}
           maxLength={200}
           rows={3}
-          placeholder="Skriv lidt om dig selv..."
+          placeholder={t('profilPage.bioPlaceholder')}
           className="w-full rounded-xl border border-border bg-background px-4 py-3 text-base text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all duration-150 resize-none leading-relaxed"
         />
         <div className="flex justify-end mt-1">
@@ -403,10 +407,10 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
           <Cake className="size-5 text-muted-foreground" />
           <div>
             <p className="text-sm font-medium text-foreground">
-              Vis fødseldag på profil
+              {t('profilPage.showBirthday')}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Andre kan se din fødselsdag
+              {t('profilPage.birthdayHint')}
             </p>
           </div>
         </div>
@@ -426,6 +430,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
 // ── Lectio Info Section (collapsible) ───────────────────────────────────
 
 function LectioInfoSection({ data }: { data: ProfilData }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState(data.phone);
   const [email, setEmail] = useState(data.email);
@@ -444,9 +449,9 @@ function LectioInfoSection({ data }: { data: ProfilData }) {
             className="w-full flex items-center gap-4 px-6 py-5 text-left hover:bg-accent/20 transition-[color,background-color] duration-150 cursor-pointer active:scale-[0.995]"
           >
             <div className="flex-1 min-w-0">
-              <p className="text-base font-medium text-foreground">Lectio oplysninger</p>
+              <p className="text-base font-medium text-foreground">{t('profilPage.lectioInfo')}</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Kontaktinfo, adresse og andre data fra Lectio
+                {t('profilPage.lectioInfoHint')}
               </p>
             </div>
             <ChevronDown
@@ -462,19 +467,19 @@ function LectioInfoSection({ data }: { data: ProfilData }) {
           <div className="px-6 pb-6 border-t border-border/40">
             {/* Read-only info in a compact grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 pt-5 pb-6">
-              <InfoItem label="Fornavn" value={data.firstName} />
-              <InfoItem label="Efternavn" value={data.lastName} />
-              {data.coName && <InfoItem label="C/O navn" value={data.coName} />}
+              <InfoItem label={t('profilPage.firstName')} value={data.firstName} />
+              <InfoItem label={t('profilPage.lastName')} value={data.lastName} />
+              {data.coName && <InfoItem label={t('profilPage.coName')} value={data.coName} />}
               {hasAddress && (
-                <InfoItem label="Adresse" value={addressStr} icon={MapPin} />
+                <InfoItem label={t('profilPage.address')} value={addressStr} icon={MapPin} />
               )}
             </div>
 
             <div className="border-t border-border/40 pt-5">
-              <p className="text-sm font-medium text-foreground mb-4">Kontaktoplysninger</p>
+              <p className="text-sm font-medium text-foreground mb-4">{t('profilPage.contactInfo')}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <EditableField
-                  label="Telefon"
+                  label={t('profilPage.phone')}
                   value={phone}
                   onChange={setPhone}
                   type="tel"
@@ -482,7 +487,7 @@ function LectioInfoSection({ data }: { data: ProfilData }) {
                   icon={Phone}
                 />
                 <EditableField
-                  label="E-mail"
+                  label={t('profilPage.email')}
                   value={email}
                   onChange={setEmail}
                   maxLength={100}
@@ -491,18 +496,18 @@ function LectioInfoSection({ data }: { data: ProfilData }) {
               </div>
               <div className="mt-5">
                 <EditableField
-                  label="Alternativ kontakt"
+                  label={t('profilPage.altContact')}
                   value={altContact}
                   onChange={setAltContact}
                   maxLength={100}
-                  hint="Eks. 'Far 12345678', 'Mor 87654321'"
+                  hint={t('profilPage.altContactHint')}
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between mt-6 pt-5 border-t border-border/40">
               <p className="text-xs text-muted-foreground">
-                Gemmes direkte i Lectio
+                {t('profilPage.savedInLectio')}
               </p>
               <button
                 type="button"
@@ -514,7 +519,7 @@ function LectioInfoSection({ data }: { data: ProfilData }) {
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all duration-150 disabled:opacity-50 cursor-pointer active:scale-[0.97]"
               >
                 <Save className="size-4" />
-                {saving ? 'Gemmer...' : 'Gem ændringer'}
+                {saving ? t('profilPage.saving') : t('profilPage.saveChanges')}
               </button>
             </div>
           </div>
@@ -593,6 +598,7 @@ export function ProfilPage({
   data: ProfilData;
   schoolId: string;
 }) {
+  const { t } = useTranslation();
   const profilePicUrl = (window as any).__IL_PROFILE_PIC__ || data.pictureUrl;
 
   return (
@@ -616,7 +622,7 @@ export function ProfilPage({
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
             <div className="flex flex-col items-center gap-1">
               <Lock className="size-4 text-white" />
-              <span className="text-xs text-white/90 font-medium">Kommer snart</span>
+              <span className="text-xs text-white/90 font-medium">{t('profilPage.comingSoon')}</span>
             </div>
           </div>
         </div>

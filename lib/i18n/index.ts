@@ -9,3 +9,11 @@ export {
   type LocaleCode,
 } from './locales';
 export type { TranslationKey, TranslationVars, TFunction } from './types';
+export {
+  getLocaleTag,
+  formatWeekday,
+  formatWeekdayCapitalized,
+  formatMonth,
+  formatLocaleDate,
+  formatLocaleTime,
+} from './dates';

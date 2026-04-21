@@ -10,6 +10,7 @@ import {
   Edit3,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 import {
   type FravaerRecord,
   type FravaerEditFormData,
@@ -30,6 +31,7 @@ interface FravaerEditSheetProps {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: FravaerEditSheetProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<FravaerEditFormData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +54,11 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
           setSelectedAarsag(data.currentAarsag);
           setNote(data.currentNote);
         } else {
-          setError('Kunne ikke hente redigeringsformular.');
+          setError(t('fravaerEditSheet.fetchError'));
         }
       })
       .catch(() => {
-        setError('Der opstod en fejl.');
+        setError(t('fravaerEditSheet.genericError'));
       })
       .finally(() => setLoading(false));
   }, [open, record?.editUrl]);
@@ -78,14 +80,14 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
     try {
       const success = await submitEditReason(formData, selectedAarsag, note);
       if (success) {
-        toast.success('Fraværsårsag opdateret');
+        toast.success(t('fravaerEditSheet.success'));
         onOpenChange(false);
         onSaved();
       } else {
-        toast.error('Kunne ikke gemme ændringen');
+        toast.error(t('fravaerEditSheet.saveError'));
       }
     } catch {
-      toast.error('Der opstod en fejl ved gemning');
+      toast.error(t('fravaerEditSheet.submitError'));
     } finally {
       setSubmitting(false);
     }
@@ -110,13 +112,13 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
         className="absolute left-1/2 top-1/2 w-[min(96vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-popover shadow-xl"
         role="dialog"
         aria-modal="true"
-        aria-label="Rediger fraværsårsag"
+        aria-label={t('fravaerEditSheet.title')}
       >
         {/* Close button */}
         <button
           className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
           onClick={() => onOpenChange(false)}
-          aria-label="Luk"
+          aria-label={t('fravaerEditSheet.ariaClose')}
         >
           <X size={18} />
         </button>
@@ -125,7 +127,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
         <div className="border-b border-border px-5 py-4">
           <h2 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
             <Edit3 size={18} />
-            Rediger fraværsårsag
+            {t('fravaerEditSheet.title')}
           </h2>
           {record && (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -154,7 +156,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 size={20} className="animate-spin" />
-              <span>Henter formular...</span>
+              <span>{t('fravaerEditSheet.loadingForm')}</span>
             </div>
           )}
 
@@ -175,15 +177,15 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
                           setSelectedAarsag(data.currentAarsag);
                           setNote(data.currentNote);
                         } else {
-                          setError('Kunne ikke hente redigeringsformular.');
+                          setError(t('fravaerEditSheet.fetchError'));
                         }
                       })
-                      .catch(() => setError('Der opstod en fejl.'))
+                      .catch(() => setError(t('fravaerEditSheet.genericError')))
                       .finally(() => setLoading(false));
                   }
                 }}
               >
-                Prøv igen
+                {t('fravaerEditSheet.retry')}
               </button>
             </div>
           )}
@@ -193,7 +195,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               {/* Reason select */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="fravaer-aarsag">
-                  Årsag
+                  {t('fravaerEditSheet.labelReason')}
                 </label>
                 <select
                   id="fravaer-aarsag"
@@ -213,7 +215,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               {/* Note input */}
               <div className="mt-3 space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="fravaer-note">
-                  Note
+                  {t('fravaerEditSheet.labelNote')}
                 </label>
                 <input
                   id="fravaer-note"
@@ -221,7 +223,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
                   value={note}
                   onInput={(e) => setNote((e.target as HTMLInputElement).value)}
-                  placeholder="Valgfri note..."
+                  placeholder={t('fravaerEditSheet.notePlaceholder')}
                   disabled={submitting}
                 />
               </div>
@@ -229,7 +231,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               {/* Current reason display (if set) */}
               {record?.aarsag && (
                 <div className="mt-3 rounded-md border border-border bg-muted/30 p-3 text-sm">
-                  <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nuværende årsag:</span>
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('fravaerEditSheet.currentReason')}</span>
                   <span className="mt-1 block font-medium text-foreground">{record.aarsag}</span>
                   {record.note && (
                     <span className="mt-1 block text-xs text-muted-foreground">{record.note}</span>
@@ -248,7 +250,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               onClick={() => onOpenChange(false)}
               disabled={submitting}
             >
-              Annuller
+              {t('fravaerEditSheet.cancel')}
             </button>
             <button
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
@@ -260,7 +262,7 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
               ) : (
                 <Save size={15} />
               )}
-              {submitting ? 'Gemmer...' : 'Gem'}
+              {submitting ? t('fravaerEditSheet.saving') : t('fravaerEditSheet.save')}
             </button>
           </div>
         )}

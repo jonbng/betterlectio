@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, formatWeekday, formatWeekdayCapitalized } from '@/lib/i18n';
 import { ChevronLeft, ChevronRight, Calendar, ArrowUpRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -125,8 +125,6 @@ interface Props {
   showTimeLabel?: boolean;
 }
 
-const DANISH_DAYS_FULL = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
-const DANISH_DAYS_SHORT = ['søn', 'man', 'tir', 'ons', 'tor', 'fre', 'lør'];
 
 export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInjected, showTimeIndicator = true, showTimeLabel = false }: Props) {
   const { t } = useTranslation();
@@ -361,8 +359,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
 
   // Build day label like "Mandag 2. mar."
   const currentDate = new Date(currentDay.date + 'T12:00:00');
-  const dayNameFull = DANISH_DAYS_FULL[currentDate.getDay()];
-  const dayLabel = `${dayNameFull.charAt(0).toUpperCase() + dayNameFull.slice(1)} ${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
+  const dayLabel = `${formatWeekdayCapitalized(currentDate)} ${currentDate.getDate()}/${currentDate.getMonth() + 1}`;
 
   return (
     <div className="flex h-full flex-col">
@@ -413,7 +410,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
         <div className="flex flex-1 justify-center gap-1">
           {days.map((day, i) => {
             const d = new Date(day.date + 'T12:00:00');
-            const dayAbbr = DANISH_DAYS_SHORT[d.getDay()];
+            const dayAbbr = formatWeekday(d, 'short');
             const dayNum = d.getDate();
             const isActive = i === dayIndex;
             const isDayToday = day.date === todayISO;

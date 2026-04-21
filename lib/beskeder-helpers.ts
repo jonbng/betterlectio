@@ -3,12 +3,7 @@
  * Extracted to avoid duplication between BeskederPage and BeskederThreadView.
  */
 
-export const DANISH_MONTHS = [
-  'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
-  'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
-];
-
-const DANISH_DAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
+import { formatMonth, formatWeekdayCapitalized, t } from '@/lib/i18n';
 
 /** Generate a deterministic hue from a name string. */
 export function nameToHue(name: string): number {
@@ -44,11 +39,11 @@ export function formatRelativeDate(dateText: string, date: Date | null): string 
   const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
   if (diffDays === 0) return timeStr;
-  if (diffDays === 1) return `I går ${timeStr}`;
+  if (diffDays === 1) return `${t('dates.yesterdayCapitalized')} ${timeStr}`;
   if (diffDays > 1 && diffDays < 7) {
-    return `${DANISH_DAYS[date.getDay()].charAt(0).toUpperCase() + DANISH_DAYS[date.getDay()].slice(1)} ${timeStr}`;
+    return `${formatWeekdayCapitalized(date)} ${timeStr}`;
   }
-  return `${date.getDate()}. ${DANISH_MONTHS[date.getMonth()]} ${date.getFullYear() !== now.getFullYear() ? date.getFullYear() : ''}`.trim();
+  return `${date.getDate()}. ${formatMonth(date, 'short')} ${date.getFullYear() !== now.getFullYear() ? date.getFullYear() : ''}`.trim();
 }
 
 /**
@@ -67,7 +62,7 @@ export function formatMessageDate(date: Date | null, timestamp: string): string 
 
   const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
-  if (diffDays === 0) return `I dag ${timeStr}`;
-  if (diffDays === 1) return `I går ${timeStr}`;
-  return `${date.getDate()}. ${DANISH_MONTHS[date.getMonth()]} ${date.getFullYear() !== now.getFullYear() ? date.getFullYear() + ' ' : ''}${timeStr}`;
+  if (diffDays === 0) return `${t('dates.todayCapitalized')} ${timeStr}`;
+  if (diffDays === 1) return `${t('dates.yesterdayCapitalized')} ${timeStr}`;
+  return `${date.getDate()}. ${formatMonth(date, 'short')} ${date.getFullYear() !== now.getFullYear() ? date.getFullYear() + ' ' : ''}${timeStr}`;
 }

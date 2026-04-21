@@ -21,6 +21,7 @@ import {
 } from '@/lib/fravaer-parse';
 import { FravaerEditSheet } from '@/components/FravaerEditSheet';
 import { cn } from '@/lib/utils';
+import { formatMonth, formatWeekdayCapitalized } from '@/lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -31,20 +32,12 @@ interface FravaerPageProps {
 
 // ── Date formatting ────────────────────────────────────────────────────
 
-const DANISH_DAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
-const DANISH_MONTHS = [
-  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
-  'juli', 'august', 'september', 'oktober', 'november', 'december',
-];
-
 function formatFullDate(dateISO: string, fallback: string): string {
   if (!dateISO) return fallback || '—';
   const [y, m, d] = dateISO.split('-').map(Number);
   if (!y || !m || !d) return fallback || '—';
   const date = new Date(y, m - 1, d);
-  const dayName = DANISH_DAYS[date.getDay()];
-  const capitalDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-  return `${capitalDay} ${d}. ${DANISH_MONTHS[m - 1]}`;
+  return `${formatWeekdayCapitalized(date)} ${d}. ${formatMonth(date)}`;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────

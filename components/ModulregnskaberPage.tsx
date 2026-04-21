@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ChevronDown, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, Users } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getFullHoldDisplayName, getHoldDisplayName, getHoldHue, registerHold } from '@/lib/hold-mapping';
 import {
@@ -41,6 +42,7 @@ const severityClasses: Record<ReturnType<typeof afvigelseSeverity>, string> = {
 };
 
 function HoldCard({ data }: { data: ModulregnskabData }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const hue = getHoldHue(data.holdName);
   const displayName = getHoldDisplayName(data.holdName);
@@ -92,7 +94,7 @@ function HoldCard({ data }: { data: ModulregnskabData }) {
                   'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium tabular-nums shrink-0',
                   severityClasses[sev],
                 )}
-                title="Afvigelse fra holdnorm"
+                title={t('modulregnskaberPage.deviationTitle')}
               >
                 <Icon className="size-3" />
                 {row.afvigelse}
@@ -123,26 +125,26 @@ function HoldCard({ data }: { data: ModulregnskabData }) {
                   <div
                     className="absolute inset-y-0 w-0.5 bg-foreground/30"
                     style={{ left: `${(norm / progressTarget) * 100}%` }}
-                    title={`Holdnorm: ${norm}`}
+                    title={t('modulregnskaberPage.holdnormTitle', { n: String(norm) })}
                   />
                 )}
               </div>
 
               <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Afholdt</dt>
+                  <dt className="text-xs text-muted-foreground">{t('modulregnskaberPage.labelAfholdt')}</dt>
                   <dd className="font-medium tabular-nums">{afholdt}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Planlagt</dt>
+                  <dt className="text-xs text-muted-foreground">{t('modulregnskaberPage.labelPlanlagt')}</dt>
                   <dd className="font-medium tabular-nums">{planlagt}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Total</dt>
+                  <dt className="text-xs text-muted-foreground">{t('modulregnskaberPage.labelTotal')}</dt>
                   <dd className="font-medium tabular-nums">{total}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Holdnorm</dt>
+                  <dt className="text-xs text-muted-foreground">{t('modulregnskaberPage.labelHoldnorm')}</dt>
                   <dd className="font-medium tabular-nums">{norm ?? '–'}</dd>
                 </div>
               </dl>
@@ -154,7 +156,7 @@ function HoldCard({ data }: { data: ModulregnskabData }) {
                   className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-[color] duration-150 cursor-pointer"
                 >
                   <Users className="size-3.5" />
-                  <span>{teacherRows.length} lærer{teacherRows.length !== 1 ? 'e' : ''}</span>
+                  <span>{teacherRows.length === 1 ? t('modulregnskaberPage.teacherSingular', { n: String(teacherRows.length) }) : t('modulregnskaberPage.teacherPlural', { n: String(teacherRows.length) })}</span>
                   <ChevronDown
                     className={cn(
                       'size-3.5 transition-transform duration-200',
@@ -173,7 +175,7 @@ function HoldCard({ data }: { data: ModulregnskabData }) {
               )}
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">Ingen data tilgængelig</p>
+            <p className="text-sm text-muted-foreground">{t('modulregnskaberPage.noData')}</p>
           )}
         </div>
       </div>
@@ -182,6 +184,7 @@ function HoldCard({ data }: { data: ModulregnskabData }) {
 }
 
 function TeacherRow({ row }: { row: ModulregnskabRow }) {
+  const { t } = useTranslation();
   const afholdt = (row.undervisningAfholdt ?? 0) + (row.andenAfholdt ?? 0);
   const planlagt = (row.undervisningPlanlagt ?? 0) + (row.andenPlanlagt ?? 0);
   const total = row.total ?? afholdt + planlagt;
@@ -190,8 +193,8 @@ function TeacherRow({ row }: { row: ModulregnskabRow }) {
     <div className="flex items-center justify-between gap-3 text-sm">
       <span className="text-foreground/80 truncate">{row.label}</span>
       <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-        {afholdt} afholdt
-        {planlagt > 0 && <span> · {planlagt} planlagt</span>}
+        {t('modulregnskaberPage.teacherAfholdt', { n: String(afholdt) })}
+        {planlagt > 0 && <span> · {t('modulregnskaberPage.teacherPlanlagt', { n: String(planlagt) })}</span>}
         {total > 0 && <span className="ml-2 text-foreground font-medium">{total}</span>}
       </span>
     </div>
@@ -203,6 +206,7 @@ interface ModulregnskaberPageProps {
 }
 
 export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
+  const { t } = useTranslation();
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   useEffect(() => {
@@ -218,9 +222,9 @@ export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
       } catch (err) {
         if (cancelled) return;
         setState({
-          kind: 'error',
-          message: err instanceof Error ? err.message : 'Kunne ikke hente modulregnskab',
-        });
+            kind: 'error',
+            message: err instanceof Error ? err.message : t('modulregnskaberPage.fetchError'),
+          });
       }
     }
     load();
@@ -252,9 +256,9 @@ export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-foreground">Modulregnskaber</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{t('modulregnskaberPage.title')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Oversigt over afholdte og planlagte moduler for alle dine hold.
+          {t('modulregnskaberPage.subtitle')}
         </p>
       </header>
 
@@ -273,14 +277,14 @@ export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex items-start gap-3">
           <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <h2 className="font-medium text-foreground">Kunne ikke hente data</h2>
+            <h2 className="font-medium text-foreground">{t('modulregnskaberPage.errorTitle')}</h2>
             <p className="text-sm text-muted-foreground mt-1">{state.message}</p>
             <button
               type="button"
               onClick={() => setState({ kind: 'loading' })}
               className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline cursor-pointer"
             >
-              <RefreshCw className="size-3.5" /> Prøv igen
+              <RefreshCw className="size-3.5" /> {t('modulregnskaberPage.retry')}
             </button>
           </div>
         </div>
@@ -288,17 +292,17 @@ export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
 
       {state.kind === 'ready' && summary && state.data.length === 0 && (
         <div className="rounded-xl border border-border/60 bg-card p-10 text-center">
-          <p className="text-sm text-muted-foreground">Ingen hold fundet på din studieplan.</p>
+          <p className="text-sm text-muted-foreground">{t('modulregnskaberPage.noHolds')}</p>
         </div>
       )}
 
       {state.kind === 'ready' && summary && state.data.length > 0 && (
         <>
           <section className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <SummaryStat label="Hold" value={summary.holdCount} />
-            <SummaryStat label="Afholdt" value={summary.afholdt} />
-            <SummaryStat label="Planlagt" value={summary.planlagt} />
-            <SummaryStat label="Samlet norm" value={summary.norm} />
+            <SummaryStat label={t('modulregnskaberPage.labelHold')} value={summary.holdCount} />
+            <SummaryStat label={t('modulregnskaberPage.labelAfholdt')} value={summary.afholdt} />
+            <SummaryStat label={t('modulregnskaberPage.labelPlanlagt')} value={summary.planlagt} />
+            <SummaryStat label={t('modulregnskaberPage.labelSamletNorm')} value={summary.norm} />
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, formatLocaleDate, formatLocaleTime } from '@/lib/i18n';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
@@ -15,14 +15,11 @@ function pickGreeting(pool: string[]): string {
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('da-DK', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatLocaleTime(date, { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('da-DK', {
+  return formatLocaleDate(date, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

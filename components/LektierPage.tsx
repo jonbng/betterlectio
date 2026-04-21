@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, formatMonth, formatWeekdayCapitalized, formatWeekday, type TFunction } from '@/lib/i18n';
 import { FileText, BookOpen, Download, ArrowUpRight, Check } from 'lucide-react';
 import type { Tables } from '@/database.types';
 import { getLoggedInUserId } from '@/lib/profile-cache';
@@ -43,29 +43,26 @@ interface LektierDay {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-const DANISH_DAYS = ['Søndag', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag'];
-const DANISH_MONTHS = [
-  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
-  'juli', 'august', 'september', 'oktober', 'november', 'december',
-];
-
 function formatDisplayDate(date: Date): string {
-  return `${DANISH_DAYS[date.getDay()]} ${date.getDate()}. ${DANISH_MONTHS[date.getMonth()]}`;
+  return `${formatWeekdayCapitalized(date)} ${date.getDate()}. ${formatMonth(date)}`;
 }
 
-function getRelativeLabel(date: Date): { text: string; type: 'today' | 'tomorrow' | 'soon' | 'later' | 'past' } | null {
+function getRelativeLabel(
+  date: Date,
+  t: TFunction,
+): { text: string; type: 'today' | 'tomorrow' | 'soon' | 'later' | 'past' } | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
   const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return { text: 'i dag', type: 'today' };
-  if (diffDays === 1) return { text: 'i morgen', type: 'tomorrow' };
-  if (diffDays === -1) return { text: 'i går', type: 'past' };
-  if (diffDays > 1 && diffDays <= 3) return { text: `om ${diffDays} dage`, type: 'soon' };
-  if (diffDays > 3 && diffDays <= 7) return { text: `om ${diffDays} dage`, type: 'later' };
-  if (diffDays < -1) return { text: `${Math.abs(diffDays)} dage siden`, type: 'past' };
+  if (diffDays === 0) return { text: t('dates.today'), type: 'today' };
+  if (diffDays === 1) return { text: t('dates.tomorrow'), type: 'tomorrow' };
+  if (diffDays === -1) return { text: t('dates.yesterday'), type: 'past' };
+  if (diffDays > 1 && diffDays <= 3) return { text: t('dates.inNDays', { n: diffDays }), type: 'soon' };
+  if (diffDays > 3 && diffDays <= 7) return { text: t('dates.inNDays', { n: diffDays }), type: 'later' };
+  if (diffDays < -1) return { text: t('dates.nDaysAgo', { n: Math.abs(diffDays) }), type: 'past' };
   return null;
 }
 
@@ -708,7 +705,7 @@ export function LektierPage({ entries }: LektierPageProps) {
       ) : (
         <div className="flex flex-col">
           {days.map((day, dayIdx) => {
-            const relative = getRelativeLabel(day.date);
+            const relative = getRelativeLabel(day.date, t);
 
             return (
               <div
@@ -724,10 +721,10 @@ export function LektierPage({ entries }: LektierPageProps) {
                 <div className="sticky top-4 flex w-20 shrink-0 flex-col items-center pt-1">
                   <div className="lektier-date-number text-[2.75rem] font-[800] tracking-[-0.04em] leading-none text-foreground">{day.date.getDate()}</div>
                   <div className="lektier-date-weekday text-[0.875rem] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                    {DANISH_DAYS[day.date.getDay()].substring(0, 3).toLowerCase()}
+                    {formatWeekday(day.date, 'short').replace(/\.$/, '').toLowerCase()}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {DANISH_MONTHS[day.date.getMonth()].substring(0, 3)}
+                    {formatMonth(day.date, 'short').replace(/\.$/, '')}
                   </div>
                   {relative && (
                     <div

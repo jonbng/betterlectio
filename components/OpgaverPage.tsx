@@ -15,7 +15,7 @@ import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
-import { useTranslation } from '@/lib/i18n';
+import { useTranslation, formatMonth, formatWeekday } from '@/lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -34,14 +34,6 @@ export interface OpgaveEntry {
   grade: string;
   gradeExtra: string;
 }
-
-// ── Constants ──────────────────────────────────────────────────────────
-
-const DANISH_WEEKDAYS = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'];
-const DANISH_MONTHS = [
-  'januar', 'februar', 'marts', 'april', 'maj', 'juni',
-  'juli', 'august', 'september', 'oktober', 'november', 'december',
-];
 
 // ── Week helpers ──────────────────────────────────────────────────────
 
@@ -95,10 +87,10 @@ function getWeekDateRange(weekKey: string): string {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
 
-  const fmtDay = (d: Date) => `${d.getDate()}. ${DANISH_MONTHS[d.getMonth()]}`;
+  const fmtDay = (d: Date) => `${d.getDate()}. ${formatMonth(d)}`;
 
   if (monday.getMonth() === sunday.getMonth()) {
-    return `${monday.getDate()}–${sunday.getDate()}. ${DANISH_MONTHS[monday.getMonth()]}`;
+    return `${monday.getDate()}–${sunday.getDate()}. ${formatMonth(monday)}`;
   }
   return `${fmtDay(monday)} – ${fmtDay(sunday)}`;
 }
@@ -219,11 +211,11 @@ function getDeadlineInfo(deadline: Date): DeadlineInfo {
     primary = 'I overmorgen';
     secondary = timeStr;
   } else if (calDayDiff <= 7) {
-    const wd = DANISH_WEEKDAYS[deadline.getDay()];
+    const wd = formatWeekday(deadline);
     primary = wd.charAt(0).toUpperCase() + wd.slice(1);
     secondary = timeStr;
   } else {
-    primary = `${deadline.getDate()}. ${DANISH_MONTHS[deadline.getMonth()]}`;
+    primary = `${deadline.getDate()}. ${formatMonth(deadline)}`;
     secondary = timeStr;
   }
 
