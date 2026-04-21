@@ -433,8 +433,13 @@ export function sendReplyViaIframe(
   });
 }
 
+function normalizeSubject(s: string): string {
+  return s.trim().replace(/^re:\s*/i, '').toLowerCase();
+}
+
 export function refreshThreadViaIframe(
   formState: FormState,
+  threadSubject: string,
 ): Promise<SubmitResult<{
   messages: ThreadMessage[];
   recipients: ThreadRecipient[];
@@ -442,14 +447,99 @@ export function refreshThreadViaIframe(
 }>> {
   return withMutex(async () => {
     try {
-      // No-op roundtrip to fetch latest messages/replies without navigating.
-      const doc = await postFormViaHiddenIframe(formState.action, buildFields(formState, {}));
+      // Lectio's thread view is server-side state referenced by __VIEWSTATEY_KEY.
+      // To force the server to re-query the DB, we replay the same flow Lectio
+      // uses when the user clicks a thread in the inbox:
+      //   1. GET beskeder2.aspx?mappeid=<folderId> (fresh inbox + fresh viewstate)
+      //   2. Find the thread by subject in the inbox list
+      //   3. POST back with __EVENTARGUMENT=VIEWTHREAD_<threadId>
+      //   4. Parse the thread view response
+      const folderId = formState.tokens['s$m$Content$Content$ListGridSelectionTree$folders'] || '-70';
+      const inboxUrl = new URL(formState.action, window.location.href);
+      inboxUrl.searchParams.set('mappeid', folderId);
+
+      console.debug('[BetterLectio] refreshThread step 1: GET inbox', inboxUrl.href);
+      const inboxResp = await fetch(inboxUrl.href, { credentials: 'include', cache: 'no-store' });
+      if (!inboxResp.ok) {
+        return { success: false, error: { kind: 'unknown', message: `inbox GET ${inboxResp.status}` } };
+      }
+      const inboxHtml = await inboxResp.text();
+      const inboxDoc = new DOMParser().parseFromString(inboxHtml, 'text/html');
+
+      if (isSessionExpired(inboxDoc)) {
+        console.debug('[BetterLectio] refreshThread session expired on inbox GET');
+        return { success: false, error: { kind: 'session_expired' } };
+      }
+
+      const inboxState = parseNewFormState(inboxDoc);
+      if (!inboxState) {
+        return { success: false, error: { kind: 'parse_failure', message: 'No tokens in inbox GET' } };
+      }
+
+      const threads = parseThreadsFromDOM(inboxDoc);
+      const normTarget = normalizeSubject(threadSubject);
+      const match = threads.find((t) => normalizeSubject(t.subject) === normTarget);
+      console.debug('[BetterLectio] refreshThread step 2: find thread', {
+        targetSubject: threadSubject,
+        folderId,
+        inboxThreadCount: threads.length,
+        match: match ? { threadId: match.threadId, subject: match.subject, date: match.dateText } : null,
+      });
+      if (!match) {
+        return {
+          success: false,
+          error: {
+            kind: 'parse_failure',
+            message: `Thread "${threadSubject}" not found in folder ${folderId}`,
+          },
+        };
+      }
+
+      const openFields = buildFields(inboxState, {
+        __EVENTTARGET: '__Page',
+        __EVENTARGUMENT: `VIEWTHREAD_${match.threadId}`,
+      });
+      console.debug('[BetterLectio] refreshThread step 3: POST VIEWTHREAD', {
+        action: inboxState.action,
+        threadId: match.threadId,
+        inboxViewstateXLen: inboxState.tokens.__VIEWSTATEX?.length,
+      });
+      const doc = await postFormViaHiddenIframe(inboxState.action, openFields);
       const { expired, formState: newState } = checkSessionAndParse(doc);
-      if (expired) return { success: false, error: { kind: 'session_expired' } };
-      if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
+      if (expired) {
+        console.debug('[BetterLectio] refreshThread session expired on POST');
+        return { success: false, error: { kind: 'session_expired' } };
+      }
+      if (!newState) {
+        return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
+      }
+
+      const hasThreadView = !!doc.getElementById(
+        's_m_Content_Content_MessageThreadCtrl_messageThreadHeaderDiv',
+      );
+      const hasMessagesGV = !!doc.getElementById(
+        's_m_Content_Content_MessageThreadCtrl_MessagesGV',
+      );
+      console.debug('[BetterLectio] refreshThread step 4: response state', {
+        hasThreadView,
+        hasMessagesGV,
+        newViewstateYKey: newState.tokens.__VIEWSTATEY_KEY?.slice(0, 60),
+      });
+      if (!hasThreadView || !hasMessagesGV) {
+        return {
+          success: false,
+          error: { kind: 'parse_failure', message: 'Response is not thread view after VIEWTHREAD' },
+        };
+      }
 
       const { parseThreadFromDOM } = await import('./beskeder-thread-parser');
       const threadData = parseThreadFromDOM(doc);
+      console.debug(
+        '[BetterLectio] refreshThread parsed',
+        'messages=', threadData.messages.length,
+        'recipients=', threadData.recipients.length,
+        'timestamps=', threadData.messages.map((m) => m.timestamp),
+      );
 
       let replyFormTargets: ReplyFormTargets | null = null;
       if (threadData.replyForm) {

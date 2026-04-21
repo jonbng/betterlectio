@@ -14,11 +14,12 @@ import {
   type SubmitError,
   type AttachedFile,
 } from '@/lib/beskeder-submit';
-import { fetchAvanceretSkemaDropdownItems } from '@/lib/findskema-cache';
+import { fetchBeskederRecipientItems } from '@/lib/beskeder-recipients-cache';
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 import { normalizeString, fuzzyMatch } from '@/lib/fuzzy-search';
 import { cn } from '@/lib/utils';
 import { getDisplayNameFromLookupId, getNameAliasesFromLookupId, getPictureUrlFromLookupId, useSchoolStudents } from '@/lib/supabase/student-lookup';
+import { useTranslation } from '@/lib/i18n';
 
 interface BeskederComposePageProps {
   data: ComposeFormData;
@@ -32,13 +33,14 @@ interface ComposeRecipientOption {
   searchText: string;
 }
 
-function formatSendError(err: SubmitError): string {
-  if (err.kind === 'session_expired') return 'Session udløbet. Log ind igen.';
-  if (err.kind === 'timeout') return 'Kunne ikke bekræfte om beskeden blev sendt (timeout). Opdatér siden før du prøver igen.';
-  return 'Kunne ikke bekræfte om beskeden blev sendt. Opdatér siden før du prøver igen for at undgå dubletter.';
+function formatSendError(err: SubmitError, t: (key: Parameters<ReturnType<typeof useTranslation>['t']>[0]) => string): string {
+  if (err.kind === 'session_expired') return t('beskeder.errors.sessionExpired');
+  if (err.kind === 'timeout') return t('beskeder.errors.sendTimeout');
+  return t('beskeder.errors.sendFailed');
 }
 
 export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(data.currentTitle);
   const [bodyBBCode, setBodyBBCode] = useState(data.currentBody);
   const [sending, setSending] = useState(false);
@@ -61,6 +63,19 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     return { tokens, action };
   });
   const { studentsMap } = useSchoolStudents(schoolId);
+
+  // ASP.NET checkboxes aren't included in `parseFormTokens` (hidden-only), and
+  // they only appear in POST data when checked. If we don't inject the current
+  // state into every compose postback, the server silently resets it to
+  // unchecked — losing "Skal ikke kunne besvares" state at send time.
+  const noReplyFieldName = data.noReplyCheckbox?.getAttribute('name') || '';
+  const formStateWithNoReply = useCallback((state: FormState): FormState => {
+    if (!noReplyFieldName) return state;
+    const next = { ...state.tokens };
+    delete next[noReplyFieldName];
+    if (data.noReplyCheckbox?.checked) next[noReplyFieldName] = 'on';
+    return { tokens: next, action: state.action };
+  }, [noReplyFieldName, data.noReplyCheckbox]);
 
   // Track mutable postback targets (ctl indices may shift after recipient/attachment changes)
   const [sendTarget] = useState(data.sendPostbackTarget);
@@ -116,7 +131,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     setRecipientDirectoryLoading(true);
     setRecipientDirectoryError(null);
 
-    fetchAvanceretSkemaDropdownItems(schoolId)
+    fetchBeskederRecipientItems(document)
       .then((items) => {
         if (cancelled) return;
         const parsed: ComposeRecipientOption[] = items
@@ -144,7 +159,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         if (cancelled) return;
         console.warn('[BetterLectio] Failed to load recipient directory', err);
         setRecipientDirectoryLoading(false);
-        setRecipientDirectoryError('Kunne ikke hente modtagere');
+        setRecipientDirectoryError(t('beskeder.compose.errors.loadRecipients'));
       });
 
     return () => {
@@ -295,7 +310,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   const handleAddRecipient = useCallback((option: ComposeRecipientOption) => {
     if (addingRecipientId || sending) return;
     if (!data.addRecipientPostbackTarget || !data.addRecipientInputName) {
-      setError('Kunne ikke tilføje modtager. Opdatér siden og prøv igen.');
+      setError(t('beskeder.compose.errors.addRecipient'));
       return;
     }
 
@@ -303,7 +318,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     setError(null);
 
     addRecipientViaIframe(
-      formState,
+      formStateWithNoReply(formState),
       data.addRecipientPostbackTarget,
       data.addRecipientInputName,
       option.name,
@@ -318,12 +333,12 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         setRecipientPickerOpen(false);
         recipientInputRef.current?.focus();
       } else if (result.error.kind === 'session_expired') {
-        setError('Session udløbet. Log ind igen.');
+        setError(t('beskeder.errors.sessionExpired'));
       } else {
-        setError('Kunne ikke tilføje modtager. Prøv igen.');
+        setError(t('beskeder.compose.errors.addRecipientRetry'));
       }
     });
-  }, [addingRecipientId, sending, data, formState]);
+  }, [addingRecipientId, sending, data, formState, formStateWithNoReply]);
 
   const handleBack = useCallback(() => {
     if (data.cancelPostbackTarget) {
@@ -350,7 +365,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     const skipSig = shouldSkipSignature(document, contextIds);
 
     sendMessageViaIframe(
-      formState,
+      formStateWithNoReply(formState),
       sendTarget,
       titleFieldName,
       bodyFieldName,
@@ -364,10 +379,10 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         window.location.href = `${window.location.origin}/lectio/${schoolId}/beskeder2.aspx?mappeid=-70`;
       } else {
         setSending(false);
-        setError(formatSendError(result.error));
+        setError(formatSendError(result.error, t));
       }
     });
-  }, [sending, title, bodyBBCode, formState, sendTarget, titleFieldName, bodyFieldName, schoolId, recipientsWithContext]);
+  }, [sending, title, bodyBBCode, formState, formStateWithNoReply, sendTarget, titleFieldName, bodyFieldName, schoolId, recipientsWithContext, t]);
 
   const handleRemoveRecipient = useCallback((targetAndArg: string) => {
     // Format: "eventTarget:eventArgument" (e.g. "s$m$...GV:DEL$0")
@@ -380,14 +395,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     setRemovingRecipient(targetAndArg);
     setError(null);
 
-    removeRecipientViaIframe(formState, target, argument).then((result) => {
+    removeRecipientViaIframe(formStateWithNoReply(formState), target, argument).then((result) => {
       setRemovingRecipient(null);
       if (result.success) {
         setFormState(result.formState);
         setRecipients(result.data.recipients);
       } else {
         if (result.error.kind === 'session_expired') {
-          setError('Session udløbet. Log ind igen.');
+          setError(t('beskeder.errors.sessionExpired'));
         } else {
           // Fallback to native postback (will reload)
           console.warn('[BetterLectio] Remove recipient iframe failed, falling back:', result.error);
@@ -395,7 +410,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         }
       }
     });
-  }, [formState]);
+  }, [formState, formStateWithNoReply]);
 
   const handleFileSelect = useCallback((e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -410,7 +425,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
     uploadFileToLectio(file, schoolId)
       .then((serializedId) =>
-        attachFileViaIframe(formState, serializedId, attachPostbackTarget, attachDocIdFieldName),
+        attachFileViaIframe(formStateWithNoReply(formState), serializedId, attachPostbackTarget, attachDocIdFieldName),
       )
       .then((result) => {
         if (result.success) {
@@ -424,26 +439,26 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       .catch((err) => {
         console.error('[BetterLectio] File upload failed:', err);
         setUploadingFileName(null);
-        setError('Filupload fejlede. Prøv igen.');
+        setError(t('beskeder.errors.fileUpload'));
       });
-  }, [attachPostbackTarget, attachDocIdFieldName, schoolId, formState]);
+  }, [attachPostbackTarget, attachDocIdFieldName, schoolId, formState, formStateWithNoReply, t]);
 
   const handleRemoveAttachment = useCallback((file: AttachedFile, index: number) => {
     if (removingAttachIndex !== null) return;
     setRemovingAttachIndex(index);
     setError(null);
 
-    removeAttachmentViaIframe(formState, file.deleteTarget, file.deleteArgument)
+    removeAttachmentViaIframe(formStateWithNoReply(formState), file.deleteTarget, file.deleteArgument)
       .then((result) => {
         if (result.success) {
           setFormState(result.formState);
           setAttachedFiles(result.data.attachments);
         } else {
-          setError('Kunne ikke fjerne vedhæftning.');
+          setError(t('beskeder.errors.removeAttachment'));
         }
         setRemovingAttachIndex(null);
       });
-  }, [formState, removingAttachIndex]);
+  }, [formState, formStateWithNoReply, removingAttachIndex, t]);
 
   const handleRecipientInputKeyDown = useCallback((event: KeyboardEvent) => {
     if (!recipientPickerOpen && event.key !== 'Escape') {
@@ -485,14 +500,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   }
 
   function getRecipientTypeLabel(id: string): string {
-    if (id.startsWith('S')) return 'Elev';
-    if (id.startsWith('T')) return 'Lærer';
-    if (id.startsWith('SC') || id.startsWith('K')) return 'Klasse';
-    if (id.startsWith('HE') || id.startsWith('H')) return 'Hold';
-    if (id.startsWith('GE') || id.startsWith('G')) return 'Gruppe';
-    if (id.startsWith('RO') || id.startsWith('L')) return 'Lokale';
-    if (id.startsWith('RE') || id.startsWith('R')) return 'Ressource';
-    return 'Modtager';
+    if (id.startsWith('SC') || id.startsWith('K')) return t('beskeder.compose.recipientTypes.class');
+    if (id.startsWith('HE') || id.startsWith('H')) return t('beskeder.compose.recipientTypes.team');
+    if (id.startsWith('GE') || id.startsWith('G')) return t('beskeder.compose.recipientTypes.group');
+    if (id.startsWith('RO') || id.startsWith('L')) return t('beskeder.compose.recipientTypes.room');
+    if (id.startsWith('RE') || id.startsWith('R')) return t('beskeder.compose.recipientTypes.resource');
+    if (id.startsWith('S')) return t('beskeder.compose.recipientTypes.student');
+    if (id.startsWith('T')) return t('beskeder.compose.recipientTypes.teacher');
+    return t('beskeder.compose.recipientTypes.recipient');
   }
 
   // Ctrl+Enter to send
@@ -517,18 +532,18 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
           type="button"
           className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-[background-color] duration-150 hover:bg-accent"
           onClick={handleBack}
-          title="Tilbage til beskeder"
+          title={t('beskeder.compose.backTitle')}
         >
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-base font-semibold text-foreground">Ny besked</h1>
+        <h1 className="text-base font-semibold text-foreground">{t('beskeder.compose.title')}</h1>
       </div>
 
       {/* Card */}
       <div className="rounded-xl border border-border bg-card p-4">
         {/* Recipients field */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Til</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.recipientsLabel')}</label>
           <div className="space-y-2">
             {recipients.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -564,7 +579,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                         className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                         onClick={() => handleRemoveRecipient(r.removePostbackTarget)}
                         disabled={!!removingRecipient}
-                        title={`Fjern ${displayName}`}
+                        title={t('beskeder.compose.removeRecipient', { name: displayName })}
                       >
                         {removingRecipient === r.removePostbackTarget
                           ? <Loader2 size={13} className="animate-spin" />
@@ -596,7 +611,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   onInput={(e) => setRecipientQuery((e.target as HTMLInputElement).value)}
                   onFocus={() => setRecipientPickerOpen(true)}
                   onKeyDown={handleRecipientInputKeyDown}
-                  placeholder="Søg elev eller lærer..."
+                  placeholder={t('beskeder.compose.recipientSearchPlaceholder')}
                   autoComplete="off"
                   spellcheck={false}
                 />
@@ -608,7 +623,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   {recipientDirectoryLoading && (
                     <div className="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground">
                       <Loader2 size={14} className="animate-spin" />
-                      <span>Indlæser modtagere...</span>
+                      <span>{t('beskeder.compose.loadingRecipients')}</span>
                     </div>
                   )}
                   {!recipientDirectoryLoading && recipientDirectoryError && (
@@ -618,12 +633,12 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length < 2 && (
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      Skriv mindst 2 tegn for at søge
+                      {t('beskeder.compose.minCharsHint')}
                     </div>
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length >= 2 && recipientSuggestions.length === 0 && (
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      Ingen resultater
+                      {t('beskeder.compose.noResults')}
                     </div>
                   )}
                   {recipientSuggestions.map((option, index) => (
@@ -681,13 +696,13 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
         {/* Subject field */}
         <div className="mt-3 space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Emne</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.subjectLabel')}</label>
           <input
             type="text"
             className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             value={title}
             onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
-            placeholder="Titel"
+            placeholder={t('beskeder.compose.titlePlaceholder')}
             maxLength={100}
           />
         </div>
@@ -697,7 +712,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
           <WysiwygEditor
             initialBBCode={data.currentBody}
             onBBCodeChange={setBodyBBCode}
-            placeholder="Skriv din besked..."
+            placeholder={t('beskeder.compose.bodyPlaceholder')}
             onSubmit={handleSend}
             syncRef={editorSyncRef}
           />
@@ -724,7 +739,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                   onClick={() => handleRemoveAttachment(file, i)}
                   disabled={removingAttachIndex !== null}
-                  title="Fjern vedhæftning"
+                  title={t('beskeder.compose.removeAttachmentTitle')}
                 >
                   <X size={12} />
                 </button>
@@ -747,17 +762,17 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                 {uploadingFileName ? (
                   <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Loader2 size={14} className="animate-spin" />
-                    <span>Uploader {uploadingFileName}...</span>
+                    <span>{t('beskeder.compose.uploading', { fileName: uploadingFileName })}</span>
                   </span>
                 ) : (
                   <button
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                     onClick={() => fileInputRef.current?.click()}
-                    title="Vedhæft fil"
+                    title={t('beskeder.compose.attachFileTitle')}
                   >
                     <Paperclip size={14} />
-                    <span>Vedhæft fil</span>
+                    <span>{t('beskeder.compose.attachFile')}</span>
                   </button>
                 )}
               </>
@@ -769,17 +784,17 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
               className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-[background-color] duration-150 hover:bg-accent"
               onClick={handleBack}
             >
-              Annuller
+              {t('beskeder.compose.cancel')}
             </button>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-md border-0 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               onClick={handleSend}
               disabled={isBusy}
-              title="Send (Ctrl+Enter)"
+              title={t('beskeder.compose.sendTitle')}
             >
               <Send size={15} />
-              <span>{sending ? 'Sender...' : 'Send'}</span>
+              <span>{sending ? t('beskeder.compose.sending') : t('beskeder.compose.send')}</span>
             </button>
           </div>
         </div>

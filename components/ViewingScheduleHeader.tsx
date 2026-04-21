@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Pin, School, DoorOpen, Box, UsersRound, LayoutGrid, GraduationCap, Users, ChevronDown, Loader2, Mail } from 'lucide-react';
 import { addRecentPerson, getScheduleUrl, isPersonStarred, toggleStarred } from '@/lib/findskema-storage';
@@ -93,6 +94,17 @@ export function ViewingScheduleHeader({
   schoolId,
   entityId,
 }: ViewingScheduleHeaderProps) {
+  const { t } = useTranslation();
+  const entityTypeLabel = ({
+    student: t('personSearch.types.student'),
+    teacher: t('personSearch.types.teacher'),
+    class: t('personSearch.types.class'),
+    room: t('personSearch.types.room'),
+    resource: t('personSearch.types.resource'),
+    hold: t('personSearch.types.hold'),
+    group: t('personSearch.types.group'),
+    holdelement: t('personSearch.types.holdelement'),
+  } as Record<string, string>)[type] ?? type;
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [starred, setStarred] = useState(() => isPersonStarred(entityId));
   const [membersOpen, setMembersOpen] = useState(false);
@@ -125,7 +137,7 @@ export function ViewingScheduleHeader({
   const backUrl = fromFindSkema
     ? `/lectio/${schoolId}/FindSkema.aspx${searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : ''}`
     : `/lectio/${schoolId}/SkemaNy.aspx`;
-  const backText = fromFindSkema ? 'Tilbage til søgning' : 'Tilbage til dit skema';
+  const backText = fromFindSkema ? t('viewingSchedule.backToSearch') : t('viewingSchedule.backToYourSchedule');
 
   const handleToggleStar = () => {
     const newStarred = toggleStarred({
@@ -164,7 +176,7 @@ export function ViewingScheduleHeader({
           membersUrl.searchParams.set('reporttype', 'withpics');
           urls = [membersUrl.href];
         } else {
-          setMembersError('Kunne ikke finde klassen.');
+          setMembersError(t('viewingSchedule.classFetchError'));
           setMembersLoading(false);
           return;
         }
@@ -179,7 +191,7 @@ export function ViewingScheduleHeader({
         error,
         membersFetchUrls,
       });
-      setMembersError('Kunne ikke hente medlemmer lige nu.');
+      setMembersError(t('viewingSchedule.membersFetchError'));
     } finally {
       setMembersLoading(false);
     }
@@ -279,7 +291,7 @@ export function ViewingScheduleHeader({
                 <span className="text-sm text-muted-foreground">{subtitle}</span>
               )}
               <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${config.bgClass} ${config.textClass}`}>
-                {config.label}
+                {entityTypeLabel}
               </span>
             </div>
           </div>
@@ -290,7 +302,7 @@ export function ViewingScheduleHeader({
                 type="button"
                 onClick={handleToggleStar}
                 className="p-2 rounded-lg hover:bg-accent transition-[color,background-color] duration-150"
-                title={starred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
+                title={starred ? t('viewingSchedule.unpinPerson') : t('viewingSchedule.pinPerson')}
               >
                 <Pin
                   className={`size-5 transition-[color,background-color] duration-150 ${
@@ -308,10 +320,10 @@ export function ViewingScheduleHeader({
                 onClick={handleToggleMembers}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent aria-expanded:bg-primary/10 aria-expanded:border-primary/40"
                 aria-expanded={membersOpen}
-                title={isStudentWithClass && !hasSubnavMembers ? 'Vis klassekammerater' : 'Vis medlemmer'}
+                title={isStudentWithClass && !hasSubnavMembers ? t('viewingSchedule.showClassmates') : t('viewingSchedule.showMembers')}
               >
                 <Users className="size-4" />
-                <span>{isStudentWithClass && !hasSubnavMembers ? 'Klassekammerater' : 'Medlemmer'}</span>
+                <span>{isStudentWithClass && !hasSubnavMembers ? t('viewingSchedule.classmatesLabel') : t('viewingSchedule.membersLabel')}</span>
                 <ChevronDown className={`size-4 transition-transform ${membersOpen ? 'rotate-180' : ''}`} />
               </button>
             )}
@@ -327,10 +339,10 @@ export function ViewingScheduleHeader({
               window.location.href = messageHref;
             }}
             className="ml-auto inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-[color,background-color] duration-150 shadow-sm"
-            title={`Send besked til ${firstName}`}
+            title={t('viewingSchedule.sendMessageTitle', { name: firstName })}
           >
             <Mail className="size-4" />
-            <span>Skriv besked</span>
+              <span>{t('viewingSchedule.writeMessage')}</span>
           </button>
         )}
       </div>
@@ -340,7 +352,7 @@ export function ViewingScheduleHeader({
           {membersLoading && (
             <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              <span>Henter medlemmer...</span>
+              <span>{t('viewingSchedule.loadingMembers')}</span>
             </div>
           )}
 
@@ -351,7 +363,7 @@ export function ViewingScheduleHeader({
           )}
 
           {!membersLoading && !membersError && members && members.length === 0 && (
-            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">Ingen medlemmer fundet.</div>
+            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">{t('viewingSchedule.noMembers')}</div>
           )}
 
           {!membersLoading && !membersError && members && members.length > 0 && (

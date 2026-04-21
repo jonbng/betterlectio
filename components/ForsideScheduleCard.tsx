@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { ChevronLeft, ChevronRight, Calendar, ArrowUpRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -128,6 +129,7 @@ const DANISH_DAYS_FULL = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', '
 const DANISH_DAYS_SHORT = ['søn', 'man', 'tir', 'ons', 'tor', 'fre', 'lør'];
 
 export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInjected, showTimeIndicator = true, showTimeLabel = false }: Props) {
+  const { t } = useTranslation();
   const todayISO = new Date().toISOString().split('T')[0];
   const [weekData, setWeekData] = useState<WeekData>(initialWeekData);
   const [weekLoading, setWeekLoading] = useState(false);
@@ -352,7 +354,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
         <Calendar size={32} className="opacity-30" />
-        <span className="text-sm">Kunne ikke hente skema</span>
+        <span className="text-sm">{t('forside.schedule.failedToLoad')}</span>
       </div>
     );
   }
@@ -368,9 +370,9 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
       <div className="shrink-0 px-6 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">Skema</h2>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">{t('forside.schedule.title')}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isToday ? 'I dag' : isCurrentWeek ? dayLabel : weekData.weekLabel.replace(/\s*\(.*/, '') + ' — ' + dayLabel}
+              {isToday ? t('forside.schedule.today') : isCurrentWeek ? dayLabel : weekData.weekLabel.replace(/\s*\(.*/, '') + ' — ' + dayLabel}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -380,16 +382,16 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
                 disabled={weekLoading}
                 className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary transition-[color,background-color] duration-150 hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-50"
                 style={{ background: 'none', border: 'none' }}
-                title="Gå til i dag"
+                title={t('forside.schedule.goToToday')}
               >
                 <span className="inline-block size-1.5 rounded-full bg-primary" />
-                I dag
+                {t('forside.schedule.today')}
               </button>
             )}
             <a
               href={`/lectio/${schoolId}/SkemaNy.aspx`}
               className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
-              title="Se fuld skema"
+              title={t('forside.schedule.viewFull')}
             >
               <ArrowUpRight size={18} />
             </a>
@@ -471,7 +473,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
               )}
               <span className="font-medium text-foreground">{note.title}</span>
               {!note.time && (
-                <span className="ml-1.5 text-xs text-muted-foreground">Hele dagen</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">{t('forside.schedule.allDay')}</span>
               )}
             </a>
           ))}

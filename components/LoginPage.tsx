@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, ArrowRight, X } from "lucide-react";
 import { getLastSchool, saveLastSchool } from "../lib/school-storage";
+import { useTranslation } from "@/lib/i18n";
 
 export interface School {
   id: string;
@@ -13,6 +14,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ schools }: LoginPageProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [lastSchool, setLastSchool] = useState(getLastSchool());
@@ -132,7 +134,7 @@ export function LoginPage({ schools }: LoginPageProps) {
             className="h-12 mx-auto mb-4"
           />
           <h1 className="text-2xl font-semibold text-gray-800">
-            Vælg skole for at fortsætte
+            {t('loginPage.selectSchool')}
           </h1>
         </div>
       </header>
@@ -149,7 +151,7 @@ export function LoginPage({ schools }: LoginPageProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[oklch(0.54_0.2_265)] font-medium mb-1">
-                    Fortsæt til
+                    {t('loginPage.continueTo')}
                   </p>
                   <p className="text-xl font-semibold text-gray-900">
                     {lastSchool.name}
@@ -171,7 +173,7 @@ export function LoginPage({ schools }: LoginPageProps) {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-3 bg-[oklch(0.965_0.003_265)] text-gray-500">
-                Eller vælg en anden skole
+                {t('loginPage.orSelectOther')}
               </span>
             </div>
           </div>
@@ -188,7 +190,7 @@ export function LoginPage({ schools }: LoginPageProps) {
             value={query}
             onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
             onKeyDown={handleKeyDown}
-            placeholder="Søg efter skole..."
+            placeholder={t('loginPage.searchPlaceholder')}
             className="w-full h-14 pl-12 pr-12 rounded-lg border-2 border-gray-200 bg-white text-base focus:outline-none focus:border-[oklch(0.54_0.2_265)] focus:ring-2 focus:ring-[oklch(0.54_0.2_265)]/20 transition-all placeholder:text-gray-400"
           />
           {query && (
@@ -204,8 +206,9 @@ export function LoginPage({ schools }: LoginPageProps) {
         {/* Results count */}
         {query && (
           <p className="text-sm text-gray-500 mb-3">
-            {filteredSchools.length}{" "}
-            {filteredSchools.length === 1 ? "skole" : "skoler"} fundet
+            {filteredSchools.length === 1
+              ? t('loginPage.schoolFound', { n: String(filteredSchools.length) })
+              : t('loginPage.schoolsFound', { n: String(filteredSchools.length) })}
           </p>
         )}
 
@@ -232,7 +235,7 @@ export function LoginPage({ schools }: LoginPageProps) {
             ))
           ) : (
             <div className="px-4 py-8 text-center text-gray-500">
-              Ingen skoler fundet
+              {t('loginPage.noSchoolsFound')}
             </div>
           )}
         </div>

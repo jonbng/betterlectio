@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
 import {
   ArrowLeft, Paperclip, Send, Flag, Trash2,
-  MoreHorizontal, Reply, Download, Users, X, Loader2,
+  MoreHorizontal, Reply, Download, Users, X, Loader2, RefreshCw,
   File, FileText, FileImage, FileSpreadsheet, FileArchive, FileCode, FileAudio, FileVideo,
 } from 'lucide-react';
 import { WysiwygEditor } from '@/components/WysiwygEditor';
@@ -33,6 +33,7 @@ import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helper
 import { fetchUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 import { cn } from '@/lib/utils';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
+import { useTranslation } from '@/lib/i18n';
 
 /** Extract short display name: "Jonathan Arthur Hojer Bangert(k) (1x 17)" → "Jonathan Bangert" */
 function shortName(fullName: string): string {
@@ -196,6 +197,7 @@ const ATTACHMENT_ICON_CLASS: Record<AttachmentKind, string> = {
 // ── PDF Preview (fetches blob to bypass Content-Disposition: attachment) ─
 
 function PdfPreview({ url, title }: { url: string; title: string }) {
+  const { t } = useTranslation();
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
@@ -222,7 +224,7 @@ function PdfPreview({ url, title }: { url: string; title: string }) {
     return (
       <div className="flex flex-col items-center gap-3 text-center py-8">
         <FileText size={48} className="text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">Kunne ikke indlæse PDF</p>
+        <p className="text-sm text-muted-foreground">{t('beskeder.thread.pdfLoadError')}</p>
         <a
           href={url}
           target="_blank"
@@ -230,7 +232,7 @@ function PdfPreview({ url, title }: { url: string; title: string }) {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-[color,background-color] duration-150"
         >
           <Download size={14} />
-          Download i stedet
+          {t('beskeder.thread.downloadInstead')}
         </a>
       </div>
     );
@@ -349,6 +351,7 @@ interface MessageItemProps {
 }
 
 function MessageItem({ message, schoolId, threadSubject, index, onImageClick, studentsMap }: MessageItemProps) {
+  const { t } = useTranslation();
   const displaySenderName = getDisplayNameFromLookupId(
     studentsMap,
     message.senderContextCardId,
@@ -391,16 +394,16 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
           {personScheduleUrl ? (
             <button
               type="button"
-              className="truncate text-left text-lg font-semibold tracking-tight text-foreground transition-[color] duration-150 hover:text-primary"
+              className="truncate text-left text-xl font-semibold tracking-tight text-foreground transition-[color] duration-150 hover:text-primary"
               onClick={() => {
                 window.location.href = personScheduleUrl;
               }}
-              title={`Vis ${shortName(displaySenderName)}s skema`}
+              title={t('beskeder.thread.viewSchedule', { name: shortName(displaySenderName) })}
             >
               {shortName(displaySenderName)}
             </button>
           ) : (
-            <span className="truncate text-lg font-semibold tracking-tight text-foreground">
+            <span className="truncate text-xl font-semibold tracking-tight text-foreground">
               {shortName(displaySenderName)}
             </span>
           )}
@@ -408,11 +411,11 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
         </div>
 
         {showTitle && (
-          <div className="mb-1 mt-1 text-lg font-medium text-muted-foreground">{message.title}</div>
+          <div className="mb-1 mt-1 text-xl font-medium text-muted-foreground">{message.title}</div>
         )}
 
         <div
-          className="mt-2 wrap-anywhere text-lg leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:decoration-2"
+          className="mt-2 wrap-anywhere text-xl leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:decoration-2"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(strippedContent) }}
         />
 
@@ -470,7 +473,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{att.name}</span>
                     <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {att.sizeLabel || (ext ? ext.toUpperCase() : 'Fil')}
+                      {att.sizeLabel || (ext ? ext.toUpperCase() : t('beskeder.thread.fileLabel'))}
                     </span>
                   </span>
                   <Download size={14} className="shrink-0 text-muted-foreground/80" />
@@ -518,13 +521,14 @@ interface BeskederThreadViewProps {
   schoolId: string;
 }
 
-function formatSubmitErrorForRetry(err: SubmitError): string {
-  if (err.kind === 'session_expired') return 'Session udløbet. Log ind igen.';
-  if (err.kind === 'timeout') return 'Kunne ikke bekræfte om svaret blev sendt (timeout). Opdatér tråden før du prøver igen.';
-  return 'Kunne ikke bekræfte om svaret blev sendt. Opdatér tråden før du prøver igen for at undgå dubletter.';
+function formatSubmitErrorForRetry(err: SubmitError, t: ReturnType<typeof useTranslation>['t']): string {
+  if (err.kind === 'session_expired') return t('beskeder.errors.sessionExpired');
+  if (err.kind === 'timeout') return t('beskeder.errors.replyTimeout');
+  return t('beskeder.errors.replyFailed');
 }
 
 export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ThreadMessage[]>(data.messages);
   const [recipients, setRecipients] = useState(data.recipients);
   const [replyBody, setReplyBody] = useState('');
@@ -555,10 +559,12 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       currentTitle: rf.currentTitle,
     };
   });
+  const [refreshing, setRefreshing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notifyRef = useRef<HTMLDivElement>(null);
   const pollTimeoutRef = useRef<number | null>(null);
+  const refreshInFlightRef = useRef(false);
 
   // Scroll to bottom on mount
   useEffect(() => {
@@ -588,6 +594,47 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     };
   }, [schoolId]);
 
+  const performRefresh = useCallback(async (opts?: { manual?: boolean }) => {
+    if (refreshInFlightRef.current) {
+      console.debug('[BetterLectio] refresh skipped — already in flight', { manual: !!opts?.manual });
+      return;
+    }
+    refreshInFlightRef.current = true;
+    if (opts?.manual) setRefreshing(true);
+    const startedAt = performance.now();
+    console.debug('[BetterLectio] refresh start', { manual: !!opts?.manual, currentMessages: messages.length });
+    try {
+      const result = await refreshThreadViaIframe(formState, data.threadSubject);
+      const ms = Math.round(performance.now() - startedAt);
+      if (result.success) {
+        const before = messages.length;
+        const after = result.data.messages.length;
+        console.debug('[BetterLectio] refresh ok', {
+          ms,
+          before,
+          after,
+          delta: after - before,
+        });
+        setFormState(result.formState);
+        setMessages(result.data.messages);
+        setRecipients(result.data.recipients);
+        if (result.data.replyFormTargets) {
+          setReplyTargets(result.data.replyFormTargets);
+          setReplyTitle((current) =>
+            current.trim() ? current : result.data.replyFormTargets?.currentTitle || current,
+          );
+        }
+      } else {
+        console.warn('[BetterLectio] refresh failed', { ms, error: result.error });
+      }
+    } catch (err) {
+      console.error('[BetterLectio] refresh threw', err);
+    } finally {
+      refreshInFlightRef.current = false;
+      if (opts?.manual) setRefreshing(false);
+    }
+  }, [formState, messages.length]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -598,44 +645,42 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       }
     };
 
+    const isBusyComposing = () =>
+      sending || !!uploadingFileName || removingIndex !== null || !!replyBody.trim() || attachedFiles.length > 0;
+
     const scheduleNextPoll = () => {
       if (cancelled) return;
-      const nextDelayMs = 30000 + Math.floor(Math.random() * 30000);
-      pollTimeoutRef.current = window.setTimeout(() => {
+      pollTimeoutRef.current = window.setTimeout(async () => {
         if (cancelled) return;
-        if (document.visibilityState !== 'visible') {
+        if (document.visibilityState !== 'visible' || isBusyComposing()) {
           scheduleNextPoll();
           return;
         }
-        if (sending || uploadingFileName || removingIndex !== null || !!replyBody.trim() || attachedFiles.length > 0) {
-          scheduleNextPoll();
-          return;
-        }
-
-        refreshThreadViaIframe(formState).then((result) => {
-          if (cancelled) return;
-          if (result.success) {
-            setFormState(result.formState);
-            setMessages(result.data.messages);
-            setRecipients(result.data.recipients);
-            if (result.data.replyFormTargets) {
-              setReplyTargets(result.data.replyFormTargets);
-              setReplyTitle((current) =>
-                current.trim() ? current : result.data.replyFormTargets?.currentTitle || current,
-              );
-            }
-          }
-          scheduleNextPoll();
-        });
-      }, nextDelayMs);
+        await performRefresh();
+        if (!cancelled) scheduleNextPoll();
+      }, 7500);
     };
+
+    const handleVisibility = () => {
+      if (cancelled) return;
+      if (document.visibilityState !== 'visible' || isBusyComposing()) return;
+      clearPollTimeout();
+      void performRefresh().finally(() => {
+        if (!cancelled) scheduleNextPoll();
+      });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
 
     scheduleNextPoll();
     return () => {
       cancelled = true;
       clearPollTimeout();
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
     };
-  }, [formState, sending, uploadingFileName, removingIndex, replyBody, attachedFiles.length]);
+  }, [performRefresh, sending, uploadingFileName, removingIndex, replyBody, attachedFiles.length]);
 
   // Close lightbox on Escape
   useEffect(() => {
@@ -675,9 +720,9 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       .catch((err) => {
         console.error('[BetterLectio] File upload failed:', err);
         setUploadingFileName(null);
-        setError('Filupload fejlede. Prøv igen.');
+        setError(t('beskeder.errors.fileUpload'));
       });
-  }, [replyTargets, schoolId, formState]);
+  }, [replyTargets, schoolId, formState, t]);
 
   const handleRemoveFile = useCallback((file: AttachedFile, index: number) => {
     if (removingIndex !== null) return;
@@ -690,11 +735,11 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
           setFormState(result.formState);
           setAttachedFiles(result.data.attachments);
         } else {
-          setError('Kunne ikke fjerne vedhæftning.');
+          setError(t('beskeder.errors.removeAttachment'));
         }
         setRemovingIndex(null);
       });
-  }, [formState, removingIndex]);
+  }, [formState, removingIndex, t]);
 
   const handleSend = useCallback(() => {
     if (!replyTargets || !replyBody.trim() || sending) return;
@@ -732,10 +777,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         }, 100);
       } else {
         setSending(false);
-        setError(formatSubmitErrorForRetry(result.error));
+        setError(formatSubmitErrorForRetry(result.error, t));
       }
     });
-  }, [replyTargets, replyBody, replyTitle, sending, formState]);
+  }, [replyTargets, replyBody, replyTitle, sending, formState, t]);
 
   const handleBack = () => {
     // Navigate back to message list
@@ -766,7 +811,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
           type="button"
           className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.95]"
           onClick={handleBack}
-          title="Tilbage til beskeder"
+          title={t('beskeder.thread.backTitle')}
         >
           <ArrowLeft size={18} />
         </button>
@@ -785,7 +830,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                     onClick={() => {
                       window.location.href = recipient.scheduleUrl!;
                     }}
-                    title={`Vis ${recipient.shortLabel}s skema`}
+                    title={t('beskeder.thread.viewSchedule', { name: recipient.shortLabel })}
                   >
                     {recipient.shortLabel}
                     {index < recipientEntries.length - 1 ? ',' : ''}
@@ -801,10 +846,20 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
           </div>
         </div>
 
-        <div>
+        <div className="inline-flex items-center gap-3">
           <span className="text-sm text-muted-foreground">
-            {messages.length} {messages.length === 1 ? 'besked' : 'beskeder'}
+            {messages.length} {messages.length === 1 ? t('beskeder.thread.message') : t('beskeder.thread.messages')}
           </span>
+          <button
+            type="button"
+            className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => { void performRefresh({ manual: true }); }}
+            disabled={refreshing}
+            title={t('beskeder.thread.refreshTitle')}
+            aria-label={t('beskeder.thread.refreshTitle')}
+          >
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          </button>
         </div>
       </div>
 
@@ -830,12 +885,12 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_-4px_16px_oklch(0_0_0/0.06)]">
           <div className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <Reply size={13} className="text-muted-foreground/50" />
-            <span>Svar</span>
+            <span>{t('beskeder.thread.replyLabel')}</span>
           </div>
 
           <WysiwygEditor
             key={editorKey}
-            placeholder="Skriv dit svar..."
+            placeholder={t('beskeder.thread.replyPlaceholder')}
             onBBCodeChange={(bbcode) => setReplyBody(bbcode)}
             onSubmit={handleSend}
             className="border-0 rounded-none shadow-none focus-within:ring-0 focus-within:border-0"
@@ -861,7 +916,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                     className="inline-flex size-5 items-center justify-center rounded border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                     onClick={() => handleRemoveFile(file, i)}
                     disabled={removingIndex !== null}
-                    title="Fjern vedhæftning"
+                    title={t('beskeder.thread.removeAttachmentTitle')}
                   >
                     <X size={12} />
                   </button>
@@ -883,17 +938,17 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                   {uploadingFileName ? (
                     <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Loader2 size={14} className="animate-spin" />
-                      <span>Uploader {uploadingFileName}...</span>
+                      <span>{t('beskeder.thread.uploading', { fileName: uploadingFileName })}</span>
                     </span>
                   ) : (
                     <button
                       type="button"
                       className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                       onClick={() => fileInputRef.current?.click()}
-                      title="Vedhæft fil"
+                      title={t('beskeder.thread.attachFile')}
                     >
                       <Paperclip size={14} />
-                      <span>Vedhæft fil</span>
+                      <span>{t('beskeder.thread.attachFile')}</span>
                     </button>
                   )}
                 </>
@@ -905,7 +960,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
             </div>
             <div className="ml-auto inline-flex items-center gap-2">
               <span className="text-sm text-muted-foreground/60">
-                Ctrl+Enter for at sende
+                {t('beskeder.thread.keyboardHint')}
               </span>
               <button
                 type="button"
@@ -914,7 +969,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                 disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null}
               >
                 <Send size={15} />
-                <span>{sending ? 'Sender...' : 'Send'}</span>
+                <span>{sending ? t('beskeder.thread.sending') : t('beskeder.thread.send')}</span>
               </button>
             </div>
           </div>
@@ -975,7 +1030,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                 type="button"
                 className="inline-flex size-8 items-center justify-center rounded-lg bg-transparent text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent/60 hover:text-foreground"
                 onClick={() => setLightboxItem(null)}
-                title="Luk"
+                title={t('beskeder.thread.close')}
               >
                 <X size={16} />
               </button>

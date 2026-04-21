@@ -3,6 +3,7 @@ import { getHoldHue } from '@/lib/hold-mapping';
 import { type ScheduleBlock, getTodaySchedule, getCachedSchedule } from '@/lib/schedule-cache';
 import { getSettings } from '@/lib/settings-storage';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 // ── State machine ──────────────────────────────────────────────────────
 
@@ -90,40 +91,7 @@ function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, nowSecon
 }
 
 // ── Friendly "done" messages ─────────────────────────────────────────────
-
-const weekendMessages = [
-  { text: 'God weekend', emoji: '🎉' },
-  { text: 'God weekend', emoji: '☀️' },
-  { text: 'God weekend', emoji: '🥳' },
-  { text: 'Nyd weekenden', emoji: '✌️' },
-  { text: 'Nyd weekenden', emoji: '🎊' },
-  { text: 'Slap af — det er weekend', emoji: '😌' },
-];
-
-const afterSchoolMessages = [
-  { text: 'Fri for i dag', emoji: '✅' },
-  { text: 'Færdig for i dag', emoji: '🙌' },
-  { text: 'Du klarede det', emoji: '💪' },
-  { text: 'Velfortjent fri', emoji: '⭐' },
-  { text: 'Dagen er overstået', emoji: '🎒' },
-  { text: 'Fri resten af dagen', emoji: '😊' },
-];
-
-const noClassesMessages = [
-  { text: 'Ingen timer i dag', emoji: '😎' },
-  { text: 'Fri i dag', emoji: '🌟' },
-  { text: 'Ingen skema i dag', emoji: '🛋️' },
-  { text: 'Dag uden timer', emoji: '✨' },
-];
-
-const cancelledMessages = [
-  { text: 'Aflyst modul', emoji: '🎉' },
-  { text: 'Timen er aflyst', emoji: '🥳' },
-  { text: 'Fritime unlocked', emoji: '🔓' },
-  { text: 'Surprise fritime', emoji: '🎁' },
-  { text: 'Bonus frikvarter', emoji: '🙌' },
-  { text: 'Aflyst — nyd det', emoji: '😎' },
-];
+// Message arrays are built inside the component to support translations.
 
 /** Pick a random message that stays stable for the current page session */
 function pickMessage(messages: { text: string; emoji: string }[]): { text: string; emoji: string } {
@@ -138,18 +106,6 @@ function pickMessage(messages: { text: string; emoji: string }[]): { text: strin
     store[key] = Math.floor(Math.random() * messages.length);
   }
   return messages[store[key]];
-}
-
-function getDoneMessage(): { text: string; emoji: string } {
-  const day = new Date().getDay(); // 0=Sun, 5=Fri, 6=Sat
-  if (day === 5 || day === 6 || day === 0) return pickMessage(weekendMessages);
-  return pickMessage(afterSchoolMessages);
-}
-
-function getNoClassesMessage(): { text: string; emoji: string } {
-  const day = new Date().getDay();
-  if (day === 6 || day === 0) return pickMessage(weekendMessages);
-  return pickMessage(noClassesMessages);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -170,11 +126,58 @@ function fmtTime(minutes: number): string {
 // ── Component ───────────────────────────────────────────────────────────
 
 export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
+  const { t } = useTranslation();
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(() => getCachedSchedule(schoolId) || []);
   const [state, setState] = useState<CountdownState>({ type: 'loading' });
   const [loaded, setLoaded] = useState(false);
   const fetchedRef = useRef(false);
   const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? true;
+
+  const weekendMessages = [
+    { text: t('scheduleCountdown.weekend.goodWeekend'), emoji: '🎉' },
+    { text: t('scheduleCountdown.weekend.goodWeekend'), emoji: '☀️' },
+    { text: t('scheduleCountdown.weekend.goodWeekend'), emoji: '🥳' },
+    { text: t('scheduleCountdown.weekend.enjoyWeekend'), emoji: '✌️' },
+    { text: t('scheduleCountdown.weekend.enjoyWeekend'), emoji: '🎊' },
+    { text: t('scheduleCountdown.weekend.relaxItsWeekend'), emoji: '😌' },
+  ];
+
+  const afterSchoolMessages = [
+    { text: t('scheduleCountdown.afterSchool.freeToday'), emoji: '✅' },
+    { text: t('scheduleCountdown.afterSchool.doneToday'), emoji: '🙌' },
+    { text: t('scheduleCountdown.afterSchool.youMadeIt'), emoji: '💪' },
+    { text: t('scheduleCountdown.afterSchool.wellEarned'), emoji: '⭐' },
+    { text: t('scheduleCountdown.afterSchool.dayOver'), emoji: '🎒' },
+    { text: t('scheduleCountdown.afterSchool.freeRestOfDay'), emoji: '😊' },
+  ];
+
+  const noClassesMessages = [
+    { text: t('scheduleCountdown.noClasses.noClassesToday'), emoji: '😎' },
+    { text: t('scheduleCountdown.noClasses.freeToday'), emoji: '🌟' },
+    { text: t('scheduleCountdown.noClasses.noScheduleToday'), emoji: '🛋️' },
+    { text: t('scheduleCountdown.noClasses.dayWithoutClasses'), emoji: '✨' },
+  ];
+
+  const cancelledMessages = [
+    { text: t('scheduleCountdown.cancelled.cancelledModule'), emoji: '🎉' },
+    { text: t('scheduleCountdown.cancelled.classCancelled'), emoji: '🥳' },
+    { text: t('scheduleCountdown.cancelled.freetimeUnlocked'), emoji: '🔓' },
+    { text: t('scheduleCountdown.cancelled.surpriseFreetime'), emoji: '🎁' },
+    { text: t('scheduleCountdown.cancelled.bonusBreak'), emoji: '🙌' },
+    { text: t('scheduleCountdown.cancelled.cancelledEnjoyIt'), emoji: '😎' },
+  ];
+
+  function getDoneMessage(): { text: string; emoji: string } {
+    const day = new Date().getDay();
+    if (day === 5 || day === 6 || day === 0) return pickMessage(weekendMessages);
+    return pickMessage(afterSchoolMessages);
+  }
+
+  function getNoClassesMessage(): { text: string; emoji: string } {
+    const day = new Date().getDay();
+    if (day === 6 || day === 0) return pickMessage(weekendMessages);
+    return pickMessage(noClassesMessages);
+  }
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -209,8 +212,8 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     return (
       <div className={cn(baseCd, "il-cd-done")}>
         <div className={baseTop}>
-          <span className="il-cd-done-text text-sm font-medium">{msg.text}</span>
-          <span className="shrink-0 text-sm">{msg.emoji}</span>
+          <span className="il-cd-done-text text-base font-medium">{msg.text}</span>
+          <span className="shrink-0 text-base">{msg.emoji}</span>
         </div>
         <div className={baseBar}><div className={cn(baseFill, "il-cd-done-fill")} style={{ width: '100%' }} /></div>
       </div>
@@ -227,8 +230,8 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     return (
       <div className={cn(baseCd, "il-cd-done")}>
         <div className={baseTop}>
-          <span className="il-cd-done-text text-sm font-medium">{msg.text}</span>
-          <span className="shrink-0 text-sm">{msg.emoji}</span>
+          <span className="il-cd-done-text text-base font-medium">{msg.text}</span>
+          <span className="shrink-0 text-base">{msg.emoji}</span>
         </div>
         <div className={baseBar}><div className={cn(baseFill, "il-cd-done-fill")} style={{ width: '100%' }} /></div>
       </div>
@@ -249,17 +252,17 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
         style={{ '--cd-hue': cancelledHue, opacity: subjectColorsEnabled ? 0.38 : undefined } as React.CSSProperties}
       >
         <div className={baseTop}>
-          <span className="il-cd-cancelled-text text-sm font-medium">{msg.text}</span>
-          <span className="shrink-0 text-sm">{msg.emoji}</span>
+          <span className="il-cd-cancelled-text text-base font-medium">{msg.text}</span>
+          <span className="shrink-0 text-base">{msg.emoji}</span>
         </div>
-        <div className="text-xs text-muted-foreground">
-          <s className="decoration-destructive">{state.label}</s> — fri i {fmt(state.remaining)}
+        <div className="text-sm text-muted-foreground">
+          <s className="decoration-destructive">{state.label}</s> — {t('scheduleCountdown.freeFor', { time: fmt(state.remaining) })}
         </div>
         {state.nextLabel && state.nextStart != null && (
-          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-border pt-1.5 text-xs">
+          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-border pt-1.5 text-sm">
             <span className="size-1.5 shrink-0 rounded-full il-cd-dot" style={{ '--cd-hue': nextHue } as React.CSSProperties} />
             <span className="min-w-0 flex-1 truncate font-semibold il-cd-subject" style={{ '--cd-hue': nextHue } as React.CSSProperties}>{state.nextLabel}</span>
-            <span className="shrink-0 tabular-nums text-muted-foreground">kl. {fmtTime(state.nextStart)}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">{t('scheduleCountdown.startingAt', { time: fmtTime(state.nextStart) })}</span>
           </div>
         )}
       </div>
@@ -270,10 +273,10 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     return (
       <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
         <div className={baseTop}>
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight il-cd-subject">{state.label}</span>
-          <span className="shrink-0 text-base font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
+          <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject">{state.label}</span>
+          <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
         </div>
-        <div className="text-xs text-muted-foreground">kl. {fmtTime(activeBlocks[0]?.start ?? 0)}</div>
+        <div className="text-sm text-muted-foreground">{t('scheduleCountdown.startingAt', { time: fmtTime(activeBlocks[0]?.start ?? 0) })}</div>
       </div>
     );
   }
@@ -283,12 +286,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     return (
       <div className={cn(baseCd, "border-dashed")} style={{ '--cd-hue': hue } as React.CSSProperties}>
         <div className={baseTop}>
-          <span className="text-sm font-semibold text-muted-foreground">Pause</span>
-          <span className="shrink-0 text-base font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
+          <span className="text-base font-semibold text-muted-foreground">{t('scheduleCountdown.pause')}</span>
+          <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           <span className="il-cd-subject font-semibold">{state.label}</span>
-          {' '}kl. {fmtTime(nextStart)}
+          {' '}{t('scheduleCountdown.startingAt', { time: fmtTime(nextStart) })}
         </div>
       </div>
     );
@@ -305,13 +308,13 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   return (
     <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
       <div className={baseTop}>
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight il-cd-subject">{state.label}</span>
-        <span className="shrink-0 text-base font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>
+        <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject">{state.label}</span>
+        <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>
       </div>
       <div className={baseBar}>
         <div className={cn(baseFill, "il-cd-bar")} style={{ width: `${(progress * 100).toFixed(1)}%` }} />
       </div>
-      <div className="text-xs text-muted-foreground">slutter kl. {fmtTime(endTime)}</div>
+      <div className="text-sm text-muted-foreground">{t('scheduleCountdown.endsAt', { time: fmtTime(endTime) })}</div>
     </div>
   );
 }

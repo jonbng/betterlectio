@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
@@ -175,6 +176,7 @@ interface Props {
 }
 
 export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }: Props) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<ForsideOpgave[]>(initialEntries);
 
   // Background-fetch missing assignments and merge them in (respecting ignored list)
@@ -265,7 +267,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
         href={opgaverPageUrl}
         className="flex items-center gap-2 border-b border-border px-3.5 py-[0.6875rem] no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
       >
-        <span className="text-[1.0625rem] font-[650] tracking-[-0.01em] text-foreground">Opgaver</span>
+        <span className="text-[1.0625rem] font-[650] tracking-[-0.01em] text-foreground">{t('forside.opgaverCard.title')}</span>
         <span className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold leading-none text-primary-foreground">{entries.length}</span>
         <ArrowUpRight size={14} className="ml-auto text-muted-foreground opacity-40 transition-[opacity,transform] hover:opacity-80 group-hover:translate-x-px group-hover:-translate-y-px" />
       </a>
@@ -327,7 +329,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
                 </span>
                 {opgave.isMissing && (
                   <button
-                    title="Skjul"
+                    title={t('forside.opgaverCard.hide')}
                     className="inline-flex size-6 items-center justify-center rounded-md opacity-40 transition-opacity hover:opacity-100"
                     style={{ background: 'none', border: 'none', padding: 0 }}
                     onClick={(e) => dismissMissing(e as unknown as Event, opgave)}

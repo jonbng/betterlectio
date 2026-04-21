@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { FileText, BookOpen, Download, ArrowUpRight, Check } from 'lucide-react';
 import type { Tables } from '@/database.types';
 import { getLoggedInUserId } from '@/lib/profile-cache';
@@ -447,6 +448,7 @@ function getHomeworkItemsPayload(entry: LektierEntry) {
 }
 
 export function LektierPage({ entries }: LektierPageProps) {
+  const { t } = useTranslation();
   const days = groupByDay(entries);
   const totalFiles = entries.reduce((sum, e) =>
     sum + e.homeworkItems.filter(i => i.fileUrl).length, 0);
@@ -647,8 +649,8 @@ export function LektierPage({ entries }: LektierPageProps) {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-6 border-b border-border pb-5 mb-7">
         <div>
-          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Lektier</h1>
-          <p className="mt-1 text-base text-muted-foreground">De næste 14 dage</p>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('lektierPage.title')}</h1>
+          <p className="mt-1 text-base text-muted-foreground">{t('lektierPage.next14Days')}</p>
         </div>
         <div className="flex items-center gap-7">
           {/* Progress ring */}
@@ -679,18 +681,18 @@ export function LektierPage({ entries }: LektierPageProps) {
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-foreground">{doneCount}/{totalCount}</span>
-                <span className="text-xs text-muted-foreground">færdige</span>
+                <span className="text-xs text-muted-foreground">{t('lektierPage.done')}</span>
               </div>
             </div>
           )}
           <div className="flex min-w-20 flex-col px-3 py-2 text-center">
             <span className="text-4xl font-[800] text-foreground">{entries.length}</span>
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">moduler</span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">{t('lektierPage.modules')}</span>
           </div>
           {totalFiles > 0 && (
             <div className="flex min-w-20 flex-col px-3 py-2 text-center">
               <span className="text-4xl font-[800] text-foreground">{totalFiles}</span>
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">filer</span>
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">{t('lektierPage.files')}</span>
             </div>
           )}
         </div>
@@ -700,8 +702,8 @@ export function LektierPage({ entries }: LektierPageProps) {
       {days.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
           <BookOpen className="mb-3 size-7 text-muted-foreground" />
-          <p className="text-base font-semibold text-foreground">Ingen lektier</p>
-          <p className="text-sm text-muted-foreground">Du har ingen lektier de næste 14 dage</p>
+          <p className="text-base font-semibold text-foreground">{t('lektierPage.noHomework')}</p>
+          <p className="text-sm text-muted-foreground">{t('lektierPage.noHomeworkMessage')}</p>
         </div>
       ) : (
         <div className="flex flex-col">
@@ -769,7 +771,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                           <button
                             type="button"
                             onClick={() => toggleDone(entry)}
-                            aria-label={isDone ? 'Markér som ikke færdig' : 'Markér som færdig'}
+                            aria-label={isDone ? t('lektierPage.markNotDone') : t('lektierPage.markDone')}
                             className={cn(
                               "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-[border-color,background-color,transform] duration-150 ease-out active:scale-[0.9]",
                               isDone
@@ -810,7 +812,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                               {isDone && (
                                 <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[oklch(0.95_0.03_145)] px-2 py-0.5 text-xs font-medium text-[oklch(0.45_0.12_145)] dark:bg-[oklch(0.25_0.04_145)] dark:text-[oklch(0.65_0.1_145)]">
                                   <Check size={10} strokeWidth={3} />
-                                  Færdig
+                                  {t('lektierPage.done')}
                                 </span>
                               )}
                             </span>

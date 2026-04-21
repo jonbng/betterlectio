@@ -34,7 +34,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/OpgaverPage.tsx` - Single chronological timeline of all assignments grouped by week, auto-scrolls to current week, compact rows with status indicators (missing/waiting/completed), fravær badges, hold pills, grade badges, ignore-missing toggle on hover, combined elevtimer per week header
 - `components/OpgaveDetailSheet.tsx` - Assignment detail side sheet with submission history, comment/file upload, and group-member names/avatars that prefer Supabase student data
 - `components/BeskederThreadView.tsx` - Thread view with sender names/avatars preferring Supabase student data, WYSIWYG reply, no-reload reply/attach
-- `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor; student recipients prefer Supabase names/avatars for display while keeping Lectio names for postbacks
+- `components/BeskederCompose.tsx` - Card-based compose with custom recipient directory picker (avatars + keyboard navigation), recipient pills, and WYSIWYG editor; student recipients prefer Supabase names/avatars for display while keeping Lectio names for postbacks. Recipient directory loads from Lectio's own compose caches (`bcteacher/bcstudent/bchold/bcgroup` via `lib/beskeder-recipients-cache.ts`) — AvanceretSkema IDs are not accepted by the recipient form. Every compose postback (add/remove recipient, attach, send) re-injects the `RepliesNotAllowedChkBox` state because ASP.NET checkboxes aren't hidden fields and `parseFormTokens` would otherwise drop it, silently resetting "Skal ikke kunne besvares" on every postback.
 - `components/WysiwygEditor.tsx` - contentEditable editor converting BBCode <-> rich HTML
 - `components/BBCodeToolbar.tsx` - Formatting toolbar (bold, italic, underline, link)
 - `components/ActivityClassModal.tsx` - Activity detail modal from skema/forside links, now rendering lektier, presentation content, øvrigt indhold, and related links in the side sheet
@@ -46,10 +46,12 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `components/ForsideDashboard.tsx` - Redesigned forside dashboard: 4 cards (aktuel info, lektier, opgaver, beskeder) parsed from native DOM, 2-col grid layout with priority indicators, hold colors, urgency bars, relative times, and Supabase-backed student names/avatars in message previews
 - `components/ForsideOpgaverCard.tsx` - Forside opgaver card with urgency design (parser reused by ForsideDashboard)
 - `components/KaraktererPage.tsx` - Grade report redesign: subject cards with big color-coded grades, teacher notes inline, summary bar, collapsible diploma/protocol/remarks sections, DOM parser
+- `components/ModulregnskaberPage.tsx` - Fully custom page (no native equivalent) showing afholdt/planlagt moduler across every hold the student is on. Mounted on `forside.aspx?bl=modulregnskaber` as a safe host URL (forside always loads cleanly). Fetches hold list from `studieplan.aspx`, then fans out to `subnav/modulregnskab.aspx?holdelementid=<id>` for each via `lib/modulregnskab-fetch.ts`. Summary stats + per-hold card grid with color pill (hold-mapping hue), progress bar, afvigelse pill, and expandable lærer breakdown.
 - `components/DesignPlayground.tsx` - Design system playground from Settings
 - `components/settings/HoldMappingEditor.tsx` - Canonical lesson-key editor for subject names/colors (e.g. `1x MA`/`L2d MA`/`2zq MA`/`S2x MA`/`IB1 MA` -> `ma`)
 
 ### Libraries
+- `lib/modulregnskab-fetch.ts` - Parses `subnav/modulregnskab.aspx?holdelementid=<id>` into `{holdRow, breakdown}`, fetches student's hold list from `studieplan.aspx`, and `fetchAllModulregnskaber(schoolId)` fans out to all hold in parallel. School-scoped localStorage caches (hold list 6h, modulregnskab 10min). Distinguishes `hold` vs `uden-kreditering` vs `teacher` rows via the `IndentedBlock` wrapper.
 - `lib/beskeder-thread-parser.ts` - Thread DOM parser, state detection, signature stripping (parsers accept optional `doc: Document`)
 - `lib/iframe-post.ts` - Hidden iframe POST for no-reload ASP.NET postbacks, token extraction, session expiry
 - `lib/beskeder-submit.ts` - No-reload message operations (flag, read, delete, folder, search, reply, send, recipients, attach) with serialized mutex
@@ -138,6 +140,23 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 
 **Homework completion sync:** Lektier completion now persists per student in Supabase via `student_homework`, keyed from Lectio activity `entry_id`/`absid`. The extension still renders the same checkbox UI, but completion is now synced cross-device with optimistic local state and RPC writes through `upsert_student_homework_status(...)`. Schema/RLS lives in `supabase/migrations/20260324_add_homework_completion_sync.sql` plus the FK index migration `supabase/migrations/20260324_add_student_homework_homework_idx.sql`.
 
+## Internationalization (i18n)
+
+Custom lightweight i18n for BetterLectio's injected UI only. **Lectio's native DOM stays in Danish.**
+
+- **Supported locales:** `da` (default), `en`. Defined in `lib/i18n/locales.ts` — adding a new locale = create `lib/i18n/dictionaries/<code>.ts` (must `satisfies DaDictionary`) and append to `SUPPORTED_LOCALES`.
+- **Source of truth:** `lib/i18n/dictionaries/da.ts`. `DaDictionary` is the `WidenLeaves<typeof da>` type, so every other locale is forced at compile time to match the same nested key structure.
+- **API:**
+  - `useTranslation()` hook → `{ locale, t }` for components.
+  - `t(key, vars?)` (non-hook, from `@/lib/i18n`) for module-scope code; reads the current locale.
+  - `setLocale(code)` persists + dispatches `betterlectio:locale-changed`; the `<I18nProvider>` listener triggers re-render across all Preact roots.
+  - `getLocale()` returns the resolved locale (lazy: stored setting → `navigator.language` base code → `da`).
+- **Provider mounting:** `lib/i18n/render.tsx` exports a drop-in replacement for `preact`'s `render` that wraps every root in `<I18nProvider>`. Both content entrypoints (`entrypoints/content.tsx`, `entrypoints/login.content.tsx`) import `render` from `@/lib/i18n/render` instead of `preact`. Each injected page mounts its own Preact root, and Context does not cross roots — always render through this helper, never directly via `preact.render`.
+- **Key path & types:** `t('settings.appearance.language')` is fully typed via `Path<DaDictionary>`. Missing keys → TS error in other locales (`satisfies DaDictionary`). Missing key at runtime → fall back to default-locale string, then to the raw key. `import.meta.env.DEV` also `console.warn`s.
+- **Interpolation:** `t('greeting', { name: 'Jonathan' })` substitutes `{name}` placeholders. No pluralization/ICU.
+- **Settings:** `interface.language` lives in `lib/settings-storage.ts` under the new `interface` category. The Settings modal Appearance section has the picker; `handleSettingChange` calls `setLocale(value)` for live re-render and pushes the value to PostHog (`setting changed` event + `language` person property). `language` is also added to `identifyIfNeeded` person properties on every page load.
+- **Bundling:** all locale dictionaries are eagerly bundled via static `import` (MV3 content scripts can't dynamic-`import()` post-build). Dictionaries are pure string literals — negligible size cost.
+
 ## Architecture
 Content scripts inject a custom Preact UI that wraps the original Lectio DOM. The original DOM is **moved** (not cloned) to preserve event handlers and functionality.
 
@@ -209,6 +228,10 @@ Note: `window.location.href = "/relative/path"` and `<a href="/path">` work fine
 **Cross-school cache safety:** All caches that include identity/form state must be scoped by `schoolId` (and never reused globally across schools). This includes name-id lookup, schedule/page-data caches, activity detail cache, assignment detail cache, and profile cache.
 
 **Beskeder safety:** For non-idempotent iframe-post actions (send/reply/delete), do not auto-fallback to native postback on uncertain/parse errors — this can duplicate side effects. Show a refresh/retry prompt instead.
+
+**Beskeder recipient picker cache:** The compose recipient autocomplete is backed by Lectio's `bcteacher/bcstudent/bchold/bcgroup` DropDown caches, NOT `AvanceretSkema`. Their IDs are what the `addRecipientDD` form accepts; AvanceretSkema's `HE*/GE*` (and other) IDs silently fail validation server-side. Use `fetchBeskederRecipientItems` from `lib/beskeder-recipients-cache.ts`, which harvests the exact `registerDataSetUrl(...)` URLs from the compose page's inline scripts.
+
+**Beskeder no-reply checkbox:** `RepliesNotAllowedChkBox` ("Skal ikke kunne besvares") is a visible `<input type="checkbox">`, so `parseFormTokens` (hidden-inputs only) never includes it in `formState.tokens`. ASP.NET also only POSTs a checkbox when checked. Every compose postback (add/remove recipient, attach, remove attach, send) must therefore re-inject `{ [noReplyCheckboxName]: 'on' }` when the DOM checkbox is checked — otherwise the server resets it to unchecked on every postback and the final send ignores the flag. `BeskederCompose.tsx` centralizes this via `formStateWithNoReply(state)`.
 
 **Beskeder recipient GridView links:** In `ThreadRecipientsGV`, Lectio renders delete links as `<a href="#" onclick="javascript:__doPostBack(...)">`, not `href="javascript:__doPostBack(...)"`. When parsing recipient remove targets, always check the `onclick` attribute first (then `href` as a fallback) — `a[href*="__doPostBack"]` will never match this table.
 

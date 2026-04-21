@@ -35,6 +35,7 @@ import {
 } from "@/lib/supabase/student-lookup";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n";
 
 interface ActivityClassModalProps {
   open: boolean;
@@ -43,6 +44,7 @@ interface ActivityClassModalProps {
 }
 
 export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassModalProps) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [navigating, setNavigating] = useState(false);
@@ -169,7 +171,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     if (!detail) return "";
     const rawTitle = detail.meta.title?.trim() || "";
     const holdCode = detail.meta.hold?.trim() || "";
-    if (!rawTitle) return holdDisplayName || "Aktivitet";
+    if (!rawTitle) return holdDisplayName || t('activityModal.defaultTitle');
     if (holdCode && rawTitle === holdCode && holdDisplayName && holdDisplayName !== holdCode) {
       return holdDisplayName;
     }
@@ -186,7 +188,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
       setDetail(next);
       setNavError(null);
     } catch {
-      setNavError("Kunne ikke hente næste aktivitet.");
+      setNavError(t('activityModal.navError'));
     } finally {
       setNavigating(false);
     }
@@ -212,7 +214,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     if (members) return; // Already loaded
 
     if (!holdelementId || !schoolId) {
-      setMembersError("Kunne ikke finde holdmedlemmer.");
+      setMembersError(t('activityModal.membersError'));
       return;
     }
 
@@ -231,7 +233,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
       const result = await fetchMembersFromUrls([membersUrl.href]);
       setMembers(result);
     } catch {
-      setMembersError("Kunne ikke hente medlemmer.");
+      setMembersError(t('activityModal.fetchMembersError'));
     } finally {
       setMembersLoading(false);
     }
@@ -253,7 +255,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
     "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
 
   const sheet = (
-    <div className="fixed inset-0 z-150 flex justify-end pointer-events-auto" role="dialog" aria-modal="true" aria-label="Aktivitetsdetaljer">
+    <div className="fixed inset-0 z-150 flex justify-end pointer-events-auto" role="dialog" aria-modal="true" aria-label={t('activityModal.ariaLabel')}>
       <div
         className="absolute inset-0 bg-[oklch(0_0_0/0.42)] backdrop-blur-[6px] animate-[act-sheet-fade-in_0.2s_ease]"
         onClick={() => onOpenChange(false)}
@@ -289,7 +291,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     className={iconButtonClass}
                     onClick={() => navigateByPostback(detail.navigation.schedule.prevEventTarget)}
                     disabled={!detail.navigation.schedule.prevEventTarget || navigating}
-                    aria-label="Forrige aktivitet"
+                    aria-label={t('activityModal.prevActivity')}
                   >
                     <ChevronLeft size={17} />
                   </button>
@@ -298,7 +300,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     className={iconButtonClass}
                     onClick={() => navigateByPostback(detail.navigation.schedule.nextEventTarget)}
                     disabled={!detail.navigation.schedule.nextEventTarget || navigating}
-                    aria-label="Næste aktivitet"
+                    aria-label={t('activityModal.nextActivity')}
                   >
                     <ChevronRight size={17} />
                   </button>
@@ -307,7 +309,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   type="button"
                   className={iconButtonClass}
                   onClick={() => onOpenChange(false)}
-                  aria-label="Luk"
+                  aria-label={t('activityModal.closeLabel')}
                 >
                   <X size={17} />
                 </button>
@@ -371,7 +373,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     )}
                   >
                     <Users size={15} />
-                    Deltagere
+                    {t('activityModal.participants')}
                     {members ? (
                       <span className="text-xs font-semibold opacity-60">{members.length}</span>
                     ) : null}
@@ -412,14 +414,14 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     onClick={() => navigateByPostback(lastNavTarget)}
                     disabled={!lastNavTarget || navigating}
                   >
-                    Prøv igen
+                    {t('activityModal.retry')}
                   </button>
                   <button
                     type="button"
                     className="cursor-pointer rounded-lg border border-border bg-background px-2.5 py-1 text-sm font-semibold text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
                     onClick={() => setNavError(null)}
                   >
-                    Luk
+                    {t('activityModal.closeLabel')}
                   </button>
                 </div>
               </div>
@@ -429,13 +431,13 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
               {!hasContent ? (
                 <div className="flex flex-col items-center justify-center gap-3.5 px-6 py-16 text-center text-muted-foreground">
                   <FileText size={32} strokeWidth={1.2} />
-                  <p className="m-0 text-base leading-relaxed">Ingen yderligere information for denne aktivitet.</p>
+                  <p className="m-0 text-base leading-relaxed">{t('activityModal.noContent')}</p>
                 </div>
               ) : null}
 
               {detail.note ? (
                 <section className="mb-8 last:mb-0">
-                  <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Note</h3>
+                  <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">{t('activityModal.note')}</h3>
                   <div className="rounded-r-[0.625rem] border-l-[3px] px-[1.15rem] py-4 text-base leading-[1.65] text-foreground whitespace-pre-wrap bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] border-l-[oklch(0.58_0.12_var(--accent-hue,265))] dark:border-l-[oklch(0.5_0.08_var(--accent-hue,265))]">
                     {detail.note}
                   </div>
@@ -445,7 +447,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
               {detail.homework.length > 0 ? (
                 <section className="mb-8 last:mb-0">
                   <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                    Lektier
+                    {t('activityModal.homework')}
                     <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
                       {detail.homework.length}
                     </span>
@@ -461,7 +463,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
               {detail.presentation.length > 0 ? (
                 <section className="mb-8 last:mb-0">
                   <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                    Præsentation
+                    {t('activityModal.presentation')}
                     <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
                       {detail.presentation.length}
                     </span>
@@ -477,7 +479,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
               {(detail.otherContent?.length ?? 0) > 0 ? (
                 <section className="mb-8 last:mb-0">
                   <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                    Øvrigt indhold
+                    {t('activityModal.otherContent')}
                     <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
                       {detail.otherContent.length}
                     </span>
@@ -492,7 +494,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
               {detail.related.length > 0 ? (
                 <section className="mb-8 last:mb-0">
-                  <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">Relateret</h3>
+                  <h3 className="mb-3.5 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">{t('activityModal.related')}</h3>
                   <div className="flex flex-col gap-2">
                     {detail.related.map((item, index) => (
                       <div key={`${item.label}-${index}`} className="flex items-center justify-between gap-3 rounded-[0.625rem] border border-border px-3.5 py-2.5 text-base leading-[1.35] text-foreground">
@@ -503,7 +505,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                             data-no-activity-modal="true"
                             className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[oklch(0.5_0.13_255)] no-underline hover:underline hover:underline-offset-2 dark:text-[oklch(0.75_0.06_265)]"
                           >
-                            Åbn
+                            {t('activityModal.openLink')}
                             <ExternalLink size={13} />
                           </a>
                         ) : (
@@ -524,7 +526,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     className={holdNavControlClass}
                     onClick={() => navigateByPostback(detail.navigation.hold.prevEventTarget)}
                     disabled={!detail.navigation.hold.prevEventTarget || navigating}
-                    title="Forrige holdaktivitet"
+                    title={t('activityModal.prevHoldActivity')}
                   >
                     <ChevronLeft size={15} />
                   </button>
@@ -533,7 +535,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                       href={detail.navigation.hold.listUrl}
                       data-no-activity-modal="true"
                       className={holdNavControlClass}
-                      title="Holdaktivitetsliste"
+                      title={t('activityModal.holdActivityList')}
                     >
                       <List size={15} />
                     </a>
@@ -547,7 +549,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     className={holdNavControlClass}
                     onClick={() => navigateByPostback(detail.navigation.hold.nextEventTarget)}
                     disabled={!detail.navigation.hold.nextEventTarget || navigating}
-                    title="Næste holdaktivitet"
+                    title={t('activityModal.nextHoldActivity')}
                   >
                     <ChevronRight size={15} />
                   </button>
@@ -558,7 +560,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
                 >
                   <ExternalLink size={15} />
-                  Åbn i Lectio
+                  {t('activityModal.openInLectio')}
                 </a>
               </div>
             </footer>
@@ -587,11 +589,12 @@ function MembersPanel({
   schoolId: string | null;
   accentHue: number;
 }) {
+  const { t } = useTranslation();
   if (loading) {
     return (
       <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] px-4 py-5">
         <Loader2 size={16} className="animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Henter deltagere...</span>
+        <span className="text-sm text-muted-foreground">{t('activityModal.loadingParticipants')}</span>
       </div>
     );
   }
@@ -620,7 +623,7 @@ function MembersPanel({
       {teachers.length > 0 ? (
         <div className="px-3.5 pt-3 pb-2">
           <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
-            {teachers.length === 1 ? "Lærer" : "Lærere"}
+            {teachers.length === 1 ? t('activityModal.teacherLabel') : t('activityModal.teachersLabel')}
           </p>
           <div className="flex flex-wrap items-start gap-1">
             {teachers.map((m) => (
@@ -632,7 +635,7 @@ function MembersPanel({
       {students.length > 0 ? (
         <div className={cn("px-3.5 pb-3", teachers.length > 0 ? "pt-2" : "pt-3")}>
           <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
-            Elever
+            {t('activityModal.studentsLabel')}
             <span className="ml-1 font-normal opacity-70">{students.length}</span>
           </p>
           <div className="flex flex-wrap items-start gap-1">

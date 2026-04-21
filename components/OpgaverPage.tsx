@@ -15,6 +15,7 @@ import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -65,20 +66,20 @@ function getWeekKey(date: Date): string {
   return `${ws.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-function getWeekLabel(weekKey: string, now: Date): string {
+function getWeekLabel(weekKey: string, now: Date, labels: { thisWeek: string; nextWeek: string; lastWeek: string; weekNumber: (n: number) => string }): string {
   const thisWeekKey = getWeekKey(now);
-  if (weekKey === thisWeekKey) return 'Denne uge';
+  if (weekKey === thisWeekKey) return labels.thisWeek;
 
   const nextWeek = new Date(now);
   nextWeek.setDate(nextWeek.getDate() + 7);
-  if (weekKey === getWeekKey(nextWeek)) return 'Næste uge';
+  if (weekKey === getWeekKey(nextWeek)) return labels.nextWeek;
 
   const lastWeek = new Date(now);
   lastWeek.setDate(lastWeek.getDate() - 7);
-  if (weekKey === getWeekKey(lastWeek)) return 'Sidste uge';
+  if (weekKey === getWeekKey(lastWeek)) return labels.lastWeek;
 
   const weekNum = parseInt(weekKey.split('-W')[1], 10);
-  return `Uge ${weekNum}`;
+  return labels.weekNumber(weekNum);
 }
 
 function getWeekDateRange(weekKey: string): string {
@@ -110,7 +111,7 @@ interface WeekGroup {
   totalHours: number;
 }
 
-function groupAllByWeek(items: OpgaveEntry[], now: Date): WeekGroup[] {
+function groupAllByWeek(items: OpgaveEntry[], now: Date, weekLabels: Parameters<typeof getWeekLabel>[2]): WeekGroup[] {
   const groups = new Map<string, OpgaveEntry[]>();
 
   for (const item of items) {
@@ -127,7 +128,7 @@ function groupAllByWeek(items: OpgaveEntry[], now: Date): WeekGroup[] {
     for (const e of entries) totalHours += parseStudentTimeHours(e.studentTime);
     return {
       key,
-      label: getWeekLabel(key, now),
+      label: getWeekLabel(key, now, weekLabels),
       dateRange: getWeekDateRange(key),
       entries,
       totalHours,
@@ -449,6 +450,7 @@ interface OpgaverPageProps {
 type StatusFilter = 'venter' | 'mangler' | 'afleveret';
 
 export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null);
@@ -536,7 +538,13 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
 
   const sorted = [...filtered].sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
   const now = new Date();
-  const weekGroups = groupAllByWeek(sorted, now);
+  const weekLabels = {
+    thisWeek: t('opgaverPage.thisWeek'),
+    nextWeek: t('opgaverPage.nextWeek'),
+    lastWeek: t('opgaverPage.lastWeek'),
+    weekNumber: (n: number) => t('opgaverPage.weekNumber', { n: String(n) }),
+  };
+  const weekGroups = groupAllByWeek(sorted, now, weekLabels);
   const currentWeekKey = getWeekKey(now);
 
   const holds = [...new Set(entries.map(e => e.hold))].sort((a, b) => {
@@ -566,10 +574,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
           {/* Title row */}
           <div className="flex flex-wrap items-end justify-between gap-6 pb-5">
             <div>
-              <h1 className="text-[2.5rem] font-[800] tracking-[-0.02em] text-foreground">Opgaver</h1>
+              <h1 className="text-[2.5rem] font-[800] tracking-[-0.02em] text-foreground">{t('opgaverPage.title')}</h1>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-lg text-muted-foreground">
                 <span className="px-0.5">
-                  <span className="tabular-nums">{entries.length}</span> opgaver
+                  <span className="tabular-nums">{entries.length === 1 ? t('opgaverPage.assignmentSingular', { n: String(entries.length) }) : t('opgaverPage.assignmentPlural', { n: String(entries.length) })}</span>
                 </span>
                 {waitingCount > 0 && (
                   <>
@@ -578,8 +586,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       tone="waiting"
                       active={statusFilter === 'venter'}
                       onToggle={() => toggleStatusFilter('venter')}
+                      removeFilterLabel={t('opgaverPage.removeFilter')}
+                      showOnlyLabel={t('opgaverPage.showOnly')}
                     >
-                      <span className="tabular-nums">{waitingCount}</span> kommende
+                      <span className="tabular-nums">{waitingCount}</span> {t('opgaverPage.pending')}
                     </StatusPill>
                   </>
                 )}
@@ -590,8 +600,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       tone="missing"
                       active={statusFilter === 'mangler'}
                       onToggle={() => toggleStatusFilter('mangler')}
+                      removeFilterLabel={t('opgaverPage.removeFilter')}
+                      showOnlyLabel={t('opgaverPage.showOnly')}
                     >
-                      <span className="tabular-nums">{missingCount}</span> mangler
+                      <span className="tabular-nums">{missingCount}</span> {t('opgaverPage.missing')}
                     </StatusPill>
                   </>
                 )}
@@ -602,8 +614,10 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                       tone="done"
                       active={statusFilter === 'afleveret'}
                       onToggle={() => toggleStatusFilter('afleveret')}
+                      removeFilterLabel={t('opgaverPage.removeFilter')}
+                      showOnlyLabel={t('opgaverPage.showOnly')}
                     >
-                      <span className="tabular-nums">{submittedCount}</span> afleveret
+                      <span className="tabular-nums">{submittedCount}</span> {t('opgaverPage.submitted')}
                     </StatusPill>
                   </>
                 )}
@@ -615,7 +629,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
               onClick={scrollToCurrentWeek}
             >
               <ChevronUp size={16} className="rotate-180" />
-              Denne uge
+              {t('opgaverPage.jumpToCurrentWeek')}
             </button>
           </div>
 
@@ -627,7 +641,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                 ref={searchRef}
                 type="text"
                 className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-20 text-lg text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-                placeholder="Søg opgaver..."
+                placeholder={t('opgaverPage.searchPlaceholder')}
                 value={searchQuery}
                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
               />
@@ -655,7 +669,7 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                   )}
                   onClick={() => setSelectedHold(null)}
                 >
-                  Alle fag
+                  {t('opgaverPage.allSubjects')}
                 </button>
                 {holds.map(hold => {
                   const hue = getHoldHue(hold);
@@ -710,21 +724,21 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
                 {hasActiveFilters ? (
                   <>
                     <Search className="mb-5 size-8 text-muted-foreground/30" />
-                    <p className="text-xl font-semibold text-foreground">Ingen resultater</p>
-                    <p className="mt-1.5 text-base text-muted-foreground">Prøv at ændre søgning eller filtre</p>
+                    <p className="text-xl font-semibold text-foreground">{t('opgaverPage.noResults')}</p>
+                    <p className="mt-1.5 text-base text-muted-foreground">{t('opgaverPage.tryOtherFilters')}</p>
                     <button
                       type="button"
                       className="mt-6 rounded-xl border border-border bg-background px-6 py-3 text-base font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]"
                       onClick={() => { setSearchQuery(''); setSelectedHold(null); setStatusFilter(null); }}
                     >
-                      Nulstil
+                      {t('opgaverPage.reset')}
                     </button>
                   </>
                 ) : (
                   <>
                     <ClipboardList className="mb-5 size-8 text-muted-foreground/30" />
-                    <p className="text-xl font-semibold text-foreground">Ingen opgaver</p>
-                    <p className="mt-1.5 text-base text-muted-foreground">Der er ingen opgaver at vise</p>
+                    <p className="text-xl font-semibold text-foreground">{t('opgaverPage.noAssignments')}</p>
+                    <p className="mt-1.5 text-base text-muted-foreground">{t('opgaverPage.noAssignmentsMessage')}</p>
                   </>
                 )}
               </div>
@@ -773,9 +787,32 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   );
 }
 
+// ── Translated label helpers ───────────────────────────────────────────
+
+function AbsenceBadgeLabel({ entry }: { entry: Pick<OpgaveEntry, 'absence'> }) {
+  const { t } = useTranslation();
+  return <>{t('opgaverPage.fravaerBadge')} {getAssignmentFravaerLabel(entry)}</>;
+}
+
+function MissingBadge() {
+  const { t } = useTranslation();
+  return <>{t('opgaverPage.manglerBadge')}</>;
+}
+
+function IgnoredLabel() {
+  const { t } = useTranslation();
+  return <>{t('opgaverPage.ignored')}</>;
+}
+
+function IgnoreShowLabel({ show }: { show: boolean }) {
+  const { t } = useTranslation();
+  return <>{show ? t('opgaverPage.show') : t('opgaverPage.ignore')}</>;
+}
+
 // ── WeekHeader ─────────────────────────────────────────────────────────
 
 function WeekHeader({ group, isCurrentWeek }: { group: WeekGroup; isCurrentWeek: boolean }) {
+  const { t } = useTranslation();
   const hoursStr = group.totalHours > 0
     ? group.totalHours.toFixed(2).replace('.', ',')
     : null;
@@ -806,7 +843,9 @@ function WeekHeader({ group, isCurrentWeek }: { group: WeekGroup; isCurrentWeek:
         'ml-2 text-base tabular-nums',
         isCurrentWeek ? 'opacity-70' : 'text-muted-foreground/60',
       )}>
-        {group.entries.length} {group.entries.length === 1 ? 'opgave' : 'opgaver'}
+        {group.entries.length === 1
+          ? t('opgaverPage.assignmentCountSingular', { n: String(group.entries.length) })
+          : t('opgaverPage.assignmentCountPlural', { n: String(group.entries.length) })}
       </span>
       {hoursStr && (
         <>
@@ -818,7 +857,7 @@ function WeekHeader({ group, isCurrentWeek }: { group: WeekGroup; isCurrentWeek:
             'ml-2 text-base tabular-nums',
             isCurrentWeek ? 'opacity-70' : 'text-muted-foreground/60',
           )}>
-            {hoursStr} t
+            {hoursStr} {t('opgaverPage.hours')}
           </span>
         </>
       )}
@@ -921,21 +960,21 @@ function AssignmentRow({
           {hasFravaer && (
             <span className="inline-flex items-center gap-1.5 rounded-lg bg-[oklch(0.95_0.03_25)] px-2.5 py-1 text-base font-semibold text-[oklch(0.45_0.18_25)] dark:bg-[oklch(0.22_0.03_25)] dark:text-[oklch(0.75_0.14_25)]">
               <AlertTriangle size={14} />
-              Fravær {getAssignmentFravaerLabel(entry)}
+              <AbsenceBadgeLabel entry={entry} />
             </span>
           )}
 
           {/* Missing badge (non-fravær) */}
           {isMissing && !hasFravaer && (
             <span className="rounded-lg bg-[oklch(0.95_0.02_50)] px-2.5 py-1 text-base font-medium text-[oklch(0.48_0.12_50)] dark:bg-[oklch(0.22_0.02_50)] dark:text-[oklch(0.75_0.10_50)]">
-              Mangler
+              <MissingBadge />
             </span>
           )}
 
           {/* Ignored marker */}
           {entry.status === 'mangler' && isIgnored && (
             <span className="rounded-lg bg-muted px-2.5 py-1 text-base text-muted-foreground/60">
-              Ignoreret
+              <IgnoredLabel />
             </span>
           )}
 
@@ -992,9 +1031,9 @@ function AssignmentRow({
             }}
           >
             {isIgnored ? (
-              <><Eye size={14} /> Vis</>
+              <><Eye size={14} /> <IgnoreShowLabel show={true} /></>
             ) : (
-              <><EyeOff size={14} /> Ignorer</>
+              <><EyeOff size={14} /> <IgnoreShowLabel show={false} /></>
             )}
           </button>
         )}
@@ -1047,11 +1086,15 @@ function StatusPill({
   active,
   onToggle,
   children,
+  removeFilterLabel,
+  showOnlyLabel,
 }: {
   tone: StatusTone;
   active: boolean;
   onToggle: () => void;
   children: any;
+  removeFilterLabel: string;
+  showOnlyLabel: string;
 }) {
   const styles = STATUS_PILL_STYLES[tone];
   return (
@@ -1059,7 +1102,7 @@ function StatusPill({
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      title={active ? 'Fjern filter' : 'Vis kun disse'}
+      title={active ? removeFilterLabel : showOnlyLabel}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-medium',
         'cursor-pointer select-none',

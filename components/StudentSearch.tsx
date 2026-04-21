@@ -7,6 +7,7 @@ import {
 } from '../lib/fuzzy-search';
 import { fetchAvanceretSkemaDropdownItems } from '../lib/findskema-cache';
 import { getFindSkemaTypeKeyFromId, type FindSkemaTypeKey } from '../lib/findskema-types';
+import { useTranslation } from '@/lib/i18n';
 
 interface RecentSearch {
   name: string;
@@ -22,79 +23,80 @@ type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'h
 interface TypeConfig {
   typeKeys: FindSkemaTypeKey[];
   urlParam: string;
-  label: string;
   placeholder: string;
   badgeClass: string;
 }
 
 const TYPE_CONFIG: Record<string, TypeConfig> = {
   elev: {
-    typeKeys: ['S', 'L'], // Also include rooms for convenience
+    typeKeys: ['S', 'L'],
     urlParam: 'elevid',
-    label: 'Elev',
-    placeholder: 'Søg efter elever eller lokaler...',
+    placeholder: 'personSearch.placeholders.student',
     badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
   },
   laerer: {
-    typeKeys: ['T', 'L'], // Also include rooms for convenience
+    typeKeys: ['T', 'L'],
     urlParam: 'laererid',
-    label: 'Lærer',
-    placeholder: 'Søg efter lærere eller lokaler...',
+    placeholder: 'personSearch.placeholders.teacher',
     badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
   },
   stamklasse: {
     typeKeys: ['K'],
     urlParam: 'klasseid',
-    label: 'Klasse',
-    placeholder: 'Søg efter klasser...',
+    placeholder: 'personSearch.placeholders.class',
     badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
   },
   lokale: {
     typeKeys: ['L'],
     urlParam: 'lokaleid',
-    label: 'Lokale',
-    placeholder: 'Søg efter lokaler...',
+    placeholder: 'personSearch.placeholders.room',
     badgeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
   },
   ressource: {
     typeKeys: ['R'],
     urlParam: 'ressourceid',
-    label: 'Ressource',
-    placeholder: 'Søg efter ressourcer...',
+    placeholder: 'personSearch.placeholders.resource',
     badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300',
   },
   hold: {
     typeKeys: ['H'],
     urlParam: 'holdid',
-    label: 'Hold',
-    placeholder: 'Søg efter hold...',
+    placeholder: 'personSearch.placeholders.hold',
     badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300',
   },
   gruppe: {
     typeKeys: ['G'],
     urlParam: 'gruppeid',
-    label: 'Gruppe',
-    placeholder: 'Søg efter grupper...',
+    placeholder: 'personSearch.placeholders.group',
     badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
   },
   all: {
     typeKeys: ['S', 'T', 'L'],
     urlParam: '',
-    label: '',
-    placeholder: 'Søg efter elever, lærere eller lokaler...',
+    placeholder: 'personSearch.placeholders.all',
     badgeClass: '',
   },
 };
 
 // Separate config for badge display (based on actual item type)
-const ITEM_TYPE_CONFIG: Record<string, { label: string; badgeClass: string; urlParam: string }> = {
-  S: { label: 'Elev', badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', urlParam: 'elevid' },
-  T: { label: 'Lærer', badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', urlParam: 'laererid' },
-  K: { label: 'Klasse', badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300', urlParam: 'klasseid' },
-  L: { label: 'Lokale', badgeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300', urlParam: 'lokaleid' },
-  R: { label: 'Ressource', badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300', urlParam: 'ressourceid' },
-  H: { label: 'Hold', badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300', urlParam: 'holdid' },
-  G: { label: 'Gruppe', badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300', urlParam: 'gruppeid' },
+const ITEM_TYPE_CONFIG: Record<string, { badgeClass: string; urlParam: string }> = {
+  S: { badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', urlParam: 'elevid' },
+  T: { badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300', urlParam: 'laererid' },
+  K: { badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300', urlParam: 'klasseid' },
+  L: { badgeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300', urlParam: 'lokaleid' },
+  R: { badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300', urlParam: 'ressourceid' },
+  H: { badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300', urlParam: 'holdid' },
+  G: { badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300', urlParam: 'gruppeid' },
+};
+
+const ITEM_TYPE_KEY: Record<string, string> = {
+  S: 'personSearch.types.student',
+  T: 'personSearch.types.teacher',
+  K: 'personSearch.types.class',
+  L: 'personSearch.types.room',
+  R: 'personSearch.types.resource',
+  H: 'personSearch.types.hold',
+  G: 'personSearch.types.group',
 };
 
 function getTypeFromId(id: string): string {
@@ -153,6 +155,7 @@ interface SearchProps {
 }
 
 export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<SearchableItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,7 +205,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
         setLoading(false);
       } catch (err) {
         console.error('[StudentSearch] Failed to load data:', err);
-        setError('Kunne ikke indlæse søgedata');
+        setError(t('personSearch.loadError'));
         setLoading(false);
       }
     }
@@ -269,7 +272,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
           value={query}
           onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
           onFocus={() => setFocused(true)}
-          placeholder={loading ? 'Indlæser søgedata...' : typeConfig.placeholder}
+          placeholder={loading ? t('personSearch.placeholders.loading') : t(typeConfig.placeholder as Parameters<typeof t>[0])}
           disabled={loading || !!error}
           className="w-full h-16 px-5 pr-24 rounded-xl border-2 border-input bg-background text-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50 placeholder:text-muted-foreground/60"
         />
@@ -301,6 +304,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                 {filteredItems.map((item) => {
                   const prefix = item.type;
                   const itemConfig = ITEM_TYPE_CONFIG[prefix] || ITEM_TYPE_CONFIG.S;
+                  const itemLabel = t((ITEM_TYPE_KEY[prefix] || 'personSearch.types.student') as Parameters<typeof t>[0]);
                   const idNum = item.id.slice(1);
                   const href = `/lectio/${schoolId}/SkemaNy.aspx?${itemConfig.urlParam}=${idNum}`;
                   return (
@@ -319,7 +323,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                         className="w-full px-4 py-3 text-left hover:bg-accent transition-[color,background-color] duration-150 flex items-center gap-3 cursor-pointer"
                       >
                         <span className={`text-xs font-medium px-2 py-1 rounded-md ${itemConfig.badgeClass}`}>
-                          {itemConfig.label}
+                          {itemLabel}
                         </span>
                         <span className="text-base">{item.name}</span>
                       </a>
@@ -328,18 +332,19 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                 })}
               </ul>
             ) : (
-              <p className="px-4 py-6 text-center text-muted-foreground">Ingen resultater fundet</p>
+              <p className="px-4 py-6 text-center text-muted-foreground">{t('personSearch.noResults')}</p>
             )
           ) : recentSearches.length > 0 ? (
             <div>
               <div className="px-4 py-3 text-sm font-medium text-muted-foreground border-b border-border flex items-center gap-2 bg-muted/30">
                 <Clock className="size-4" />
-                Seneste søgninger
+                {t('personSearch.recentSearches')}
               </div>
               <ul className="py-2">
                 {recentSearches.map((recent) => {
                   const prefix = recent.id.charAt(0);
                   const itemConfig = ITEM_TYPE_CONFIG[prefix] || ITEM_TYPE_CONFIG.S;
+                  const itemLabel = t((ITEM_TYPE_KEY[prefix] || 'personSearch.types.student') as Parameters<typeof t>[0]);
                   return (
                     <li key={recent.id} className="group">
                       <div className="flex items-center">
@@ -351,7 +356,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                           className="flex-1 px-4 py-3 text-left hover:bg-accent transition-[color,background-color] duration-150 flex items-center gap-3"
                         >
                           <span className={`text-xs font-medium px-2 py-1 rounded-md ${itemConfig.badgeClass}`}>
-                            {itemConfig.label}
+                            {itemLabel}
                           </span>
                           <span className="text-base">{recent.name}</span>
                         </a>
@@ -359,7 +364,7 @@ export function StudentSearch({ schoolId, searchType = 'all' }: SearchProps) {
                           type="button"
                           onClick={(e) => handleRemoveRecent(e, recent.id)}
                           className="opacity-0 group-hover:opacity-100 p-1.5 mr-2 hover:bg-destructive/10 rounded-md transition-all"
-                          title="Fjern fra seneste"
+                          title={t('personSearch.removeFromRecent')}
                         >
                           <Trash2 className="size-4 text-destructive" />
                         </button>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { reset as resetPostHog } from '@/lib/posthog';
 import { markLogoutIntent } from '@/lib/logout-tracking';
 import {
@@ -33,6 +34,7 @@ import {
   Sun,
   Moon,
   EyeOff,
+  Calculator,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -196,42 +198,61 @@ function getUserClass(): string {
   return cached?.className || '';
 }
 
-const navMain = [
-  { title: 'Forside', icon: Home, page: 'forside', settingKey: 'showForside' as const },
-  { title: 'Skema', icon: Calendar, page: 'skemany', settingKey: 'showSkema' as const },
-  { title: 'Elever', icon: Users, page: 'FindSkema', settingKey: 'showElever' as const },
-  { title: 'Opgaver', icon: FileText, page: 'opgaverelev', settingKey: 'showOpgaver' as const },
-  { title: 'Lektier', icon: BookOpen, page: 'material_lektieoversigt', settingKey: 'showLektier' as const },
-  { title: 'Fravær', icon: Clock, page: 'subnav/fravaerelev_fravaersaarsager', settingKey: 'showFravaer' as const },
-  { title: 'Beskeder', icon: MessageSquare, page: 'beskeder2', settingKey: 'showBeskeder' as const },
-];
-
-const navSecondary = [
-  { title: 'Karakterer', icon: GraduationCap, page: 'grades/grade_report', settingKey: 'showKarakterer' as const },
-  { title: 'Dokumenter', icon: FolderOpen, page: 'dokumentoversigt', settingKey: 'showDokumenter' as const },
-  { title: 'Studieplan', icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' as const },
-  { title: 'Spørgeskema', icon: HelpCircle, page: 'spoergeskema/spoergeskema_rapport', settingKey: 'showSpoergeskema' as const },
-];
-
-const findSkemaItems = [
-  { title: 'Elev', type: 'elev', icon: Users },
-  { title: 'Lærer', type: 'laerer', icon: GraduationCap },
-  { title: 'Klasse', type: 'stamklasse', icon: School },
-  { title: 'Lokale', type: 'lokale', icon: DoorOpen },
-  { title: 'Ressource', type: 'ressource', icon: Box },
-  { title: 'Hold', type: 'hold', icon: UsersRound },
-  { title: 'Gruppe', type: 'gruppe', icon: LayoutGrid },
-];
-
-const calendarItems = [
-  { title: 'Dagsændringer', page: 'SkemaDagsaendringer' },
-  { title: 'Ugeændringer', page: 'SkemaUgeaendringer' },
-  { title: 'Månedskalender', page: 'kalender' },
-];
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useTranslation();
   const WELCOME_STORAGE_KEY = "bl-welcome-popup-seen-v1";
   const LEGACY_WELCOME_STORAGE_KEY = "il-welcome-popup-seen-v1";
+
+  const navMain = [
+    { title: t('sidebar.nav.forside'), icon: Home, page: 'forside', settingKey: 'showForside' as const },
+    { title: t('sidebar.nav.skema'), icon: Calendar, page: 'skemany', settingKey: 'showSkema' as const },
+    { title: t('sidebar.nav.elever'), icon: Users, page: 'FindSkema', settingKey: 'showElever' as const },
+    { title: t('sidebar.nav.opgaver'), icon: FileText, page: 'opgaverelev', settingKey: 'showOpgaver' as const },
+    { title: t('sidebar.nav.lektier'), icon: BookOpen, page: 'material_lektieoversigt', settingKey: 'showLektier' as const },
+    { title: t('sidebar.nav.fravaer'), icon: Clock, page: 'subnav/fravaerelev_fravaersaarsager', settingKey: 'showFravaer' as const },
+    { title: t('sidebar.nav.beskeder'), icon: MessageSquare, page: 'beskeder2', settingKey: 'showBeskeder' as const },
+  ];
+
+  const navSecondary: Array<{
+    title: string;
+    icon: typeof GraduationCap;
+    page: string;
+    settingKey: 'showKarakterer' | 'showDokumenter' | 'showModulregnskaber' | 'showStudieplan' | 'showSpoergeskema';
+    href?: string;
+    activeMatch?: () => boolean;
+  }> = [
+    { title: t('sidebar.nav.karakterer'), icon: GraduationCap, page: 'grades/grade_report', settingKey: 'showKarakterer' },
+    { title: t('sidebar.nav.dokumenter'), icon: FolderOpen, page: 'dokumentoversigt', settingKey: 'showDokumenter' },
+    {
+      title: t('sidebar.nav.modulregnskaber'),
+      icon: Calculator,
+      page: 'modulregnskaber',
+      settingKey: 'showModulregnskaber',
+      href: `/lectio/${getSchoolIdFromUrl()}/forside.aspx?bl=modulregnskaber`,
+      activeMatch: () =>
+        window.location.pathname.toLowerCase().includes('forside.aspx') &&
+        new URLSearchParams(window.location.search).get('bl') === 'modulregnskaber',
+    },
+    { title: t('sidebar.nav.studieplan'), icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' },
+    { title: t('sidebar.nav.spoergeskema'), icon: HelpCircle, page: 'spoergeskema/spoergeskema_rapport', settingKey: 'showSpoergeskema' },
+  ];
+
+  const findSkemaItems = [
+    { title: t('sidebar.findSkema.elev'), type: 'elev', icon: Users },
+    { title: t('sidebar.findSkema.laerer'), type: 'laerer', icon: GraduationCap },
+    { title: t('sidebar.findSkema.klasse'), type: 'stamklasse', icon: School },
+    { title: t('sidebar.findSkema.lokale'), type: 'lokale', icon: DoorOpen },
+    { title: t('sidebar.findSkema.ressource'), type: 'ressource', icon: Box },
+    { title: t('sidebar.findSkema.hold'), type: 'hold', icon: UsersRound },
+    { title: t('sidebar.findSkema.gruppe'), type: 'gruppe', icon: LayoutGrid },
+  ];
+
+  const calendarItems = [
+    { title: t('sidebar.aendringer.dagsaendringer'), page: 'SkemaDagsaendringer' },
+    { title: t('sidebar.aendringer.ugeaendringer'), page: 'SkemaUgeaendringer' },
+    { title: t('sidebar.aendringer.manedskalender'), page: 'kalender' },
+  ];
 
   // Get settings early — must be before any useState that references it
   const settings = getSettings();
@@ -486,6 +507,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
   const isActive = (page: string) => {
     const pageLower = page.toLowerCase();
+    // Forside link should not appear active when a custom overlay like
+    // ?bl=modulregnskaber is hosted on forside.aspx
+    if (pageLower === 'forside' && new URLSearchParams(window.location.search).get('bl')) {
+      return false;
+    }
     if (currentPage === pageLower) return true;
     // Match skema pages but not findskema
     if ((currentPage === 'skemany' || currentPage === 'skema') && pageLower === 'skemany') return true;
@@ -553,19 +579,23 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         <SidebarSeparator className="my-2 opacity-50" />
 
         <SidebarGroup className="py-2">
-          <SidebarGroupLabel className="text-muted-foreground px-3 mb-1.5">Mere</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground px-3 mb-1.5">{t('sidebar.more')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {visibleNavSecondary.map((item) => (
-                <SidebarMenuItem key={item.page}>
-                  <SidebarMenuButton asChild isActive={isActive(item.page)} tooltip={item.title} className="text-[1rem]! py-2.5! h-auto! rounded-lg! data-[active=true]:bg-sidebar-accent! data-[active=true]:font-medium!">
-                    <a href={`${baseUrl}/${item.page}.aspx`}>
-                      <item.icon className="size-5! opacity-80" />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {visibleNavSecondary.map((item) => {
+                const active = item.activeMatch ? item.activeMatch() : isActive(item.page);
+                const href = item.href ?? `${baseUrl}/${item.page}.aspx`;
+                return (
+                  <SidebarMenuItem key={item.page}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={item.title} className="text-[1rem]! py-2.5! h-auto! rounded-lg! data-[active=true]:bg-sidebar-accent! data-[active=true]:font-medium!">
+                      <a href={href}>
+                        <item.icon className="size-5! opacity-80" />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -574,7 +604,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
         {((sidebarSettings.showFindSkema ?? true) || (sidebarSettings.showAendringer ?? true)) && (
           <SidebarGroup className="py-2">
-            <SidebarGroupLabel className="text-muted-foreground px-3 mb-1.5">Skemaer</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-muted-foreground px-3 mb-1.5">{t('sidebar.schedules')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
                 {/* Find Skema collapsible */}
@@ -582,9 +612,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   <Collapsible open={findSkemaOpen} onOpenChange={setFindSkemaOpen} className="group/collapsible">
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip="Find Skema" className="text-[1rem]! py-2.5! h-auto! rounded-lg!">
+                        <SidebarMenuButton tooltip={t('sidebar.findSkema.tooltip')} className="text-[1rem]! py-2.5! h-auto! rounded-lg!">
                           <FileSearch className="size-5! opacity-80" />
-                          <span>Find Skema</span>
+                          <span>{t('sidebar.findSkema.label')}</span>
                           <ChevronRight className="ml-auto size-4 opacity-50 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
@@ -604,7 +634,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                             <SidebarMenuSubButton asChild className="py-2! text-sm! rounded-lg!">
                               <a href={`${baseUrl}/FindSkemaAdv.aspx`}>
                                 <Search className="size-4 opacity-70" />
-                                <span>Avanceret</span>
+                                <span>{t('sidebar.findSkema.advanced')}</span>
                               </a>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -619,9 +649,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   <Collapsible open={calendarOpen} onOpenChange={setCalendarOpen} className="group/collapsible">
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip="Kalendervisninger" className="text-[1rem]! py-2.5! h-auto! rounded-lg!">
+                        <SidebarMenuButton tooltip={t('sidebar.aendringer.tooltip')} className="text-[1rem]! py-2.5! h-auto! rounded-lg!">
                           <CalendarDays className="size-5! opacity-80" />
-                          <span>Ændringer</span>
+                          <span>{t('sidebar.aendringer.label')}</span>
                           <ChevronRight className="ml-auto size-4 opacity-50 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
@@ -659,7 +689,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <a
             href={`${baseUrl}/indstillinger/studentIndstillinger.aspx`}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
-            title="Profil"
+            title={t('sidebar.profileTitle')}
           >
             <User className="size-[1.1rem]" />
           </a>
@@ -667,7 +697,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             type="button"
             onClick={() => setSettingsOpen(true)}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
-            title="Indstillinger"
+            title={t('sidebar.settingsTitle')}
           >
             <Settings className="size-[1.1rem]" />
           </button>
@@ -681,7 +711,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               setUserJotTheme(next ? 'dark' : 'light');
             }}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
-            title={isDark ? 'Skift til lys tilstand' : 'Skift til mørk tilstand'}
+            title={isDark ? t('sidebar.lightModeTitle') : t('sidebar.darkModeTitle')}
           >
             {isDark ? <Sun className="size-[1.1rem]" /> : <Moon className="size-[1.1rem]" />}
           </button>
@@ -694,8 +724,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               // the reload that follows.
               armBypassForNextLoad();
               try {
-                toast.info('Viser original Lectio', {
-                  description: 'Siden genindlæses uden BetterLectio. Fejlen er rapporteret.',
+                toast.info(t('sidebar.bypassToast'), {
+                  description: t('sidebar.bypassToastDescription'),
                 });
               } catch { /* non-critical */ }
               // Race analytics flush against a 1500ms cap so a slow/hung
@@ -707,7 +737,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               window.location.reload();
             }}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
-            title="Vis original Lectio for denne side (næste sidenavigation bringer BetterLectio tilbage)"
+            title={t('sidebar.bypassTitle')}
           >
             <EyeOff className="size-[1.1rem]" />
           </button>
@@ -738,7 +768,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <User className="size-[1.1rem] opacity-70" />
-                    Profil
+                    {t('sidebar.menu.profile')}
                   </a>
                   {hasSps && (
                     <a
@@ -746,7 +776,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                       className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                     >
                       <ListChecks className="size-[1.1rem] opacity-70" />
-                      SPS
+                      {t('sidebar.menu.sps')}
                     </a>
                   )}
                   {hasBooks && (
@@ -755,7 +785,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                       className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                     >
                       <Library className="size-[1.1rem] opacity-70" />
-                      Bøger
+                      {t('sidebar.menu.books')}
                     </a>
                   )}
                   <a
@@ -763,7 +793,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <BookMarked className="size-[1.1rem] opacity-70" />
-                    UV-beskrivelser
+                    {t('sidebar.menu.uvDescriptions')}
                   </a>
                 </div>
                 <div className="p-1.5 border-t border-border/50">
@@ -776,7 +806,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
                   >
                     <Settings className="size-[1.1rem] opacity-70" />
-                    Indstillinger
+                    {t('sidebar.menu.settings')}
                   </button>
                 </div>
                 <div className="p-1.5 border-t border-border/50">
@@ -799,7 +829,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-destructive/10 transition-[color,background-color] duration-150 text-destructive"
                   >
                     <LogOut className="size-[1.1rem]" />
-                    Log ud
+                    {t('sidebar.menu.logout')}
                   </a>
                 </div>
               </div>

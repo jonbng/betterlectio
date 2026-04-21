@@ -3,16 +3,27 @@ import { Pin, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'luci
 import { fetchPictureUrl, getCachedPictureUrl } from '../lib/findskema-storage';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, type StudentsMap } from '@/lib/supabase/student-lookup';
 import { browser } from 'wxt/browser';
+import { useTranslation } from '@/lib/i18n';
 
 // Type configuration for badge display
-const TYPE_CONFIG: Record<string, { label: string; badgeClass: string }> = {
-  S: { label: 'Elev', badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
-  T: { label: 'Lærer', badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' },
-  K: { label: 'Klasse', badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' },
-  L: { label: 'Lokale', badgeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' },
-  R: { label: 'Ressource', badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300' },
-  H: { label: 'Hold', badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' },
-  G: { label: 'Gruppe', badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
+const TYPE_CONFIG: Record<string, { badgeClass: string }> = {
+  S: { badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
+  T: { badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' },
+  K: { badgeClass: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' },
+  L: { badgeClass: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' },
+  R: { badgeClass: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300' },
+  H: { badgeClass: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300' },
+  G: { badgeClass: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
+};
+
+const TYPE_LABEL_KEY: Record<string, string> = {
+  S: 'personSearch.types.student',
+  T: 'personSearch.types.teacher',
+  K: 'personSearch.types.class',
+  L: 'personSearch.types.room',
+  R: 'personSearch.types.resource',
+  H: 'personSearch.types.hold',
+  G: 'personSearch.types.group',
 };
 
 // Icons for entity types (non-person)
@@ -69,7 +80,9 @@ export function PersonCard({
   hasBetterLectio,
   studentsMap,
 }: PersonCardProps) {
+  const { t } = useTranslation();
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.S;
+  const typeLabel = t((TYPE_LABEL_KEY[type] || 'personSearch.types.student') as Parameters<typeof t>[0]);
   const isEntityCard = !TYPES_WITH_PICTURES.includes(type);
   const EntityIcon = TYPE_ICONS[type];
   const displayName = getDisplayNameFromLookupId(studentsMap, id, name);
@@ -251,7 +264,7 @@ export function PersonCard({
           type="button"
           onClick={handleRemoveClick}
           className="p-2 rounded-full bg-[oklch(1_0_0/0.9)] backdrop-blur-sm text-muted-foreground shadow-[0_2px_8px_oklch(0_0_0/0.1)] hover:bg-white hover:text-destructive hover:scale-110 transition-all duration-150"
-          title="Fjern fra seneste"
+          title={t('personSearch.removeFromRecent')}
         >
           <Trash2 className="size-4" />
         </button>
@@ -265,7 +278,7 @@ export function PersonCard({
               ? 'bg-white text-primary'
               : 'bg-[oklch(1_0_0/0.9)] text-muted-foreground hover:bg-white hover:text-primary'
           }`}
-          title={isStarred ? 'Fjern fra fastgjorte' : 'Fastgør person'}
+          title={isStarred ? t('viewingSchedule.unpinPerson') : t('viewingSchedule.pinPerson')}
         >
           <Pin className="size-5" fill={isStarred ? 'currentColor' : 'none'} />
         </button>
@@ -282,8 +295,8 @@ export function PersonCard({
         tabIndex={0}
         onClick={handleCardClick}
         onKeyDown={handleCardKeyDown}
-        aria-label={`Åbn skema for ${displayName}`}
-        className={`group flex flex-col rounded-xl border border-border bg-card cursor-pointer transition-[background-color,border-color] duration-150 no-underline text-inherit overflow-hidden hover:border-ring hover:bg-accent/20 relative aspect-square p-4 justify-end ${ENTITY_BORDER[type] || ''}`}
+      aria-label={t('personSearch.openScheduleFor', { name: displayName })}
+      className={`group flex flex-col rounded-xl border border-border bg-card cursor-pointer transition-[background-color,border-color] duration-150 no-underline text-inherit overflow-hidden hover:border-ring hover:bg-accent/20 relative aspect-square p-4 justify-end ${ENTITY_BORDER[type] || ''}`}
       >
         {/* Decorative background icon */}
         {EntityIcon && (
@@ -299,7 +312,7 @@ export function PersonCard({
         <div className="relative flex flex-col gap-2 z-[1]">
           <span className="text-xl font-bold text-foreground leading-tight -tracking-[0.01em]">{displayName}</span>
           <span className={`self-start text-xs font-semibold px-2 py-0.5 rounded-full ${config.badgeClass}`}>
-            {config.label}
+            {typeLabel}
           </span>
         </div>
       </div>
@@ -314,7 +327,7 @@ export function PersonCard({
       tabIndex={0}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
-      aria-label={`Åbn skema for ${displayName}`}
+      aria-label={t('personSearch.openScheduleFor', { name: displayName })}
       className="group flex flex-col rounded-xl border border-border bg-card cursor-pointer transition-[background-color,border-color] duration-150 no-underline text-inherit overflow-hidden hover:border-ring hover:bg-accent/20"
     >
       {/* Large image at top */}
@@ -356,7 +369,7 @@ export function PersonCard({
             </span>
           )}
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config.badgeClass}`}>
-            {config.label}
+            {typeLabel}
           </span>
         </div>
       </div>

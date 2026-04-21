@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { ArrowUpRight, Info, AlertTriangle, BookOpen, Mail, Clock, Flame, Upload } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
@@ -301,10 +302,10 @@ function relativeTime(date: Date | null): string {
 
 // ── Lektie date grouping ────────────────────────────────────────────
 
-function groupLektierByDate(entries: LektieEntry[]): { label: string; entries: LektieEntry[] }[] {
+function groupLektierByDate(entries: LektieEntry[], unknownLabel: string): { label: string; entries: LektieEntry[] }[] {
   const groups: Map<string, LektieEntry[]> = new Map();
   for (const entry of entries) {
-    const key = entry.date || 'Ukendt';
+    const key = entry.date || unknownLabel;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(entry);
   }
@@ -372,12 +373,13 @@ const PRIO_STYLES = {
 };
 
 function AktuelInfoCard({ entries, schoolId }: { entries: AktuelInfoEntry[]; schoolId: string }) {
+  const { t } = useTranslation();
   if (entries.length === 0) return null;
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <CardHeader
-        title="Aktuel information"
+        title={t('forside.cards.aktuelInfo')}
         href={`/lectio/${schoolId}/forside.aspx`}
         icon={Info}
       />
@@ -408,14 +410,15 @@ function AktuelInfoCard({ entries, schoolId }: { entries: AktuelInfoEntry[]; sch
 // ── Lektier Card ────────────────────────────────────────────────────
 
 function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: string }) {
+  const { t } = useTranslation();
   if (entries.length === 0) return null;
 
-  const groups = groupLektierByDate(entries);
+  const groups = groupLektierByDate(entries, t('forside.cards.unknownDate'));
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <CardHeader
-        title="Lektier"
+        title={t('forside.cards.lektier')}
         href={`/lectio/${schoolId}/material_lektieoversigt.aspx`}
         count={entries.length}
         icon={BookOpen}
@@ -474,6 +477,7 @@ function LektierCard({ entries, schoolId }: { entries: LektieEntry[]; schoolId: 
 // ── Opgaver Card ────────────────────────────────────────────────────
 
 function OpgaverCard({ initialEntries, schoolId }: { initialEntries: ForsideOpgave[]; schoolId: string }) {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<ForsideOpgave[]>(initialEntries);
 
   useEffect(() => {
@@ -548,7 +552,7 @@ function OpgaverCard({ initialEntries, schoolId }: { initialEntries: ForsideOpga
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <CardHeader
-        title="Opgaver"
+        title={t('forside.cards.opgaver')}
         href={`/lectio/${schoolId}/OpgaverElev.aspx`}
         count={entries.length}
         icon={Clock}
@@ -704,6 +708,7 @@ function BeskedSenderAvatar({
 }
 
 function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry[]; unreadCount: number; schoolId: string }) {
+  const { t } = useTranslation();
   const [teacherCache, setTeacherCache] = useState<TeacherCache | null>(null);
   const [nameIdReady, setNameIdReady] = useState(false);
   const { studentsMap } = useSchoolStudents(schoolId);
@@ -738,7 +743,7 @@ function BeskederCard({ entries, unreadCount, schoolId }: { entries: BeskedEntry
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <CardHeader
-        title="Beskeder"
+        title={t('forside.cards.beskeder')}
         href={`/lectio/${schoolId}/beskeder2.aspx`}
         count={unreadCount}
         countColor={unreadCount > 0

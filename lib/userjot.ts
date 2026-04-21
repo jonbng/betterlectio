@@ -20,9 +20,20 @@ export interface UserJotIdentifyPayload {
  *
  * Uses an external script file (public/userjot-bootstrap.js) instead of
  * inline script.textContent to comply with Chrome MV3 CSP.
+ *
+ * The bootstrap script runs in the page's main world, while this module
+ * runs in the extension's isolated world. They cannot share JS globals
+ * (different `window` bindings), so any data needed at bootstrap time must
+ * travel through the shared DOM — in this case `<script dataset>` and
+ * CustomEvents dispatched on `window`.
  */
-export function initUserJotWidget(): void {
-  if (document.getElementById(USERJOT_BOOTSTRAP_SCRIPT_ID)) {
+export function initUserJotWidget(initialIdentify?: UserJotIdentifyPayload): void {
+  const existing = document.getElementById(USERJOT_BOOTSTRAP_SCRIPT_ID);
+  if (existing) {
+    // Already bootstrapped — fall through to the event path if a payload was given.
+    if (initialIdentify && initialIdentify.id.trim()) {
+      identifyUserJot(initialIdentify);
+    }
     return;
   }
 
@@ -39,31 +50,26 @@ export function initUserJotWidget(): void {
   script.dataset.identifyEvent = USERJOT_IDENTIFY_EVENT;
   script.dataset.setThemeEvent = USERJOT_SET_THEME_EVENT;
 
-  // Stash pending identify payload so the bootstrap script can pick it up
-  // synchronously — the CustomEvent from identifyUserJot() may fire before
-  // the bootstrap script loads and registers its listener.
-  (window as any).__IL_USERJOT_PENDING_IDENTIFY__ = null;
+  // Pass the initial identify payload through the DOM — it's the only
+  // channel reliably shared between isolated and main worlds at bootstrap.
+  if (initialIdentify && initialIdentify.id.trim()) {
+    try {
+      script.dataset.initialIdentify = JSON.stringify(initialIdentify);
+    } catch {
+      /* ignore serialization failures */
+    }
+  }
 
   (document.documentElement || document.body).appendChild(script);
 }
 
-/**
- * Queue an identify payload. If the bootstrap script hasn't loaded yet,
- * stash it on window so the script can pick it up synchronously on load.
- */
-function dispatchOrStashIdentify(payload: UserJotIdentifyPayload): void {
-  // Try dispatching the event (works if bootstrap already loaded)
-  const event = new CustomEvent<UserJotIdentifyPayload>(USERJOT_IDENTIFY_EVENT, {
-    detail: payload,
-  });
-  // Also stash so bootstrap can pick it up if it loads later
-  (window as any).__IL_USERJOT_PENDING_IDENTIFY__ = payload;
-  window.dispatchEvent(event);
-}
-
 export function identifyUserJot(payload: UserJotIdentifyPayload): void {
   if (!payload.id.trim()) return;
-  dispatchOrStashIdentify(payload);
+  window.dispatchEvent(
+    new CustomEvent<UserJotIdentifyPayload>(USERJOT_IDENTIFY_EVENT, {
+      detail: payload,
+    }),
+  );
 }
 
 export function setUserJotTheme(theme: UserJotTheme): void {

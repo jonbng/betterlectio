@@ -1,4 +1,4 @@
-import { render } from "preact";
+import { render } from "@/lib/i18n/render";
 import { LoginPage, type School } from "@/components/LoginPage";
 import { getCachedLoginState, clearLoginState } from "@/lib/profile-cache";
 import { getLastSchool } from "@/lib/school-storage";

@@ -46,6 +46,7 @@ import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpe
 import { cn } from '@/lib/utils';
 import { getUnreadCount, getCachedUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
+import { useTranslation } from '@/lib/i18n';
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function normalizePersonLabel(value: string): string {
@@ -241,10 +242,10 @@ function actionIsLoading(actionLoading: string | null, threadId: string): boolea
   return actionLoading.endsWith(`-${threadId}`);
 }
 
-function formatActionError(error: SubmitError): string {
-  if (error.kind === 'session_expired') return 'Session udløbet. Log ind igen.';
-  if (error.kind === 'timeout') return 'Timeout. Opdatér siden for at bekræfte status, før du prøver igen.';
-  return 'Kunne ikke bekræfte handlingen. Opdatér siden for at undgå dubletter.';
+function formatActionError(error: SubmitError, t: ReturnType<typeof useTranslation>['t']): string {
+  if (error.kind === 'session_expired') return t('beskeder.errors.sessionExpired');
+  if (error.kind === 'timeout') return t('beskeder.errors.actionTimeout');
+  return t('beskeder.errors.actionFailed');
 }
 
 function ThreadRow({
@@ -261,6 +262,7 @@ function ThreadRow({
   actionLoading,
   studentsMap,
 }: ThreadRowProps) {
+  const { t } = useTranslation();
   const [showActions, setShowActions] = useState(false);
   const isBusy = actionIsLoading(actionLoading, thread.threadId);
   const latestSenderName = getDisplayNameFromLookupId(
@@ -360,16 +362,16 @@ function ThreadRow({
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3">
           <span
             className={cn(
-              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-base text-foreground',
+              'line-clamp-2 wrap-anywhere overflow-hidden text-left text-lg text-foreground',
               thread.isUnread ? 'font-semibold' : 'font-medium',
             )}
           >
             {latestSenderName}
           </span>
-          <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">{dateDisplay}</span>
+          <span className="shrink-0 whitespace-nowrap text-base text-muted-foreground">{dateDisplay}</span>
         </div>
         <div className="mt-0.5 inline-flex items-center gap-1.5">
-          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-base text-foreground/85", thread.isUnread && "font-semibold text-foreground")}>{thread.subject}</span>
+          <span className={cn("line-clamp-2 wrap-anywhere overflow-hidden text-lg text-foreground/85", thread.isUnread && "font-semibold text-foreground")}>{thread.subject}</span>
           {thread.hasAttachment && (
             <Paperclip size={13} className="shrink-0 text-muted-foreground/70" />
           )}
@@ -378,8 +380,8 @@ function ThreadRow({
           )}
         </div>
         <div className="mt-0.5 flex items-center">
-          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-tight text-muted-foreground">
-            Til: {recipientsName}
+          <span className="line-clamp-2 wrap-anywhere overflow-hidden text-left text-base leading-snug text-muted-foreground">
+            {t('beskeder.page.to', { name: recipientsName })}
           </span>
         </div>
       </div>
@@ -397,7 +399,7 @@ function ThreadRow({
           className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.93]"
           onClick={handleFlag}
           disabled={isBusy}
-          title={thread.isFlagged ? 'Fjern flag' : 'Tilføj flag'}
+          title={thread.isFlagged ? t('beskeder.page.removeFlag') : t('beskeder.page.addFlag')}
         >
           {thread.isFlagged ? <FlagOff size={15} /> : <Flag size={15} />}
         </button>
@@ -406,7 +408,7 @@ function ThreadRow({
           className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.93]"
           onClick={handleRead}
           disabled={isBusy}
-          title={thread.isRead ? 'Marker som ulæst' : 'Marker som læst'}
+          title={thread.isRead ? t('beskeder.page.markUnread') : t('beskeder.page.markRead')}
         >
           {thread.isRead ? <Mail size={15} /> : <MailOpen size={15} />}
         </button>
@@ -420,7 +422,7 @@ function ThreadRow({
           )}
           onClick={handleDelete}
           disabled={isBusy}
-          title={thread.isDeleted ? 'Gendan besked' : 'Slet besked'}
+          title={thread.isDeleted ? t('beskeder.page.restoreMessage') : t('beskeder.page.deleteMessage')}
         >
           {thread.isDeleted ? <ArchiveRestore size={15} /> : <Trash2 size={15} />}
         </button>
@@ -456,6 +458,7 @@ function withResolvedTeacherName(person: PersonRef, teacherCache: TeacherCache |
 }
 
 export function BeskederPage({ data, schoolId }: BeskederPageProps) {
+  const { t } = useTranslation();
   const [rawThreads, setRawThreads] = useState<BeskedThread[]>(data.threads);
   const [folders, setFolders] = useState<BeskedFolder[]>(data.folders);
   const [currentFolderName, setCurrentFolderName] = useState(data.currentFolderName);
@@ -631,7 +634,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Folder switch iframe failed, falling back:', result.error);
         if (result.error.kind === 'session_expired') selectFolderNative(commandArgument);
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
       }
     });
   }, [formState]);
@@ -652,7 +655,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Mark all read iframe failed:', result.error);
         if (result.error.kind === 'session_expired') markAllReadNative();
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
       }
     });
   }, [formState, rawThreads, setSyncedGlobalUnreadCount]);
@@ -705,7 +708,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Flag iframe failed:', result.error);
         if (result.error.kind === 'session_expired') toggleFlagNative(threadId, currentlyFlagged);
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
         setRawThreads(prev => prev.map(t =>
           t.threadId === threadId ? { ...t, isFlagged: !t.isFlagged } : t,
         ));
@@ -730,7 +733,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Read/unread iframe failed:', result.error);
         if (result.error.kind === 'session_expired') toggleReadNative(threadId, currentlyRead);
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
         setRawThreads(prev => prev.map(t =>
           t.threadId === threadId ? { ...t, isRead: currentlyRead, isUnread: !currentlyRead } : t,
         ));
@@ -775,7 +778,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Delete iframe failed:', result.error);
         if (result.error.kind === 'session_expired') deleteThreadNative(threadId, isDeleted);
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
         if (unreadDelta !== 0) {
           setSyncedGlobalUnreadCount((count) => count - unreadDelta);
         }
@@ -796,7 +799,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Search iframe failed, falling back:', result.error);
         if (result.error.kind === 'session_expired') executeSearchNative(searchQuery);
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
       }
     });
   };
@@ -815,7 +818,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       } else {
         console.warn('[BetterLectio] Bulk action iframe failed:', result.error);
         if (result.error.kind === 'session_expired') executeBulkActionNative(action);
-        else setError(formatActionError(result.error));
+        else setError(formatActionError(result.error, t));
       }
     });
   };
@@ -828,7 +831,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       {/* ── Header ─────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 border-b border-border pb-5 mb-3">
         <div className="inline-flex items-center gap-2">
-          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Beskeder</h1>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('beskeder.page.title')}</h1>
           {globalUnreadCount > 0 && (
             <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">{globalUnreadCount}</span>
           )}
@@ -839,7 +842,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
           onClick={() => newMessage()}
         >
           <Plus size={16} strokeWidth={2.5} />
-          <span>Ny besked</span>
+          <span>{t('beskeder.page.newMessage')}</span>
         </button>
       </div>
 
@@ -850,7 +853,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center gap-2">
           {/* Select all */}
-          <label className="inline-flex size-9 cursor-pointer items-center justify-center rounded-md transition-[background-color] duration-150 hover:bg-muted active:scale-[0.95]" title="Markér alle">
+          <label className="inline-flex size-9 cursor-pointer items-center justify-center rounded-md transition-[background-color] duration-150 hover:bg-muted active:scale-[0.95]" title={t('beskeder.page.selectAll')}>
             <input
               type="checkbox"
               checked={allSelected}
@@ -872,7 +875,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
                 type="button"
                 className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.95]"
                 onClick={handleMarkAllRead}
-                title="Alle læst"
+                title={t('beskeder.page.markAllRead')}
               >
                 <CheckCheck size={16} />
               </button>
@@ -883,7 +886,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
                   type="button"
                   className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.95]"
                   onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
-                  title="Flere handlinger"
+                  title={t('beskeder.page.moreActions')}
                 >
                   <MoreHorizontal size={16} />
                 </button>
@@ -913,7 +916,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
             ref={searchRef}
             type="text"
             className="peer h-9 w-full rounded-lg border border-border bg-card pl-9 pr-16 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-            placeholder="Søg beskeder..."
+            placeholder={t('beskeder.page.searchPlaceholder')}
             value={searchQuery}
             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
           />
@@ -939,7 +942,7 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       <div className="mb-1.5 inline-flex items-baseline gap-2">
         <span className="text-sm font-semibold text-foreground">{currentFolderName}</span>
         <span className="text-xs text-muted-foreground">
-          {threads.length} {threads.length === 1 ? 'besked' : 'beskeder'}
+          {threads.length} {threads.length === 1 ? t('beskeder.page.message') : t('beskeder.page.messages')}
         </span>
       </div>
 
@@ -947,9 +950,9 @@ export function BeskederPage({ data, schoolId }: BeskederPageProps) {
       {threads.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-8 py-16 text-center">
           <Inbox className="mb-4 size-12 text-muted-foreground/40" />
-          <p className="text-base font-semibold text-foreground">Ingen beskeder</p>
+          <p className="text-base font-semibold text-foreground">{t('beskeder.page.noMessages')}</p>
           <p className="text-sm text-muted-foreground">
-            Der er ingen beskeder i denne mappe
+            {t('beskeder.page.noMessagesInFolder')}
           </p>
         </div>
       ) : (

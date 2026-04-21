@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import {
   ChevronDown,
   AlertTriangle,
@@ -88,13 +89,6 @@ const GRADE_COLUMNS = [
   'eksamenskarakter',
 ] as const;
 
-const GRADE_COLUMN_SHORT: Record<string, string> = {
-  '1.standpunkt': '1. stdpkt',
-  '2.standpunkt': '2. stdpkt',
-  'intern prøve': 'Intern',
-  'årskarakter': 'Årskar.',
-  'eksamenskarakter': 'Eksamen',
-};
 
 // ── Grade hue mapping (Danish 7-step scale) ────────────────────────────
 
@@ -362,6 +356,7 @@ function SummaryStats({
   grades: GradeEntry[];
   diplomaAverage: string;
 }) {
+  const { t } = useTranslation();
   const dist = computeGradeDistribution(grades);
   const total = Object.values(dist).reduce((s, c) => s + c, 0);
 
@@ -399,7 +394,7 @@ function SummaryStats({
             {avgValue}
           </p>
           <p className="text-xs text-muted-foreground uppercase tracking-wide mt-0.5">
-            {diplomaAverage ? 'Eksamenssnit' : 'Gennemsnit'}
+            {diplomaAverage ? t('karaktererPage.examAverage') : t('karaktererPage.average')}
           </p>
         </div>
       </div>
@@ -540,6 +535,14 @@ function computeColumnAverages(grades: GradeEntry[]): Record<string, ColumnAvera
 // ── Main component ─────────────────────────────────────────────────────
 
 export function KaraktererPage({ data }: { data: KaraktererData }) {
+  const { t } = useTranslation();
+  const gradeColumnShort: Record<string, string> = {
+    '1.standpunkt': '1. stdpkt',
+    '2.standpunkt': '2. stdpkt',
+    'intern prøve': t('karaktererPage.intern'),
+    'årskarakter': t('karaktererPage.annual'),
+    'eksamenskarakter': t('karaktererPage.exam'),
+  };
   const groups = groupBySubject(data.grades, data.notes);
   const columnAverages = computeColumnAverages(data.grades);
 
@@ -557,7 +560,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
       {/* Page header */}
       <div className="flex items-center gap-3 border-b border-border pb-5">
         <GraduationCap className="w-7 h-7 text-primary" />
-        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Karakterer</h1>
+        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('karaktererPage.title')}</h1>
       </div>
 
       {/* Summary stats */}
@@ -580,7 +583,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
               <thead>
                 <tr className="border-b border-border">
                   <th className="pl-4 pr-3 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground font-medium w-[35%]">
-                    Fag
+                    {t('karaktererPage.subject')}
                   </th>
                   <th className="px-2 py-3 text-center text-xs uppercase tracking-wider text-muted-foreground font-medium w-[5%]">
                   </th>
@@ -589,7 +592,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
                       key={col}
                       className="px-3 py-3 text-center text-xs uppercase tracking-wider text-muted-foreground font-medium whitespace-nowrap"
                     >
-                      {GRADE_COLUMN_SHORT[col]}
+                      {gradeColumnShort[col]}
                     </th>
                   ))}
                   <th className="px-2 py-2.5 w-8" />
@@ -609,7 +612,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
                   {/* Weighted average row (primary) */}
                   <tr className="border-t-2 border-border">
                     <td className="pl-4 pr-3 py-3 text-base font-semibold text-foreground" colSpan={2}>
-                      Snit (vægtet)
+                      {t('karaktererPage.weightedAverage')}
                     </td>
                     {GRADE_COLUMNS.map((col) => (
                       <td key={col} className="px-3 py-3 text-center">
@@ -628,7 +631,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
                   {hasWeightDiff && (
                     <tr className="border-t border-border/40">
                       <td className="pl-4 pr-3 py-2.5 text-sm font-medium text-muted-foreground" colSpan={2}>
-                        Snit (uvægtet)
+                        {t('karaktererPage.unweightedAverage')}
                       </td>
                       {GRADE_COLUMNS.map((col) => (
                         <td key={col} className="px-3 py-2.5 text-center">
@@ -652,8 +655,8 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
       ) : data.diplomaLines.length === 0 && data.protocolLines.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-14 text-center">
           <GraduationCap className="mb-3 size-7 text-muted-foreground" />
-          <p className="text-base font-semibold text-foreground">Ingen karakterer</p>
-          <p className="text-sm text-muted-foreground">Der er ingen karakterer endnu</p>
+          <p className="text-base font-semibold text-foreground">{t('karaktererPage.noGrades')}</p>
+          <p className="text-sm text-muted-foreground">{t('karaktererPage.noGradesMessage')}</p>
         </div>
       ) : null}
 
@@ -662,7 +665,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
         {/* Linjer på bevis */}
         {data.diplomaLines.length > 0 && (
           <CollapsibleSection
-            title="Linjer på bevis"
+            title={t('karaktererPage.diplomaLines')}
             icon={FileText}
             count={data.diplomaLines.length}
             defaultOpen={groups.length === 0}
@@ -671,17 +674,17 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left">
-                    <th className="px-4 py-2 font-medium text-muted-foreground">Fag</th>
-                    <th className="px-3 py-2 font-medium text-muted-foreground text-center" colSpan={3}>Årskarakter</th>
-                    <th className="px-3 py-2 font-medium text-muted-foreground text-center" colSpan={3}>Eksamenskarakter</th>
+                    <th className="px-4 py-2 font-medium text-muted-foreground">{t('karaktererPage.subject')}</th>
+                    <th className="px-3 py-2 font-medium text-muted-foreground text-center" colSpan={3}>{t('karaktererPage.annualGrade')}</th>
+                    <th className="px-3 py-2 font-medium text-muted-foreground text-center" colSpan={3}>{t('karaktererPage.examGrade')}</th>
                   </tr>
                   <tr className="border-b border-border/50 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-1"></th>
-                    <th className="px-3 py-1 text-center font-medium">Vægt</th>
-                    <th className="px-3 py-1 text-center font-medium">Kar.</th>
+                    <th className="px-3 py-1 text-center font-medium">{t('karaktererPage.weight')}</th>
+                    <th className="px-3 py-1 text-center font-medium">{t('karaktererPage.grade')}</th>
                     <th className="px-3 py-1 text-center font-medium">ECTS</th>
-                    <th className="px-3 py-1 text-center font-medium">Vægt</th>
-                    <th className="px-3 py-1 text-center font-medium">Kar.</th>
+                    <th className="px-3 py-1 text-center font-medium">{t('karaktererPage.weight')}</th>
+                    <th className="px-3 py-1 text-center font-medium">{t('karaktererPage.grade')}</th>
                     <th className="px-3 py-1 text-center font-medium">ECTS</th>
                   </tr>
                 </thead>
@@ -711,7 +714,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
         {/* Protokollinjer */}
         {data.protocolLines.length > 0 && (
           <CollapsibleSection
-            title="Protokollinjer"
+            title={t('karaktererPage.protocolLines')}
             icon={ScrollText}
             count={data.protocolLines.length}
           >
@@ -719,9 +722,9 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-2 font-medium">Termin</th>
-                    <th className="px-3 py-2 font-medium">Type</th>
-                    <th className="px-3 py-2 font-medium text-center">Medtæller</th>
+                    <th className="px-4 py-2 font-medium">{t('karaktererPage.term')}</th>
+                    <th className="px-3 py-2 font-medium">{t('karaktererPage.type')}</th>
+                    <th className="px-3 py-2 font-medium text-center">{t('karaktererPage.counts')}</th>
                     <th className="px-3 py-2 font-medium">XPRS fag</th>
                     <th className="px-3 py-2 font-medium">Form</th>
                     <th className="px-3 py-2 font-medium">Hold</th>
@@ -753,7 +756,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
         {/* Bemærkninger */}
         {data.remarks.length > 0 && (
           <CollapsibleSection
-            title="Bemærkninger"
+            title={t('karaktererPage.remarks')}
             icon={NotebookPen}
             count={data.remarks.length}
           >
@@ -777,7 +780,7 @@ export function KaraktererPage({ data }: { data: KaraktererData }) {
         {/* Notes section */}
         {data.notes.length > 0 && (
           <CollapsibleSection
-            title="Alle karakternoter"
+            title={t('karaktererPage.allGradeNotes')}
             icon={MessageSquareText}
             count={data.notes.length}
           >

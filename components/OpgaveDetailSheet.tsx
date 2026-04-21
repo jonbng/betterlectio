@@ -38,6 +38,7 @@ import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignor
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { cn } from '@/lib/utils';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
+import { useTranslation } from '@/lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -92,9 +93,9 @@ function hasAssignmentFravaer(entry: Pick<OpgaveEntry, 'status' | 'absence' | 's
   return /frav[æa]r/i.test(entry.statusText);
 }
 
-function getAssignmentFravaerLabel(entry: Pick<OpgaveEntry, 'absence'>): string {
+function getAssignmentFravaerLabel(entry: Pick<OpgaveEntry, 'absence'>, absenceLabel: string): string {
   const absencePercent = parseAbsencePercent(entry.absence);
-  if (absencePercent === null) return 'Fravær registreret';
+  if (absencePercent === null) return absenceLabel;
   return `Fravær ${String(absencePercent).replace('.', ',')} %`;
 }
 
@@ -103,6 +104,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 // ── Component ──────────────────────────────────────────────────────────
 
 export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: OpgaveDetailSheetProps) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<OpgaveDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,9 +138,9 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Ukendt fejl';
       if (message === 'SESSION_EXPIRED') {
-        setError('Din session er udløbet. Log ind igen.');
+        setError(t('opgaveDetail.errors.sessionExpired'));
       } else {
-        setError('Kunne ikke hente opgavedetaljer.');
+        setError(t('opgaveDetail.errors.fetchFailed'));
       }
     } finally {
       setLoading(false);
@@ -195,17 +197,17 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       }
 
       if (success) {
-        toast.success('Indlæg sendt');
+        toast.success(t('opgaveDetail.success.entrySent'));
         setComment('');
         setSelectedFile(null);
         invalidateDetailCache(entry.url);
         loadDetail(entry.url, false);
       } else {
-        toast.error('Kunne ikke sende indlæg');
+        toast.error(t('opgaveDetail.errors.sendFailed'));
       }
     } catch (err) {
       captureException(err, undefined, { source: 'opgave-submit' });
-      toast.error('Der opstod en fejl ved afsendelse');
+      toast.error(t('opgaveDetail.errors.sendError'));
     } finally {
       setSubmitting(false);
       setSubmitStatus(null);
@@ -218,7 +220,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
     const file = e.dataTransfer?.files?.[0];
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
-        toast.error('Filen er for stor (max 50 MB)');
+        toast.error(t('opgaveDetail.errors.fileTooLarge'));
         return;
       }
       setSelectedFile(file);
@@ -230,7 +232,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
     const file = input.files?.[0];
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
-        toast.error('Filen er for stor (max 50 MB)');
+        toast.error(t('opgaveDetail.errors.fileTooLarge'));
         return;
       }
       setSelectedFile(file);
@@ -245,12 +247,12 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       const updated = await addGroupMember(detail, studentValue);
       if (updated) {
         setDetail(updated);
-        toast.success('Gruppemedlem tilføjet');
+        toast.success(t('opgaveDetail.success.groupMemberAdded'));
       } else {
-        toast.error('Kunne ikke tilføje gruppemedlem');
+        toast.error(t('opgaveDetail.errors.groupAddFailed'));
       }
     } catch {
-      toast.error('Der opstod en fejl');
+      toast.error(t('opgaveDetail.errors.groupError'));
     } finally {
       setGroupAdding(false);
     }
@@ -263,12 +265,12 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       const updated = await removeGroupMember(detail, postbackTarget, postbackArgument);
       if (updated) {
         setDetail(updated);
-        toast.success('Gruppemedlem fjernet');
+        toast.success(t('opgaveDetail.success.groupMemberRemoved'));
       } else {
-        toast.error('Kunne ikke fjerne gruppemedlem');
+        toast.error(t('opgaveDetail.errors.groupRemoveFailed'));
       }
     } catch {
-      toast.error('Der opstod en fejl');
+      toast.error(t('opgaveDetail.errors.groupError'));
     } finally {
       setGroupRemoving(null);
     }
@@ -296,12 +298,12 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const hasFravaer = entry ? hasAssignmentFravaer(entry) : false;
   const submitLabel =
     submitStatus === 'uploading'
-      ? 'Uploader fil...'
+      ? t('opgaveDetail.submit.uploading')
       : submitStatus === 'sending'
-        ? 'Sender til Lectio...'
+        ? t('opgaveDetail.submit.sending')
         : submitStatus === 'verifying'
-          ? 'Kontrollerer...'
-          : 'Sender...';
+          ? t('opgaveDetail.submit.verifying')
+          : t('opgaveDetail.submit.sending2');
 
   const sheetContent = (
     <div className="fixed inset-0 z-100 pointer-events-auto">
@@ -316,14 +318,14 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       <div
         className="absolute right-0 top-0 bottom-0 flex w-[92%] max-w-xl flex-col overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300"
         role="dialog"
-        aria-label={entry?.title || 'Opgavedetaljer'}
+        aria-label={entry?.title || t('opgaveDetail.defaultTitle')}
       >
         {/* Close button */}
         <button
           type="button"
           className="absolute right-5 top-5 z-10 inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground cursor-pointer"
           onClick={() => onOpenChange(false)}
-          aria-label="Luk"
+          aria-label={t('opgaveDetail.closeLabel')}
         >
           <X size={18} />
         </button>
@@ -332,7 +334,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
         <div className="shrink-0 border-b border-border px-7 pb-5 pt-7">
           <div className="flex flex-col gap-3">
             <h2 className="pr-12 text-2xl font-bold tracking-[-0.02em] text-foreground leading-snug">
-              {entry?.title || 'Opgave'}
+              {entry?.title || t('opgaveDetail.defaultTitle')}
             </h2>
             {entry && (
               <div className="flex flex-wrap items-center gap-3">
@@ -349,7 +351,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 {hasFravaer && (
                   <span className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.72_0.14_25/0.5)] bg-[oklch(0.95_0.03_25)] px-2.5 py-1 text-sm font-semibold text-[oklch(0.42_0.16_25)] dark:border-[oklch(0.58_0.18_25/0.35)] dark:bg-[oklch(0.28_0.03_25/0.75)] dark:text-[oklch(0.79_0.12_25)]">
                     <AlertTriangle size={14} />
-                    {getAssignmentFravaerLabel(entry)}
+                    {getAssignmentFravaerLabel(entry, t('opgaveDetail.absenceRegistered'))}
                   </span>
                 )}
                 {entry.status === 'mangler' && getExerciseIdFromUrl(entry.url) && (
@@ -358,7 +360,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                     className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-[color,background-color] duration-150 hover:bg-accent cursor-pointer dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
                     onClick={toggleIgnoreMissing}
                   >
-                    {ignoredMissing ? 'Vis igen som manglende' : 'Ignorer manglende'}
+                    {ignoredMissing ? t('opgaveDetail.showAsMissing') : t('opgaveDetail.ignoreMissing')}
                   </button>
                 )}
               </div>
@@ -380,7 +382,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent cursor-pointer"
                   onClick={() => entry && loadDetail(entry.url, false)}
                 >
-                  Prøv igen
+                  {t('opgaveDetail.retry')}
                 </button>
                 {entry && (
                   <a
@@ -388,7 +390,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                     className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground no-underline"
                   >
                     <ExternalLink size={15} />
-                    Åbn i Lectio
+                    {t('opgaveDetail.openInLectio')}
                   </a>
                 )}
               </div>
@@ -399,10 +401,10 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
             <>
               {/* Info grid */}
               <div className="grid gap-3 sm:grid-cols-2">
-                <InfoRow label="Ansvarlig" value={detail.responsible} />
-                <InfoRow label="Elevtid" value={detail.studentTime} />
-                <InfoRow label="Karakterskala" value={detail.gradeScale} />
-                <InfoRow label="Frist" value={detail.deadline} />
+                <InfoRow label={t('opgaveDetail.info.responsible')} value={detail.responsible} />
+                <InfoRow label={t('opgaveDetail.info.studentTime')} value={detail.studentTime} />
+                <InfoRow label={t('opgaveDetail.info.gradeScale')} value={detail.gradeScale} />
+                <InfoRow label={t('opgaveDetail.info.deadline')} value={detail.deadline} />
               </div>
 
               {/* Assignment note */}
@@ -438,7 +440,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   <div className="space-y-3">
                     <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
                       <Users size={16} />
-                      Gruppeaflevering
+                      {t('opgaveDetail.groupSection.title')}
                       <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                         {detail.groupMembers.length}
                       </span>
@@ -482,7 +484,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                 <div className="space-y-3">
                   <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
                     <User size={16} />
-                    Status
+                    {t('opgaveDetail.statusSection')}
                   </h3>
                   {detail.students.map((student, i) => (
                     <div key={i} className="rounded-xl border border-border bg-card px-4 py-3">
@@ -532,7 +534,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   <div className="space-y-3">
                     <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
                       <FileText size={16} />
-                      Indlæg
+                      {t('opgaveDetail.entriesSection')}
                       <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                         {detail.entries.length}
                       </span>
@@ -587,7 +589,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
               <div className="space-y-3 px-7 py-5">
                 <textarea
                   className="min-h-12 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  placeholder="Skriv en kommentar..."
+                  placeholder={t('opgaveDetail.submit.commentPlaceholder')}
                   value={comment}
                   onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
                   rows={2}
@@ -629,7 +631,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   ) : (
                     <div className="flex items-center gap-2 text-base text-muted-foreground">
                       <Upload size={16} />
-                      <span>Vælg fil eller træk hertil</span>
+                      <span>{t('opgaveDetail.submit.fileDropLabel')}</span>
                     </div>
                   )}
                 </button>
@@ -653,7 +655,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   ) : (
                     <Send size={16} />
                   )}
-                  {submitting ? submitLabel : 'Send'}
+                  {submitting ? submitLabel : t('opgaveDetail.submit.sendButton')}
                 </button>
               </div>
             )}
@@ -758,6 +760,7 @@ function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap }: {
   onRemove?: () => void;
   studentsMap: StudentsMap | null;
 }) {
+  const { t } = useTranslation();
   const displayName = getDisplayNameFromLookupId(studentsMap, member.contextCardId, member.name);
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
@@ -776,7 +779,7 @@ function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap }: {
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           onClick={onRemove}
           disabled={removing}
-          aria-label={`Fjern ${displayName}`}
+          aria-label={t('opgaveDetail.groupSection.removeLabel', { name: displayName })}
         >
           {removing ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
         </button>
@@ -794,6 +797,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
   onAdd: (value: string) => void;
   studentsMap: StudentsMap | null;
 }) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -884,7 +888,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
           <input
             ref={inputRef}
             className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
-            placeholder="Søg efter elev..."
+            placeholder={t('opgaveDetail.groupSection.searchPlaceholder')}
             value={search}
             onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
             onKeyDown={handleKeyDown}
@@ -914,7 +918,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
             <Plus size={16} className="text-muted-foreground" />
           )}
           <span className="text-base text-muted-foreground">
-            {adding ? 'Tilføjer...' : 'Tilføj gruppemedlem'}
+            {adding ? t('opgaveDetail.groupSection.adding') : t('opgaveDetail.groupSection.addButton')}
           </span>
           {!adding && <ChevronDown size={16} className="ml-auto text-muted-foreground transition-transform" />}
         </button>
@@ -925,7 +929,7 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
         <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
           <div ref={listRef}>
             {filtered.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground">Ingen elever fundet</div>
+              <div className="px-4 py-3 text-sm text-muted-foreground">{t('opgaveDetail.groupSection.noStudents')}</div>
             ) : (
               filtered.map((student, i) => (
                 <GroupStudentOption

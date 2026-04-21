@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PrivatAftaleDialog } from "@/components/PrivatAftaleDialog";
+import { useTranslation } from "@/lib/i18n";
 
 // ── Data ─────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,7 @@ export function parseScheduleToolbar(
 // ── Component ────────────────────────────────────────────────────────────
 
 export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [paDialogOpen, setPaDialogOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -154,14 +156,14 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
           <a
             href={data.prevWeekUrl}
             className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150"
-            title="Forrige uge (Alt+B)"
+            title={t('scheduleToolbar.prevWeek')}
           >
             <ChevronLeft className="size-4" />
           </a>
 
           <div className="flex items-baseline gap-2 px-1.5 select-none min-w-0">
             <span className="text-lg font-semibold tabular-nums text-foreground leading-none whitespace-nowrap">
-              Uge {data.weekNumber}
+              {t('scheduleToolbar.week')} {data.weekNumber}
             </span>
             {data.dateRange && (
               <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
@@ -173,7 +175,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
           <a
             href={data.nextWeekUrl}
             className="inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150"
-            title="Næste uge (Alt+N)"
+            title={t('scheduleToolbar.nextWeek')}
           >
             <ChevronRight className="size-4" />
           </a>
@@ -183,14 +185,14 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
         {data.isCurrentWeek ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary text-sm font-medium select-none">
             <span className="size-1.5 rounded-full bg-primary" />
-            Denne uge
+            {t('scheduleToolbar.thisWeek')}
           </span>
         ) : data.todayUrl ? (
           <a
             href={data.todayUrl}
             className="inline-flex items-center px-2.5 py-1 rounded-md border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 no-underline"
           >
-            I dag
+            {t('scheduleToolbar.today')}
           </a>
         ) : null}
 
@@ -222,7 +224,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 no-underline"
           >
             <CalendarRange className="size-3.5" />
-            Måned
+            {t('scheduleToolbar.month')}
           </a>
         )}
       </div>
@@ -237,7 +239,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 active:scale-[0.97]"
             >
               <Plus className="size-3.5" />
-              Privat aftale
+              {t('scheduleToolbar.privateAppointment')}
             </button>
             <PrivatAftaleDialog
               open={paDialogOpen}
@@ -256,7 +258,7 @@ export function ScheduleToolbar({ data }: { data: ScheduleToolbarData }) {
                 "inline-flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150",
                 menuOpen && "bg-muted text-foreground",
               )}
-              title="Flere handlinger"
+              title={t('scheduleToolbar.moreActions')}
             >
               <EllipsisVertical className="size-4" />
             </button>

@@ -768,7 +768,8 @@ html {
       .il-members-page-active,
       .il-karakterer-page-active,
       .il-profil-page-active,
-      .il-dokumenter-page-active
+      .il-dokumenter-page-active,
+      .il-modulregnskaber-page-active
     ) #il-original-content {
     flex: 0 0 auto;
     min-height: 0;
@@ -2963,6 +2964,32 @@ html {
   body.il-karakterer-page-active #il-original-content .ls-content {
     height: fit-content;
     min-height: 0;
+  }
+
+  /* ========================================
+     Modulregnskaber Page (forside.aspx?bl=modulregnskaber) Styles
+     ======================================== */
+
+  /* Hide original forside content when modulregnskaber overlay is active */
+  body.il-modulregnskaber-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-modulregnskaber-page-active #il-original-content,
+  body.il-modulregnskaber-page-active #il-original-content #masterContent,
+  body.il-modulregnskaber-page-active #il-original-content #aspnetForm,
+  body.il-modulregnskaber-page-active #il-original-content .ls-master-container1,
+  body.il-modulregnskaber-page-active #il-original-content .ls-master-container2,
+  body.il-modulregnskaber-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-modulregnskaber-page-active #il-original-content .outerContentFrame,
+  body.il-modulregnskaber-page-active #il-original-content .ls-content-container,
+  body.il-modulregnskaber-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  #il-modulregnskaber-page {
+    padding: 0;
   }
 
   /* ========================================

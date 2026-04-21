@@ -1,4 +1,4 @@
-import { render } from "preact";
+import { render } from "@/lib/i18n/render";
 import { AppSidebar } from "@/components/AppSidebar";
 import { FindSkemaPage } from "@/components/FindSkemaPage";
 import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
@@ -20,6 +20,7 @@ import {
 import { FravaerPage } from "@/components/FravaerPage";
 import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
 import { KaraktererPage, parseKaraktererFromDOM } from "@/components/KaraktererPage";
+import { ModulregnskaberPage } from "@/components/ModulregnskaberPage";
 import { DokumenterPage } from "@/components/DokumenterPage";
 import { parseDokumenterPage } from "@/lib/dokumenter-parser";
 import { ProfilPage } from "@/components/ProfilPage";
@@ -40,6 +41,7 @@ import {
 } from "@/lib/profile-cache";
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
+import { getLocale } from "@/lib/i18n";
 import { applyThemeForSchool, getThemePreferenceForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, getFullHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
@@ -510,6 +512,7 @@ function initLayout() {
       school_year: schoolYear,
       dark_mode: currentSettings.visual.darkMode,
       theme_id: currentTheme.themeId,
+      language: getLocale(),
       extension_version: browser.runtime.getManifest().version,
       lectio_version: getLectioVersionForUserJot(),
     });
@@ -857,9 +860,17 @@ function initLayout() {
           injectFindSkemaPage(schoolId);
         }
 
-        // Inject greeting on forside page
+        // Inject greeting on forside page — unless it's our custom
+        // Modulregnskaber overlay (forside.aspx?bl=modulregnskaber), which
+        // reuses forside as a safe container URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const blOverlay = urlParams.get("bl");
         if (window.location.pathname.toLowerCase().includes("forside.aspx")) {
-          injectForsideGreeting(schoolId);
+          if (blOverlay === "modulregnskaber") {
+            injectModulregnskaberPage(schoolId);
+          } else {
+            injectForsideGreeting(schoolId);
+          }
         }
 
         // Inject members page UI
@@ -973,10 +984,9 @@ function initLayout() {
       initCKEditorDarkMode();
 
       // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
-      initUserJotWidget();
-      if (userJotIdentifyPayload) {
-        identifyUserJot(userJotIdentifyPayload);
-      }
+      // Pass identify via dataset because the bootstrap runs in the page's main
+      // world and cannot read the isolated content-script's window globals.
+      initUserJotWidget(userJotIdentifyPayload ?? undefined);
 
       console.log("[BetterLectio] Dashboard layout injected");
     }
@@ -2583,6 +2593,21 @@ async function injectFravaerPage(schoolId: string) {
     console.error("[BetterLectio] Failed to load fravær page:", err);
     fravaerContainer.innerHTML = '<div class="il-fravaer-initial-loading"><span>Kunne ikke hente fraværsdata. Prøv at genindlæse siden.</span></div>';
   }
+}
+
+function injectModulregnskaberPage(schoolId: string) {
+  trackFeatureUsed("modulregnskaber_page", { school_id: schoolId });
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const container = document.createElement("div");
+  container.id = "il-modulregnskaber-page";
+  contentContainer.insertBefore(container, contentContainer.firstChild);
+
+  document.body.classList.add("il-modulregnskaber-page-active");
+
+  render(<ModulregnskaberPage schoolId={schoolId} />, container);
 }
 
 function injectKaraktererPage(_schoolId: string) {

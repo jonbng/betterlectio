@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
@@ -6,38 +7,11 @@ import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { getSession } from '@/lib/supabase/client';
 
-const weekendGreetings = [
-  'God weekend',
-  'Nyd weekenden',
-  'Slap af, det er weekend',
-  'Velkommen til weekenden',
-];
-
-const fridayAfternoonGreetings = [
-  'God weekend',
-  'Næsten weekend',
-  'God fredag',
-];
-
 function pickGreeting(pool: string[]): string {
   const store = ((window as any).__ilGreetIdx ??= {}) as Record<string, number>;
   const key = pool[0];
   if (!(key in store)) store[key] = Math.floor(Math.random() * pool.length);
   return pool[store[key]];
-}
-
-function getGreeting(): string {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun, 6=Sat
-  const hour = now.getHours();
-
-  if (day === 6 || day === 0) return pickGreeting(weekendGreetings);
-  if (day === 5 && hour >= 14) return pickGreeting(fridayAfternoonGreetings);
-
-  if (hour >= 5 && hour < 9) return 'God morgen';
-  if (hour >= 9 && hour < 12) return 'God formiddag';
-  if (hour >= 12 && hour < 18) return 'God eftermiddag';
-  return 'God aften';
 }
 
 function formatTime(date: Date): string {
@@ -55,19 +29,6 @@ function formatDate(date: Date): string {
   });
 }
 
-const cancelledNudges = [
-  (n: number) => `${n === 1 ? '1 aflyst modul' : `${n} aflyste moduler`} i dag — nice`,
-  (n: number) => `${n === 1 ? '1 aflyst time' : `${n} aflyste timer`} i dag 🎉`,
-  (n: number) => `Psst… ${n === 1 ? '1 time' : `${n} timer`} aflyst i dag`,
-  (n: number) => `${n === 1 ? 'En fritime' : `${n} fritimer`} takket være aflyste moduler`,
-];
-
-function pickCancelledNudge(): (n: number) => string {
-  if (!('__ilForsideCnIdx' in window)) {
-    (window as any).__ilForsideCnIdx = Math.floor(Math.random() * cancelledNudges.length);
-  }
-  return cancelledNudges[(window as any).__ilForsideCnIdx];
-}
 
 interface UrgentOpgave {
   title: string;
@@ -173,11 +134,51 @@ function formatUrgentLabel(opgave: UrgentOpgave): string {
 }
 
 export function ForsideGreeting({ schoolId }: { schoolId: string }) {
+  const { t } = useTranslation();
   const [time, setTime] = useState(new Date());
   const [firstName, setFirstName] = useState<string>('');
   const [cancelledCount, setCancelledCount] = useState(0);
   const [urgentOpgaver, setUrgentOpgaver] = useState<UrgentOpgave[]>([]);
   const [cloudConnected, setCloudConnected] = useState<boolean | null>(null);
+
+  const weekendGreetings = [
+    t('forside.greeting.weekend.goodWeekend'),
+    t('forside.greeting.weekend.enjoyWeekend'),
+    t('forside.greeting.weekend.relaxItsWeekend'),
+    t('forside.greeting.weekend.welcomeToWeekend'),
+  ];
+
+  const fridayAfternoonGreetings = [
+    t('forside.greeting.fridayAfternoon.goodWeekend'),
+    t('forside.greeting.fridayAfternoon.almostWeekend'),
+    t('forside.greeting.fridayAfternoon.goodFriday'),
+  ];
+
+  function getGreeting(): string {
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    if (day === 6 || day === 0) return pickGreeting(weekendGreetings);
+    if (day === 5 && hour >= 14) return pickGreeting(fridayAfternoonGreetings);
+    if (hour >= 5 && hour < 9) return t('forside.greeting.goodMorning');
+    if (hour >= 9 && hour < 12) return t('forside.greeting.goodForeNoon');
+    if (hour >= 12 && hour < 18) return t('forside.greeting.goodAfternoon');
+    return t('forside.greeting.goodEvening');
+  }
+
+  const cancelledNudges = [
+    (n: number) => n === 1 ? t('forside.cancelled.moduleSingular') : t('forside.cancelled.modulePlural', { n }),
+    (n: number) => n === 1 ? t('forside.cancelled.hourSingular') : t('forside.cancelled.hourPlural', { n }),
+    (n: number) => n === 1 ? t('forside.cancelled.psst1') : t('forside.cancelled.psstN', { n }),
+    (n: number) => n === 1 ? t('forside.cancelled.freetimeSingular') : t('forside.cancelled.freetimePlural', { n }),
+  ];
+
+  function pickCancelledNudge(): (n: number) => string {
+    if (!('__ilForsideCnIdx' in window)) {
+      (window as any).__ilForsideCnIdx = Math.floor(Math.random() * cancelledNudges.length);
+    }
+    return cancelledNudges[(window as any).__ilForsideCnIdx];
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -285,7 +286,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
             className="inline-block w-1.5 h-1.5 rounded-full"
             style={{ backgroundColor: cloudConnected ? 'oklch(0.6 0.15 145)' : 'oklch(0.5 0.03 285)' }}
           />
-          {cloudConnected ? 'Synkroniseret' : 'Offline'}
+          {cloudConnected ? t('forside.synced') : t('forside.offline')}
         </div>
       )}
       <div className="flex flex-col gap-3">

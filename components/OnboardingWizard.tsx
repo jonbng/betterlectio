@@ -40,6 +40,7 @@ import {
 } from '@/lib/supabase/student-lookup';
 import { capture, getDistinctId, setPersonProperties } from '@/lib/posthog';
 import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
+import { useTranslation } from '@/lib/i18n';
 import type { Tables } from '@/database.types';
 
 type Student = Tables<'students'>;
@@ -109,6 +110,7 @@ export function OnboardingWizard({
   portalTarget,
   onOpenSettings,
 }: OnboardingWizardProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
   const [themeId, setThemeId] = useState<ThemePresetId>(() => getThemePreferenceForSchool(schoolId).themeId);
@@ -343,18 +345,18 @@ export function OnboardingWizard({
             />
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tight text-foreground">
-                Velkommen til BetterLectio
+                {t('onboarding.welcome.title')}
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed max-w-md mx-auto">
-                Et nyt look til Lectio — pænere, hurtigere og nemmere at bruge.
+                {t('onboarding.welcome.subtitle')}
                 <br />
-                Lad os sætte det op sammen.
+                {t('onboarding.welcome.subtitleLine2')}
               </p>
             </div>
             <div className="w-full rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-3.5 text-left">
               <p className="text-sm text-muted-foreground leading-relaxed">
-                <span className="font-semibold text-foreground">Bemærk:</span>{' '}
-                Første gang kan Lectio logge dig ud én gang. Log bare ind igen — så virker alt bagefter.
+                <span className="font-semibold text-foreground">{t('onboarding.welcome.note')}</span>{' '}
+                {t('onboarding.welcome.noteBody')}
               </p>
             </div>
           </div>
@@ -367,15 +369,15 @@ export function OnboardingWizard({
             <div className="space-y-1.5">
               <h2 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
                 <Palette className="size-6 text-primary" />
-                Vælg dit tema
+                {t('onboarding.theme.title')}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Gør BetterLectio til dit eget. Du kan altid ændre det senere.
+                {t('onboarding.theme.subtitle')}
               </p>
             </div>
 
             <div className="flex items-center justify-between rounded-xl border px-4 py-3">
-              <Label className="text-sm font-medium">Udseende</Label>
+              <Label className="text-sm font-medium">{t('onboarding.theme.appearance')}</Label>
               <div className="flex items-center gap-2.5">
                 <Sun className="size-4 text-muted-foreground" />
                 <Switch
@@ -441,10 +443,10 @@ export function OnboardingWizard({
           <div className="space-y-6">
             <div className="space-y-1.5">
               <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                Skemafarver
+                {t('onboarding.subjectColors.title')}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Giv hvert fag sin egen farve i skemaet, så det er lettere at skelne mellem dem.
+                {t('onboarding.subjectColors.subtitle')}
               </p>
             </div>
 
@@ -470,7 +472,7 @@ export function OnboardingWizard({
                   ))}
                 </div>
                 <span className={`text-sm font-semibold ${subjectColors ? 'text-primary' : 'text-foreground'}`}>
-                  Med farver
+                  {t('onboarding.subjectColors.withColors')}
                 </span>
               </button>
               <button
@@ -488,13 +490,13 @@ export function OnboardingWizard({
                   ))}
                 </div>
                 <span className={`text-sm font-semibold ${!subjectColors ? 'text-primary' : 'text-foreground'}`}>
-                  Uden farver
+                  {t('onboarding.subjectColors.withoutColors')}
                 </span>
               </button>
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              Du kan tilpasse farverne for hvert enkelt fag i indstillinger.
+              {t('onboarding.subjectColors.hint')}
             </p>
           </div>
         );
@@ -505,10 +507,10 @@ export function OnboardingWizard({
           <div className="space-y-5">
             <div className="space-y-1.5">
               <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                Din profil
+                {t('onboarding.profile.title')}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Andre BetterLectio-brugere kan se din profil. Alt er valgfrit.
+                {t('onboarding.profile.subtitle')}
               </p>
             </div>
 
@@ -523,34 +525,34 @@ export function OnboardingWizard({
                       className="size-14 rounded-full object-cover border-2 border-border"
                     />
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Dit billede kommer fra Lectio.
+                      {t('onboarding.profile.pictureNote')}
                     </p>
                   </div>
                 )}
 
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="ob-name" className="text-xs font-medium text-muted-foreground">Visningsnavn</Label>
+                    <Label htmlFor="ob-name" className="text-xs font-medium text-muted-foreground">{t('onboarding.profile.nameLabel')}</Label>
                     <input
                       id="ob-name"
                       type="text"
                       value={profileName}
                       onChange={(e) => setProfileName((e.target as HTMLInputElement).value)}
                       onBlur={() => saveProfileField('name', profileName || null)}
-                      placeholder="Dit navn"
+                      placeholder={t('onboarding.profile.namePlaceholder')}
                       className="flex w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="ob-desc" className="text-xs font-medium text-muted-foreground">Beskrivelse</Label>
+                    <Label htmlFor="ob-desc" className="text-xs font-medium text-muted-foreground">{t('onboarding.profile.descLabel')}</Label>
                     <input
                       id="ob-desc"
                       type="text"
                       value={profileDesc}
                       onChange={(e) => setProfileDesc((e.target as HTMLInputElement).value)}
                       onBlur={() => saveProfileField('description', profileDesc || null)}
-                      placeholder="Kort om dig selv"
+                      placeholder={t('onboarding.profile.descPlaceholder')}
                       className="flex w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
@@ -568,17 +570,17 @@ export function OnboardingWizard({
                           saveProfileField('instagram', normalizeInstagramHandle(profileInsta));
                           setProfileInsta(formatInstagramHandle(profileInsta));
                         }}
-                        placeholder="@brugernavn"
+                        placeholder={t('onboarding.profile.instaPlaceholder')}
                         className="flex w-full rounded-xl border border-input bg-background pl-10 pr-3.5 py-2.5 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">Du kan skrive med eller uden @</p>
+                    <p className="text-xs text-muted-foreground">{t('onboarding.profile.instaHint')}</p>
                   </div>
 
                   <div className="flex items-center justify-between rounded-xl border px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-foreground">Vis fødselsdag</p>
-                      <p className="text-xs text-muted-foreground">Andre kan se din fødselsdag</p>
+                      <p className="text-sm font-medium text-foreground">{t('onboarding.profile.birthdayLabel')}</p>
+                      <p className="text-xs text-muted-foreground">{t('onboarding.profile.birthdayDescription')}</p>
                     </div>
                     <Switch
                       checked={showBirthday}
@@ -592,7 +594,7 @@ export function OnboardingWizard({
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Alt kan ændres senere i indstillinger.
+                  {t('onboarding.profile.hint')}
                 </p>
               </div>
             ) : (
@@ -616,7 +618,7 @@ export function OnboardingWizard({
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground text-center !opacity-100 !pointer-events-auto">
-                  Din profil opsættes automatisk — du kan redigere den snart.
+                  {t('onboarding.profile.loading')}
                 </p>
               </div>
             )}
@@ -632,10 +634,10 @@ export function OnboardingWizard({
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                Én sidste ting
+                {t('onboarding.feedback.title')}
               </h2>
               <p className="text-base text-muted-foreground leading-relaxed max-w-md mx-auto">
-                BetterLectio er et hobbyprojekt, og din feedback gør en kæmpe forskel.
+                {t('onboarding.feedback.subtitle')}
               </p>
             </div>
 
@@ -643,9 +645,9 @@ export function OnboardingWizard({
               <div className="flex items-start gap-3.5 rounded-xl border bg-muted/30 px-5 py-4 text-left">
                 <MessageSquareHeart className="size-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Giv feedback</p>
+                  <p className="text-sm font-medium text-foreground">{t('onboarding.feedback.feedbackTitle')}</p>
                   <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
-                    Har du fundet en fejl eller har en idé? Brug <span className="font-semibold text-primary">"Give Feedback"</span>-knappen nederst til højre — den er der altid.
+                    {t('onboarding.feedback.feedbackBody')}
                   </p>
                 </div>
               </div>
@@ -653,9 +655,9 @@ export function OnboardingWizard({
               <div className="flex items-start gap-3.5 rounded-xl border bg-muted/30 px-5 py-4 text-left">
                 <Users className="size-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Fortæl dine venner</p>
+                  <p className="text-sm font-medium text-foreground">{t('onboarding.feedback.shareTitle')}</p>
                   <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">
-                    Kender du nogen som ikke bruger BetterLectio endnu? Fortæl dem om det — jo flere vi er, jo bedre bliver det.
+                    {t('onboarding.feedback.shareBody')}
                   </p>
                 </div>
               </div>
@@ -716,7 +718,7 @@ export function OnboardingWizard({
                 className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-[color,background-color] duration-150 cursor-pointer"
               >
                 <ChevronLeft className="size-4" />
-                Tilbage
+                {t('onboarding.nav.back')}
               </button>
             )}
           </div>
@@ -745,12 +747,12 @@ export function OnboardingWizard({
             >
               {isLastStep ? (
                 <>
-                  Kom i gang
+                  {t('onboarding.nav.start')}
                   <ArrowRight className="size-4" />
                 </>
               ) : (
                 <>
-                  Næste
+                  {t('onboarding.nav.next')}
                   <ChevronRight className="size-4" />
                 </>
               )}

@@ -18,6 +18,7 @@ import {
 } from "@/lib/privat-aftale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTranslation } from "@/lib/i18n";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export function PrivatAftaleDialog({
   onOpenChange,
   formUrl,
 }: PrivatAftaleDialogProps) {
+  const { t } = useTranslation();
   // Form state
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -115,8 +117,8 @@ export function PrivatAftaleDialog({
         if (cancelled) return;
         setFetchError(
           err?.message === "Session expired"
-            ? "Din session er udløbet. Genindlæs siden."
-            : "Kunne ikke hente formularen. Prøv igen.",
+            ? t('privatAftale.errors.sessionExpired')
+            : t('privatAftale.errors.fetchFailed'),
         );
       })
       .finally(() => {
@@ -177,15 +179,15 @@ export function PrivatAftaleDialog({
         endTime,
         comment: comment.trim(),
       });
-      toast.success(isEditing ? "Privat aftale opdateret" : "Privat aftale oprettet");
+      toast.success(isEditing ? t('privatAftale.success.updated') : t('privatAftale.success.created'));
       onOpenChange(false);
       // Reload to show changes on the schedule
       window.location.reload();
     } catch (err: any) {
       const msg =
         err?.message === "Session expired"
-          ? "Din session er udløbet. Genindlæs siden."
-          : "Kunne ikke gemme. Prøv igen.";
+          ? t('privatAftale.errors.sessionExpired')
+          : t('privatAftale.errors.saveFailed');
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -195,19 +197,19 @@ export function PrivatAftaleDialog({
   const handleDelete = useCallback(async () => {
     if (!formData || !formData.canDelete || deleting) return;
 
-    if (!window.confirm("Er du sikker på, at du vil slette denne aftale?")) return;
+    if (!window.confirm(t('privatAftale.confirmDelete'))) return;
 
     setDeleting(true);
     try {
       await deletePrivatAftale(formData);
-      toast.success("Privat aftale slettet");
+      toast.success(t('privatAftale.success.deleted'));
       onOpenChange(false);
       window.location.reload();
     } catch (err: any) {
       const msg =
         err?.message === "Session expired"
-          ? "Din session er udløbet. Genindlæs siden."
-          : "Kunne ikke slette. Prøv igen.";
+          ? t('privatAftale.errors.sessionExpired')
+          : t('privatAftale.errors.deleteFailed');
       toast.error(msg);
     } finally {
       setDeleting(false);
@@ -226,7 +228,7 @@ export function PrivatAftaleDialog({
       className="fixed inset-0 z-200 flex items-center justify-center pointer-events-auto"
       role="dialog"
       aria-modal="true"
-      aria-label="Privat aftale"
+      aria-label={t('privatAftale.ariaLabel')}
       onKeyDown={(e: any) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && isValid && !submitting) {
           e.preventDefault();
@@ -254,7 +256,7 @@ export function PrivatAftaleDialog({
           type="button"
           onClick={() => onOpenChange(false)}
           className="absolute top-4 right-4 z-10 inline-flex items-center justify-center size-7 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150"
-          aria-label="Luk"
+          aria-label={t('privatAftale.closeLabel')}
         >
           <X className="size-4" />
         </button>
@@ -267,11 +269,11 @@ export function PrivatAftaleDialog({
             </div>
             <div>
               <h2 className="text-base font-semibold text-foreground leading-tight m-0">
-                {isEditing ? "Rediger privat aftale" : "Privat aftale"}
+                {isEditing ? t('privatAftale.editTitle') : t('privatAftale.createTitle')}
               </h2>
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground mt-0.5 m-0">
                 <Lock className="size-3" />
-                Kan kun ses af dig
+                {t('privatAftale.onlyVisibleToYou')}
               </p>
             </div>
           </div>
@@ -282,7 +284,7 @@ export function PrivatAftaleDialog({
           {fetching ? (
             <div className="flex items-center justify-center py-12 gap-3">
               <Loader2 className="size-5 text-muted-foreground animate-spin" />
-              <span className="text-sm text-muted-foreground">Henter formular…</span>
+              <span className="text-sm text-muted-foreground">{t('privatAftale.loadingForm')}</span>
             </div>
           ) : fetchError ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -292,7 +294,7 @@ export function PrivatAftaleDialog({
                 onClick={() => onOpenChange(false)}
                 className="text-sm text-muted-foreground hover:text-foreground underline transition-colors duration-150"
               >
-                Luk
+                {t('privatAftale.closeLabel')}
               </button>
             </div>
           ) : (
@@ -304,7 +306,7 @@ export function PrivatAftaleDialog({
                   className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 >
                   <Type className="size-3" />
-                  Titel
+                  {t('privatAftale.titleLabel')}
                 </label>
                 <input
                   ref={titleRef}
@@ -313,7 +315,7 @@ export function PrivatAftaleDialog({
                   maxLength={20}
                   value={title}
                   onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
-                  placeholder="Tandlæge, træning, …"
+                  placeholder={t('privatAftale.titlePlaceholder')}
                   className={inputClass}
                 />
                 <span className="text-xs text-muted-foreground/60 tabular-nums text-right">
@@ -325,7 +327,7 @@ export function PrivatAftaleDialog({
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <Clock className="size-3" />
-                  Start
+                  {t('privatAftale.startLabel')}
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -357,7 +359,7 @@ export function PrivatAftaleDialog({
               <div className="flex flex-col gap-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <Clock className="size-3" />
-                  Slut
+                  {t('privatAftale.endLabel')}
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -392,14 +394,14 @@ export function PrivatAftaleDialog({
                   className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 >
                   <MessageSquare className="size-3" />
-                  Kommentar
-                  <span className="font-normal normal-case tracking-normal text-muted-foreground/50">(valgfri)</span>
+                  {t('privatAftale.commentLabel')}
+                  <span className="font-normal normal-case tracking-normal text-muted-foreground/50">{t('privatAftale.optional')}</span>
                 </label>
                 <textarea
                   id="pa-comment"
                   value={comment}
                   onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
-                  placeholder="Tilføj en note…"
+                  placeholder={t('privatAftale.commentPlaceholder')}
                   rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground resize-none placeholder:text-muted-foreground/60 outline-none transition-[border-color,box-shadow] duration-150 focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
@@ -424,7 +426,7 @@ export function PrivatAftaleDialog({
                   ) : (
                     <Trash2 className="size-3.5" />
                   )}
-                  {deleting ? "Sletter…" : "Slet"}
+                  {deleting ? t('privatAftale.deleting') : t('privatAftale.delete')}
                 </button>
               )}
               {!isEditing && (
@@ -445,7 +447,7 @@ export function PrivatAftaleDialog({
                 onClick={() => onOpenChange(false)}
                 className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-[color,background-color] duration-150 active:scale-[0.97]"
               >
-                Annuller
+                {t('privatAftale.cancel')}
               </button>
               <button
                 type="button"
@@ -459,7 +461,7 @@ export function PrivatAftaleDialog({
                 )}
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
-                {submitting ? "Gemmer…" : isEditing ? "Gem" : "Opret"}
+                {submitting ? t('privatAftale.saving') : isEditing ? t('privatAftale.save') : t('privatAftale.create')}
               </button>
             </div>
           </div>

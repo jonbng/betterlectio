@@ -38,14 +38,8 @@
     theme: theme,
   });
 
-  // Pick up any identify payload stashed before this script loaded.
-  // Queued after init so the SDK processes init first.
-  const pending = window.__IL_USERJOT_PENDING_IDENTIFY__;
-  if (pending && typeof pending.id === "string" && pending.id.trim()) {
-    window.uj.identify(pending);
-    window.__IL_USERJOT_PENDING_IDENTIFY__ = null;
-  }
-
+  // Register the identify listener FIRST so any CustomEvent dispatched
+  // during/after SDK load isn't missed.
   window.addEventListener(identifyEvent, (event) => {
     const payload = event?.detail;
     if (!payload || typeof payload.id !== "string" || !payload.id.trim()) {
@@ -53,6 +47,21 @@
     }
     window.uj.identify(payload);
   });
+
+  // Pick up an initial identify payload passed via dataset. This is how the
+  // content script (isolated world) hands us identity synchronously, since
+  // its `window` globals are not visible to us in the main world.
+  const initialIdentifyRaw = el.dataset.initialIdentify;
+  if (initialIdentifyRaw) {
+    try {
+      const payload = JSON.parse(initialIdentifyRaw);
+      if (payload && typeof payload.id === "string" && payload.id.trim()) {
+        window.uj.identify(payload);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   window.addEventListener(setThemeEvent, (event) => {
     const nextTheme = event?.detail;

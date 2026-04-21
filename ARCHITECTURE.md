@@ -250,6 +250,31 @@ Content Scripts (inject into lectio.dk pages)
 | `lib/url-history.ts` | Per-tab (sessionStorage) URL breadcrumb trail (`pushUrlToHistory` / `getRecentUrls`) used to enrich error reports with recent navigation context. |
 | `lib/utils.ts` | Helper functions (`cn()`) |
 
+### Internationalization (i18n)
+
+Lightweight, custom i18n covering BetterLectio's injected UI only — Lectio's native DOM is left in Danish. Default locale `da`, with `en` as the second supported locale; both are eagerly bundled (MV3 content scripts can't dynamic-`import()`).
+
+| File | Purpose |
+|------|---------|
+| `lib/i18n/locales.ts` | `SUPPORTED_LOCALES = ['da', 'en'] as const`, `DEFAULT_LOCALE`, `LOCALE_LABELS`, `isSupportedLocale()` guard, `LocaleCode` type |
+| `lib/i18n/types.ts` | Recursive `Path<DaDictionary>` for `TranslationKey`, `Dictionary` shape, `TFunction` signature |
+| `lib/i18n/format.ts` | `interpolate(template, vars)` (`{name}` placeholder substitution); `handleMissing(key, locale)` dev-only `console.warn` |
+| `lib/i18n/state.ts` | Module-scope `currentLocale`, `getLocale()` (lazy-init from `resolveInitialLocale`), `setLocale()` (persists via `updateSetting('interface', 'language', code)` and dispatches the `betterlectio:locale-changed` `CustomEvent`) |
+| `lib/i18n/resolve.ts` | `resolveInitialLocale()` — stored setting → `navigator.language` base code → `da`. Synchronous; called inside `useState(() => …)` |
+| `lib/i18n/t.ts` | `makeT(locale)` walks the dictionary by dot-path with default-locale fallback, then key fallback. Plus the non-hook `t(key, vars)` for module-scope code |
+| `lib/i18n/provider.tsx` | `<I18nProvider>` (root state + event listener) and `useTranslation()` hook returning `{ locale, t }` |
+| `lib/i18n/render.tsx` | Drop-in replacement for `preact`'s `render` that wraps every root in `<I18nProvider>`. Both content entrypoints import `render` from here, so every Preact root in the extension has i18n context — Context does not cross roots |
+| `lib/i18n/dictionaries/da.ts` | Source of truth. `DaDictionary = WidenLeaves<typeof da>` widens literal types to `string` so other locales can `satisfies DaDictionary` while keeping nested key inference |
+| `lib/i18n/dictionaries/en.ts` | English dictionary — `satisfies DaDictionary` enforces parity at compile time |
+| `lib/i18n/dictionaries/index.ts` | `DICTIONARIES: Record<LocaleCode, DaDictionary>` |
+| `lib/i18n/index.ts` | Public barrel re-export |
+
+**Reactivity:** Preact Context + `useTranslation()`. When `setLocale()` is called from the Settings modal, it dispatches `betterlectio:locale-changed`; every `<I18nProvider>` (one per Preact root) listens, updates its state, and re-renders subscribers. No page reload, no signals, no module-level globals beyond the `currentLocale` cache.
+
+**Settings integration:** `interface.language` is a new top-level category in `lib/settings-storage.ts` (separate from `visual` because it mutates rendered JSX, not CSS/DOM). The picker lives in `SettingsModal.tsx` Appearance section. `handleSettingChange` calls `setLocale(value)` for live re-render and `setPersonProperties(distinctId, { language: value })` for PostHog. `language: getLocale()` is also added to the `identifyIfNeeded` person properties on every page load.
+
+**Adding a new locale:** create `lib/i18n/dictionaries/<code>.ts` (must `satisfies DaDictionary`), append to `SUPPORTED_LOCALES` in `locales.ts`, add a `LOCALE_LABELS` entry. Two files. The Zod enum derives from `SUPPORTED_LOCALES` so settings storage updates automatically.
+
 ---
 
 ## CSS Architecture

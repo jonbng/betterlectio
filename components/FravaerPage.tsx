@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
+import { useTranslation } from '@/lib/i18n';
 import {
   AlertTriangle,
   ChevronDown,
@@ -89,13 +90,15 @@ function absenceColorClass(pct: number): string {
   return 'text-[oklch(0.52_0.22_25)]';
 }
 
-function statusLabel(pct: number): string {
-  if (pct <= 0) return 'Perfekt';
-  if (pct < 5) return 'Fint';
-  if (pct < 10) return 'Okay';
-  if (pct < 15) return 'Højt';
-  if (pct < 20) return 'Kritisk';
-  return 'Meget kritisk';
+type StatusKey = 'fravaerPage.perfect' | 'fravaerPage.fine' | 'fravaerPage.okay' | 'fravaerPage.high' | 'fravaerPage.critical' | 'fravaerPage.veryCritical';
+
+function statusLabelKey(pct: number): StatusKey {
+  if (pct <= 0) return 'fravaerPage.perfect';
+  if (pct < 5) return 'fravaerPage.fine';
+  if (pct < 10) return 'fravaerPage.okay';
+  if (pct < 15) return 'fravaerPage.high';
+  if (pct < 20) return 'fravaerPage.critical';
+  return 'fravaerPage.veryCritical';
 }
 
 function hasHoldAbsence(hold: FravaerHoldEntry): boolean {
@@ -149,6 +152,7 @@ function buildDistribution(holds: FravaerHoldEntry[]): DistributionSlice[] {
 // ── Component ──────────────────────────────────────────────────────────
 
 export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
+  const { t } = useTranslation();
   const [data, setData] = useState<FravaerPageData>(initialData);
   const [loading, setLoading] = useState(false);
 
@@ -246,10 +250,10 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
       {/* ── Header (matches Lektier/Opgaver) ── */}
       <div className="border-b border-border pb-5 mb-7">
-        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">Fravær</h1>
+        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('fravaerPage.title')}</h1>
         <p className="mt-1 text-base text-muted-foreground">
           {data.studentName && <>{data.studentName} &middot; </>}
-          {data.holds.length} fag &middot; {data.records.length + data.missingReasons.length} registreringer
+          {t('fravaerPage.subjectCount', { n: String(data.holds.length) })} &middot; {t('fravaerPage.recordCount', { n: String(data.records.length + data.missingReasons.length) })}
         </p>
       </div>
 
@@ -270,27 +274,27 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           )}>
             {/* Almindeligt card */}
             <SummaryCard
-              title="Almindeligt fravær"
+              title={t('fravaerPage.regularAbsence')}
               opgjortPct={almOpgjort}
               opgjortDetail={data.totals.almOpgjortModuler}
               aarPct={almAar}
               aarDetail={data.totals.almAarModuler}
-              opgjortLabel="Opgjort"
-              aarLabel="For året"
-              unitLabel="moduler"
+              opgjortLabel={t('fravaerPage.assessed')}
+              aarLabel={t('fravaerPage.forTheYear')}
+              unitLabel={t('fravaerPage.modules')}
             />
 
             {/* Skriftligt card */}
             {hasSkr && (
               <SummaryCard
-                title="Skriftligt fravær"
+                title={t('fravaerPage.writtenAbsence')}
                 opgjortPct={skrOpgjort}
                 opgjortDetail={data.totals.skrOpgjortTid}
                 aarPct={skrAar}
                 aarDetail={data.totals.skrAarTid}
-                opgjortLabel="Opgjort"
-                aarLabel="For året"
-                unitLabel="elevtimer"
+                opgjortLabel={t('fravaerPage.assessed')}
+                aarLabel={t('fravaerPage.forTheYear')}
+                unitLabel={t('fravaerPage.studentHours')}
               />
             )}
 
@@ -306,7 +310,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       {data.holds.length > 0 && (
         <section className="mb-8 space-y-3 animate-[bl-fade-in_350ms_var(--ease-out)_100ms_both]">
           <h2 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-            Fravær per fag
+            {t('fravaerPage.absencePerSubject')}
           </h2>
 
           <div className="space-y-1.5">
@@ -335,8 +339,8 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             >
               {showAllSubjects ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {showAllSubjects
-                ? `Skjul ${subjectsWithoutAbsence.length} fag uden fravær`
-                : `${subjectsWithoutAbsence.length} fag uden fravær`}
+                ? t('fravaerPage.hideSubjectsWithoutAbsence', { n: String(subjectsWithoutAbsence.length) })
+                : t('fravaerPage.subjectsWithoutAbsence', { n: String(subjectsWithoutAbsence.length) })}
             </button>
           )}
         </section>
@@ -350,7 +354,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
       {/* ── Records ───────────────────────────── */}
       <section id="il-fravaer-records" className="mb-8 space-y-3 animate-[bl-fade-in_350ms_var(--ease-out)_200ms_both]">
         <h2 className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-          Registreringer
+          {t('fravaerPage.registrations')}
           <span className="ml-1.5 tabular-nums text-muted-foreground/70">
             {filteredRecords.length}
           </span>
@@ -364,7 +368,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               ref={searchRef}
               type="text"
               className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-9 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
-              placeholder="Søg i registreringer..."
+              placeholder={t('fravaerPage.searchPlaceholder')}
               value={recordSearch}
               onInput={e => setRecordSearch((e.target as HTMLInputElement).value)}
             />
@@ -389,7 +393,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               onClick={() => { setShowOnlyMissing(v => !v); setVisibleRecords(20); }}
             >
               <AlertTriangle size={13} />
-              Kun manglende
+              {t('fravaerPage.onlyMissing')}
             </button>
           )}
         </div>
@@ -401,7 +405,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
               active={selectedHold === null}
               onClick={() => setSelectedHold(null)}
             >
-              Alle fag
+              {t('fravaerPage.allSubjects')}
             </FilterPill>
             {recordHolds.map(hold => (
               <FilterPill
@@ -441,7 +445,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             onClick={() => setVisibleRecords(v => v + 30)}
           >
             <ChevronDown size={15} />
-            Vis flere ({filteredRecords.length - visibleRecords} resterende)
+            {t('fravaerPage.showMore', { n: String(filteredRecords.length - visibleRecords) })}
           </button>
         )}
       </section>
@@ -516,6 +520,7 @@ function SummaryCard({
   aarLabel: string;
   unitLabel: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start gap-5 rounded-xl border border-border bg-card p-5">
       <div className="relative flex shrink-0 items-center justify-center">
@@ -525,7 +530,7 @@ function SummaryCard({
             {formatPct(opgjortPct)}
           </span>
           <span className={cn('text-[0.6rem] font-bold uppercase tracking-widest', absenceColorClass(opgjortPct))}>
-            {statusLabel(opgjortPct)}
+            {t(statusLabelKey(opgjortPct))}
           </span>
         </div>
       </div>
@@ -587,7 +592,7 @@ function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 sm:col-span-2 lg:col-span-1">
-      <span className="text-sm font-semibold text-foreground">Fordeling</span>
+      <DistributionTitle />
 
       <div className="mt-3 flex items-center gap-5">
         {/* SVG donut */}
@@ -618,7 +623,7 @@ function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-lg font-extrabold tabular-nums text-foreground">{formatNumber(totalAmount)}</span>
-            <span className="text-xs text-muted-foreground">moduler</span>
+            <DistributionModulesLabel />
           </div>
         </div>
 
@@ -638,13 +643,28 @@ function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
           ))}
           {slices.length > 5 && (
             <span className="pl-[1.125rem] text-xs text-muted-foreground">
-              +{slices.length - 5} fag mere
+              <MoreSubjectsLabel count={slices.length - 5} />
             </span>
           )}
         </div>
       </div>
     </div>
   );
+}
+
+function DistributionTitle() {
+  const { t } = useTranslation();
+  return <span className="text-sm font-semibold text-foreground">{t('fravaerPage.distribution')}</span>;
+}
+
+function DistributionModulesLabel() {
+  const { t } = useTranslation();
+  return <span className="text-xs text-muted-foreground">{t('fravaerPage.modules')}</span>;
+}
+
+function MoreSubjectsLabel({ count }: { count: number }) {
+  const { t } = useTranslation();
+  return <>{t('fravaerPage.moreSubjects', { n: String(count) })}</>;
 }
 
 function MissingReasonsBanner({
@@ -654,6 +674,7 @@ function MissingReasonsBanner({
   records: FravaerRecord[];
   onEdit: (r: FravaerRecord) => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const preview = expanded ? records : records.slice(0, 3);
   const hasMore = records.length > 3;
@@ -667,9 +688,11 @@ function MissingReasonsBanner({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-foreground">
-              {records.length} registrering{records.length === 1 ? '' : 'er'} mangler fraværsårsag
+              {records.length === 1
+                ? t('fravaerPage.missingReasonSingular', { n: String(records.length) })
+                : t('fravaerPage.missingReasonPlural', { n: String(records.length) })}
             </p>
-            <p className="text-sm text-muted-foreground">Kræver din handling</p>
+            <p className="text-sm text-muted-foreground">{t('fravaerPage.requiresAction')}</p>
           </div>
         </div>
 
@@ -703,7 +726,7 @@ function MissingReasonsBanner({
                   onClick={() => onEdit(record)}
                 >
                   <Edit3 size={12} />
-                  Angiv årsag
+                  {t('fravaerPage.enterReason')}
                 </button>
               </div>
             );
@@ -715,7 +738,7 @@ function MissingReasonsBanner({
             className="w-full border-t border-[oklch(0.90_0.04_50)] px-4 py-2.5 text-sm font-bold text-[oklch(0.48_0.14_50)] transition-colors hover:bg-[oklch(0.97_0.01_50)] dark:border-[oklch(0.25_0.03_50)] dark:text-[oklch(0.78_0.12_50)] dark:hover:bg-[oklch(0.20_0.01_50)]"
             onClick={() => setExpanded(v => !v)}
           >
-            {expanded ? 'Vis færre' : `Vis alle ${records.length}`}
+            {expanded ? t('fravaerPage.showFewer') : t('fravaerPage.showAll', { n: String(records.length) })}
           </button>
         )}
       </div>
@@ -738,6 +761,7 @@ function SubjectRow({
   onFilterRecords: () => void;
   style?: any;
 }) {
+  const { t } = useTranslation();
   const hue = getHoldHue(hold.hold);
   const displayName = getHoldDisplayName(hold.hold);
   const almPct = parsePct(hold.almOpgjortPct);
@@ -802,17 +826,17 @@ function SubjectRow({
       {isExpanded && (
         <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
           <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-            <DetailCell label="Alm. opgjort" value={hold.almOpgjortPct} detail={hold.almOpgjortModuler} />
-            <DetailCell label="Alm. for året" value={hold.almAarPct} detail={hold.almAarModuler} />
-            <DetailCell label="Skr. opgjort" value={hold.skrOpgjortPct} detail={hold.skrOpgjortTid} />
-            <DetailCell label="Skr. for året" value={hold.skrAarPct} detail={hold.skrAarTid} />
+            <DetailCell label={t('fravaerPage.almAssessed')} value={hold.almOpgjortPct} detail={hold.almOpgjortModuler} />
+            <DetailCell label={t('fravaerPage.almForYear')} value={hold.almAarPct} detail={hold.almAarModuler} />
+            <DetailCell label={t('fravaerPage.skrAssessed')} value={hold.skrOpgjortPct} detail={hold.skrOpgjortTid} />
+            <DetailCell label={t('fravaerPage.skrForYear')} value={hold.skrAarPct} detail={hold.skrAarTid} />
           </div>
           <button
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition-colors hover:text-primary/80 active:scale-[0.97]"
             onClick={e => { e.stopPropagation(); onFilterRecords(); }}
           >
             <Search size={13} />
-            Se registreringer for {displayName}
+            {t('fravaerPage.showRecordsFor', { name: displayName })}
           </button>
         </div>
       )}
@@ -840,11 +864,12 @@ function DetailCell({ label, value, detail }: { label: string; value: string; de
 }
 
 function WarningsSection({ warnings }: { warnings: FravaerWarning[] }) {
+  const { t } = useTranslation();
   return (
     <section className="mb-8 space-y-2 animate-[bl-fade-in_350ms_var(--ease-out)_150ms_both]">
       <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
         <Info size={13} />
-        Bemærkninger
+        {t('fravaerPage.notes')}
       </h2>
       {warnings.map((w, i) => (
         <div key={i} className="rounded-xl border border-border bg-card px-5 py-3.5">
@@ -912,25 +937,26 @@ function EmptyRecords({
   hasFilters: boolean;
   onReset: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-8 py-12 text-center">
       {hasFilters ? (
         <>
           <Search className="size-9 text-muted-foreground/20" />
-          <p className="text-sm font-semibold text-foreground">Ingen resultater</p>
-          <p className="text-sm text-muted-foreground">Prøv at ændre filtrene</p>
+          <p className="text-sm font-semibold text-foreground">{t('fravaerPage.noResults')}</p>
+          <p className="text-sm text-muted-foreground">{t('fravaerPage.tryOtherFilters')}</p>
           <button
             className="mt-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
             onClick={onReset}
           >
-            Nulstil filtre
+            {t('fravaerPage.resetFilters')}
           </button>
         </>
       ) : (
         <>
           <CheckCircle2 className="size-9 text-[oklch(0.72_0.17_145)]/30" />
-          <p className="text-sm font-semibold text-foreground">Ingen registreringer</p>
-          <p className="text-sm text-muted-foreground">Intet fravær registreret</p>
+          <p className="text-sm font-semibold text-foreground">{t('fravaerPage.noRecords')}</p>
+          <p className="text-sm text-muted-foreground">{t('fravaerPage.noAbsence')}</p>
         </>
       )}
     </div>
@@ -946,6 +972,7 @@ function RecordCard({
   isMissing: boolean;
   onEdit: (r: FravaerRecord) => void;
 }) {
+  const { t } = useTranslation();
   const hue = record.hold ? getHoldHue(record.hold) : 200;
   const holdName = record.hold ? getHoldDisplayName(record.hold) : '';
 
@@ -1009,7 +1036,7 @@ function RecordCard({
             {record.fravaerType === 'godskrevet' && (
               <span className="inline-flex items-center gap-1 rounded-md bg-[oklch(0.95_0.03_145)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.50_0.14_145)] dark:bg-[oklch(0.22_0.03_145)] dark:text-[oklch(0.72_0.12_145)]">
                 <CheckCircle2 size={11} />
-                Godskrevet
+                {t('fravaerPage.approved')}
               </span>
             )}
 
@@ -1022,7 +1049,7 @@ function RecordCard({
             {isMissing && (
               <span className="inline-flex items-center gap-1 rounded-md bg-[oklch(0.95_0.03_50)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.52_0.14_50)] dark:bg-[oklch(0.22_0.03_50)] dark:text-[oklch(0.78_0.12_50)]">
                 <AlertTriangle size={11} />
-                Mangler årsag
+                {t('fravaerPage.missingReason')}
               </span>
             )}
 
@@ -1030,7 +1057,7 @@ function RecordCard({
               <button
                 className="inline-flex size-7 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.9]"
                 onClick={e => { e.stopPropagation(); onEdit(record); }}
-                title="Rediger årsag"
+                title={t('fravaerPage.editReason')}
               >
                 <Edit3 size={13} />
               </button>

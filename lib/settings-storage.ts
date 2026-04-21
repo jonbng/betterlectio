@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { syncOptOutToExtensionStorage } from '@/lib/posthog';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/i18n/locales';
 
 const SETTINGS_KEY = 'bl-feature-settings';
 const LEGACY_SETTINGS_KEY = 'il-feature-settings';
@@ -8,6 +9,12 @@ const SETTINGS_VERSION = 1;
 // Define nested schemas separately so we can use them for defaults
 const VisualSettingsSchema = z.object({
   darkMode: z.boolean().default(false),
+});
+
+const InterfaceSettingsSchema = z.object({
+  language: z
+    .enum(SUPPORTED_LOCALES as unknown as [string, ...string[]])
+    .default(DEFAULT_LOCALE),
 });
 
 const ScheduleSettingsSchema = z.object({
@@ -42,6 +49,7 @@ const SidebarSettingsSchema = z.object({
   showFravaer: z.boolean().default(true),
   showStudieplan: z.boolean().default(true),
   showDokumenter: z.boolean().default(true),
+  showModulregnskaber: z.boolean().default(true),
   showSpoergeskema: z.boolean().default(true),
   showUVBeskrivelser: z.boolean().default(true),
   showFindSkema: z.boolean().default(true),
@@ -50,6 +58,7 @@ const SidebarSettingsSchema = z.object({
 
 // Default values for each category - needed because Zod doesn't recursively apply defaults
 const DEFAULT_VISUAL = VisualSettingsSchema.parse({});
+const DEFAULT_INTERFACE = InterfaceSettingsSchema.parse({});
 const DEFAULT_SCHEDULE = ScheduleSettingsSchema.parse({});
 const DEFAULT_BEHAVIOR = BehaviorSettingsSchema.parse({});
 const DEFAULT_DATA = DataSettingsSchema.parse({});
@@ -62,6 +71,7 @@ const DEFAULT_SIDEBAR = SidebarSettingsSchema.parse({});
 export const FeatureSettingsSchema = z.object({
   version: z.number().default(SETTINGS_VERSION),
   visual: VisualSettingsSchema.default(DEFAULT_VISUAL),
+  interface: InterfaceSettingsSchema.default(DEFAULT_INTERFACE),
   schedule: ScheduleSettingsSchema.default(DEFAULT_SCHEDULE),
   behavior: BehaviorSettingsSchema.default(DEFAULT_BEHAVIOR),
   data: DataSettingsSchema.default(DEFAULT_DATA),
@@ -148,13 +158,16 @@ export function saveSettings(settings: FeatureSettings): void {
  * @param key - The setting key within the category
  * @param value - The new value
  */
-export function updateSetting<K extends keyof Omit<FeatureSettings, 'version'>>(
+export function updateSetting<
+  K extends keyof Omit<FeatureSettings, 'version'>,
+  Field extends keyof FeatureSettings[K],
+>(
   category: K,
-  key: keyof FeatureSettings[K],
-  value: boolean
+  key: Field,
+  value: FeatureSettings[K][Field]
 ): void {
   const settings = getSettings();
-  (settings[category] as Record<string, boolean>)[key as string] = value;
+  (settings[category] as Record<string, unknown>)[key as string] = value;
   saveSettings(settings);
 }
 

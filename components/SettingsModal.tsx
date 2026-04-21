@@ -34,6 +34,15 @@ import {
 } from "@/lib/settings-storage";
 import { setUserJotTheme } from "@/lib/userjot";
 import {
+  DEFAULT_LOCALE,
+  LOCALE_LABELS,
+  SUPPORTED_LOCALES,
+  isSupportedLocale,
+  setLocale,
+  useTranslation,
+  type LocaleCode,
+} from "@/lib/i18n";
+import {
   THEME_PRESETS,
   type ThemePresetId,
 } from "@/lib/theme-presets";
@@ -85,14 +94,6 @@ interface SettingsModalProps {
   onShowOnboarding?: () => void;
 }
 
-const navItems = [
-  { id: "appearance", name: "Udseende", icon: Palette },
-  { id: "sidebar", name: "Sidebar", icon: PanelLeft },
-  { id: "subjects", name: "Fag", icon: GraduationCap },
-  { id: "sessions", name: "Sessioner", icon: Shield },
-  { id: "advanced", name: "Avanceret", icon: Wrench },
-  { id: "about", name: "Om", icon: Info },
-];
 
 const VERSION_STORAGE_KEY = "betterlectio_version_info";
 
@@ -220,6 +221,15 @@ function getSchoolNameFromPage(): string | null {
 }
 
 export function SettingsModal({ open, onOpenChange, onShowOnboarding }: SettingsModalProps) {
+  const { t } = useTranslation();
+  const navItems = [
+    { id: "appearance", name: t('settings.nav.appearance'), icon: Palette },
+    { id: "sidebar", name: t('settings.nav.sidebar'), icon: PanelLeft },
+    { id: "subjects", name: t('settings.nav.subjects'), icon: GraduationCap },
+    { id: "sessions", name: t('settings.nav.sessions'), icon: Shield },
+    { id: "advanced", name: t('settings.nav.advanced'), icon: Wrench },
+    { id: "about", name: t('settings.nav.about'), icon: Info },
+  ];
   const manifest = browser.runtime.getManifest();
   const version = manifest.version;
   const lectioVersion = (document.getElementById("s_m_VersionInfoLink") ?? document.getElementById("m_VersionInfoLink"))?.textContent?.replace(/^\s*Lectio\s+version\s*/i, "")?.trim() ?? null;
@@ -358,14 +368,14 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
     lectioVersion ? `Lectio: ${lectioVersion}` : null,
     `Browser: ${browserInfo}`,
     `OS: ${osInfo}`,
-    `Skærm: ${screenDimensions}`,
-    `Skole navn: ${schoolName ?? "Ukendt"}`,
-    `Skole ID: ${schoolId ?? "Ukendt"}`,
+    `Screen: ${screenDimensions}`,
+    `School name: ${schoolName ?? t('settings.unknown')}`,
+    `School ID: ${schoolId ?? t('settings.unknown')}`,
     `Viewport: ${window.innerWidth} × ${window.innerHeight}`,
-    `Dark mode: ${document.documentElement.classList.contains("dark") ? "Ja" : "Nej"}`,
-    versionInfo ? `Installeret: ${formatDate(versionInfo.firstInstalledAt)}` : null,
+    `Dark mode: ${document.documentElement.classList.contains("dark") ? "Yes" : "No"}`,
+    versionInfo ? `Installed: ${formatDate(versionInfo.firstInstalledAt)}` : null,
     versionInfo && versionInfo.firstInstalledAt !== versionInfo.lastUpdatedAt
-      ? `Opdateret: ${formatDate(versionInfo.lastUpdatedAt)}`
+      ? `Updated: ${formatDate(versionInfo.lastUpdatedAt)}`
       : null,
     `URL: ${window.location.href}`,
     `User-Agent: ${navigator.userAgent}`,
@@ -382,10 +392,13 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
   // const reportIssueUrl =
   //   `https://github.com/jonbng/betterlectio/issues/new?body=${encodeURIComponent(reportIssueBody)}`;
 
-  const handleSettingChange = <K extends keyof Omit<FeatureSettings, 'version'>>(
+  const handleSettingChange = <
+    K extends keyof Omit<FeatureSettings, 'version'>,
+    Field extends keyof FeatureSettings[K],
+  >(
     category: K,
-    key: keyof FeatureSettings[K],
-    value: boolean
+    key: Field,
+    value: FeatureSettings[K][Field]
   ) => {
     // Deep copy to avoid mutation issues
     const newSettings = {
@@ -409,20 +422,29 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
     }
 
     if (category === "visual" && key === "darkMode") {
-      document.documentElement.classList.toggle("dark", value);
-      setUserJotTheme(value ? "dark" : "light");
+      document.documentElement.classList.toggle("dark", value as boolean);
+      setUserJotTheme((value as boolean) ? "dark" : "light");
       if (distinctId) {
         setPersonProperties(distinctId, {
-          dark_mode: value,
+          dark_mode: value as boolean,
         });
       }
     }
 
-    // Show reload toast if this setting requires it
+    if (category === "interface" && key === "language" && isSupportedLocale(value)) {
+      // Live-apply: dispatches an event the I18nProvider listens for, re-rendering all roots.
+      // Note: setLocale already persists via updateSetting; saveSettings above also persisted,
+      // so the second call is a harmless no-op write of the same value.
+      setLocale(value);
+      if (distinctId) {
+        setPersonProperties(distinctId, { language: value });
+      }
+    }
+
     if (requiresReload(category, key as string)) {
-      toast("Indstillingen træder i kraft efter genindlæsning", {
+      toast(t('settings.reloadToast'), {
         action: {
-          label: "Genindlæs",
+          label: t('settings.reload'),
           onClick: () => window.location.reload(),
         },
         duration: 5000,
@@ -432,7 +454,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
 
   const handleClearPictureCache = () => {
     clearPictureCache();
-    toast.success("Billedcache ryddet");
+    toast.success(t('settings.pictureCacheCleared'));
   };
 
   const saveThemePreference = (nextThemeId: ThemePresetId) => {
@@ -463,9 +485,9 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
   const handleClearAllData = () => {
     clearAllData();
     setSettings(getSettings());
-    toast.success("Alle data ryddet", {
+    toast.success(t('settings.allDataCleared'), {
       action: {
-        label: "Genindlæs",
+        label: t('settings.reload'),
         onClick: () => window.location.reload(),
       },
     });
@@ -474,9 +496,9 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
   const handleResetSettings = () => {
     resetSettings();
     setSettings(getSettings());
-    toast.success("Indstillinger nulstillet", {
+    toast.success(t('settings.settingsReset'), {
       action: {
-        label: "Genindlæs",
+        label: t('settings.reload'),
         onClick: () => window.location.reload(),
       },
     });
@@ -510,7 +532,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   <div className="flex items-center justify-center size-8 rounded-md bg-primary/10">
                     <Info className="size-4 text-primary" />
                   </div>
-                  <span className="text-sm font-medium">Version</span>
+                  <span className="text-sm font-medium">{t('settings.about.version')}</span>
                 </div>
                 <Badge variant="secondary" className="text-sm">
                   v{version}
@@ -523,7 +545,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                     <div className="flex items-center justify-center size-8 rounded-md bg-primary/10">
                       <Info className="size-4 text-primary" />
                     </div>
-                    <span className="text-sm font-medium">Lectio version</span>
+                    <span className="text-sm font-medium">{t('settings.about.lectioVersion')}</span>
                   </div>
                   <Badge variant="outline" className="text-sm">
                     {lectioVersion}
@@ -538,7 +560,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                       <div className="flex items-center justify-center size-8 rounded-md bg-primary/10">
                         <Calendar className="size-4 text-primary" />
                       </div>
-                      <span className="text-sm font-medium">Først installeret</span>
+                      <span className="text-sm font-medium">{t('settings.about.firstInstalled')}</span>
                     </div>
                     <span className="text-sm text-muted-foreground">
                       {formatDate(versionInfo.firstInstalledAt)}
@@ -550,7 +572,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                         <div className="flex items-center justify-center size-8 rounded-md bg-primary/10">
                           <Calendar className="size-4 text-primary" />
                         </div>
-                        <span className="text-sm font-medium">Sidst opdateret</span>
+                        <span className="text-sm font-medium">{t('settings.about.lastUpdated')}</span>
                       </div>
                       <span className="text-sm text-muted-foreground">
                         {formatDate(versionInfo.lastUpdatedAt)}
@@ -614,13 +636,13 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
 
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Debug info
+                {t('settings.about.debugInfoTitle')}
               </h3>
               <div className="rounded-lg border bg-muted/30 divide-y divide-border">
                 <div className="flex items-center justify-between py-2.5 px-4">
                   <div className="flex items-center gap-2">
                     <Chrome className="size-4 text-muted-foreground" />
-                    <span className="text-sm">Browser</span>
+                    <span className="text-sm">{t('settings.about.browserLabel')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground font-mono">
                     {browserInfo}
@@ -629,7 +651,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 <div className="flex items-center justify-between py-2.5 px-4">
                   <div className="flex items-center gap-2">
                     <Monitor className="size-4 text-muted-foreground" />
-                    <span className="text-sm">Operativsystem</span>
+                    <span className="text-sm">{t('settings.about.osLabel')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground font-mono">
                     {osInfo}
@@ -638,7 +660,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 <div className="flex items-center justify-between py-2.5 px-4">
                   <div className="flex items-center gap-2">
                     <Monitor className="size-4 text-muted-foreground" />
-                    <span className="text-sm">Skærmopløsning</span>
+                    <span className="text-sm">{t('settings.about.screenResolutionLabel')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground font-mono">
                     {screenDimensions}
@@ -647,19 +669,19 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 <div className="flex items-center justify-between py-2.5 px-4">
                   <div className="flex items-center gap-2">
                     <Info className="size-4 text-muted-foreground" />
-                    <span className="text-sm">Skole navn</span>
+                    <span className="text-sm">{t('settings.about.schoolNameLabel')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground font-mono">
-                    {schoolName ?? "Ukendt"}
+                    {schoolName ?? t('settings.unknown')}
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-2.5 px-4">
                   <div className="flex items-center gap-2">
                     <Info className="size-4 text-muted-foreground" />
-                    <span className="text-sm">Skole ID</span>
+                    <span className="text-sm">{t('settings.about.schoolIdLabel')}</span>
                   </div>
                   <span className="text-sm text-muted-foreground font-mono">
-                    {schoolId ?? "Ukendt"}
+                    {schoolId ?? t('settings.unknown')}
                   </span>
                 </div>
               </div>
@@ -676,40 +698,40 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 }}
               >
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                {copied ? "Kopieret!" : "Kopiér debug info"}
+                {copied ? t('settings.about.copied') : t('settings.about.copyDebugInfo')}
               </Button>
             </div>
 
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Tjenester
+                {t('settings.about.servicesTitle')}
               </h3>
               <div className="rounded-lg border bg-muted/30 divide-y divide-border">
                 <div className="py-3 px-4 space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">BetterLectio Analytics</span>
+                    <span className="text-sm font-medium">{t('settings.about.analyticsName')}</span>
                     <Badge variant={settings.behavior?.analyticsOptOut ? "outline" : "secondary"} className="text-xs">
-                      {settings.behavior?.analyticsOptOut ? "Fravalgt" : "Aktiv"}
+                      {settings.behavior?.analyticsOptOut ? t('settings.about.analyticsOptOut') : t('settings.about.analyticsActive')}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Anonym brugsstatistik (sideopslag, fejlrapportering). Kan fravælges under Avanceret &gt; Privatliv.
+                    {t('settings.about.analyticsDescription')}
                   </p>
                 </div>
                 <div className="py-3 px-4 space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">BetterLectio Database</span>
+                    <span className="text-sm font-medium">{t('settings.about.dbName')}</span>
                     <Badge
                       variant={supabaseStatus === 'authenticated' ? "secondary" : "outline"}
                       className="text-xs"
                     >
-                      {supabaseStatus === 'loading' ? "Indlæser..." : supabaseStatus === 'authenticated' ? "Logget ind" : "Ikke logget ind"}
+                      {supabaseStatus === 'loading' ? t('settings.about.dbLoading') : supabaseStatus === 'authenticated' ? t('settings.about.dbLoggedIn') : t('settings.about.dbNotLoggedIn')}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Backend til kommende funktioner. Autentificering sker automatisk i baggrunden.
+                    {t('settings.about.dbDescription')}
                     {supabaseStatus === 'authenticated' && supabaseExpiry && (
-                      <> Session udløber {new Date(supabaseExpiry * 1000).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.</>
+                      <>{t('settings.about.sessionExpires', { date: new Date(supabaseExpiry * 1000).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) })}</>
                     )}
                   </p>
                 </div>
@@ -717,7 +739,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Udviklet af{" "}
+              {t('settings.about.developedBy')}{" "}
               <a
                 href="https://jonathanb.dk"
                 target="_blank"
@@ -734,19 +756,19 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
         return (
           <div className="space-y-6">
             <SettingsSection
-              title="Tema"
+              title={t('settings.appearance.themeTitle')}
               description={
                 schoolName
-                  ? `Disse farver gælder kun for ${schoolName}`
-                  : "Disse farver gælder kun for den aktuelle skole"
+                  ? t('settings.appearance.themeDescriptionWithSchool', { school: schoolName })
+                  : t('settings.appearance.themeDescriptionDefault')
               }
             >
               <div className="px-4 py-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="font-medium">Farvetema</Label>
+                  <Label className="font-medium">{t('settings.appearance.colorThemeLabel')}</Label>
                   <div className="flex items-center gap-2">
                     <Label htmlFor="visual-darkmode" className="text-sm text-muted-foreground cursor-pointer">
-                      Mørk
+                      {t('settings.appearance.darkModeLabel')}
                     </Label>
                     <Switch
                       id="visual-darkmode"
@@ -812,11 +834,39 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
               </div>
             </SettingsSection>
 
-            <SettingsSection title="Skema">
+            <SettingsSection
+              title={t('settings.appearance.language')}
+              description={t('settings.appearance.languageDescription')}
+            >
+              <div className="px-4 py-3 flex items-center justify-between gap-4">
+                <Label htmlFor="interface-language" className="font-medium">
+                  {t('settings.appearance.language')}
+                </Label>
+                <select
+                  id="interface-language"
+                  value={settings.interface?.language ?? DEFAULT_LOCALE}
+                  onChange={(e) => {
+                    const v = (e.currentTarget as HTMLSelectElement).value;
+                    if (isSupportedLocale(v)) {
+                      handleSettingChange("interface", "language", v as LocaleCode);
+                    }
+                  }}
+                  className="h-9 w-44 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none cursor-pointer transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50"
+                >
+                  {SUPPORTED_LOCALES.map((code) => (
+                    <option key={code} value={code}>
+                      {LOCALE_LABELS[code]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection title={t('settings.appearance.scheduleTitle')}>
               <FeatureToggle
                 id="schedule-today"
-                label="Fremhæv i dag"
-                description="Gul baggrund på dagens kolonne i skemaet"
+                label={t('settings.appearance.todayHighlightLabel')}
+                description={t('settings.appearance.todayHighlightDescription')}
                 enabled={settings.schedule?.todayHighlight ?? true}
                 onChange={(v) => handleSettingChange('schedule', 'todayHighlight', v)}
                 hasDependent={
@@ -827,39 +877,39 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
               />
               <FeatureToggle
                 id="schedule-time"
-                label="Tidsindikator"
-                description="Rød linje der viser det aktuelle tidspunkt"
+                label={t('settings.appearance.timeIndicatorLabel')}
+                description={t('settings.appearance.timeIndicatorDescription')}
                 enabled={settings.schedule?.currentTimeIndicator ?? true}
                 onChange={(v) => handleSettingChange('schedule', 'currentTimeIndicator', v)}
                 disabled={!(settings.schedule?.todayHighlight ?? true)}
-                disabledReason="Kræver 'Fremhæv i dag' er aktiveret"
+                disabledReason={t('settings.appearance.timeIndicatorDisabledReason')}
                 hasDependent={settings.schedule?.currentTimeLabel ?? false}
                 requiresReload
               />
               <FeatureToggle
                 id="schedule-time-label"
-                label="Vis klokkeslæt ved tidslinjen"
-                description="Viser tidspunkt ved siden af den røde tidsindikator"
+                label={t('settings.appearance.timeLabelLabel')}
+                description={t('settings.appearance.timeLabelDescription')}
                 enabled={settings.schedule?.currentTimeLabel ?? false}
                 onChange={(v) => handleSettingChange('schedule', 'currentTimeLabel', v)}
                 disabled={
                   !(settings.schedule?.currentTimeIndicator ?? true) ||
                   !(settings.schedule?.todayHighlight ?? true)
                 }
-                disabledReason="Kræver 'Fremhæv i dag' og 'Tidsindikator' er aktiveret"
+                disabledReason={t('settings.appearance.timeLabelDisabledReason')}
                 requiresReload
               />
               <FeatureToggle
                 id="schedule-countdown"
-                label="Nedtælling"
-                description="Tæller ned til slutningen af den nuværende lektion eller starten af den næste"
+                label={t('settings.appearance.countdownLabel')}
+                description={t('settings.appearance.countdownDescription')}
                 enabled={settings.schedule?.countdownBar ?? true}
                 onChange={(v) => handleSettingChange('schedule', 'countdownBar', v)}
               />
               <FeatureToggle
                 id="schedule-subject-colors"
-                label="Fagfarver"
-                description="Vis unikke farver for hvert fag. Når slået fra vises blå for normale, grøn for ændrede og rød for aflyste lektioner"
+                label={t('settings.appearance.subjectColorsLabel')}
+                description={t('settings.appearance.subjectColorsDescription')}
                 enabled={settings.schedule?.subjectColors ?? true}
                 onChange={(v) => handleSettingChange('schedule', 'subjectColors', v)}
                 requiresReload
@@ -872,108 +922,115 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       case "sidebar":
         return (
           <div className="space-y-6">
-            <SettingsSection title="Hovedmenu" description="Vælg hvilke links der vises i hovedmenuen">
+            <SettingsSection title={t('settings.sidebar.mainMenuTitle')} description={t('settings.sidebar.mainMenuDescription')}>
               <FeatureToggle
                 id="sidebar-forside"
-                label="Forside"
-                description="Link til forsiden"
+                label={t('settings.sidebar.forside.label')}
+                description={t('settings.sidebar.forside.description')}
                 enabled={settings.sidebar?.showForside ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showForside', v)}
               />
               <FeatureToggle
                 id="sidebar-skema"
-                label="Skema"
-                description="Link til dit skema"
+                label={t('settings.sidebar.skema.label')}
+                description={t('settings.sidebar.skema.description')}
                 enabled={settings.sidebar?.showSkema ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showSkema', v)}
               />
               <FeatureToggle
                 id="sidebar-elever"
-                label="Elever"
-                description="Link til elevoversigt"
+                label={t('settings.sidebar.elever.label')}
+                description={t('settings.sidebar.elever.description')}
                 enabled={settings.sidebar?.showElever ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showElever', v)}
               />
               <FeatureToggle
                 id="sidebar-opgaver"
-                label="Opgaver"
-                description="Link til opgaveoversigt"
+                label={t('settings.sidebar.opgaver.label')}
+                description={t('settings.sidebar.opgaver.description')}
                 enabled={settings.sidebar?.showOpgaver ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showOpgaver', v)}
               />
               <FeatureToggle
                 id="sidebar-lektier"
-                label="Lektier"
-                description="Link til lektieoversigt"
+                label={t('settings.sidebar.lektier.label')}
+                description={t('settings.sidebar.lektier.description')}
                 enabled={settings.sidebar?.showLektier ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showLektier', v)}
               />
               <FeatureToggle
                 id="sidebar-beskeder"
-                label="Beskeder"
-                description="Link til beskeder"
+                label={t('settings.sidebar.beskeder.label')}
+                description={t('settings.sidebar.beskeder.description')}
                 enabled={settings.sidebar?.showBeskeder ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showBeskeder', v)}
               />
             </SettingsSection>
 
-            <SettingsSection title="Sekundær menu" description="Vælg hvilke links der vises i den sekundære menu">
+            <SettingsSection title={t('settings.sidebar.secondaryMenuTitle')} description={t('settings.sidebar.secondaryMenuDescription')}>
               <FeatureToggle
                 id="sidebar-karakterer"
-                label="Karakterer"
-                description="Link til karakteroversigt"
+                label={t('settings.sidebar.karakterer.label')}
+                description={t('settings.sidebar.karakterer.description')}
                 enabled={settings.sidebar?.showKarakterer ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showKarakterer', v)}
               />
               <FeatureToggle
                 id="sidebar-fravaer"
-                label="Fravær"
-                description="Link til fraværsoversigt"
+                label={t('settings.sidebar.fravaer.label')}
+                description={t('settings.sidebar.fravaer.description')}
                 enabled={settings.sidebar?.showFravaer ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showFravaer', v)}
               />
               <FeatureToggle
                 id="sidebar-studieplan"
-                label="Studieplan"
-                description="Link til studieplan"
+                label={t('settings.sidebar.studieplan.label')}
+                description={t('settings.sidebar.studieplan.description')}
                 enabled={settings.sidebar?.showStudieplan ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showStudieplan', v)}
               />
               <FeatureToggle
                 id="sidebar-dokumenter"
-                label="Dokumenter"
-                description="Link til dokumenter"
+                label={t('settings.sidebar.dokumenter.label')}
+                description={t('settings.sidebar.dokumenter.description')}
                 enabled={settings.sidebar?.showDokumenter ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showDokumenter', v)}
               />
               <FeatureToggle
+                id="sidebar-modulregnskaber"
+                label={t('settings.sidebar.modulregnskaber.label')}
+                description={t('settings.sidebar.modulregnskaber.description')}
+                enabled={settings.sidebar?.showModulregnskaber ?? true}
+                onChange={(v) => handleSettingChange('sidebar', 'showModulregnskaber', v)}
+              />
+              <FeatureToggle
                 id="sidebar-spoergeskema"
-                label="Spørgeskema"
-                description="Link til spørgeskemaer"
+                label={t('settings.sidebar.spoergeskema.label')}
+                description={t('settings.sidebar.spoergeskema.description')}
                 enabled={settings.sidebar?.showSpoergeskema ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showSpoergeskema', v)}
               />
               <FeatureToggle
                 id="sidebar-uvbeskrivelser"
-                label="UV-beskrivelser"
-                description="Link til undervisningsbeskrivelser"
+                label={t('settings.sidebar.uvbeskrivelser.label')}
+                description={t('settings.sidebar.uvbeskrivelser.description')}
                 enabled={settings.sidebar?.showUVBeskrivelser ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showUVBeskrivelser', v)}
               />
             </SettingsSection>
 
-            <SettingsSection title="Sektioner" description="Vis eller skjul foldbare sektioner">
+            <SettingsSection title={t('settings.sidebar.sectionsTitle')} description={t('settings.sidebar.sectionsDescription')}>
               <FeatureToggle
                 id="sidebar-findskema"
-                label="Find Skema"
-                description="Foldbar sektion med genveje til skematyper"
+                label={t('settings.sidebar.findskema.label')}
+                description={t('settings.sidebar.findskema.description')}
                 enabled={settings.sidebar?.showFindSkema ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showFindSkema', v)}
               />
               <FeatureToggle
                 id="sidebar-aendringer"
-                label="Ændringer"
-                description="Foldbar sektion med skemaændringer"
+                label={t('settings.sidebar.aendringer.label')}
+                description={t('settings.sidebar.aendringer.description')}
                 enabled={settings.sidebar?.showAendringer ?? true}
                 onChange={(v) => handleSettingChange('sidebar', 'showAendringer', v)}
               />
@@ -987,21 +1044,21 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       case "sessions":
         return (
           <div className="space-y-6">
-            <SettingsSection title="Aktive sessioner" description="Enheder der er logget ind på din Lectio-konto">
+            <SettingsSection title={t('settings.sessions.title')} description={t('settings.sessions.description')}>
               {sessionsLoading ? (
                 <div className="flex items-center gap-2 px-4 py-6 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                  Henter sessioner...
+                  {t('settings.sessions.loading')}
                 </div>
               ) : sessions.length === 0 ? (
                 <div className="px-4 py-4 text-sm text-muted-foreground">
-                  Ingen aktive sessioner fundet.
+                  {t('settings.sessions.noSessions')}
                 </div>
               ) : (
                 <div className="px-2 py-1">
                   <div className="flex items-center gap-2 px-3 pb-2 text-xs text-muted-foreground">
                     <Shield className="size-3.5" />
-                    <span>{sessions.length} enhed{sessions.length !== 1 ? 'er' : ''}</span>
+                    <span>{sessions.length !== 1 ? t('settings.sessions.deviceCountPlural', { count: String(sessions.length) }) : t('settings.sessions.deviceCount', { count: String(sessions.length) })}</span>
                   </div>
                   {sessions.map((session, i) => {
                     const mobile = isMobileDevice(session.device);
@@ -1051,7 +1108,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                                   color: 'oklch(0.35 0.12 145)',
                                 }}
                               >
-                                Denne enhed
+                                {t('settings.sessions.thisDevice')}
                               </Badge>
                             )}
                           </div>
@@ -1074,7 +1131,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                         <button
                           onClick={() => handleDeleteSession(session.deleteIndex)}
                           disabled={deletingSessionIndex !== null}
-                          title="Slet session"
+                          title={t('settings.sessions.deleteSession')}
                           className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 hover:bg-destructive/10 transition-[color,background-color] duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {deletingSessionIndex === session.deleteIndex ? (
@@ -1095,66 +1152,66 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       case "advanced":
         return (
           <div className="space-y-6">
-            <SettingsSection title="Adfærd">
+            <SettingsSection title={t('settings.advanced.behaviorTitle')}>
               <FeatureToggle
                 id="behavior-messages"
-                label="Beskeder til Nyeste"
-                description="Åbn beskeder i 'Nyeste' mappe som standard"
+                label={t('settings.advanced.messagesLabel')}
+                description={t('settings.advanced.messagesDescription')}
                 enabled={settings.behavior?.messagesAutoRedirect ?? true}
                 onChange={(v) => handleSettingChange('behavior', 'messagesAutoRedirect', v)}
               />
               <FeatureToggle
                 id="behavior-lastschool"
-                label="Fortsæt til sidst brugte skole"
-                description="Vis knap til hurtigt login på login-siden"
+                label={t('settings.advanced.lastSchoolLabel')}
+                description={t('settings.advanced.lastSchoolDescription')}
                 enabled={settings.behavior?.continueToLastSchool ?? true}
                 onChange={(v) => handleSettingChange('behavior', 'continueToLastSchool', v)}
               />
             </SettingsSection>
 
-            <SettingsSection title="Data">
+            <SettingsSection title={t('settings.advanced.dataTitle')}>
               <FeatureToggle
                 id="data-starred"
-                label="Fastgjorte personer"
-                description={`Gem fastgjorte personer til hurtig adgang (${starredCount} gemt)`}
+                label={t('settings.advanced.starredLabel')}
+                description={t('settings.advanced.starredDescription', { count: String(starredCount) })}
                 enabled={settings.data?.starredPeople ?? false}
                 onChange={(v) => handleSettingChange('data', 'starredPeople', v)}
               />
               <FeatureToggle
                 id="data-recents"
-                label="Seneste søgninger"
-                description={`Husk dine seneste søgninger (${recentsCount} gemt)`}
+                label={t('settings.advanced.recentsLabel')}
+                description={t('settings.advanced.recentsDescription', { count: String(recentsCount) })}
                 enabled={settings.data?.recentSearches ?? false}
                 onChange={(v) => handleSettingChange('data', 'recentSearches', v)}
               />
             </SettingsSection>
 
-            <SettingsSection title="Beskeder">
+            <SettingsSection title={t('settings.advanced.beskedTitle')}>
               <FeatureToggle
                 id="behavior-signature"
-                label="Deaktiver 'Sendt med BetterLectio' signatur"
-                description="Fjern BetterLectio-signaturen fra beskeder"
+                label={t('settings.advanced.signatureLabel')}
+                description={t('settings.advanced.signatureDescription')}
                 enabled={settings.behavior?.disableSignature ?? false}
                 onChange={(v) => handleSettingChange('behavior', 'disableSignature', v)}
               />
             </SettingsSection>
 
-            <SettingsSection title="Privatliv">
+            <SettingsSection title={t('settings.advanced.privacyTitle')}>
               <FeatureToggle
                 id="behavior-analytics"
-                label="Fravælg anonym analyse"
-                description="Deaktiver anonym brugsstatistik (sideopslag, fejlrapportering). Ingen persondata deles."
+                label={t('settings.advanced.analyticsLabel')}
+                description={t('settings.advanced.analyticsDescription')}
                 enabled={settings.behavior?.analyticsOptOut ?? false}
                 onChange={(v) => handleSettingChange('behavior', 'analyticsOptOut', v)}
               />
             </SettingsSection>
 
-            <SettingsSection title="Design System">
+            <SettingsSection title={t('settings.advanced.designSystemTitle')}>
               <div className="flex items-center justify-between py-3 px-4">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Design System Playground</Label>
+                  <Label className="font-medium">{t('settings.advanced.designSystemPlaygroundLabel')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Udforsk farver, komponenter og mønstre
+                    {t('settings.advanced.designSystemPlaygroundDescription')}
                   </p>
                 </div>
                 <Button
@@ -1164,17 +1221,17 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   className="cursor-pointer"
                 >
                   <FlaskConical className="size-4" />
-                  Åbn
+                  {t('settings.advanced.openButton')}
                 </Button>
               </div>
             </SettingsSection>
 
-            <SettingsSection title="Cache" description="Administrer lokalt gemt data">
+            <SettingsSection title={t('settings.advanced.cacheTitle')} description={t('settings.advanced.cacheDescription')}>
               <div className="flex items-center justify-between py-3 px-4">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Ryd billedcache</Label>
+                  <Label className="font-medium">{t('settings.advanced.clearPictureCacheLabel')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Slet cachede profilbilleder
+                    {t('settings.advanced.clearPictureCacheDescription')}
                   </p>
                 </div>
                 <Button
@@ -1183,14 +1240,14 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   onClick={handleClearPictureCache}
                   className="cursor-pointer"
                 >
-                  Ryd cache
+                  {t('settings.advanced.clearPictureCacheButton')}
                 </Button>
               </div>
               <div className="flex items-center justify-between py-3 px-4">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Ryd alle data</Label>
+                  <Label className="font-medium">{t('settings.advanced.clearAllDataLabel')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Slet fastgjorte personer, seneste søgninger, billedcache og indstillinger
+                    {t('settings.advanced.clearAllDataDescription')}
                   </p>
                 </div>
                 <Button
@@ -1199,18 +1256,18 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   onClick={handleClearAllData}
                   className="cursor-pointer"
                 >
-                  Ryd alt
+                  {t('settings.advanced.clearAllDataButton')}
                 </Button>
               </div>
             </SettingsSection>
 
             {onShowOnboarding && (
-              <SettingsSection title="Velkomstguide">
+              <SettingsSection title={t('settings.advanced.welcomeGuideTitle')}>
                 <div className="flex items-center justify-between py-3 px-4">
                   <div className="space-y-0.5">
-                    <Label className="font-medium">Kør opsætningsguiden igen</Label>
+                    <Label className="font-medium">{t('settings.advanced.welcomeGuideLabel')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Gennemgå tema, fagfarver og profilopsætning
+                      {t('settings.advanced.welcomeGuideDescription')}
                     </p>
                   </div>
                   <Button
@@ -1223,18 +1280,18 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                     className="cursor-pointer"
                   >
                     <Sparkles className="size-4 mr-1.5" />
-                    Vis guide
+                    {t('settings.advanced.welcomeGuideButton')}
                   </Button>
                 </div>
               </SettingsSection>
             )}
 
-            <SettingsSection title="Nulstil" description="Gendan standardindstillinger">
+            <SettingsSection title={t('settings.advanced.resetTitle')} description={t('settings.advanced.resetDescription')}>
               <div className="flex items-center justify-between py-3 px-4">
                 <div className="space-y-0.5">
-                  <Label className="font-medium">Nulstil indstillinger</Label>
+                  <Label className="font-medium">{t('settings.advanced.resetLabel')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Gendan alle indstillinger til standard (beholder fastgjorte personer og søgninger)
+                    {t('settings.advanced.resetDescription2')}
                   </p>
                 </div>
                 <Button
@@ -1243,7 +1300,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   onClick={handleResetSettings}
                   className="cursor-pointer"
                 >
-                  Nulstil
+                  {t('settings.advanced.resetButton')}
                 </Button>
               </div>
             </SettingsSection>
@@ -1281,7 +1338,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
           type="button"
           onClick={() => onOpenChange(false)}
           className="absolute top-5 right-5 z-20 rounded-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
-          aria-label="Luk"
+          aria-label={t('settings.closeLabel')}
         >
           <X className="size-5" />
         </button>
@@ -1317,7 +1374,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   <BreadcrumbList className="text-base">
                     <BreadcrumbItem>
                       <span className="text-muted-foreground">
-                        Indstillinger
+                        {t('settings.breadcrumb')}
                       </span>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
