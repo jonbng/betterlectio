@@ -24,30 +24,29 @@ export interface HoldListing {
 
 const STUDIEPLAN_CACHE_PREFIX = 'bl-modulregnskab-hold-list-v1';
 const MODULREGNSKAB_CACHE_PREFIX = 'bl-modulregnskab-data-v1';
-const HOLD_LIST_TTL = 1000 * 60 * 60 * 6;
-const MODULREGNSKAB_TTL = 1000 * 60 * 10;
 
-interface CachedEnvelope<T> {
+export const MODULREGNSKAB_FRESH_MS = 1000 * 60 * 60 * 24;
+
+interface CacheEntry<T> {
   value: T;
   fetchedAt: number;
 }
 
-function readCache<T>(key: string, ttl: number): T | null {
+function readEntry<T>(key: string): CacheEntry<T> | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as CachedEnvelope<T>;
+    const parsed = JSON.parse(raw) as CacheEntry<T>;
     if (!parsed || typeof parsed.fetchedAt !== 'number') return null;
-    if (Date.now() - parsed.fetchedAt > ttl) return null;
-    return parsed.value;
+    return parsed;
   } catch {
     return null;
   }
 }
 
-function writeCache<T>(key: string, value: T): void {
+function writeEntry<T>(key: string, value: T): void {
   try {
-    const envelope: CachedEnvelope<T> = { value, fetchedAt: Date.now() };
+    const envelope: CacheEntry<T> = { value, fetchedAt: Date.now() };
     localStorage.setItem(key, JSON.stringify(envelope));
   } catch {
     /* ignore quota errors */
@@ -62,7 +61,7 @@ function toNumber(text: string): number | null {
 }
 
 function extractCells(row: HTMLTableRowElement): string[] {
-  return Array.from(row.querySelectorAll('td')).map((c) => c.textContent?.replace(/\u00a0/g, ' ').trim() ?? '');
+  return Array.from(row.querySelectorAll('td')).map((c) => c.textContent?.replace(/ /g, ' ').trim() ?? '');
 }
 
 function classifyRow(firstCell: HTMLTableCellElement, label: string): ModulregnskabRow['kind'] {
@@ -99,7 +98,6 @@ export function parseModulregnskab(
     const firstCell = row.querySelector<HTMLTableCellElement>('td');
     if (!firstCell) continue;
     const cells = extractCells(row);
-    // Columns: label | undervisningAfholdt | undervisningPlanlagt | andenAfholdt | andenPlanlagt | total | norm | afvigelse
     const label = cells[0] ?? '';
     const kind = classifyRow(firstCell, label);
     const record: ModulregnskabRow = {
@@ -124,10 +122,6 @@ export function parseModulregnskab(
 }
 
 export async function fetchHoldListFromStudieplan(schoolId: string): Promise<HoldListing[]> {
-  const cacheKey = `${STUDIEPLAN_CACHE_PREFIX}:${schoolId}`;
-  const cached = readCache<HoldListing[]>(cacheKey, HOLD_LIST_TTL);
-  if (cached) return cached;
-
   const url = new URL(`/lectio/${schoolId}/studieplan.aspx`, window.location.origin).href;
   const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) throw new Error(`Kunne ikke hente studieplan (${response.status})`);
@@ -151,7 +145,7 @@ export async function fetchHoldListFromStudieplan(schoolId: string): Promise<Hol
     holdName,
   }));
 
-  writeCache(cacheKey, listings);
+  writeEntry(`${STUDIEPLAN_CACHE_PREFIX}:${schoolId}`, listings);
   return listings;
 }
 
@@ -159,10 +153,6 @@ export async function fetchModulregnskab(
   schoolId: string,
   holdelementId: string,
 ): Promise<ModulregnskabData> {
-  const cacheKey = `${MODULREGNSKAB_CACHE_PREFIX}:${schoolId}:${holdelementId}`;
-  const cached = readCache<ModulregnskabData>(cacheKey, MODULREGNSKAB_TTL);
-  if (cached) return cached;
-
   const url = new URL(
     `/lectio/${schoolId}/subnav/modulregnskab.aspx?holdelementid=${holdelementId}`,
     window.location.origin,
@@ -172,7 +162,7 @@ export async function fetchModulregnskab(
   const html = await response.text();
   const parsed = parseModulregnskab(html, holdelementId);
   if (!parsed) throw new Error('Kunne ikke parse modulregnskab');
-  writeCache(cacheKey, parsed);
+  writeEntry(`${MODULREGNSKAB_CACHE_PREFIX}:${schoolId}:${holdelementId}`, parsed);
   return parsed;
 }
 
@@ -196,4 +186,37 @@ export async function fetchAllModulregnskaber(
     }),
   );
   return { listings, data: results };
+}
+
+export interface CachedModulregnskaber {
+  data: ModulregnskabData[];
+  fetchedAt: number;
+  complete: boolean;
+}
+
+export function getCachedAllModulregnskaber(schoolId: string): CachedModulregnskaber | null {
+  const listEntry = readEntry<HoldListing[]>(`${STUDIEPLAN_CACHE_PREFIX}:${schoolId}`);
+  if (!listEntry || !Array.isArray(listEntry.value) || listEntry.value.length === 0) return null;
+
+  const data: ModulregnskabData[] = [];
+  let oldest = listEntry.fetchedAt;
+  let complete = true;
+  for (const l of listEntry.value) {
+    const entry = readEntry<ModulregnskabData>(
+      `${MODULREGNSKAB_CACHE_PREFIX}:${schoolId}:${l.holdelementId}`,
+    );
+    if (entry) {
+      data.push({ ...entry.value, holdName: entry.value.holdName || l.holdName });
+      if (entry.fetchedAt < oldest) oldest = entry.fetchedAt;
+    } else {
+      data.push({
+        holdelementId: l.holdelementId,
+        holdName: l.holdName,
+        holdRow: null,
+        breakdown: [],
+      });
+      complete = false;
+    }
+  }
+  return { data, fetchedAt: oldest, complete };
 }

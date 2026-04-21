@@ -781,6 +781,7 @@ export const da = {
     noHolds: 'Ingen hold fundet på din studieplan.',
     deviationTitle: 'Afvigelse fra holdnorm',
     holdnormTitle: 'Holdnorm: {n}',
+    refreshing: 'Opdaterer…',
   },
   findSkemaPage: {
     searchAllPlaceholder: 'Søg efter elever, lærere, klasser, hold...',

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { getFullHoldDisplayName, getHoldDisplayName, getHoldHue, registerHold } from '@/lib/hold-mapping';
 import {
   fetchAllModulregnskaber,
+  getCachedAllModulregnskaber,
+  MODULREGNSKAB_FRESH_MS,
   type ModulregnskabData,
   type ModulregnskabRow,
 } from '@/lib/modulregnskab-fetch';
@@ -12,7 +14,7 @@ import {
 type LoadState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; data: ModulregnskabData[] };
+  | { kind: 'ready'; data: ModulregnskabData[]; refreshing: boolean };
 
 function parseAfvigelse(raw: string): number | null {
   if (!raw) return null;
@@ -208,30 +210,46 @@ interface ModulregnskaberPageProps {
 export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
   const { t } = useTranslation();
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+
+    const cached = getCachedAllModulregnskaber(schoolId);
+    const fresh = cached && cached.complete && Date.now() - cached.fetchedAt < MODULREGNSKAB_FRESH_MS;
+
+    if (cached) {
+      for (const d of cached.data) registerHold(d.holdName);
+      setState({ kind: 'ready', data: cached.data, refreshing: !fresh });
+    } else {
       setState({ kind: 'loading' });
+    }
+
+    if (fresh) return () => { cancelled = true; };
+
+    (async () => {
       try {
         const { data } = await fetchAllModulregnskaber(schoolId);
         if (cancelled) return;
-        // Register each hold so color/hue reflects settings
         for (const d of data) registerHold(d.holdName);
-        setState({ kind: 'ready', data });
+        setState({ kind: 'ready', data, refreshing: false });
       } catch (err) {
         if (cancelled) return;
-        setState({
+        if (cached) {
+          setState({ kind: 'ready', data: cached.data, refreshing: false });
+        } else {
+          setState({
             kind: 'error',
             message: err instanceof Error ? err.message : t('modulregnskaberPage.fetchError'),
           });
+        }
       }
-    }
-    load();
+    })();
+
     return () => {
       cancelled = true;
     };
-  }, [schoolId]);
+  }, [schoolId, reloadKey]);
 
   const summary = useMemo(() => {
     if (state.kind !== 'ready') return null;
@@ -255,11 +273,19 @@ export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-foreground">{t('modulregnskaberPage.title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t('modulregnskaberPage.subtitle')}
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-foreground">{t('modulregnskaberPage.title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t('modulregnskaberPage.subtitle')}
+          </p>
+        </div>
+        {state.kind === 'ready' && state.refreshing && (
+          <div className="shrink-0 inline-flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+            <RefreshCw className="size-3.5 animate-spin" />
+            <span>{t('modulregnskaberPage.refreshing')}</span>
+          </div>
+        )}
       </header>
 
       {state.kind === 'loading' && (
@@ -281,7 +307,10 @@ export function ModulregnskaberPage({ schoolId }: ModulregnskaberPageProps) {
             <p className="text-sm text-muted-foreground mt-1">{state.message}</p>
             <button
               type="button"
-              onClick={() => setState({ kind: 'loading' })}
+              onClick={() => {
+                setState({ kind: 'loading' });
+                setReloadKey((k) => k + 1);
+              }}
               className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline cursor-pointer"
             >
               <RefreshCw className="size-3.5" /> {t('modulregnskaberPage.retry')}

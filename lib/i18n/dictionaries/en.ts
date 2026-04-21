@@ -783,6 +783,7 @@ export const en = {
     noHolds: 'No classes found on your study plan.',
     deviationTitle: 'Deviation from class norm',
     holdnormTitle: 'Class norm: {n}',
+    refreshing: 'Refreshing…',
   },
   findSkemaPage: {
     searchAllPlaceholder: 'Search for students, teachers, classes, groups...',
