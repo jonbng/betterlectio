@@ -441,7 +441,7 @@ interface OpgaverPageProps {
 
 type StatusFilter = 'venter' | 'mangler' | 'afleveret';
 
-export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
+export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
@@ -449,13 +449,43 @@ export function OpgaverPage({ entries, schoolId }: OpgaverPageProps) {
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ignoredMissingIds, setIgnoredMissingIds] = useState<Set<string>>(new Set());
+  // Locally patched statuses (keyed by exerciseId) so successful submits flip
+  // the row to "afleveret" without a page reload. Survives prop replacement
+  // when injectOpgaverPage re-renders with the fetched full list.
+  const [submittedOverrides, setSubmittedOverrides] = useState<Set<string>>(new Set());
   const currentWeekRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const entries = submittedOverrides.size === 0
+    ? entriesProp
+    : entriesProp.map((e) => {
+        const eid = getExerciseIdFromUrl(e.url);
+        if (eid && submittedOverrides.has(eid) && e.status !== 'afleveret') {
+          return { ...e, status: 'afleveret' as const, statusText: 'Afleveret' };
+        }
+        return e;
+      });
+
   useEffect(() => {
     setIgnoredMissingIds(loadIgnoredMissingIds(schoolId));
   }, [schoolId]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ url: string; exerciseId: string | null }>).detail;
+      const eid = detail?.exerciseId;
+      if (!eid) return;
+      setSubmittedOverrides((prev) => {
+        if (prev.has(eid)) return prev;
+        const next = new Set(prev);
+        next.add(eid);
+        return next;
+      });
+    };
+    window.addEventListener('betterlectio:opgaveSubmitted', handler);
+    return () => window.removeEventListener('betterlectio:opgaveSubmitted', handler);
+  }, []);
 
   // Position the scroll container so current week is at the top — runs
   // synchronously before paint so the user never sees it jump.

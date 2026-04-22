@@ -1,10 +1,11 @@
 /**
- * Shared module for fetching missing assignments from OpgaverElev.aspx.
- * Used by both ForsideGreeting and ForsideOpgaverCard on the forside.
+ * Shared module for fetching assignment status from OpgaverElev.aspx.
+ * Used by ForsideGreeting and ForsideOpgaverCard on the forside.
  * Caches the result so we only fetch once per page load.
  */
 
 import { parseFormTokensFromDoc } from '@/lib/iframe-post';
+import { getExerciseIdFromUrl } from '@/lib/opgaver-ignored';
 
 export interface MissingOpgave {
   title: string;
@@ -14,7 +15,13 @@ export interface MissingOpgave {
   url: string;
 }
 
-const _cachedPromiseBySchool = new Map<string, Promise<MissingOpgave[]>>();
+export interface OpgaverScan {
+  missing: MissingOpgave[];
+  /** Exercise IDs of assignments the student has already submitted (status "afleveret"). */
+  submittedIds: Set<string>;
+}
+
+const _cachedPromiseBySchool = new Map<string, Promise<OpgaverScan>>();
 
 // Same thresholds as OpgaverPage — 0 elevtimer assignments are low-importance
 const MAX_AGE_DAYS = 60;
@@ -36,18 +43,25 @@ function parseStudentHours(raw: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isSubmittedCell(cell: HTMLTableCellElement): boolean {
+  const text = cell.textContent?.trim().toLowerCase() || '';
+  if (!text) return false;
+  if (text.includes('ikke afleveret') || text.includes('ej afleveret')) return false;
+  return text.includes('afleveret');
+}
+
 /**
- * Parse missing assignment rows from an OpgaverElev.aspx Document.
- * Applies the same age/importance filter as OpgaverPage:
- *   - 0 elevtimer → only if ≤ 7 days past deadline
- *   - >0 elevtimer → only if ≤ 60 days past deadline
+ * Parse assignment rows from an OpgaverElev.aspx Document.
+ * Returns missing assignments (with OpgaverPage's age/importance filter) plus
+ * a set of submitted exercise IDs for any submitted rows in the table.
  */
-function parseMissingFromDoc(doc: Document): MissingOpgave[] {
+function parseScanFromDoc(doc: Document): OpgaverScan {
   const table = doc.querySelector<HTMLTableElement>('#s_m_Content_Content_ExerciseGV');
-  if (!table) return [];
+  if (!table) return { missing: [], submittedIds: new Set() };
 
   const now = new Date();
   const missing: MissingOpgave[] = [];
+  const submittedIds = new Set<string>();
   const rows = table.querySelectorAll('tr');
 
   for (let r = 0; r < rows.length; r++) {
@@ -56,12 +70,19 @@ function parseMissingFromDoc(doc: Document): MissingOpgave[] {
     const cells = row.querySelectorAll<HTMLTableCellElement>('td.OnlyDesktop');
     if (cells.length < 11) continue;
 
+    const titleLink = cells[2].querySelector<HTMLAnchorElement>('a');
+    const linkUrl = titleLink?.getAttribute('href') || '';
+
+    if (isSubmittedCell(cells[5])) {
+      const id = getExerciseIdFromUrl(linkUrl);
+      if (id) submittedIds.add(id);
+      continue;
+    }
+
     if (!isMissingCell(cells[5])) continue;
 
     const hold = cells[1].textContent?.trim() || '';
-    const titleLink = cells[2].querySelector<HTMLAnchorElement>('a');
     const title = titleLink?.textContent?.trim() || cells[2].textContent?.trim() || '';
-    const linkUrl = titleLink?.getAttribute('href') || '';
     const deadlineText = cells[3].textContent?.trim() || '';
     const dMatch = deadlineText.match(/^(\d{1,2})\/(\d{1,2})-(\d{4})\s+(\d{2}):(\d{2})$/);
     if (!dMatch) continue;
@@ -83,44 +104,46 @@ function parseMissingFromDoc(doc: Document): MissingOpgave[] {
     missing.push({ title, hold, deadline, deadlineText, url: linkUrl });
   }
 
-  return missing;
+  return { missing, submittedIds };
 }
 
 /**
- * Fetch missing assignments from OpgaverElev.aspx.
+ * Fetch assignment scan from OpgaverElev.aspx.
  *
  * The default "Vis kun aktuelle" filter hides older missing assignments,
- * so we always POST back to uncheck it when no missing are found initially.
+ * so we POST back to uncheck it when no missing are found initially. Submitted
+ * IDs from the initial GET are preserved across that second fetch.
  *
  * Results are cached per page load — safe to call from multiple components.
  */
-export function fetchMissingOpgaver(schoolId: string): Promise<MissingOpgave[]> {
+export function fetchOpgaverScan(schoolId: string): Promise<OpgaverScan> {
   const existing = _cachedPromiseBySchool.get(schoolId);
   if (existing) return existing;
 
-  const request = (async () => {
+  const request = (async (): Promise<OpgaverScan> => {
     try {
       const pageUrl = `${window.location.origin}/lectio/${schoolId}/OpgaverElev.aspx`;
       const resp = await fetch(pageUrl, { credentials: 'include' });
-      if (!resp.ok) return [];
+      if (!resp.ok) return { missing: [], submittedIds: new Set() };
 
       const html = await resp.text();
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
       // First try: parse from the initial GET response
-      let missing = parseMissingFromDoc(doc);
-      if (missing.length > 0) return missing;
+      let scan = parseScanFromDoc(doc);
+      if (scan.missing.length > 0) return scan;
 
       // The default "Vis kun aktuelle" filter hides older missing assignments.
-      // POST back to uncheck it and try again.
+      // POST back to uncheck it and try again. Submitted IDs from the initial
+      // response are merged in so we don't lose them.
       const filterCB = doc.querySelector<HTMLInputElement>(
         '#s_m_Content_Content_CurrentExerciseFilterCB',
       );
-      if (!filterCB) return missing;
+      if (!filterCB) return scan;
 
       const isFiltered = filterCB.getAttribute('checked') !== null;
-      if (!isFiltered) return missing;
+      if (!isFiltered) return scan;
 
       try {
         const { tokens } = parseFormTokensFromDoc(doc);
@@ -144,18 +167,26 @@ export function fetchMissingOpgaver(schoolId: string): Promise<MissingOpgave[]> 
         if (postResp.ok) {
           const postHtml = await postResp.text();
           const postDoc = parser.parseFromString(postHtml, 'text/html');
-          missing = parseMissingFromDoc(postDoc);
+          const rescan = parseScanFromDoc(postDoc);
+          const mergedSubmitted = new Set(scan.submittedIds);
+          for (const id of rescan.submittedIds) mergedSubmitted.add(id);
+          scan = { missing: rescan.missing, submittedIds: mergedSubmitted };
         }
       } catch {
         // If the postback fails, return whatever we got from the initial GET
       }
 
-      return missing;
+      return scan;
     } catch {
-      return [];
+      return { missing: [], submittedIds: new Set() };
     }
   })();
 
   _cachedPromiseBySchool.set(schoolId, request);
   return request;
+}
+
+/** Backwards-compatible wrapper returning only missing assignments. */
+export async function fetchMissingOpgaver(schoolId: string): Promise<MissingOpgave[]> {
+  return (await fetchOpgaverScan(schoolId)).missing;
 }

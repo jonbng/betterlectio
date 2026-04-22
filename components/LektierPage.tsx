@@ -770,7 +770,7 @@ export function LektierPage({ entries }: LektierPageProps) {
                             onClick={() => toggleDone(entry)}
                             aria-label={isDone ? t('lektierPage.markNotDone') : t('lektierPage.markDone')}
                             className={cn(
-                              "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-[border-color,background-color,transform] duration-150 ease-out active:scale-[0.9]",
+                              "group/check relative flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-[border-color,background-color,transform] duration-150 ease-out active:scale-[0.9] before:absolute before:-inset-2.5 before:content-['']",
                               isDone
                                 ? "border-[oklch(0.55_0.15_145)] bg-[oklch(0.55_0.15_145)] dark:border-[oklch(0.6_0.13_145)] dark:bg-[oklch(0.6_0.13_145)]"
                                 : "border-[oklch(0.8_0.03_var(--hold-hue,265))] hover:border-[oklch(0.6_0.1_145)] hover:bg-[oklch(0.95_0.03_145)] dark:border-[oklch(0.35_0.02_285)] dark:hover:border-[oklch(0.5_0.1_145)] dark:hover:bg-[oklch(0.25_0.04_145)]",

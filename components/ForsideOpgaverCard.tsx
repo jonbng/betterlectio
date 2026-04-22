@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useTranslation, formatWeekdayCapitalized } from '@/lib/i18n';
-import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload } from 'lucide-react';
+import { ArrowUpRight, Clock, AlertTriangle, Flame, Upload, Check } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
-import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
+import { fetchOpgaverScan } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds, addIgnoredMissingId } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ export interface ForsideOpgave {
   isMissing?: boolean;
 }
 
-type Urgency = 'overdue' | 'imminent' | 'soon' | 'later' | 'missing';
+type Urgency = 'overdue' | 'imminent' | 'soon' | 'later' | 'missing' | 'submitted';
 
 const URGENCY_BAR: Record<Urgency, string> = {
   overdue: 'bg-[oklch(0.55_0.22_25)] dark:bg-[oklch(0.58_0.18_25)]',
@@ -26,6 +26,7 @@ const URGENCY_BAR: Record<Urgency, string> = {
   imminent: 'bg-[oklch(0.6_0.18_50)] dark:bg-[oklch(0.58_0.15_50)]',
   soon: 'bg-[oklch(0.72_0.12_80)] dark:bg-[oklch(0.55_0.1_80)]',
   later: 'bg-border',
+  submitted: 'bg-[oklch(0.62_0.15_145)] dark:bg-[oklch(0.58_0.13_145)]',
 };
 
 const URGENCY_ICON: Record<Urgency, string> = {
@@ -34,6 +35,7 @@ const URGENCY_ICON: Record<Urgency, string> = {
   imminent: 'bg-[oklch(0.93_0.04_50)] text-[oklch(0.52_0.18_50)] dark:bg-[oklch(0.22_0.04_50)] dark:text-[oklch(0.72_0.15_50)]',
   soon: 'bg-[oklch(0.95_0.03_80)] text-[oklch(0.55_0.12_80)] dark:bg-[oklch(0.22_0.03_80)] dark:text-[oklch(0.72_0.1_80)]',
   later: 'bg-muted text-muted-foreground',
+  submitted: 'bg-[oklch(0.92_0.06_145)] text-[oklch(0.45_0.16_145)] dark:bg-[oklch(0.22_0.05_145)] dark:text-[oklch(0.72_0.14_145)]',
 };
 
 const URGENCY_DEADLINE: Record<Urgency, string> = {
@@ -42,6 +44,7 @@ const URGENCY_DEADLINE: Record<Urgency, string> = {
   imminent: 'text-[oklch(0.52_0.18_50)] dark:text-[oklch(0.72_0.15_50)] font-bold',
   soon: 'text-[oklch(0.55_0.12_80)] dark:text-[oklch(0.72_0.1_80)] font-bold',
   later: 'text-foreground font-medium',
+  submitted: 'text-muted-foreground font-medium line-through decoration-[1.5px]',
 };
 
 interface DeadlineInfo {
@@ -58,7 +61,7 @@ function fmt2(n: number) {
   return n.toString().padStart(2, '0');
 }
 
-function getDeadlineInfo(deadline: Date, isMissing?: boolean): DeadlineInfo {
+function getDeadlineInfo(deadline: Date, isMissing?: boolean, isSubmitted?: boolean): DeadlineInfo {
   const now = new Date();
   const diffMs = deadline.getTime() - now.getTime();
   const timeStr = `kl. ${fmt2(deadline.getHours())}:${fmt2(deadline.getMinutes())}`;
@@ -66,6 +69,19 @@ function getDeadlineInfo(deadline: Date, isMissing?: boolean): DeadlineInfo {
   // Progress: 1 at deadline, 0 at 7 days out. Clamp 0–1.
   const sevenDaysMs = 7 * 24 * 3600000;
   const progress = Math.max(0, Math.min(1, 1 - diffMs / sevenDaysMs));
+
+  // Submitted wins over everything — it's done, not urgent.
+  if (isSubmitted) {
+    const calDays = Math.round(
+      (new Date(deadline).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86400000,
+    );
+    let sub: string;
+    if (calDays === 0) sub = timeStr;
+    else if (calDays === 1) sub = `I morgen ${timeStr}`;
+    else if (calDays > 1 && calDays <= 7) sub = `${formatWeekdayCapitalized(deadline)} ${timeStr}`;
+    else sub = `${deadline.getDate()}/${deadline.getMonth() + 1} ${timeStr}`;
+    return { label: 'Afleveret', sub, urgency: 'submitted', progress: 1 };
+  }
 
   // Missing assignments get their own urgency category
   if (isMissing) {
@@ -175,10 +191,14 @@ interface Props {
 export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }: Props) {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<ForsideOpgave[]>(initialEntries);
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(() => new Set());
 
-  // Background-fetch missing assignments and merge them in (respecting ignored list)
+  // Background-fetch assignment status: merge in missing (respecting ignored list)
+  // and track which upcoming entries have already been submitted.
   useEffect(() => {
-    fetchMissingOpgaver(schoolId).then((missingRaw) => {
+    fetchOpgaverScan(schoolId).then(({ missing: missingRaw, submittedIds: submitted }) => {
+      if (submitted.size > 0) setSubmittedIds(submitted);
+
       if (missingRaw.length === 0) return;
 
       const ignoredIds = loadIgnoredMissingIds(schoolId);
@@ -272,7 +292,9 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
       {/* Assignment list */}
       <div className="flex flex-col">
         {entries.map((opgave, i) => {
-          const info = getDeadlineInfo(opgave.deadline, opgave.isMissing);
+          const exId = getExerciseIdFromUrl(opgave.url);
+          const isSubmitted = !opgave.isMissing && !!exId && submittedIds.has(exId);
+          const info = getDeadlineInfo(opgave.deadline, opgave.isMissing, isSubmitted);
           const hue = getHoldHue(opgave.holdCode);
           const isFirst = i === 0;
 
@@ -283,6 +305,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               className={cn(
                 "relative flex items-center gap-2.5 overflow-hidden border-b border-border px-3.5 py-2.5 no-underline text-foreground cursor-pointer transition-[color,background-color] duration-150 last:border-b-0 hover:bg-accent/40",
                 info.urgency === 'missing' && "bg-[oklch(0.97_0.02_25)] hover:bg-[oklch(0.95_0.03_25)] dark:bg-[oklch(0.17_0.02_25)] dark:hover:bg-[oklch(0.2_0.025_25)]",
+                info.urgency === 'submitted' && "bg-[oklch(0.975_0.015_145)] hover:bg-[oklch(0.96_0.022_145)] dark:bg-[oklch(0.17_0.015_145)] dark:hover:bg-[oklch(0.2_0.02_145)]",
               )}
               style={{ animationDelay: `${i * 50}ms`, '--hold-hue': hue, '--anim-i': i } as any}
               onClick={(e) => openDetail(e as unknown as MouseEvent, opgave)}
@@ -291,15 +314,16 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
               <div
                 className={cn(
                   "absolute bottom-0 left-0 h-[2px] rounded-r transition-[width] duration-400",
-                  (info.urgency === 'missing') && "h-[3px]",
+                  (info.urgency === 'missing' || info.urgency === 'submitted') && "h-[3px]",
                   URGENCY_BAR[info.urgency],
                 )}
-                style={{ width: (info.urgency === 'overdue' || info.urgency === 'missing') ? '100%' : `${info.progress * 100}%` }}
+                style={{ width: (info.urgency === 'overdue' || info.urgency === 'missing' || info.urgency === 'submitted') ? '100%' : `${info.progress * 100}%` }}
               />
 
               {/* Icon */}
               <div className={cn("inline-flex size-7 shrink-0 items-center justify-center rounded-md", URGENCY_ICON[info.urgency])}>
-                {info.urgency === 'missing' ? <Upload size={15} /> :
+                {info.urgency === 'submitted' ? <Check size={16} strokeWidth={2.75} /> :
+                 info.urgency === 'missing' ? <Upload size={15} /> :
                  info.urgency === 'overdue' ? <AlertTriangle size={15} /> :
                  info.urgency === 'imminent' ? <Flame size={15} /> :
                  <Clock size={15} />}
@@ -313,7 +337,7 @@ export function ForsideOpgaverCard({ initialEntries, opgaverPageUrl, schoolId }:
                   </span>
                   <span className="text-xs text-muted-foreground opacity-60 whitespace-nowrap">{info.sub}</span>
                 </div>
-                <span className="truncate text-xs leading-[1.4] text-muted-foreground">{opgave.title}</span>
+                <span className={cn("truncate text-xs leading-[1.4] text-muted-foreground", info.urgency === 'submitted' && "line-through decoration-[1.5px]")}>{opgave.title}</span>
               </div>
 
               {/* Hold pill + hide button */}

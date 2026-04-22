@@ -202,6 +202,11 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
         setSelectedFile(null);
         invalidateDetailCache(entry.url);
         loadDetail(entry.url, false);
+        window.dispatchEvent(
+          new CustomEvent('betterlectio:opgaveSubmitted', {
+            detail: { url: entry.url, exerciseId: getExerciseIdFromUrl(entry.url) },
+          }),
+        );
       } else {
         toast.error(t('opgaveDetail.errors.sendFailed'));
       }
