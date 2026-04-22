@@ -38,6 +38,15 @@ export default defineConfig({
           },
         };
       }
+      if (wxt.config.browser === 'safari') {
+        manifest.name = 'BetterLectio';
+        if (manifest.action && typeof manifest.action === 'object') {
+          manifest.action.default_title = 'BetterLectio';
+        }
+        if (manifest.browser_action && typeof manifest.browser_action === 'object') {
+          manifest.browser_action.default_title = 'BetterLectio';
+        }
+      }
     },
   },
   webExt: {
