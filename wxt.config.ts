@@ -46,6 +46,21 @@ export default defineConfig({
         if (manifest.browser_action && typeof manifest.browser_action === 'object') {
           manifest.browser_action.default_title = 'BetterLectio';
         }
+        // iOS/iPadOS don't support persistent background pages.
+        if (manifest.background && typeof manifest.background === 'object') {
+          (manifest.background as { persistent?: boolean }).persistent = false;
+        }
+        // Safari doesn't understand the `world` key on content scripts and
+        // warns about it at validation time. Our only MAIN-world script
+        // (session-renew) doesn't actually touch page globals — dispatched
+        // DOM events still reach jQuery handlers from the isolated world.
+        if (Array.isArray(manifest.content_scripts)) {
+          for (const cs of manifest.content_scripts) {
+            if (cs && typeof cs === 'object' && 'world' in cs) {
+              delete (cs as { world?: string }).world;
+            }
+          }
+        }
       }
     },
   },
