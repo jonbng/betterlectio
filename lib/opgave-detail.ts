@@ -38,7 +38,9 @@ export interface OpgaveDetail {
   entries: {
     timestamp: string;
     user: string;
+    userContextCardId: string;
     isTeacher: boolean;
+    isReturn: boolean;
     comment: string;
     documentName: string;
     documentUrl: string;
@@ -57,107 +59,7 @@ export interface OpgaveDetail {
   };
 }
 
-// ── Cache ──────────────────────────────────────────────────────────────
-
-const CACHE_PREFIX = 'bl-opgave-detail-';
-const LEGACY_CACHE_PREFIX = 'il-opgave-detail-';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const CACHE_MAX_ENTRIES = 50;
-interface CachedEntry {
-  detail: OpgaveDetail;
-  timestamp: number;
-}
-
 export type SubmissionStatus = 'uploading' | 'sending' | 'verifying';
-
-function getExerciseId(url: string): string | null {
-  const match = url.match(/exerciseid=(\d+)/i);
-  return match ? match[1] : null;
-}
-
-function getSchoolIdFromUrl(url: string): string {
-  try {
-    const absolute = new URL(url, window.location.origin);
-    const match = absolute.pathname.match(/\/lectio\/(\d+)\//i);
-    return match?.[1] || 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
-
-function getDetailCacheKey(url: string): string | null {
-  const id = getExerciseId(url);
-  if (!id) return null;
-  const schoolId = getSchoolIdFromUrl(url);
-  return `${CACHE_PREFIX}${schoolId}:${id}`;
-}
-
-function getLegacyDetailCacheKey(url: string): string | null {
-  const id = getExerciseId(url);
-  if (!id) return null;
-  const schoolId = getSchoolIdFromUrl(url);
-  return `${LEGACY_CACHE_PREFIX}${schoolId}:${id}`;
-}
-
-export function getCachedDetail(url: string): OpgaveDetail | null {
-  const key = getDetailCacheKey(url);
-  const legacyKey = getLegacyDetailCacheKey(url);
-  if (!key) return null;
-
-  try {
-    const raw = localStorage.getItem(key) ?? (legacyKey ? localStorage.getItem(legacyKey) : null);
-    if (!raw) return null;
-    if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, raw);
-    }
-
-    const cached: CachedEntry = JSON.parse(raw);
-    if (Date.now() - cached.timestamp > CACHE_TTL) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    return cached.detail;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedDetail(url: string, detail: OpgaveDetail): void {
-  const key = getDetailCacheKey(url);
-  if (!key) return;
-
-  try {
-    // LRU eviction: if at max, remove oldest
-    const keys = Object.keys(localStorage).filter(
-      (k) => k.startsWith(CACHE_PREFIX) || k.startsWith(LEGACY_CACHE_PREFIX),
-    );
-    if (keys.length >= CACHE_MAX_ENTRIES) {
-      let oldestKey = keys[0];
-      let oldestTime = Infinity;
-      for (const key of keys) {
-        try {
-          const entry: CachedEntry = JSON.parse(localStorage.getItem(key)!);
-          if (entry.timestamp < oldestTime) {
-            oldestTime = entry.timestamp;
-            oldestKey = key;
-          }
-        } catch { /* skip corrupt entries */ }
-      }
-      localStorage.removeItem(oldestKey);
-    }
-
-    const entry: CachedEntry = { detail, timestamp: Date.now() };
-    localStorage.setItem(key, JSON.stringify(entry));
-  } catch { /* ignore storage errors */ }
-}
-
-export function invalidateDetailCache(url: string): void {
-  const key = getDetailCacheKey(url);
-  if (!key) return;
-  try {
-    localStorage.removeItem(key);
-  } catch { /* ignore */ }
-}
 
 // ── Parser ─────────────────────────────────────────────────────────────
 
@@ -264,10 +166,14 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
         if (cells.length < 4) continue;
 
         const timestamp = cells[0]?.textContent?.trim() || '';
-        const userSpan = cells[1]?.querySelector('[data-lectioContextCard]');
-        const user = userSpan?.textContent?.trim() || cells[1]?.textContent?.trim() || '';
-        const contextCard = userSpan?.getAttribute('data-lectioContextCard') || '';
-        const isTeacher = contextCard.startsWith('T');
+        const userSpan = cells[1]?.querySelector('[data-lectioContextCard]') as HTMLElement | null;
+        const userText = userSpan?.textContent?.trim() || '';
+        const userTitle = userSpan?.getAttribute('title')?.trim() || '';
+        // Teacher spans render as initials with full name in `title`; prefer the title.
+        const user = (userTitle && userTitle.length > userText.length ? userTitle : userText)
+          || cells[1]?.textContent?.trim() || '';
+        const userContextCardId = userSpan?.getAttribute('data-lectioContextCard') || '';
+        const isTeacher = userContextCardId.startsWith('T');
         const comment = cells[2]?.textContent?.trim() || '';
 
         const docLink = cells[3]?.querySelector('a[href*="ExerciseFileGet.aspx"]');
@@ -275,7 +181,21 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
         const docHref = docLink?.getAttribute('href') || '';
         const documentUrl = docHref ? new URL(docHref, origin).href : '';
 
-        entries.push({ timestamp, user, isTeacher, comment, documentName, documentUrl });
+        // Lectio marks the boundary between student submission(s) and teacher
+        // return/correction rows with `class="separationCell"` on the first
+        // teacher row. Treat any teacher entry with a document as a "return".
+        const isReturn = isTeacher && !!documentName;
+
+        entries.push({
+          timestamp,
+          user,
+          userContextCardId,
+          isTeacher,
+          isReturn,
+          comment,
+          documentName,
+          documentUrl,
+        });
       }
     }
   }
@@ -384,9 +304,7 @@ export async function fetchOpgaveDetail(url: string): Promise<OpgaveDetail> {
       throw new Error('SESSION_EXPIRED');
     }
 
-    const detail = parseDetail(doc, absoluteUrl);
-    setCachedDetail(url, detail);
-    return detail;
+    return parseDetail(doc, absoluteUrl);
   } catch (err) {
     if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
     captureException(err, undefined, { source: 'opgave-detail', url });
@@ -450,9 +368,7 @@ export async function addGroupMember(
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return null;
 
-  const parsed = parseDetail(doc, detail.sourceUrl);
-  setCachedDetail(detail.sourceUrl, parsed);
-  return parsed;
+  return parseDetail(doc, detail.sourceUrl);
 }
 
 export async function removeGroupMember(
@@ -473,9 +389,7 @@ export async function removeGroupMember(
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return null;
 
-  const parsed = parseDetail(doc, detail.sourceUrl);
-  setCachedDetail(detail.sourceUrl, parsed);
-  return parsed;
+  return parseDetail(doc, detail.sourceUrl);
 }
 
 export async function uploadFileAndSubmit(

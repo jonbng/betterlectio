@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import {
   fetchActivityDetail,
-  getCachedActivityDetail,
   postbackNavigateActivity,
   type ActivityDetail,
   type ActivityHomeworkItem,
@@ -58,13 +57,6 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
 
   useEffect(() => {
     if (!open || !url) return;
-
-    const cached = getCachedActivityDetail(url);
-    if (cached) {
-      setDetail(cached);
-      setLoading(false);
-      return;
-    }
 
     let cancelled = false;
     setDetail(null);

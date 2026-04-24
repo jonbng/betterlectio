@@ -799,12 +799,26 @@ function SubjectRow({
               </div>
             </div>
 
-            <span className={cn('min-w-[3.5rem] text-right text-sm font-bold tabular-nums', absenceColorClass(almPct))}>
-              {hold.almOpgjortPct || '0%'}
-            </span>
+            <div className="flex min-w-[3.5rem] flex-col items-end leading-tight">
+              <span className={cn('text-sm font-bold tabular-nums', absenceColorClass(almPct))}>
+                {hold.almOpgjortPct || '0%'}
+              </span>
+              {hold.almOpgjortModuler && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {hold.almOpgjortModuler} {t('fravaerPage.modules')}
+                </span>
+              )}
+            </div>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground/40">0%</span>
+          <div className="flex flex-col items-end leading-tight">
+            <span className="text-sm text-muted-foreground/40">0%</span>
+            {hold.almOpgjortModuler && (
+              <span className="text-xs tabular-nums text-muted-foreground/60">
+                {hold.almOpgjortModuler} {t('fravaerPage.modules')}
+              </span>
+            )}
+          </div>
         )}
 
         <ChevronDown

@@ -13,7 +13,6 @@
 import { getHoldDisplayName, getHoldHue } from "./hold-mapping";
 import {
   fetchActivityDetail,
-  getCachedActivityDetail,
   type ActivityDetail,
   type ActivityHomeworkItem,
   type ActivityRelatedItem,
@@ -757,13 +756,6 @@ function repositionIfVisible(brick: HTMLElement) {
 function enrichTooltip(brick: HTMLElement, basicData: TooltipData, hue: number) {
   const activityUrl = getActivityUrl(brick);
   if (!activityUrl) return;
-
-  // Check cache first — if we have it, render immediately
-  const cached = getCachedActivityDetail(activityUrl);
-  if (cached) {
-    applyEnrichedContent(brick, cached, basicData, hue);
-    return;
-  }
 
   // Show loading indicator
   const loadingEl = tooltipEl?.querySelector("#bl-tt-loading") as HTMLElement | null;

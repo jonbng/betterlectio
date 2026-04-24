@@ -10,6 +10,8 @@ import {
   ChevronUp,
   Eye,
   EyeOff,
+  CornerDownLeft,
+  MessageSquareText,
 } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
@@ -95,6 +97,20 @@ function getWeekDateRange(weekKey: string): string {
   return `${fmtDay(monday)} – ${fmtDay(sunday)}`;
 }
 
+// ── School year helpers ───────────────────────────────────────────────
+// Danish school year runs Aug–Jul. Returns the starting calendar year:
+// Aug 2025 → Jul 2026 = 2025 ("2025/26").
+
+function getSchoolYear(date: Date): number {
+  const m = date.getMonth();
+  return m >= 7 ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+function formatSchoolYear(startYear: number): string {
+  const endShort = String((startYear + 1) % 100).padStart(2, '0');
+  return `${startYear}/${endShort}`;
+}
+
 interface WeekGroup {
   key: string;
   label: string;
@@ -154,6 +170,14 @@ function hasAssignmentFravaer(entry: Pick<OpgaveEntry, 'status' | 'absence' | 's
   const absencePercent = parseAbsencePercent(entry.absence);
   if (absencePercent !== null && absencePercent > 0) return true;
   return /frav[æa]r/i.test(entry.statusText);
+}
+
+// Teacher returned feedback/corrected version: Lectio sets `awaiting` to "Elev"
+// on an `afleveret` row once the teacher acts (return file, add note, grade).
+// When there's no grade yet, this is the only signal in the list view that
+// something is waiting for the student to review.
+function hasTeacherReturn(entry: Pick<OpgaveEntry, 'status' | 'awaiting'>): boolean {
+  return entry.status === 'afleveret' && /^elev$/i.test(entry.awaiting.trim());
 }
 
 function getAssignmentFravaerLabel(entry: Pick<OpgaveEntry, 'absence'>): string {
@@ -367,12 +391,14 @@ function parseDeadline(text: string): Date {
 // ── Fetch all opgaver ─────────────────────────────────────────────────
 
 export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
-  const checkbox = document.querySelector<HTMLInputElement>(
+  const currentCB = document.querySelector<HTMLInputElement>(
     '#s_m_Content_Content_CurrentExerciseFilterCB'
   );
-  if (!checkbox || !checkbox.checked) {
-    return null;
-  }
+  const thisTermCB = document.querySelector<HTMLInputElement>(
+    '#s_m_Content_Content_ShowThisTermOnlyCB'
+  );
+  // Nothing to disable — page already shows everything.
+  if (!currentCB?.checked && !thisTermCB?.checked) return null;
 
   const form = document.querySelector<HTMLFormElement>('#aspnetForm');
   if (!form) return null;
@@ -387,7 +413,9 @@ export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
 
     if (el instanceof HTMLInputElement) {
       if (el.type === 'checkbox' || el.type === 'radio') {
+        // Omitting the field = unchecked after postback
         if (name === 's$m$Content$Content$CurrentExerciseFilterCB') continue;
+        if (name === 's$m$Content$Content$ShowThisTermOnlyCB') continue;
         if (el.checked) formData.append(name, el.value || 'on');
       } else if (el.type !== 'submit' && el.type !== 'button' && el.type !== 'image') {
         formData.append(name, el.value);
@@ -399,7 +427,11 @@ export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
     }
   }
 
-  formData.set('__EVENTTARGET', 's$m$Content$Content$CurrentExerciseFilterCB');
+  // Target whichever checkbox is currently checked; that's what the postback toggles
+  const eventTarget = currentCB?.checked
+    ? 's$m$Content$Content$CurrentExerciseFilterCB'
+    : 's$m$Content$Content$ShowThisTermOnlyCB';
+  formData.set('__EVENTTARGET', eventTarget);
   formData.set('__EVENTARGUMENT', '');
 
   try {
@@ -445,6 +477,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedHold, setSelectedHold] = useState<string | null>(null);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -544,6 +577,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const queryLower = searchQuery.toLowerCase().trim();
   const filtered = entries.filter(e => {
     if (selectedHold && e.hold !== selectedHold) return false;
+    if (selectedSchoolYear !== null && getSchoolYear(e.deadline) !== selectedSchoolYear) return false;
     if (statusFilter) {
       if (e.status !== statusFilter) return false;
       // When filtering to "mangler", exclude ignored so the list matches the count.
@@ -573,6 +607,9 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
     return getHoldDisplayName(a).localeCompare(getHoldDisplayName(b), 'da');
   });
 
+  const schoolYears = [...new Set(entries.map(e => getSchoolYear(e.deadline)))].sort((a, b) => b - a);
+  const currentSchoolYear = getSchoolYear(now);
+
   const missingCount = entries.filter(e => {
     if (e.status !== 'mangler') return false;
     const eid = getExerciseIdFromUrl(e.url);
@@ -582,7 +619,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const submittedCount = entries.filter(e => e.status === 'afleveret').length;
   const waitingCount = entries.filter(e => e.status === 'venter').length;
 
-  const hasActiveFilters = selectedHold !== null || queryLower !== '' || statusFilter !== null;
+  const hasActiveFilters = selectedHold !== null || queryLower !== '' || statusFilter !== null || selectedSchoolYear !== null;
 
   const toggleStatusFilter = (next: StatusFilter) => {
     setStatusFilter(prev => (prev === next ? null : next));
@@ -679,6 +716,50 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
               <kbd className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">⌘K</kbd>
             </div>
 
+            {schoolYears.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground/60">
+                  {t('opgaverPage.schoolYearLabel')}
+                </span>
+                <button
+                  type="button"
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
+                    selectedSchoolYear === null
+                      ? 'border-primary/30 bg-primary/10 text-foreground'
+                      : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                  onClick={() => setSelectedSchoolYear(null)}
+                >
+                  {t('opgaverPage.allYears')}
+                </button>
+                {schoolYears.map(year => {
+                  const active = selectedSchoolYear === year;
+                  const isCurrent = year === currentSchoolYear;
+                  return (
+                    <button
+                      key={year}
+                      type="button"
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium tabular-nums transition-[background-color,transform] duration-150 active:scale-[0.97]',
+                        active
+                          ? 'border-primary/30 bg-primary/10 text-foreground'
+                          : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                      )}
+                      onClick={() => setSelectedSchoolYear(active ? null : year)}
+                    >
+                      {formatSchoolYear(year)}
+                      {isCurrent && (
+                        <span className="rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          {t('opgaverPage.currentYearBadge')}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {holds.length > 1 && (
               <div className="flex flex-wrap gap-2">
                 <button
@@ -751,7 +832,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
                     <button
                       type="button"
                       className="mt-6 rounded-xl border border-border bg-background px-6 py-3 text-base font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]"
-                      onClick={() => { setSearchQuery(''); setSelectedHold(null); setStatusFilter(null); }}
+                      onClick={() => { setSearchQuery(''); setSelectedHold(null); setStatusFilter(null); setSelectedSchoolYear(null); }}
                     >
                       {t('opgaverPage.reset')}
                     </button>
@@ -829,6 +910,11 @@ function IgnoredLabel() {
 function IgnoreShowLabel({ show }: { show: boolean }) {
   const { t } = useTranslation();
   return <>{show ? t('opgaverPage.show') : t('opgaverPage.ignore')}</>;
+}
+
+function ReturnedLabel() {
+  const { t } = useTranslation();
+  return <>{t('opgaverPage.returnedBadge')}</>;
 }
 
 // ── WeekHeader ─────────────────────────────────────────────────────────
@@ -932,7 +1018,7 @@ function AssignmentRow({
     <a
       href={entry.url}
       className={cn(
-        'group flex items-start gap-5 rounded-xl border border-border px-6 py-5 no-underline transition-[background-color,transform] duration-150 ease-out hover:bg-accent/30 active:scale-[0.995]',
+        'group flex items-start gap-4 rounded-xl border border-border px-5 py-3.5 no-underline transition-[background-color,transform] duration-150 ease-out hover:bg-accent/30 active:scale-[0.995]',
         'animate-[bl-fade-in_300ms_var(--ease-out)_both]',
         borderClass,
         bgClass,
@@ -942,15 +1028,15 @@ function AssignmentRow({
       onClick={(e) => onClick(e as unknown as MouseEvent, entry)}
     >
       {/* Status icon */}
-      <div className="mt-1 flex size-7 shrink-0 items-center justify-center">
+      <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center">
         {hasFravaer ? (
-          <AlertTriangle size={20} className="text-[oklch(0.55_0.20_25)] dark:text-[oklch(0.72_0.18_25)]" />
+          <AlertTriangle size={18} className="text-[oklch(0.55_0.20_25)] dark:text-[oklch(0.72_0.18_25)]" />
         ) : isMissing ? (
-          <XCircle size={20} className="text-[oklch(0.58_0.16_50)] dark:text-[oklch(0.72_0.14_50)]" />
+          <XCircle size={18} className="text-[oklch(0.58_0.16_50)] dark:text-[oklch(0.72_0.14_50)]" />
         ) : entry.status === 'venter' ? (
-          <Clock size={20} className="text-[oklch(0.55_0.14_80)] dark:text-[oklch(0.70_0.12_80)]" />
+          <Clock size={18} className="text-[oklch(0.55_0.14_80)] dark:text-[oklch(0.70_0.12_80)]" />
         ) : entry.status === 'afleveret' ? (
-          <Check size={20} className="text-[oklch(0.55_0.14_145)] dark:text-[oklch(0.65_0.12_145)]" />
+          <Check size={18} className="text-[oklch(0.55_0.14_145)] dark:text-[oklch(0.65_0.12_145)]" />
         ) : (
           <div className="size-3 rounded-full bg-muted-foreground/30" />
         )}
@@ -959,19 +1045,22 @@ function AssignmentRow({
       {/* Main content */}
       <div className="min-w-0 flex-1">
         {/* Title */}
-        <span className="block truncate text-lg font-semibold text-foreground">
+        <span className="block truncate text-base font-semibold text-foreground">
           {entry.title}
         </span>
 
-        {/* Metadata row */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-base text-muted-foreground">
+        {/* Metadata row — hold + single-shot status pills, no separate grade row */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
           {/* Hold */}
           <span
-            className="hold-pill-dynamic rounded-full px-3 py-1 text-base font-medium"
+            className="hold-pill-dynamic rounded-full px-2.5 py-0.5 text-sm font-medium"
             style={{ '--hold-hue': hue } as any}
           >
             {getHoldDisplayName(entry.hold)}
           </span>
+
+          {/* Grade — compact inline, primary visual for completed feedback */}
+          {entry.grade && <GradeBadge grade={entry.grade} />}
 
           {/* Elevtimer */}
           {hasHours && (
@@ -980,56 +1069,57 @@ function AssignmentRow({
 
           {/* Fravær badge */}
           {hasFravaer && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[oklch(0.95_0.03_25)] px-2.5 py-1 text-base font-semibold text-[oklch(0.45_0.18_25)] dark:bg-[oklch(0.22_0.03_25)] dark:text-[oklch(0.75_0.14_25)]">
-              <AlertTriangle size={14} />
+            <span className="inline-flex items-center gap-1 rounded-md bg-[oklch(0.95_0.03_25)] px-2 py-0.5 text-sm font-semibold text-[oklch(0.45_0.18_25)] dark:bg-[oklch(0.22_0.03_25)] dark:text-[oklch(0.75_0.14_25)]">
+              <AlertTriangle size={12} />
               <AbsenceBadgeLabel entry={entry} />
             </span>
           )}
 
           {/* Missing badge (non-fravær) */}
           {isMissing && !hasFravaer && (
-            <span className="rounded-lg bg-[oklch(0.95_0.02_50)] px-2.5 py-1 text-base font-medium text-[oklch(0.48_0.12_50)] dark:bg-[oklch(0.22_0.02_50)] dark:text-[oklch(0.75_0.10_50)]">
+            <span className="rounded-md bg-[oklch(0.95_0.02_50)] px-2 py-0.5 text-sm font-medium text-[oklch(0.48_0.12_50)] dark:bg-[oklch(0.22_0.02_50)] dark:text-[oklch(0.75_0.10_50)]">
               <MissingBadge />
             </span>
           )}
 
           {/* Ignored marker */}
           {entry.status === 'mangler' && isIgnored && (
-            <span className="rounded-lg bg-muted px-2.5 py-1 text-base text-muted-foreground/60">
+            <span className="rounded-md bg-muted px-2 py-0.5 text-sm text-muted-foreground/60">
               <IgnoredLabel />
             </span>
           )}
 
-          {/* Awaiting */}
+          {/* Awaiting (pending) */}
           {entry.status === 'venter' && entry.awaiting && (
             <span className="text-muted-foreground/60">{entry.awaiting}</span>
           )}
+
+          {/* Teacher returned corrected version / feedback */}
+          {hasTeacherReturn(entry) && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-[oklch(0.95_0.03_210)] px-2 py-0.5 text-sm font-medium text-[oklch(0.42_0.14_210)] dark:bg-[oklch(0.22_0.04_210)] dark:text-[oklch(0.78_0.12_210)]">
+              <CornerDownLeft size={12} />
+              <ReturnedLabel />
+            </span>
+          )}
         </div>
 
-        {/* Grade + note (for completed) */}
-        {entry.grade && (
-          <div className="mt-2 flex items-center gap-2.5">
-            <GradeBadge grade={entry.grade} />
-            {entry.gradeExtra && (
-              <span className="text-base italic text-muted-foreground/70">
-                {entry.gradeExtra}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Teacher note */}
-        {entry.note && (
-          <p className="mt-2 line-clamp-1 text-base leading-relaxed text-muted-foreground/70">
-            {entry.note}
+        {/* Teacher feedback text — single truncated line combining karakternote + elevnote */}
+        {(entry.gradeExtra || entry.note) && (
+          <p className="mt-1 line-clamp-1 flex items-center gap-1.5 text-sm text-muted-foreground/70">
+            <MessageSquareText size={12} className="shrink-0 opacity-60" aria-hidden />
+            <span className="truncate">
+              {entry.gradeExtra && <span className="italic">{entry.gradeExtra}</span>}
+              {entry.gradeExtra && entry.note && <span className="mx-1.5 opacity-40">&middot;</span>}
+              {entry.note}
+            </span>
           </p>
         )}
       </div>
 
       {/* Right side: deadline + actions */}
-      <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
+      <div className="flex shrink-0 flex-col items-end gap-0.5 pt-0.5">
         <span className={cn(
-          'text-lg font-semibold tabular-nums',
+          'text-base font-semibold tabular-nums',
           deadline.urgency === 'overdue' && isMissing && 'text-[oklch(0.50_0.18_25)] dark:text-[oklch(0.72_0.16_25)]',
           deadline.urgency === 'imminent' && 'text-[oklch(0.50_0.15_50)] dark:text-[oklch(0.72_0.14_50)]',
           deadline.urgency === 'soon' && 'text-[oklch(0.48_0.12_80)] dark:text-[oklch(0.70_0.10_80)]',
@@ -1037,7 +1127,7 @@ function AssignmentRow({
         )}>
           {deadline.primary}
         </span>
-        <span className="text-base tabular-nums text-muted-foreground/50">
+        <span className="text-xs tabular-nums text-muted-foreground/50">
           {deadline.secondary}
         </span>
 
@@ -1045,7 +1135,7 @@ function AssignmentRow({
         {entry.status === 'mangler' && (
           <button
             type="button"
-            className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-muted-foreground/50 opacity-0 transition-[opacity,color,background-color] duration-150 hover:bg-accent hover:text-foreground group-hover:opacity-100"
+            className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground/50 opacity-0 transition-[opacity,color,background-color] duration-150 hover:bg-accent hover:text-foreground group-hover:opacity-100"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -1153,7 +1243,7 @@ function GradeBadge({ grade }: { grade: string }) {
   const hue = getGradeHue(grade);
   return (
     <span
-      className="inline-flex items-center rounded-lg border px-3 py-1.5 text-base font-bold tabular-nums"
+      className="inline-flex items-center rounded-md border px-2 py-0.5 text-sm font-bold tabular-nums"
       style={{
         background: `oklch(0.95 0.05 ${hue})`,
         color: `oklch(0.40 0.14 ${hue})`,

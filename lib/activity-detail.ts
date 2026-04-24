@@ -73,110 +73,6 @@ export interface ActivityDetail {
   formTokens: ActivityFormTokens;
 }
 
-const CACHE_PREFIX = "bl-activity-detail-";
-const LEGACY_CACHE_PREFIX = "il-activity-detail-";
-const CACHE_TTL = 3 * 60 * 1000;
-const CACHE_MAX_ENTRIES = 50;
-
-interface CachedActivity {
-  timestamp: number;
-  detail: ActivityDetail;
-}
-
-function normalizeActivityDetail(detail: ActivityDetail): ActivityDetail {
-  return {
-    ...detail,
-    homework: detail.homework ?? [],
-    presentation: detail.presentation ?? [],
-    otherContent: detail.otherContent ?? [],
-    related: detail.related ?? [],
-  };
-}
-
-function getSchoolIdFromActivityUrl(url: string): string {
-  try {
-    const absolute = new URL(url, window.location.origin);
-    const match = absolute.pathname.match(/\/lectio\/(\d+)\//i);
-    return match?.[1] || "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
-function getActivityId(url: string): string {
-  const absolute = new URL(url, window.location.origin);
-  const absid = absolute.searchParams.get("absid");
-  const id = absolute.searchParams.get("id");
-  return absid || id || absolute.href;
-}
-
-function getActivityCacheKey(url: string): string {
-  const schoolId = getSchoolIdFromActivityUrl(url);
-  const activityId = getActivityId(url);
-  return `${CACHE_PREFIX}${schoolId}:${activityId}`;
-}
-
-function getLegacyActivityCacheKey(url: string): string {
-  const schoolId = getSchoolIdFromActivityUrl(url);
-  const activityId = getActivityId(url);
-  return `${LEGACY_CACHE_PREFIX}${schoolId}:${activityId}`;
-}
-
-export function getCachedActivityDetail(url: string): ActivityDetail | null {
-  const key = getActivityCacheKey(url);
-  const legacyKey = getLegacyActivityCacheKey(url);
-  try {
-    const raw = localStorage.getItem(key) ?? localStorage.getItem(legacyKey);
-    if (!raw) return null;
-    if (!localStorage.getItem(key)) {
-      localStorage.setItem(key, raw);
-    }
-    const parsed: CachedActivity = JSON.parse(raw);
-    if (Date.now() - parsed.timestamp > CACHE_TTL) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    return normalizeActivityDetail(parsed.detail);
-  } catch {
-    return null;
-  }
-}
-
-function setCachedActivityDetail(url: string, detail: ActivityDetail): void {
-  const key = getActivityCacheKey(url);
-  try {
-    const keys = Object.keys(localStorage).filter(
-      (k) => k.startsWith(CACHE_PREFIX) || k.startsWith(LEGACY_CACHE_PREFIX),
-    );
-    if (keys.length >= CACHE_MAX_ENTRIES) {
-      let oldestKey = keys[0];
-      let oldestTs = Number.POSITIVE_INFINITY;
-      for (const k of keys) {
-        try {
-          const parsed: CachedActivity = JSON.parse(localStorage.getItem(k) || "");
-          if (parsed.timestamp < oldestTs) {
-            oldestTs = parsed.timestamp;
-            oldestKey = k;
-          }
-        } catch {
-          // Ignore corrupted cache entries
-        }
-      }
-      localStorage.removeItem(oldestKey);
-    }
-
-    localStorage.setItem(
-      key,
-      JSON.stringify({
-        timestamp: Date.now(),
-        detail,
-      } as CachedActivity),
-    );
-  } catch {
-    // Ignore storage errors
-  }
-}
-
 function sanitizeActivityHtml(fragmentRoot: ParentNode): void {
   const scripts = fragmentRoot.querySelectorAll("script");
   scripts.forEach((node) => node.remove());
@@ -663,9 +559,7 @@ export async function fetchActivityDetail(url: string, signal?: AbortSignal): Pr
   try {
     const absolute = new URL(url, window.location.origin).href;
     const { doc, url: resolvedUrl } = await fetchActivityDoc(absolute, { signal });
-    const detail = parseActivityDetail(doc, resolvedUrl);
-    setCachedActivityDetail(resolvedUrl, detail);
-    return detail;
+    return parseActivityDetail(doc, resolvedUrl);
   } catch (err) {
     if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
     captureException(err, undefined, { source: 'activity-detail', url });
@@ -694,15 +588,13 @@ export async function postbackNavigateActivity(
       body: formData.toString(),
     });
 
-    const nextDetail = parseActivityDetail(doc, url);
-    setCachedActivityDetail(url, nextDetail);
-    return nextDetail;
+    return parseActivityDetail(doc, url);
   };
 
   try {
     return await doPostback(detail);
   } catch {
-    // Cached pages can have stale viewstate/eventvalidation; refresh once and retry.
+    // Stale viewstate/eventvalidation; refresh once and retry.
     const fresh = await fetchActivityDetail(detail.url);
     return doPostback(fresh);
   }
