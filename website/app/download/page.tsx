@@ -1,33 +1,37 @@
 import Link from "next/link"
 
+import { DOWNLOAD_LINKS } from "@/lib/download-links"
+
 const platforms = [
   {
     name: "iOS",
-    description: "Native app for iPhone og iPad",
+    description: "Native app til iPhone og iPad",
     href: "/download/ios",
     cta: "App Store",
-    available: true,
+  },
+  {
+    name: "Safari",
+    description: "Bruger samme app som iOS",
+    href: DOWNLOAD_LINKS.safari,
+    cta: "App Store",
   },
   {
     name: "Chrome",
-    description: "Browser-udvidelse til Chrome, Edge og Brave",
-    href: "https://chromewebstore.google.com/detail/betterlectio/odhojknbcfdmaohnjbnejjdiajnhdcnf",
+    description: "Browser-udvidelse til Chrome og Brave",
+    href: DOWNLOAD_LINKS.chrome,
     cta: "Chrome Web Store",
-    available: true,
   },
   {
     name: "Firefox",
     description: "Browser-udvidelse til Firefox",
-    href: "https://addons.mozilla.org/en-US/firefox/addon/betterlectio/",
+    href: DOWNLOAD_LINKS.firefox,
     cta: "Add-ons",
-    available: true,
   },
   {
-    name: "Android",
-    description: "Native app — kommer snart",
-    href: "#",
-    cta: "Coming soon",
-    available: false,
+    name: "Edge",
+    description: "Browser-udvidelse til Microsoft Edge",
+    href: DOWNLOAD_LINKS.edge,
+    cta: "Edge Add-ons",
   },
 ]
 
@@ -40,10 +44,6 @@ export default function DownloadPage() {
         <Link href="/" className="back-link">
           ← TILBAGE
         </Link>
-      </div>
-
-      <div className="metadata meta-tr">
-        FREE TO USE — ALWAYS
       </div>
 
       <main className="download-page">
@@ -62,28 +62,18 @@ export default function DownloadPage() {
                 <div className="platform-description">{platform.description}</div>
                 <div className="platform-cta">
                   {platform.cta}
-                  {platform.available && (
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M5 12h14M13 6l6 6-6 6"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        fill="none"
-                        strokeLinecap="square"
-                      />
-                    </svg>
-                  )}
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M5 12h14M13 6l6 6-6 6"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      fill="none"
+                      strokeLinecap="square"
+                    />
+                  </svg>
                 </div>
               </>
             )
-
-            if (!platform.available) {
-              return (
-                <div key={platform.name} className="platform-card platform-card--disabled" aria-disabled>
-                  {inner}
-                </div>
-              )
-            }
 
             const isExternal = platform.href.startsWith("http")
             if (isExternal) {

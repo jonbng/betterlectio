@@ -4,14 +4,10 @@ import { useEffect, useRef } from "react"
 
 export default function Page() {
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const btnRef = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => {
     const h1 = headingRef.current
-    const root = rootRef.current
-    const btn = btnRef.current
-    if (!h1 || !root || !btn) return
+    if (!h1) return
 
     const handleMouseMove = (e: MouseEvent) => {
       const xShift = (e.clientX / window.innerWidth - 0.5) * 10
@@ -19,25 +15,8 @@ export default function Page() {
       h1.style.transform = `translate(${xShift}px, ${yShift}px) rotate(-1.5deg)`
     }
 
-    const handleMouseDown = () => {
-      root.style.backgroundColor = "var(--brand-text)"
-      root.style.color = "var(--brand-bg)"
-    }
-
-    const handleMouseUp = () => {
-      root.style.backgroundColor = ""
-      root.style.color = ""
-    }
-
     document.addEventListener("mousemove", handleMouseMove)
-    document.addEventListener("mouseup", handleMouseUp)
-    btn.addEventListener("mousedown", handleMouseDown)
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove)
-      document.removeEventListener("mouseup", handleMouseUp)
-      btn.removeEventListener("mousedown", handleMouseDown)
-    }
+    return () => document.removeEventListener("mousemove", handleMouseMove)
   }, [])
 
   return (
@@ -77,7 +56,6 @@ export default function Page() {
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
             </svg>
           </a>
-          <div className="free-tag">FREE TO USE — ALWAYS</div>
         </div>
       </main>
 
