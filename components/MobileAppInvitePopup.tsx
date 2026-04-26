@@ -21,6 +21,23 @@ type Student = Tables<'students'>;
 const QUIET_HOURS_START = 2; // 02:00 inclusive
 const QUIET_HOURS_END = 9;   // 09:00 exclusive
 const SUCCESS_DISPLAY_MS = 4000;
+/** Don't pitch the iOS app until the student has had the extension for at
+ *  least this long. Avoids competing with the onboarding popup on day 0.
+ *  Cross-device because we read `students.extension_installed_at` (set on
+ *  first-ever Supabase auth, not per-browser). */
+const MIN_AGE_BEFORE_INVITE_MS = 24 * 60 * 60 * 1000;
+
+function isTooFresh(student: Student, now = Date.now()): boolean {
+  // Prefer the explicit "first time we saw this extension" timestamp; fall
+  // back to created_at so legacy rows without extension_installed_at still
+  // gate correctly. If neither exists, fail open (don't lock the popup out
+  // forever — the rest of the eligibility chain still applies).
+  const stamp = student.extension_installed_at ?? student.created_at;
+  if (!stamp) return false;
+  const t = Date.parse(stamp);
+  if (!Number.isFinite(t)) return false;
+  return now - t < MIN_AGE_BEFORE_INVITE_MS;
+}
 
 /** Debug-only event: force-open the popup regardless of gates. */
 export const MOBILE_APP_INVITE_OPEN_EVENT = 'betterlectio:open-mobile-app-invite';
@@ -130,6 +147,7 @@ export function MobileAppInvitePopup() {
     if (student.app_qr_scanned_at) return null;
     if (student.marked_android_at) return null;
     if (student.dismissed_app_prompt_at) return null;
+    if (isTooFresh(student)) return null;
   }
 
   return (
