@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 
+import { DOWNLOAD_LINKS } from "@/lib/download-links"
+
 export function GET() {
-  redirect("https://apps.apple.com/dk/app/betterlectio/id6761808963")
+  redirect(DOWNLOAD_LINKS.ios)
 }

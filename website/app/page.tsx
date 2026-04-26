@@ -45,8 +45,6 @@ export default function Page() {
       <div className="bg-grid" />
 
       <div className="metadata meta-tl">
-        <div className="badge">BUILD_ID: 2025.A1</div>
-        <br />
         DANISH STUDENT PROJECT
         <br />
         COPENHAGEN / DK
@@ -55,7 +53,7 @@ export default function Page() {
       <div className="metadata meta-tr">
         FOR CHROME / FIREFOX / IOS
         <br />
-        <span style={{ color: "var(--brand-accent)" }}>● LIVE SYSTEM STATUS</span>
+        <span style={{ color: "var(--brand-accent)" }}>● LIVE</span>
       </div>
 
       <div className="metadata meta-bl">
@@ -64,22 +62,16 @@ export default function Page() {
         DESIGNED FOR SPEED
       </div>
 
-      <div className="metadata meta-br">
-        4,129 ACTIVE USERS
-        <br />
-        V.2.0.4 [STABLE]
-      </div>
-
       <main className="hero-container">
         <h1 ref={headingRef} style={{ transform: "rotate(-1.5deg)" }}>
           <span className="title-top">Better</span>
           <span className="title-bottom">Lectio</span>
         </h1>
 
-        <p className="sub-tagline">Lectio, bare uden alt det lort.</p>
+        <p className="sub-tagline">Lectio, bare bedre.</p>
 
         <div className="download-wrapper">
-          <a ref={btnRef} href="#" className="btn-main">
+          <a ref={btnRef} href="/download" className="btn-main">
             Hent Nu
             <svg viewBox="0 0 24 24">
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
