@@ -369,6 +369,42 @@
   box-shadow: 8px 8px 0 0 var(--brand-accent);
 }
 
+.brand-root .platform-card--primary {
+  background: var(--brand-accent);
+  color: var(--brand-bg);
+  border-color: var(--brand-accent);
+  grid-column: 1 / -1;
+  padding: 2.5rem 2.25rem;
+}
+
+.brand-root .platform-card--primary .platform-name {
+  font-size: 3.25rem;
+}
+
+.brand-root .platform-card--primary .platform-description {
+  font-size: 1.1rem;
+}
+
+.brand-root .platform-card--primary:hover {
+  background: var(--brand-text);
+  color: var(--brand-bg);
+  border-color: var(--brand-text);
+  box-shadow: 8px 8px 0 0 var(--brand-accent);
+}
+
+.brand-root .platform-badge {
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  padding: 3px 8px;
+  align-self: flex-start;
+  margin-bottom: 0.25rem;
+}
+
 .brand-root .platform-card--disabled {
   opacity: 0.45;
   cursor: not-allowed;
