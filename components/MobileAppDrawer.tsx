@@ -7,6 +7,7 @@ import { getSession } from '@/lib/supabase/client';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
 import { renderAppStoreQrSvg } from '@/lib/mobile-app';
+import { MOBILE_APP_INVITE_OPEN_EVENT } from '@/components/MobileAppInvitePopup';
 
 type Student = Tables<'students'>;
 
@@ -280,6 +281,20 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
         </div>
 
         <div className="flex flex-col border-t border-zinc-200">
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT));
+              capture('mobile_app_invite_opened_from_drawer', distinctId, {
+                school_id: schoolId,
+              });
+            }}
+            tabIndex={open ? 0 : -1}
+            className="px-4 py-2.5 text-left text-[12px] font-semibold text-black transition-colors duration-150 ease-out hover:bg-zinc-100 active:bg-zinc-200"
+          >
+            {t('mobileApp.readMore')}
+          </button>
+          <div className="h-px bg-zinc-200" aria-hidden="true" />
           <button
             type="button"
             onClick={markAndroid}

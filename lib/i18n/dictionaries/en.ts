@@ -953,12 +953,12 @@ export const en = {
     openLabel: 'Get the mobile app',
     tabLabel: 'Mobile app',
     close: 'Close',
+    readMore: 'Read more',
     invite: {
       eyebrow: 'Early access',
       title: "You've been chosen to test BetterLectio for iPhone",
       body: "You're one of the first to try our new mobile app. Scan the QR code with your iPhone to grab it from the App Store.",
       scanHint: 'Scan with the iPhone camera',
-      primaryCta: 'Cool — scanning now',
       androidCta: "I'm on Android",
     },
   },

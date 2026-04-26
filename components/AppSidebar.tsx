@@ -35,6 +35,7 @@ import {
   Moon,
   EyeOff,
   Calculator,
+  Smartphone,
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -67,6 +68,7 @@ import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/
 import { setUserJotTheme } from '@/lib/userjot';
 import { armBypassForNextLoad } from '@/lib/bypass-redesigns';
 import { captureBypassEngaged } from '@/lib/bypass-analytics';
+import { MOBILE_APP_INVITE_OPEN_EVENT } from '@/components/MobileAppInvitePopup';
 import { toast } from 'sonner';
 import { useQuery } from '@/lib/supabase/hooks';
 import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
@@ -740,6 +742,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             title={t('sidebar.bypassTitle')}
           >
             <EyeOff className="size-[1.1rem]" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT));
+            }}
+            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
+            title="Debug: open mobile app invite popup"
+          >
+            <Smartphone className="size-[1.1rem]" />
           </button>
         </div>
         <div className="relative" ref={menuRef}>
