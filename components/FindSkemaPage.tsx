@@ -377,7 +377,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     const sid = getStudentIdFromPersonId(personId);
     if (!sid || !studentsMap) return false;
     const s = studentsMap.get(sid);
-    return !!(s?.has_extension || s?.has_app);
+    return !!(s?.extension_installed_at || s?.app_installed_at);
   };
 
   // BetterLectio filter state
@@ -388,7 +388,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     if (!studentsMap) return 0;
     let count = 0;
     for (const s of studentsMap.values()) {
-      if (s.has_extension || s.has_app) count++;
+      if (s.extension_installed_at || s.app_installed_at) count++;
     }
     return count;
   }, [studentsMap]);

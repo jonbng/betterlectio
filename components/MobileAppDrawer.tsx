@@ -87,51 +87,13 @@ export function MobileAppDrawer() {
     };
   }, []);
 
-  // Debug
-  // eslint-disable-next-line no-console
-  console.log('[MobileAppDrawer]', {
-    profile,
-    schoolId,
-    studentId,
-    isLoading,
-    error,
-    student,
-    flags: student && {
-      app_eligible: student.app_eligible,
-      has_app: student.has_app,
-      has_android: student.has_android,
-      app_not_interested: student.app_not_interested,
-    },
-  });
+  if (!schoolId || !studentId) return null;
+  if (!student) return null;
+  if (!student.app_eligible) return null;
+  if (student.app_installed_at) return null;
+  if (student.marked_android_at) return null;
+  if (student.dismissed_app_prompt_at) return null;
 
-  if (!schoolId || !studentId) {
-    // eslint-disable-next-line no-console
-    console.log('[MobileAppDrawer] hidden: missing schoolId or studentId');
-    return null;
-  }
-  if (!student) {
-    // eslint-disable-next-line no-console
-    console.log('[MobileAppDrawer] hidden: student row not loaded yet', { isLoading, error });
-    return null;
-  }
-  if (!student.app_eligible) {
-    console.log('[MobileAppDrawer] hidden: app_eligible=false');
-    return null;
-  }
-  if (student.has_app) {
-    console.log('[MobileAppDrawer] hidden: has_app=true');
-    return null;
-  }
-  if (student.has_android) {
-    console.log('[MobileAppDrawer] hidden: has_android=true');
-    return null;
-  }
-  if (student.app_not_interested) {
-    console.log('[MobileAppDrawer] hidden: app_not_interested=true');
-    return null;
-  }
-
-  console.log('[MobileAppDrawer] rendering DrawerInner');
   return <DrawerInner schoolId={schoolId} studentId={studentId} />;
 }
 
@@ -219,7 +181,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
   const markAndroid = () => {
     setDismissed(true);
     updateStudent(
-      { has_android: true },
+      { marked_android_at: new Date().toISOString() },
       [{ column: 'id', op: 'eq', value: studentId }],
     );
     capture('mobile_app_marked_android', distinctId, { school_id: schoolId });
@@ -228,7 +190,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
   const markNotInterested = () => {
     setDismissed(true);
     updateStudent(
-      { app_not_interested: true },
+      { dismissed_app_prompt_at: new Date().toISOString() },
       [{ column: 'id', op: 'eq', value: studentId }],
     );
     capture('mobile_app_marked_not_interested', distinctId, { school_id: schoolId });

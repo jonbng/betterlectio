@@ -266,6 +266,7 @@ function applyFilters(
       case 'lte': query = query.lte(f.column, f.value); break;
       case 'in': query = query.in(f.column, f.value as unknown[]); break;
       case 'is': query = query.is(f.column, f.value); break;
+      case 'not.is': query = query.not(f.column, 'is', f.value); break;
       case 'like': query = query.like(f.column, f.value as string); break;
       case 'ilike': query = query.ilike(f.column, f.value as string); break;
     }

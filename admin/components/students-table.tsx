@@ -20,8 +20,8 @@ type Student = {
   lectio_last_name: string | null;
   class_name: string | null;
   school_id: number;
-  has_extension: boolean;
-  has_app: boolean;
+  extension_installed_at: string | null;
+  app_installed_at: string | null;
   created_at: string;
   custom_pfp_url: string | null;
   lectio_pfp_url: string | null;
@@ -102,12 +102,12 @@ export function StudentsTable({ students }: { students: Student[] }) {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    {s.has_extension && (
+                    {s.extension_installed_at && (
                       <Badge variant="secondary" className="text-xs">
                         Extension
                       </Badge>
                     )}
-                    {s.has_app && (
+                    {s.app_installed_at && (
                       <Badge variant="secondary" className="text-xs">
                         App
                       </Badge>

@@ -234,11 +234,21 @@ Deno.serve(async (req: Request) => {
 
     // ── Step 5: Upsert student record ────────────────────────────────
     try {
+      // Preserve the existing first-install timestamp if the row already
+      // has one. Only set extension_installed_at when it's currently null
+      // (or the row doesn't exist yet).
+      const { data: existing } = await supabaseAdmin
+        .from('students')
+        .select('extension_installed_at')
+        .eq('id', elevid)
+        .maybeSingle();
       const studentRecord: Record<string, unknown> = {
         id: elevid,
         school_id: parseInt(schoolId, 10),
-        has_extension: true,
       };
+      if (!existing?.extension_installed_at) {
+        studentRecord.extension_installed_at = new Date().toISOString();
+      }
       if (supabaseAuthId) studentRecord.supabase_id = supabaseAuthId;
       if (firstName) studentRecord.lectio_first_name = firstName;
       if (lastName) studentRecord.lectio_last_name = lastName;

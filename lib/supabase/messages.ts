@@ -10,7 +10,7 @@ export type FunctionName = keyof Database['public']['Functions'];
 
 export interface Filter {
   column: string;
-  op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'is' | 'like' | 'ilike';
+  op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'is' | 'not.is' | 'like' | 'ilike';
   value: unknown;
 }
 

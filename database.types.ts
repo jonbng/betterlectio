@@ -342,20 +342,20 @@ export type Database = {
       students: {
         Row: {
           app_eligible: boolean
-          app_not_interested: boolean
+          app_installed_at: string | null
           birthdate: string | null
           class_name: string | null
           created_at: string
           custom_pfp_url: string | null
           description: string | null
-          has_android: boolean
-          has_app: boolean
-          has_extension: boolean
+          dismissed_app_prompt_at: string | null
+          extension_installed_at: string | null
           id: string
           instagram: string | null
           lectio_first_name: string | null
           lectio_last_name: string | null
           lectio_pfp_url: string | null
+          marked_android_at: string | null
           name: string | null
           pfp_hash: string | null
           school_id: number
@@ -364,20 +364,20 @@ export type Database = {
         }
         Insert: {
           app_eligible?: boolean
-          app_not_interested?: boolean
+          app_installed_at?: string | null
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
           custom_pfp_url?: string | null
           description?: string | null
-          has_android?: boolean
-          has_app?: boolean
-          has_extension?: boolean
+          dismissed_app_prompt_at?: string | null
+          extension_installed_at?: string | null
           id: string
           instagram?: string | null
           lectio_first_name?: string | null
           lectio_last_name?: string | null
           lectio_pfp_url?: string | null
+          marked_android_at?: string | null
           name?: string | null
           pfp_hash?: string | null
           school_id: number
@@ -386,20 +386,20 @@ export type Database = {
         }
         Update: {
           app_eligible?: boolean
-          app_not_interested?: boolean
+          app_installed_at?: string | null
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
           custom_pfp_url?: string | null
           description?: string | null
-          has_android?: boolean
-          has_app?: boolean
-          has_extension?: boolean
+          dismissed_app_prompt_at?: string | null
+          extension_installed_at?: string | null
           id?: string
           instagram?: string | null
           lectio_first_name?: string | null
           lectio_last_name?: string | null
           lectio_pfp_url?: string | null
+          marked_android_at?: string | null
           name?: string | null
           pfp_hash?: string | null
           school_id?: number

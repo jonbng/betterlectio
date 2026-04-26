@@ -72,13 +72,13 @@ export default async function StudentDetailPage({
               {student.class_name && (
                 <Badge variant="outline">{student.class_name}</Badge>
               )}
-              {student.has_extension && (
+              {student.extension_installed_at && (
                 <Badge variant="secondary" className="gap-1">
                   <Monitor className="size-3" />
                   Extension
                 </Badge>
               )}
-              {student.has_app && (
+              {student.app_installed_at && (
                 <Badge variant="secondary" className="gap-1">
                   <Smartphone className="size-3" />
                   App

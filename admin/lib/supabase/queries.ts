@@ -19,11 +19,11 @@ export async function getOverviewStats() {
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
-      .eq("has_extension", true),
+      .not("extension_installed_at", "is", null),
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
-      .eq("has_app", true),
+      .not("app_installed_at", "is", null),
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
@@ -178,7 +178,7 @@ export async function getSchools() {
 
   const { data: students } = await supabaseAdmin
     .from("students")
-    .select("school_id, has_extension, has_app");
+    .select("school_id, extension_installed_at, app_installed_at");
 
   const statsMap: Record<
     number,
@@ -191,8 +191,8 @@ export async function getSchools() {
       app: 0,
     });
     entry.total++;
-    if (s.has_extension) entry.extension++;
-    if (s.has_app) entry.app++;
+    if (s.extension_installed_at) entry.extension++;
+    if (s.app_installed_at) entry.app++;
   }
 
   return (schools ?? [])

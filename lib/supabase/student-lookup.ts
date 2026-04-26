@@ -69,7 +69,7 @@ export function useAdoptionCounts(
     select: 'id',
     filters: [
       { column: 'school_id', op: 'eq', value: Number(schoolId) },
-      { column: 'has_extension', op: 'eq', value: true },
+      { column: 'extension_installed_at', op: 'not.is', value: null },
     ],
     enabled: Boolean(schoolId),
   });
@@ -80,7 +80,7 @@ export function useAdoptionCounts(
     select: 'id',
     filters: [
       { column: 'school_id', op: 'eq', value: Number(schoolId) },
-      { column: 'has_extension', op: 'eq', value: true },
+      { column: 'extension_installed_at', op: 'not.is', value: null },
       { column: 'class_name', op: 'eq', value: className! },
     ],
     enabled: Boolean(schoolId) && Boolean(className),

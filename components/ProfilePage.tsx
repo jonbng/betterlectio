@@ -194,7 +194,7 @@ export function ProfilePage({
   const { studentsMap } = useSchoolStudents(schoolId, { refreshOnMount: true });
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
-  const hasBetterLectio = !!(student?.has_extension || student?.has_app);
+  const hasBetterLectio = !!(student?.extension_installed_at || student?.app_installed_at);
   const displayName = getPreferredStudentDisplayName(student, name);
   const firstName = displayName.split(' ')[0];
   const effectivePictureUrl = student?.custom_pfp_url || student?.lectio_pfp_url || pictureUrl;
@@ -763,7 +763,7 @@ export function ProfilePage({
                       const sid = getStudentIdFromPersonId(member.id);
                       if (!sid || !studentsMap) return false;
                       const s = studentsMap.get(sid);
-                      return !!(s?.has_extension || s?.has_app);
+                      return !!(s?.extension_installed_at || s?.app_installed_at);
                     })()}
                   />
                 );

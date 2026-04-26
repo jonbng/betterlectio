@@ -255,7 +255,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
   }, [student]);
 
   useEffect(() => {
-    if (distinctId && student && (student.has_extension || student.has_app)) {
+    if (distinctId && student && (student.extension_installed_at || student.app_installed_at)) {
       captureFeatureUsedOncePerSession('betterlectio_profile_edit', distinctId, {
         school_id: schoolId,
       });
@@ -283,7 +283,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
 
   // Only show skeleton on first load (no data yet), not on refetches
   const showSkeleton = isLoading && !initializedRef.current;
-  if (!showSkeleton && !student?.has_extension && !student?.has_app) return null;
+  if (!showSkeleton && !student?.extension_installed_at && !student?.app_installed_at) return null;
 
   if (showSkeleton) {
     return (
