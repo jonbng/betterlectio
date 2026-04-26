@@ -990,6 +990,31 @@ html {
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* Subtle rise — small vertical offset for finely-staggered entrances. */
+  @keyframes bl-rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* QR card entrance: barely-visible initial scale (never from 0). */
+  @keyframes bl-qr-in {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Success check: scale-and-fade pop. The cubic-bezier in the inline
+     animation property gives the slight overshoot. */
+  @keyframes bl-success-pop {
+    from { opacity: 0; transform: scale(0.6); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Soft ripple behind the success check — expands and fades. */
+  @keyframes bl-success-halo {
+    from { opacity: 0.55; transform: scale(0.9); }
+    to { opacity: 0; transform: scale(1.6); }
+  }
+
   /* Legacy aliases — all point to the same unified animation */
   @keyframes opgaver-slide-up {
     from { opacity: 0; transform: translateY(8px); }

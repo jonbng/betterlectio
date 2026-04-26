@@ -960,6 +960,8 @@ export const en = {
       body: "You're one of the first to try our new mobile app. Scan the QR code with your iPhone to grab it from the App Store.",
       scanHint: 'Scan with the iPhone camera',
       androidCta: "I'm on Android",
+      thanksTitle: 'Thanks — heading to the App Store!',
+      thanksBody: 'Install BetterLectio on your iPhone and sign in with the same account. You can always reopen the QR from the sidebar.',
     },
   },
 } as const satisfies DaDictionary;

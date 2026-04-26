@@ -958,6 +958,8 @@ export const da = {
       body: 'Som en af de første kan du allerede nu prøve vores nye mobilapp. Skan QR-koden med din iPhone for at hente den fra App Store.',
       scanHint: 'Skan med iPhone-kameraet',
       androidCta: 'Jeg er på Android',
+      thanksTitle: 'Tak — vi sender dig til App Store!',
+      thanksBody: 'Hent BetterLectio på din iPhone og log ind med samme konto. Du kan altid åbne appen igen via QR-koden i sidepanelet.',
     },
   },
 } as const;
