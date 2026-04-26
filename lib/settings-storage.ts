@@ -23,6 +23,7 @@ const ScheduleSettingsSchema = z.object({
   currentTimeLabel: z.boolean().default(false),
   countdownBar: z.boolean().default(true),
   subjectColors: z.boolean().default(true),
+  endOfModuleEffect: z.boolean().default(true),
 });
 
 const BehaviorSettingsSchema = z.object({

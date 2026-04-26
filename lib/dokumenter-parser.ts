@@ -230,9 +230,14 @@ function parseHeaderColumns(headerRow: Element): GridColumn[] {
       continue;
     }
 
-    // Sort commands are the most reliable signal
-    const sortLink = th.querySelector<HTMLAnchorElement>('a[href*="Sort$"]');
-    const sortHref = sortLink?.getAttribute('href') ?? '';
+    // Sort commands are the most reliable signal. Lectio GridView sort headers
+    // may render as <a href="javascript:__doPostBack(...,'Sort$Name')"> OR
+    // <a href="#" onclick="javascript:__doPostBack(...,'Sort$Name')"> — check both.
+    const sortLink = th.querySelector<HTMLAnchorElement>(
+      'a[onclick*="Sort$"], a[href*="Sort$"]',
+    );
+    const sortHref = (sortLink?.getAttribute('onclick')
+      ?? sortLink?.getAttribute('href') ?? '');
     if (/Sort\$Name\b/i.test(sortHref)) {
       columns.push('filename');
       continue;

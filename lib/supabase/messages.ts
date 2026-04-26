@@ -95,5 +95,5 @@ export type SupabaseMessage =
 // ── Response ────────────────────────────────────────────────────────
 
 export type SupabaseResponse =
-  | { ok: true; data?: unknown; session?: { expires_at: number } | null }
+  | { ok: true; data?: unknown; session?: { expires_at: number; user_id?: string | null } | null }
   | { ok: false; error?: string };

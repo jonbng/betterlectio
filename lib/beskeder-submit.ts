@@ -717,14 +717,20 @@ function parseAttachmentsFromDoc(doc: Document): AttachedFile[] {
   for (const table of tables) {
     const rows = table.querySelectorAll('tr');
     for (const row of rows) {
-      // Each row has: file name link + delete button
-      const deleteLink = row.querySelector('a[href*="AttachmentsGV"]') as HTMLAnchorElement | null;
+      // Each row has: file name link + delete button.
+      // Lectio now renders the delete link as <a href="#" onclick="javascript:__doPostBack(...)">
+      // instead of <a href="javascript:__doPostBack(...)">, so check onclick first.
+      const deleteLink = (
+        row.querySelector('a[onclick*="AttachmentsGV"]')
+        ?? row.querySelector('a[href*="AttachmentsGV"]')
+      ) as HTMLAnchorElement | null;
       if (!deleteLink) continue;
 
-      const href = deleteLink.getAttribute('href') || '';
-      // href is like: javascript:__doPostBack('s$m$...AttachmentsGV','DEL$0')
-      const match = href.match(/__doPostBack\('([^']+)','([^']+)'\)/)
-        || href.match(/__doPostBack\(&#39;([^&]+)&#39;,&#39;([^&]+)&#39;\)/);
+      const attr = deleteLink.getAttribute('onclick')
+        || deleteLink.getAttribute('href') || '';
+      // attr is like: javascript:__doPostBack('s$m$...AttachmentsGV','DEL$0'); return false;
+      const match = attr.match(/__doPostBack\('([^']+)','([^']+)'\)/)
+        || attr.match(/__doPostBack\(&#39;([^&]+)&#39;,&#39;([^&]+)&#39;\)/);
       if (!match) continue;
 
       // File name: first <a> that's not the delete button, or first <td> text

@@ -131,6 +131,7 @@ Content Scripts (inject into lectio.dk pages)
 | `AppSidebar.tsx` | Custom sidebar navigation with collapsible sections, profile display, settings access, and Supabase-backed student name/avatar fallbacks for the current/viewed profile |
 | `SettingsModal.tsx` | Settings: appearance, behavior, sidebar toggles, subject mappings, design playground, about |
 | `DesignPlayground.tsx` | Full-screen overlay showcasing all design system tokens and components |
+| `MobileAppDrawer.tsx` | Bottom-right floating drawer pitching the iOS BetterLectio app. Gated on `students.app_eligible=true && has_app=false && has_android=false`. Expands horizontally to show a QR code (App Store) plus a single "Jeg er på Android" action that sets `has_android=true`. `has_app` is flipped server-side when the student logs into the mobile app, so there is no in-extension "I have it" button. |
 
 ### FindSkema System
 
@@ -212,7 +213,7 @@ Content Scripts (inject into lectio.dk pages)
 
 **No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Non-idempotent operations (send/reply/delete) avoid automatic native fallback on uncertain parse errors to prevent duplicate side effects.
 
-**Lectio DOM quirk — recipient GridView links:** In `ThreadRecipientsGV`, the delete links use `onclick="javascript:__doPostBack(...)"` with `href="#"`, not `href="javascript:__doPostBack(...)"`. Parsers must check the `onclick` attribute first, then `href` as a fallback — never rely solely on `a[href*="__doPostBack"]` selectors for this table.
+**Lectio DOM quirk — recipient GridView links:** In `ThreadRecipientsGV`, the delete links use `onclick="javascript:__doPostBack(...)"` with `href="#"`, not `href="javascript:__doPostBack(...)"`. Parsers must check the `onclick` attribute first, then `href` as a fallback — never rely solely on `a[href*="__doPostBack"]` selectors for this table. The same applies to `AttachmentsGV` delete buttons in compose/reply — `parseAttachmentsFromDoc` in `lib/beskeder-submit.ts` must read `onclick` first, otherwise freshly-attached files never render in the UI.
 
 | File | Purpose |
 |------|---------|

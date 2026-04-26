@@ -216,7 +216,7 @@ export async function mutate(opts: MutationOpts): Promise<unknown> {
 
 // ── Auth helpers ────────────────────────────────────────────────────
 
-export async function getSession(): Promise<{ expires_at: number } | null> {
+export async function getSession(): Promise<{ expires_at: number; user_id?: string | null } | null> {
   try {
     const resp = await send({ type: 'bl-sb:auth:session' });
     return resp.ok ? (resp.session ?? null) : null;

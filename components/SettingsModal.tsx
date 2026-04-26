@@ -916,6 +916,13 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 onChange={(v) => handleSettingChange('schedule', 'subjectColors', v)}
                 requiresReload
               />
+              <FeatureToggle
+                id="schedule-end-of-module-effect"
+                label={t('settings.appearance.endOfModuleEffectLabel')}
+                description={t('settings.appearance.endOfModuleEffectDescription')}
+                enabled={settings.schedule?.endOfModuleEffect ?? true}
+                onChange={(v) => handleSettingChange('schedule', 'endOfModuleEffect', v)}
+              />
             </SettingsSection>
 
           </div>

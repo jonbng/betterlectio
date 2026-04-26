@@ -250,10 +250,13 @@ export function parseSessionsFromDoc(doc: Document): SessionEntry[] {
     const device = cells[3]?.textContent?.trim() || '';
     const isCurrent = device.toLowerCase().startsWith('denne enhed');
 
-    // Parse delete index from the delete link: __doPostBack('...','DEL$N')
+    // Parse delete index from the delete link: __doPostBack('...','DEL$N').
+    // Lectio GridView delete links may render via onclick rather than href —
+    // check both.
     const deleteLink = cells[4]?.querySelector('a');
-    const deleteHref = deleteLink?.getAttribute('href') || '';
-    const delMatch = deleteHref.match(/DEL\$(\d+)/);
+    const deleteAttr = deleteLink?.getAttribute('onclick')
+      || deleteLink?.getAttribute('href') || '';
+    const delMatch = deleteAttr.match(/DEL\$(\d+)/);
     const deleteIndex = delMatch ? parseInt(delMatch[1], 10) : i - 1;
 
     sessions.push({ lastLogin, created, expiry, device, isCurrent, deleteIndex });

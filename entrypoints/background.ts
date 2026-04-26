@@ -57,6 +57,45 @@ function getSupabase(): SupabaseClient {
   return client;
 }
 
+// supabase-js loads the persisted session asynchronously after createClient,
+// AND `getSession()` happily returns the cached session even if its access
+// token has expired — `autoRefreshToken: true` schedules refreshes via an
+// in-memory timer, which doesn't survive MV3 service worker restarts. Result:
+// the first query after a long idle goes out with an expired Bearer header,
+// PostgREST treats it as anon, and every RLS-gated read silently returns
+// nothing. So before each query/mutate we (1) wait for the initial storage
+// restoration once, then (2) refresh the access token if it's expired or
+// about to expire. Cheap when the token is fresh; correct when it isn't.
+let initialRestorePromise: Promise<void> | null = null;
+
+async function ensureSessionReady(): Promise<void> {
+  if (!initialRestorePromise) {
+    initialRestorePromise = (async () => {
+      try {
+        await getSupabase().auth.getSession();
+      } catch {
+        // Non-critical
+      }
+    })();
+  }
+  await initialRestorePromise;
+
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+    if (!session) return;
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (session.expires_at && session.expires_at <= nowSec + 30) {
+      await supabase.auth.refreshSession();
+    }
+  } catch {
+    // If refresh fails (revoked refresh_token, network), let the query run
+    // anyway — its RLS-denied result will surface to the caller, which can
+    // trigger ensureSupabaseSession() to redo the QR flow.
+  }
+}
+
 async function getAnalyticsIdentity(context?: {
   studentId?: string;
   schoolId?: string;
@@ -235,6 +274,7 @@ function applyFilters(
 }
 
 async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }>): Promise<SupabaseResponse> {
+  await ensureSessionReady();
   const supabase = getSupabase();
   let query: any = supabase.from(String(msg.table)).select(msg.select ?? '*');
   query = applyFilters(query, msg.filters);
@@ -260,6 +300,7 @@ async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }
 }
 
 async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate' }>): Promise<SupabaseResponse> {
+  await ensureSessionReady();
   const supabase = getSupabase();
   let query: any;
 
@@ -868,7 +909,10 @@ export default defineBackground(() => {
         supabase.auth.getSession().then(({ data }) => {
           sendResponse({
             ok: true,
-            session: data.session ? { expires_at: data.session.expires_at! } : null,
+            session: data.session ? {
+              expires_at: data.session.expires_at!,
+              user_id: data.session.user?.id ?? null,
+            } : null,
           } satisfies SupabaseResponse);
         }).catch(() => sendResponse({ ok: false } satisfies SupabaseResponse));
         return true;

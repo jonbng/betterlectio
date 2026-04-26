@@ -24,6 +24,7 @@ import { ModulregnskaberPage } from "@/components/ModulregnskaberPage";
 import { DokumenterPage } from "@/components/DokumenterPage";
 import { parseDokumenterPage } from "@/lib/dokumenter-parser";
 import { ProfilPage } from "@/components/ProfilPage";
+import { MobileAppDrawer } from "@/components/MobileAppDrawer";
 import { parseProfilFromDOM } from "@/lib/profil-parser";
 import { parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
 import { ForsideDashboard, parseAktuelInfo, parseLektier, parseBeskeder } from "@/components/ForsideDashboard";
@@ -187,6 +188,7 @@ function DashboardLayout() {
       <SidebarInset>
         <div id="il-lectio-content" />
       </SidebarInset>
+      <MobileAppDrawer />
       <Toaster position="bottom-right" />
     </SidebarProvider>
   );

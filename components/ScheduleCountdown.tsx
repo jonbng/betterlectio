@@ -1,9 +1,27 @@
 import { useEffect, useState, useRef } from 'react';
+import confetti from '@hiseb/confetti';
 import { getHoldHue } from '@/lib/hold-mapping';
 import { type ScheduleBlock, getTodaySchedule, getCachedSchedule } from '@/lib/schedule-cache';
 import { getSettings } from '@/lib/settings-storage';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n';
+
+const END_SOON_THRESHOLD_SEC = 300;
+
+function endSoonStage(remaining: number): 'none' | 'soft' | 'strong' | 'climax' {
+  if (remaining > END_SOON_THRESHOLD_SEC) return 'none';
+  if (remaining > 60) return 'soft';
+  if (remaining > 10) return 'strong';
+  return 'climax';
+}
+
+function endSoonIntensity(remaining: number): number {
+  if (remaining >= END_SOON_THRESHOLD_SEC) return 0;
+  if (remaining <= 0) return 1;
+  // Gentle ease — visible earlier than pure quadratic, still accelerates toward zero
+  const linear = (END_SOON_THRESHOLD_SEC - remaining) / END_SOON_THRESHOLD_SEC;
+  return Math.pow(linear, 1.25);
+}
 
 // ── State machine ──────────────────────────────────────────────────────
 
@@ -131,7 +149,12 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   const [state, setState] = useState<CountdownState>({ type: 'loading' });
   const [loaded, setLoaded] = useState(false);
   const fetchedRef = useRef(false);
-  const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? true;
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const prevStateRef = useRef<CountdownState>({ type: 'loading' });
+  const firedForBlockRef = useRef<string | null>(null);
+  const settings = getSettings();
+  const subjectColorsEnabled = settings.schedule?.subjectColors ?? true;
+  const endOfModuleEffectEnabled = settings.schedule?.endOfModuleEffect ?? true;
 
   const weekendMessages = [
     { text: t('scheduleCountdown.weekend.goodWeekend'), emoji: '🎉' },
@@ -199,6 +222,47 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [blocks, loaded]);
+
+  // Fire confetti when transitioning from in-class to any non-in-class state.
+  useEffect(() => {
+    const prev = prevStateRef.current;
+    prevStateRef.current = state;
+
+    if (
+      endOfModuleEffectEnabled
+      && prev.type === 'in-class'
+      && state.type !== 'in-class'
+      && state.type !== 'loading'
+    ) {
+      const blockKey = `${prev.label}::${prev.holdCode}::${new Date().toDateString()}`;
+      if (firedForBlockRef.current === blockKey) return;
+      firedForBlockRef.current = blockKey;
+
+      fireConfetti();
+    }
+  }, [state]);
+
+  function fireConfetti() {
+    try {
+      const rect = widgetRef.current?.getBoundingClientRect();
+      const originX = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+      const originY = rect ? rect.top + rect.height / 2 : window.innerHeight / 3;
+      console.log('[BetterLectio] Firing end-of-module confetti at', originX, originY);
+      confetti({ position: { x: originX, y: originY }, count: 160, size: 1.2, velocity: 260, fade: false });
+      window.setTimeout(() => {
+        confetti({ position: { x: originX, y: originY }, count: 80, size: 1, velocity: 200, fade: true });
+      }, 250);
+    } catch (err) {
+      console.error('[BetterLectio] confetti failed:', err);
+    }
+  }
+
+  // Debug trigger — call window.__blTestConfetti() in devtools to test.
+  useEffect(() => {
+    const w = window as typeof window & { __blTestConfetti?: () => void };
+    w.__blTestConfetti = fireConfetti;
+    return () => { delete w.__blTestConfetti; };
+  }, []);
 
   if (state.type === 'loading') return null;
 
@@ -305,8 +369,17 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     return b.start <= m && b.end > m;
   })?.end ?? 0;
 
+  const stage = endOfModuleEffectEnabled ? endSoonStage(state.remaining) : 'none';
+  const intensity = endOfModuleEffectEnabled ? endSoonIntensity(state.remaining) : 0;
+  const endSoon = stage !== 'none';
+
   return (
-    <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
+    <div
+      ref={widgetRef}
+      className={cn(baseCd, endSoon && "il-cd-endsoon")}
+      data-endsoon-stage={stage}
+      style={{ '--cd-hue': hue, '--cd-intensity': intensity } as React.CSSProperties}
+    >
       <div className={baseTop}>
         <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject">{state.label}</span>
         <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>

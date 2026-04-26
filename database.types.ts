@@ -341,11 +341,14 @@ export type Database = {
       }
       students: {
         Row: {
+          app_eligible: boolean
+          app_not_interested: boolean
           birthdate: string | null
           class_name: string | null
           created_at: string
           custom_pfp_url: string | null
           description: string | null
+          has_android: boolean
           has_app: boolean
           has_extension: boolean
           id: string
@@ -360,11 +363,14 @@ export type Database = {
           supabase_id: string
         }
         Insert: {
+          app_eligible?: boolean
+          app_not_interested?: boolean
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
           custom_pfp_url?: string | null
           description?: string | null
+          has_android?: boolean
           has_app?: boolean
           has_extension?: boolean
           id: string
@@ -379,11 +385,14 @@ export type Database = {
           supabase_id: string
         }
         Update: {
+          app_eligible?: boolean
+          app_not_interested?: boolean
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
           custom_pfp_url?: string | null
           description?: string | null
+          has_android?: boolean
           has_app?: boolean
           has_extension?: boolean
           id?: string
