@@ -34,7 +34,7 @@ type CountdownState =
   | { type: 'no-classes' }
   | { type: 'cancelled-class'; label: string; holdCode: string; remaining: number; nextLabel?: string; nextHoldCode?: string; nextStart?: number };
 
-function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, nowSeconds: number): CountdownState {
+export function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, nowSeconds: number): CountdownState {
   const active = blocks.filter(b => !b.cancelled);
   const cancelled = blocks.filter(b => b.cancelled);
 

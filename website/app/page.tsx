@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react"
 
+import { captureHentNuClicked } from "@/lib/posthog"
+
 export default function Page() {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
@@ -50,7 +52,7 @@ export default function Page() {
         <p className="sub-tagline">Lectio, bare bedre.</p>
 
         <div className="download-wrapper">
-          <a href="/download" className="btn-main">
+          <a href="/download" className="btn-main" onClick={() => captureHentNuClicked()}>
             Hent Nu
             <svg viewBox="0 0 24 24">
               <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />

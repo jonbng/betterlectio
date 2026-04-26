@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { DOWNLOAD_LINKS } from "@/lib/download-links"
+import { captureDownloadClicked, capturePlatformDetected } from "@/lib/posthog"
 
 type PlatformKey = "chrome" | "ios" | "firefox" | "edge"
 type DetectedPlatform = PlatformKey | "safari-desktop" | "android" | "unknown"
@@ -75,7 +76,9 @@ export default function DownloadPage() {
   const [detected, setDetected] = useState<DetectedPlatform | null>(null)
 
   useEffect(() => {
-    setDetected(detectPlatform())
+    const result = detectPlatform()
+    setDetected(result)
+    capturePlatformDetected(result)
   }, [])
 
   const sortedPlatforms =
@@ -138,6 +141,12 @@ export default function DownloadPage() {
 
             const className = `platform-card ${isPrimary ? "platform-card--primary" : ""}`
             const isExternal = platform.href.startsWith("http")
+            const onClick = () =>
+              captureDownloadClicked(platform.key, {
+                detected_platform: detected ?? "unknown",
+                is_recommended: isPrimary,
+                destination: platform.href,
+              })
 
             if (isExternal) {
               return (
@@ -147,6 +156,7 @@ export default function DownloadPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={className}
+                  onClick={onClick}
                 >
                   {inner}
                 </a>
@@ -154,7 +164,12 @@ export default function DownloadPage() {
             }
 
             return (
-              <Link key={platform.key} href={platform.href} className={className}>
+              <Link
+                key={platform.key}
+                href={platform.href}
+                className={className}
+                onClick={onClick}
+              >
                 {inner}
               </Link>
             )
