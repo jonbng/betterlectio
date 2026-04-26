@@ -97,6 +97,7 @@ export default defineConfig({
       'web-ext.config.ts',
       'admin/**',
       'supabase/**',
+      'website/**',
     ],
   },
   vite: () => ({
