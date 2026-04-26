@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import QRCode from 'qrcode';
 import { cn } from '@/lib/utils';
 import type { Tables } from '@/database.types';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
@@ -7,10 +6,10 @@ import { getCachedProfile } from '@/lib/profile-cache';
 import { getSession } from '@/lib/supabase/client';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
+import { renderAppStoreQrSvg } from '@/lib/mobile-app';
 
 type Student = Tables<'students'>;
 
-const APP_STORE_URL = 'https://betterlectio.dk/download/ios';
 const PANEL_WIDTH = 175;
 
 // Strong drawer easing — feels intentional vs. default cubic-bezier.
@@ -121,12 +120,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
   // Generate QR once
   useEffect(() => {
     let cancelled = false;
-    QRCode.toString(APP_STORE_URL, {
-      type: 'svg',
-      errorCorrectionLevel: 'M',
-      margin: 0,
-      color: { dark: '#000000', light: '#ffffff' },
-    }).then((svg) => {
+    renderAppStoreQrSvg().then((svg) => {
       if (!cancelled) setQrSvg(svg);
     }).catch(() => {});
     return () => {

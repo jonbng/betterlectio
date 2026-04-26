@@ -951,6 +951,14 @@ export const da = {
     openLabel: 'Få mobilappen',
     tabLabel: 'Mobil app',
     close: 'Luk',
+    invite: {
+      eyebrow: 'Tidlig adgang',
+      title: 'Du er valgt til at teste BetterLectio til iPhone',
+      body: 'Som en af de første kan du allerede nu prøve vores nye mobilapp. Skan QR-koden med din iPhone for at hente den fra App Store.',
+      scanHint: 'Skan med iPhone-kameraet',
+      primaryCta: 'Fedt — jeg scanner nu',
+      androidCta: 'Jeg er på Android',
+    },
   },
 } as const;
 

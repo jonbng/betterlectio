@@ -25,7 +25,7 @@ function endSoonIntensity(remaining: number): number {
 
 // ── State machine ──────────────────────────────────────────────────────
 
-type CountdownState =
+export type CountdownState =
   | { type: 'loading' }
   | { type: 'in-class'; label: string; holdCode: string; elapsed: number; total: number; remaining: number }
   | { type: 'break'; label: string; holdCode: string; remaining: number }
