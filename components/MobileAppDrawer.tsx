@@ -10,7 +10,7 @@ import { useTranslation } from '@/lib/i18n';
 
 type Student = Tables<'students'>;
 
-const APP_STORE_URL = 'https://apps.apple.com/dk/app/betterlectio/id6761808963';
+const APP_STORE_URL = 'https://betterlectio.dk/download/ios';
 const PANEL_WIDTH = 175;
 
 // Strong drawer easing — feels intentional vs. default cubic-bezier.
