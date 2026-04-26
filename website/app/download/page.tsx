@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 
 import { DOWNLOAD_LINKS } from "@/lib/download-links"
-import { captureDownloadClicked, capturePlatformDetected } from "@/lib/posthog"
+import { captureDownloadClicked } from "@/lib/posthog"
 
 type PlatformKey = "chrome" | "ios" | "firefox" | "edge"
 type DetectedPlatform = PlatformKey | "safari-desktop" | "android" | "unknown"
@@ -76,9 +76,7 @@ export default function DownloadPage() {
   const [detected, setDetected] = useState<DetectedPlatform | null>(null)
 
   useEffect(() => {
-    const result = detectPlatform()
-    setDetected(result)
-    capturePlatformDetected(result)
+    setDetected(detectPlatform())
   }, [])
 
   const sortedPlatforms =

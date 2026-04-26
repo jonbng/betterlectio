@@ -22,6 +22,3 @@ export function captureHentNuClicked(properties?: Props) {
   capture("hent nu clicked", properties)
 }
 
-export function capturePlatformDetected(platform: string) {
-  capture("download platform detected", { platform })
-}

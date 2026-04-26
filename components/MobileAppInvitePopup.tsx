@@ -86,6 +86,7 @@ export function MobileAppInvitePopup() {
   if (!student) return null;
   if (!student.app_eligible) return null;
   if (student.app_installed_at) return null;
+  if (student.app_qr_scanned_at) return null;
   if (student.marked_android_at) return null;
   if (student.dismissed_app_prompt_at) return null;
 
@@ -139,15 +140,16 @@ function PopupInner({ schoolId, studentId, blocks }: PopupInnerProps) {
     });
   }, [blocks, distinctId, schoolId, studentId]);
 
-  // Render QR once when we're going to show.
+  // Render QR once when we're going to show. Tagged with studentId so the
+  // /download/ios redirect can stamp app_qr_scanned_at server-side.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    renderAppStoreQrSvg()
+    renderAppStoreQrSvg(studentId)
       .then((svg) => { if (!cancelled) setQrSvg(svg); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open, studentId]);
 
   // Esc to close (soft snooze).
   useEffect(() => {
@@ -243,20 +245,13 @@ function PopupInner({ schoolId, studentId, blocks }: PopupInnerProps) {
           {t('mobileApp.invite.scanHint')}
         </p>
 
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex justify-center">
           <button
             type="button"
             onClick={markAndroid}
-            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('mobileApp.invite.androidCta')}
-          </button>
-          <button
-            type="button"
-            onClick={closeSoft}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {t('mobileApp.invite.primaryCta')}
           </button>
         </div>
       </div>

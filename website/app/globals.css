@@ -274,6 +274,12 @@
 .brand-root .meta-bl { bottom: 40px; left: 40px; }
 .brand-root .meta-br { bottom: 40px; right: 40px; text-align: right; }
 
+.brand-root .meta-count {
+  font-size: 1.4em;
+  color: var(--brand-accent);
+  letter-spacing: 0.05em;
+}
+
 .brand-root .badge {
   background: var(--brand-text);
   color: var(--brand-bg);

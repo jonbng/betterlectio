@@ -343,6 +343,7 @@ export type Database = {
         Row: {
           app_eligible: boolean
           app_installed_at: string | null
+          app_qr_scanned_at: string | null
           birthdate: string | null
           class_name: string | null
           created_at: string
@@ -365,6 +366,7 @@ export type Database = {
         Insert: {
           app_eligible?: boolean
           app_installed_at?: string | null
+          app_qr_scanned_at?: string | null
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
@@ -387,6 +389,7 @@ export type Database = {
         Update: {
           app_eligible?: boolean
           app_installed_at?: string | null
+          app_qr_scanned_at?: string | null
           birthdate?: string | null
           class_name?: string | null
           created_at?: string

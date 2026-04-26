@@ -90,6 +90,7 @@ export function MobileAppDrawer() {
   if (!student) return null;
   if (!student.app_eligible) return null;
   if (student.app_installed_at) return null;
+  if (student.app_qr_scanned_at) return null;
   if (student.marked_android_at) return null;
   if (student.dismissed_app_prompt_at) return null;
 
@@ -117,16 +118,16 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
     });
   }, [distinctId, schoolId]);
 
-  // Generate QR once
+  // Generate QR once (carries studentId so we can record scans server-side).
   useEffect(() => {
     let cancelled = false;
-    renderAppStoreQrSvg().then((svg) => {
+    renderAppStoreQrSvg(studentId).then((svg) => {
       if (!cancelled) setQrSvg(svg);
     }).catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [studentId]);
 
   // Outside click + Escape close
   useEffect(() => {

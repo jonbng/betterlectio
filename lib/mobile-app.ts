@@ -1,9 +1,21 @@
 import QRCode from 'qrcode';
 
-export const APP_STORE_URL = 'https://betterlectio.dk/download/ios';
+const APP_STORE_REDIRECT_BASE = 'https://betterlectio.dk/download/ios';
 
-export async function renderAppStoreQrSvg(): Promise<string> {
-  return QRCode.toString(APP_STORE_URL, {
+/**
+ * Returns the betterlectio.dk redirect URL for the App Store. When `studentId`
+ * is provided it's tagged as `?u={studentId}` so the redirect handler can
+ * stamp `students.app_qr_scanned_at` on first scan.
+ */
+export function appStoreUrlFor(studentId?: string | null): string {
+  if (!studentId) return APP_STORE_REDIRECT_BASE;
+  const url = new URL(APP_STORE_REDIRECT_BASE);
+  url.searchParams.set('u', studentId);
+  return url.toString();
+}
+
+export async function renderAppStoreQrSvg(studentId?: string | null): Promise<string> {
+  return QRCode.toString(appStoreUrlFor(studentId), {
     type: 'svg',
     errorCorrectionLevel: 'M',
     margin: 0,
