@@ -108,14 +108,13 @@ export default function DownloadPage() {
         <p className="download-subtitle">
           {unsupported
             ? `BetterLectio er endnu ikke tilgængelig på ${UNSUPPORTED_LABEL[unsupported]} — men kommer snart.`
-            : detected && detected !== "unknown"
-              ? "Anbefalet til dig:"
-              : "Vælg din platform."}
+            : "Vælg din platform."}
         </p>
 
         <div className="platform-grid">
           {sortedPlatforms.map((platform, i) => {
-            const isPrimary = i === 0 && detected !== null && !unsupported && detected !== "unknown"
+            const isPrimary =
+              i === 0 && detected !== null && !unsupported && detected !== "unknown"
 
             const inner = (
               <>

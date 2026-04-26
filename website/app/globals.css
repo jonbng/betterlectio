@@ -333,6 +333,7 @@
 .brand-root .download-title .title-bottom {
   font-size: 0.55em;
   margin-left: 0.4em;
+  letter-spacing: -0.02em;
 }
 
 .brand-root .download-subtitle {
