@@ -124,7 +124,9 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 
 **Auto properties:** Every `capture()` call includes `$browser`, `$os`, `$screen_height`, `$screen_width`, `$current_url`, `$pathname`, `extension_version`. `captureException()` merges the same set in page contexts (service worker sends `extension_version`, `runtime`, and `$os` as user agent).
 
-**Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Optional: `VITE_POSTHOG_UNINSTALL_URL` for hosted uninstall tracking via `browser.runtime.setUninstallURL(...)`. Host permission for `https://eu.i.posthog.com/*` in manifest.
+**Config:** `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` env vars. Host permission for `https://eu.i.posthog.com/*` in manifest.
+
+**Uninstall tracking:** `entrypoints/background.ts` calls `browser.runtime.setUninstallURL('https://betterlectio.dk/uninstall?u={studentId}')` whenever it resolves a student identity (in `getAnalyticsIdentity`, after a successful Supabase student lookup). Cleared on `SIGNED_OUT` so a re-auth as a different student overwrites the URL. The `?u=` student id is the raw Lectio elevid, matching the convention used by the mobile app QR redirect. The `/uninstall` page (Next.js, in `website/app/uninstall/`) stamps `students.extension_uninstalled_at` (first-uninstall only — `is null` guard) server-side, then renders a feedback form. Reason chips + freeform textarea persist via the `submitUninstallFeedback` server action to `students.extension_uninstall_reason` / `extension_uninstall_feedback`. Page emits PostHog `uninstall page viewed` on mount and `uninstall reason submitted` on submit (browser-side via `posthog-js`). Schema lives in `supabase/migrations/20260427_add_students_uninstall_tracking.sql`.
 
 ## Supabase Auth & Storage
 

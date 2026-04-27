@@ -496,6 +496,177 @@
   text-underline-offset: 4px;
 }
 
+/* Uninstall feedback page */
+.brand-root .uninstall-page {
+  max-width: 720px;
+}
+
+.brand-root .uninstall-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+  margin-top: 2.5rem;
+}
+
+.brand-root .uninstall-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.brand-root .uninstall-label {
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.brand-root .uninstall-optional {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.6;
+  font-family: var(--font-sans), "Inter", sans-serif;
+}
+
+.brand-root .uninstall-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.brand-root .uninstall-chip {
+  font-family: var(--font-sans), "Inter", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  border: 3px solid var(--brand-text);
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.brand-root .uninstall-chip:hover {
+  background: var(--brand-text);
+  color: var(--brand-bg);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 0 var(--brand-accent);
+}
+
+.brand-root .uninstall-chip--active,
+.brand-root .uninstall-chip--active:hover {
+  background: var(--brand-accent);
+  color: var(--brand-bg);
+  border-color: var(--brand-accent);
+  box-shadow: 4px 4px 0 0 var(--brand-text);
+  transform: translate(-2px, -2px);
+}
+
+.brand-root .uninstall-textarea {
+  width: 100%;
+  font-family: var(--font-sans), "Inter", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 0.85rem 1rem;
+  border: 3px solid var(--brand-text);
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  resize: vertical;
+  min-height: 120px;
+  transition: box-shadow 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.brand-root .uninstall-textarea:focus {
+  outline: none;
+  box-shadow: 4px 4px 0 0 var(--brand-accent);
+}
+
+.brand-root .uninstall-error {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--brand-accent);
+}
+
+.brand-root .uninstall-submit {
+  align-self: flex-start;
+  font-family: var(--font-sans), "Inter", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.9rem 1.75rem;
+  border: 3px solid var(--brand-text);
+  background: var(--brand-text);
+  color: var(--brand-bg);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.brand-root .uninstall-submit:hover:not(:disabled) {
+  background: var(--brand-accent);
+  border-color: var(--brand-accent);
+  transform: translate(-3px, -3px);
+  box-shadow: 6px 6px 0 0 var(--brand-text);
+}
+
+.brand-root .uninstall-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.brand-root .uninstall-thanks {
+  margin-top: 2.5rem;
+  padding: 2rem 1.75rem;
+  border: 4px solid var(--brand-accent);
+  background: var(--brand-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.brand-root .uninstall-thanks-eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--brand-accent);
+}
+
+.brand-root .uninstall-thanks-title {
+  font-size: 1.85rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.brand-root .uninstall-thanks-body {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+  max-width: 50ch;
+}
+
+.brand-root .uninstall-fineprint {
+  margin-top: 2.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.brand-root .uninstall-fineprint a {
+  color: var(--brand-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
 /* Tablet */
 @media (max-width: 1024px) {
   .brand-root .meta-tl { top: 24px; left: 24px; }
@@ -590,4 +761,29 @@
   .brand-root .text-page-lead {
     font-size: 1rem;
   }
+
+  /* Uninstall page */
+  .brand-root .uninstall-form { gap: 1.75rem; margin-top: 2rem; }
+  .brand-root .uninstall-chip {
+    border-width: 2px;
+    padding: 0.55rem 0.85rem;
+    font-size: 0.9rem;
+  }
+  .brand-root .uninstall-textarea {
+    border-width: 2px;
+    font-size: 0.95rem;
+  }
+  .brand-root .uninstall-submit {
+    border-width: 2px;
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    width: 100%;
+    align-self: stretch;
+    text-align: center;
+  }
+  .brand-root .uninstall-thanks {
+    border-width: 3px;
+    padding: 1.5rem 1.25rem;
+  }
+  .brand-root .uninstall-thanks-title { font-size: 1.5rem; }
 }

@@ -351,6 +351,9 @@ export type Database = {
           description: string | null
           dismissed_app_prompt_at: string | null
           extension_installed_at: string | null
+          extension_uninstall_feedback: string | null
+          extension_uninstall_reason: string | null
+          extension_uninstalled_at: string | null
           id: string
           instagram: string | null
           lectio_first_name: string | null
@@ -374,6 +377,9 @@ export type Database = {
           description?: string | null
           dismissed_app_prompt_at?: string | null
           extension_installed_at?: string | null
+          extension_uninstall_feedback?: string | null
+          extension_uninstall_reason?: string | null
+          extension_uninstalled_at?: string | null
           id: string
           instagram?: string | null
           lectio_first_name?: string | null
@@ -397,6 +403,9 @@ export type Database = {
           description?: string | null
           dismissed_app_prompt_at?: string | null
           extension_installed_at?: string | null
+          extension_uninstall_feedback?: string | null
+          extension_uninstall_reason?: string | null
+          extension_uninstalled_at?: string | null
           id?: string
           instagram?: string | null
           lectio_first_name?: string | null

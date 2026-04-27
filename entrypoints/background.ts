@@ -41,8 +41,24 @@ let cachedAnalyticsIdentity:
       };
     }
   | null = null;
-// Uninstall tracking is intentionally disabled for now until we have a hosted
-// endpoint/page to receive `browser.runtime.setUninstallURL(...)` traffic.
+const UNINSTALL_URL_BASE = 'https://betterlectio.dk/uninstall';
+let lastUninstallStudentId: string | null = null;
+
+function setUninstallUrlForStudent(studentId: string): void {
+  if (!studentId || lastUninstallStudentId === studentId) return;
+  try {
+    const url = `${UNINSTALL_URL_BASE}?u=${encodeURIComponent(studentId)}`;
+    const api = browser.runtime.setUninstallURL?.bind(browser.runtime);
+    if (!api) return;
+    const result = api(url) as unknown;
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      (result as Promise<void>).catch(() => {});
+    }
+    lastUninstallStudentId = studentId;
+  } catch {
+    // Non-critical
+  }
+}
 
 function getSupabase(): SupabaseClient {
   if (client) return client;
@@ -157,6 +173,7 @@ async function getAnalyticsIdentity(context?: {
 
     cachedDistinctId = distinctId;
     cachedAnalyticsIdentity = identity;
+    setUninstallUrlForStudent(student.id);
     return identity;
   } catch {
     return undefined;
@@ -357,12 +374,26 @@ async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): 
 
 const activeChannels = new Map<string, ReturnType<SupabaseClient['channel']>>();
 
-function handleSubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:subscribe' }>): SupabaseResponse {
+async function handleSubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:subscribe' }>): Promise<SupabaseResponse> {
   if (activeChannels.has(msg.channel)) {
     return { ok: true };
   }
 
+  // Realtime postgres_changes is RLS-gated — without a user JWT the websocket
+  // connects anon and our row-scoped events get filtered out server-side. In
+  // MV3 the service worker can spin up after createClient with a stale auth
+  // state, so wait for the persisted session and push the access token onto
+  // the realtime socket before subscribing.
+  await ensureSessionReady();
   const supabase = getSupabase();
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) supabase.realtime.setAuth(token);
+  } catch {
+    // Fall through — channel will subscribe with whatever auth it has.
+  }
+
   const channel = supabase
     .channel(msg.channel)
     .on(
@@ -796,6 +827,7 @@ function initAuthStateListener(): void {
       if (event === 'SIGNED_OUT') {
         cachedDistinctId = null;
         cachedAnalyticsIdentity = null;
+        lastUninstallStudentId = null;
         browser.storage.local.set({ [REAUTH_KEY]: true }).catch(() => {});
       }
     });
@@ -888,8 +920,8 @@ export default defineBackground(() => {
 
       // ── Realtime ────────────────────────────────────────────────
       case 'bl-sb:subscribe':
-        sendResponse(handleSubscribe(msg));
-        return false;
+        handleSubscribe(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        return true;
 
       case 'bl-sb:unsubscribe':
         sendResponse(handleUnsubscribe(msg));
