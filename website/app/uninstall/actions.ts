@@ -3,6 +3,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase"
 
 const REASON_KEYS = new Set([
+  "too_complicated",
   "missing_feature",
   "broken",
   "switched_browser",

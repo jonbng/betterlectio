@@ -7,6 +7,7 @@ import { capture } from "@/lib/posthog"
 import { submitUninstallFeedback } from "./actions"
 
 type ReasonKey =
+  | "too_complicated"
   | "missing_feature"
   | "broken"
   | "switched_browser"
@@ -16,6 +17,7 @@ type ReasonKey =
   | "other"
 
 const REASONS: { key: ReasonKey; label: string }[] = [
+  { key: "too_complicated", label: "For kompliceret" },
   { key: "broken", label: "Noget virkede ikke" },
   { key: "missing_feature", label: "Manglede en funktion" },
   { key: "performance", label: "For langsom / tung" },
@@ -38,9 +40,18 @@ export function UninstallForm({ studentId }: { studentId: string }) {
     })
   }, [studentId])
 
+  const isTooComplicated = reason === "too_complicated"
+  const feedbackTrimmed = feedback.trim()
+  const feedbackRequired = isTooComplicated
+  const canSubmit = Boolean(reason) && (!feedbackRequired || feedbackTrimmed.length > 0)
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!reason || isPending || submitted) return
+    if (feedbackRequired && feedbackTrimmed.length === 0) {
+      setError("Skriv kort hvad der var for kompliceret — det er det vi prøver at fikse.")
+      return
+    }
 
     setError(null)
 
@@ -98,7 +109,10 @@ export function UninstallForm({ studentId }: { studentId: string }) {
                 role="radio"
                 aria-checked={active}
                 className={`uninstall-chip${active ? " uninstall-chip--active" : ""}`}
-                onClick={() => setReason(r.key)}
+                onClick={() => {
+                  setReason(r.key)
+                  setError(null)
+                }}
               >
                 {r.label}
               </button>
@@ -109,16 +123,27 @@ export function UninstallForm({ studentId }: { studentId: string }) {
 
       <div className="uninstall-section">
         <label htmlFor="uninstall-feedback" className="uninstall-label">
-          Noget mere på hjerte? <span className="uninstall-optional">(valgfrit)</span>
+          {isTooComplicated ? (
+            <>Hvad var for kompliceret?</>
+          ) : (
+            <>
+              Noget mere på hjerte? <span className="uninstall-optional">(valgfrit)</span>
+            </>
+          )}
         </label>
         <textarea
           id="uninstall-feedback"
           className="uninstall-textarea"
           rows={4}
           maxLength={2000}
+          required={feedbackRequired}
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
-          placeholder="Hvad savnede du? Hvad gik galt? Skriv løs."
+          placeholder={
+            isTooComplicated
+              ? "F.eks. en bestemt side, en knap der var svær at finde, eller noget der virkede anderledes end Lectio."
+              : "Hvad savnede du? Hvad gik galt? Skriv løs."
+          }
         />
       </div>
 
@@ -127,7 +152,7 @@ export function UninstallForm({ studentId }: { studentId: string }) {
       <button
         type="submit"
         className="uninstall-submit"
-        disabled={!reason || isPending}
+        disabled={!canSubmit || isPending}
       >
         {isPending ? "Sender…" : "Send feedback"}
       </button>
