@@ -29,10 +29,12 @@ import {
 import { SignupChart } from "@/components/signup-chart";
 import { ActiveUsersChart } from "@/components/active-users-chart";
 import { RetentionTable } from "@/components/retention-table";
+import { DashboardRefreshBar } from "@/components/dashboard-refresh-bar";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
+  const fetchedAt = Date.now();
   const [stats, signups, topSchools, activeUsers, versions, featureUsage, retention] =
     await Promise.all([
       getOverviewStats(),
@@ -62,7 +64,10 @@ export default async function OverviewPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+        <DashboardRefreshBar fetchedAt={fetchedAt} />
+      </div>
 
       {/* Supabase metrics */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
