@@ -50,7 +50,8 @@ export function DashboardRefreshBar({
           <span className="text-muted-foreground/70"> · {formatAbsolute(date)}</span>
         </span>
         <span className="text-xs text-muted-foreground/70">
-          PostHog data is cached for {Math.round(cacheSeconds / 60)} min — refresh to fetch fresh.
+          Cached for {Math.round(cacheSeconds / 60)} min. PostHog also caches insights server-side —
+          Refresh recalculates them (like the "Refresh" button on a PostHog insight).
         </span>
       </div>
       <Button

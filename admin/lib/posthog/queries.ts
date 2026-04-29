@@ -1,3 +1,7 @@
+import { cookies } from "next/headers";
+
+import { POSTHOG_FORCE_REFRESH_COOKIE } from "@/app/(dashboard)/actions";
+
 const POSTHOG_HOST = "https://eu.posthog.com";
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY!;
 const PROJECT_ID = "145688";
@@ -16,10 +20,20 @@ function schoolPropertyFilter(school: SchoolFilter) {
   ];
 }
 
+async function shouldForcePostHogRefresh(): Promise<boolean> {
+  try {
+    const c = await cookies();
+    return c.has(POSTHOG_FORCE_REFRESH_COOKIE);
+  } catch {
+    return false;
+  }
+}
+
 async function queryPostHog(query: Record<string, unknown>) {
   if (!POSTHOG_API_KEY) {
     return null;
   }
+  const force = await shouldForcePostHogRefresh();
   try {
     const res = await fetch(
       `${POSTHOG_HOST}/api/projects/${PROJECT_ID}/query/`,
@@ -29,8 +43,12 @@ async function queryPostHog(query: Record<string, unknown>) {
           Authorization: `Bearer ${POSTHOG_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query }),
-        next: { revalidate: 300 },
+        body: JSON.stringify(
+          force ? { query, refresh: "force_blocking" } : { query },
+        ),
+        ...(force
+          ? { cache: "no-store" as const }
+          : { next: { revalidate: 300 } }),
       },
     );
 
