@@ -742,7 +742,6 @@ function initLayout() {
         lastName: [profileLastName, `Lectio ${lectioVersion}`, browserInfo]
           .filter(Boolean)
           .join(" | "),
-        avatar: cachedProfile.pictureUrl || undefined,
       };
     }
   }
@@ -828,7 +827,7 @@ function initLayout() {
       // shows a reload toast for settings that need it.
       void hydrateSettingsFromSupabase().catch(() => {});
       void hydrateSchoolThemesFromSupabase().then((activeChanged) => {
-        if (activeChanged) applyThemeForSchool(schoolId);
+        if (activeChanged) applyThemeForSchool(schoolId ?? null);
       }).catch(() => {});
 
       void subscribeToSettingsRealtime().then((unsub) => {
