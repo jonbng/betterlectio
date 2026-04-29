@@ -15,3 +15,15 @@ export {
   resetUserLessonOverrideV2,
   upsertUserLessonOverrideV2,
 } from './lessons';
+export {
+  getUserSettingsRow,
+  upsertUserSettings,
+  getUserSchoolThemes,
+  upsertUserSchoolTheme,
+} from './user-settings';
+export type {
+  UpsertUserSettingsResult,
+  UpsertUserSchoolThemeResult,
+  UserSettingsRow,
+  UserSchoolThemeRow,
+} from './user-settings';

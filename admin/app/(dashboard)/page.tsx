@@ -61,11 +61,11 @@ export default async function OverviewPage() {
     : [];
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6">
       <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
 
       {/* Supabase metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
         {supabaseMetrics.map((m) => (
           <Card key={m.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -167,13 +167,13 @@ export default async function OverviewPage() {
 
       {/* Feature usage */}
       {featureUsage && featureUsage.length > 0 && (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm font-medium">
               Feature Usage (last 30 days)
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -219,11 +219,11 @@ export default async function OverviewPage() {
       )}
 
       {/* Top schools */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Top Schools</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

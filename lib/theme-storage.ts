@@ -63,6 +63,16 @@ export function saveThemePreferenceForSchool(
   const map = readThemeMap();
   map[schoolId] = normalizeThemePreference(preference);
   writeThemeMap(map);
+
+  // Sync to Supabase. Only the active school is pushed (the picker only
+  // mutates the school in the URL), so we don't need to know which schoolId
+  // changed — the sync module reads the current URL's school.
+  void import('@/lib/settings-storage').then(({ isSyncSuppressed }) => {
+    if (isSyncSuppressed()) return;
+    return import('@/lib/settings-sync').then(({ schedulePushCurrentSchoolThemeToSupabase }) =>
+      schedulePushCurrentSchoolThemeToSupabase(),
+    );
+  }).catch(() => {});
 }
 
 export function getSchoolIdFromCurrentUrl(): string | null {

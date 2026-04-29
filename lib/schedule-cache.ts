@@ -101,7 +101,7 @@ function parseScheduleFromDoc(doc: Document): ScheduleBlock[] {
       holdCode = holdLine[1].split(',')[0].trim();
     }
 
-    // Match brick title fallback: mapped hold name → topic/title → raw hold code
+    // Match brick title fallback: mapped hold name → activity title → raw hold code
     const label = holdCode && hasHoldMapping(holdCode)
       ? getHoldDisplayName(holdCode)
       : extractTitleFromTooltip(tooltip) || holdCode || 'Lektion';
@@ -113,17 +113,20 @@ function parseScheduleFromDoc(doc: Document): ScheduleBlock[] {
   return blocks;
 }
 
-/** Extract a display title from tooltip first line (e.g. "Middelalderen" or the hold name) */
-function extractTitleFromTooltip(tooltip: string): string {
+/**
+ * Extract the activity title from a Lectio tooltip. The title always appears
+ * before the date line; everything after the date is structured metadata
+ * (Hold/Lærer/Lokale/Lektier/Note/...). Stop at the date line so multi-line
+ * section bodies (e.g. a Lektier bullet list) can never be returned as the title.
+ */
+function extractTitleFromTooltip(tooltip: string): string | null {
   const lines = tooltip.split('\n').map(l => l.trim()).filter(Boolean);
-  // First line is either the activity title or date line
   for (const line of lines) {
-    if (/^\d+\/\d+-\d{4}/.test(line)) continue; // skip date lines
-    if (/^(Hold|Lærer|Lokale|Elever|Lektier|Note|Øvrigt):/i.test(line)) continue;
+    if (/^\d+\/\d+-\d{4}/.test(line)) return null; // hit the date — no title above it
     if (/^(Aflyst|Ændret)!/i.test(line)) continue;
     return line;
   }
-  return 'Lektion';
+  return null;
 }
 
 /** Fetch today's schedule from the network, parse, and cache */

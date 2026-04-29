@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor: string
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_id: string | null
+          target_table: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Relationships: []
+      }
       homework_entries: {
         Row: {
           display_date: string
@@ -351,6 +387,9 @@ export type Database = {
           description: string | null
           dismissed_app_prompt_at: string | null
           extension_installed_at: string | null
+          extension_uninstall_feedback: string | null
+          extension_uninstall_reason: string | null
+          extension_uninstalled_at: string | null
           id: string
           instagram: string | null
           lectio_first_name: string | null
@@ -374,6 +413,9 @@ export type Database = {
           description?: string | null
           dismissed_app_prompt_at?: string | null
           extension_installed_at?: string | null
+          extension_uninstall_feedback?: string | null
+          extension_uninstall_reason?: string | null
+          extension_uninstalled_at?: string | null
           id: string
           instagram?: string | null
           lectio_first_name?: string | null
@@ -397,6 +439,9 @@ export type Database = {
           description?: string | null
           dismissed_app_prompt_at?: string | null
           extension_installed_at?: string | null
+          extension_uninstall_feedback?: string | null
+          extension_uninstall_reason?: string | null
+          extension_uninstalled_at?: string | null
           id?: string
           instagram?: string | null
           lectio_first_name?: string | null
@@ -446,6 +491,54 @@ export type Database = {
           old_state?: Json | null
           record_id?: string | null
           table_name?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          schema_version: number
+          settings: Json
+          supabase_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          schema_version?: number
+          settings?: Json
+          supabase_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          schema_version?: number
+          settings?: Json
+          supabase_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_school_themes: {
+        Row: {
+          created_at: string
+          school_id: string
+          supabase_id: string
+          theme_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          school_id: string
+          supabase_id: string
+          theme_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          school_id?: string
+          supabase_id?: string
+          theme_id?: string
+          updated_at?: string
         }
         Relationships: []
       }

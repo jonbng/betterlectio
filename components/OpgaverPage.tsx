@@ -16,6 +16,7 @@ import {
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
+import { saveCachedOpgaver } from '@/lib/opgaver-deadlines-cache';
 import { cn } from '@/lib/utils';
 import { useTranslation, formatMonth, formatWeekday } from '@/lib/i18n';
 
@@ -503,6 +504,13 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   useEffect(() => {
     setIgnoredMissingIds(loadIgnoredMissingIds(schoolId));
   }, [schoolId]);
+
+  // Persist parsed opgaver list to school-scoped cache so the schedule page
+  // can render deadline bricks without re-fetching.
+  useEffect(() => {
+    if (entriesProp.length === 0) return;
+    saveCachedOpgaver(schoolId, entriesProp);
+  }, [entriesProp, schoolId]);
 
   useEffect(() => {
     const handler = (e: Event) => {

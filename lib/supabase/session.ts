@@ -8,6 +8,7 @@ import { fetchQrUrl } from '@/lib/profil-parser';
 type AuthSource =
   | 'bootstrap'
   | 'hold-mapping-sync'
+  | 'settings-sync'
   | 'rpc-unauthorized-retry'
   | 'unknown';
 

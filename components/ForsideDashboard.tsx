@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
 import { useTranslation, formatWeekdayCapitalized } from '@/lib/i18n';
-import { ArrowUpRight, Info, AlertTriangle, BookOpen, Mail, Clock, Flame, Upload } from 'lucide-react';
+import { ArrowUpRight, Info, AlertTriangle, BookOpen, Mail, Clock, Flame, Upload, ClipboardList, FileText, Users, Star, CalendarClock, Bell } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds, addIgnoredMissingId } from '@/lib/opgaver-ignored';
@@ -26,6 +26,22 @@ export interface LektieEntry {
   date: string;
   dateRaw: Date | null;
   fullDescription: string;
+}
+
+export interface GenericIslandRow {
+  html: string;
+  priority: 1 | 2 | 3;
+  time?: string;
+  timeTitle?: string;
+  attention?: boolean;
+}
+
+export interface GenericIslandData {
+  id: string;
+  title: string;
+  href?: string;
+  infoText?: string;
+  rows: GenericIslandRow[];
 }
 
 export interface BeskedEntry {
@@ -184,6 +200,70 @@ export function parseBeskeder(island: Element): { entries: BeskedEntry[]; unread
   });
 
   return { entries, unreadCount };
+}
+
+// ── Generic island parser (for cards we don't have a custom version for) ──
+
+export function parseGenericIsland(islandContent: Element): GenericIslandData | null {
+  const header = islandContent.querySelector('.dashboardLinkHeader');
+  if (!header) return null;
+
+  const titleSpan = header.querySelector('.dashboardLinkHeaderText');
+  const title = titleSpan?.textContent?.trim() || '';
+  if (!title) return null;
+
+  const headerLink = header.querySelector<HTMLAnchorElement>('a.dashboardItemTitle, a');
+  const rawHref = headerLink?.getAttribute('href') || undefined;
+  const href = rawHref && rawHref !== '#' ? rawHref : undefined;
+
+  const infoText = header.querySelector('.dashboardLinkHeaderInfoText')?.textContent?.trim() || undefined;
+
+  const rows: GenericIslandRow[] = [];
+  islandContent.querySelectorAll('table.dashboard tr').forEach((tr) => {
+    const infoCell = tr.querySelector<HTMLTableCellElement>('td.infoCol');
+    if (!infoCell) {
+      // Some "no records" rows use td.norecord
+      return;
+    }
+    let priority: 1 | 2 | 3 = 3;
+    if (infoCell.classList.contains('prepend-fonticon-bullit-prio1')) priority = 1;
+    else if (infoCell.classList.contains('prepend-fonticon-bullit-prio2')) priority = 2;
+
+    const timeCell = tr.querySelector<HTMLTableCellElement>('td.timeCol');
+    const time = timeCell?.textContent?.trim() || undefined;
+    const attention = timeCell?.classList.contains('attention') || false;
+
+    rows.push({
+      html: infoCell.innerHTML,
+      priority,
+      time,
+      timeTitle: timeCell?.getAttribute('title') || undefined,
+      attention,
+    });
+  });
+
+  return {
+    id: islandContent.id || '',
+    title,
+    href,
+    infoText,
+    rows,
+  };
+}
+
+export function parseGenericIslands(root: Document | Element, excludeContentIds: string[]): GenericIslandData[] {
+  const excludeSet = new Set(excludeContentIds);
+  const islands = Array.from(root.querySelectorAll<HTMLElement>('.lf-island'));
+  const results: GenericIslandData[] = [];
+  for (const island of islands) {
+    const content = island.querySelector<HTMLElement>('.islandContent');
+    if (!content) continue;
+    if (excludeSet.has(content.id)) continue;
+    if (!content.querySelector('.dashboardLinkHeader')) continue;
+    const data = parseGenericIsland(content);
+    if (data && data.rows.length > 0) results.push(data);
+  }
+  return results;
 }
 
 // ── Deadline helpers (reused from ForsideOpgaverCard) ────────────────
@@ -798,6 +878,77 @@ function getInitials(name: string): string {
   return name[0].toUpperCase();
 }
 
+// ── Generic native island card ──────────────────────────────────────
+
+const GENERIC_ICON_MAP: Array<[RegExp, any]> = [
+  [/registrer/i, ClipboardList],
+  [/fravær|fravaer/i, ClipboardList],
+  [/spørgeskema|spoergeskema/i, ClipboardList],
+  [/karakter/i, Star],
+  [/bøger|boger/i, BookOpen],
+  [/hold|gruppe/i, Users],
+  [/aftale|kalender/i, CalendarClock],
+  [/note|note|påmindelse/i, Bell],
+];
+
+function getGenericIcon(title: string): any {
+  for (const [pattern, icon] of GENERIC_ICON_MAP) {
+    if (pattern.test(title)) return icon;
+  }
+  return FileText;
+}
+
+function GenericCard({ data, schoolId }: { data: GenericIslandData; schoolId: string }) {
+  if (data.rows.length === 0) return null;
+
+  const icon = getGenericIcon(data.title);
+  const countMatch = data.infoText?.match(/^\s*(\d+)/);
+  const count = countMatch ? parseInt(countMatch[1]) : undefined;
+  const href = data.href || `/lectio/${schoolId}/forside.aspx`;
+
+  return (
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <CardHeader title={data.title} href={href} icon={icon} count={count} />
+      <div className="flex flex-col">
+        {data.rows.map((row, i) => {
+          const styles = PRIO_STYLES[row.priority];
+          return (
+            <div
+              key={i}
+              className={cn(
+                "flex items-start gap-2.5 border-t border-border px-4 py-2.5 text-sm leading-[1.5]",
+                styles.bg,
+              )}
+              title={row.timeTitle}
+            >
+              <span className={cn("mt-[0.4375rem] size-[0.375rem] shrink-0 rounded-full", styles.dot)} />
+              <span
+                className={cn(
+                  "min-w-0 flex-1 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-primary/80 [&_span]:!whitespace-normal",
+                  styles.text,
+                )}
+                dangerouslySetInnerHTML={{ __html: row.html }}
+              />
+              {row.time && (
+                <span
+                  className={cn(
+                    "shrink-0 text-xs tabular-nums whitespace-nowrap",
+                    row.attention
+                      ? "text-[oklch(0.5_0.22_25)] dark:text-[oklch(0.72_0.18_25)] font-semibold"
+                      : "text-muted-foreground/70",
+                  )}
+                >
+                  {row.time}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard Component ─────────────────────────────────────────────
 
 interface DashboardProps {
@@ -807,6 +958,7 @@ interface DashboardProps {
   beskeder: BeskedEntry[];
   unreadCount: number;
   schoolId: string;
+  extras?: GenericIslandData[];
 }
 
 export function ForsideDashboard({
@@ -816,8 +968,12 @@ export function ForsideDashboard({
   beskeder,
   unreadCount,
   schoolId,
+  extras = [],
 }: DashboardProps) {
-  // 2-column grid: left has aktuel info + lektier, right has opgaver + beskeder
+  // Alternate extras between left and right columns so they fill in masonry-style
+  const leftExtras = extras.filter((_, i) => i % 2 === 0);
+  const rightExtras = extras.filter((_, i) => i % 2 === 1);
+
   return (
     <div className="grid grid-cols-2 gap-4 px-8 pb-4">
       {/* Left column */}
@@ -828,6 +984,15 @@ export function ForsideDashboard({
         <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '60ms' }}>
           <LektierCard entries={lektier} schoolId={schoolId} />
         </div>
+        {leftExtras.map((extra, i) => (
+          <div
+            key={extra.id || `left-extra-${i}`}
+            className="animate-[bl-fade-in_350ms_var(--ease-out)_both]"
+            style={{ animationDelay: `${120 + i * 60}ms` }}
+          >
+            <GenericCard data={extra} schoolId={schoolId} />
+          </div>
+        ))}
       </div>
       {/* Right column */}
       <div className="flex flex-col gap-4">
@@ -837,6 +1002,15 @@ export function ForsideDashboard({
         <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '90ms' }}>
           <BeskederCard entries={beskeder} unreadCount={unreadCount} schoolId={schoolId} />
         </div>
+        {rightExtras.map((extra, i) => (
+          <div
+            key={extra.id || `right-extra-${i}`}
+            className="animate-[bl-fade-in_350ms_var(--ease-out)_both]"
+            style={{ animationDelay: `${150 + i * 60}ms` }}
+          >
+            <GenericCard data={extra} schoolId={schoolId} />
+          </div>
+        ))}
       </div>
     </div>
   );

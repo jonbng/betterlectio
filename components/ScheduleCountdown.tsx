@@ -153,7 +153,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   const prevStateRef = useRef<CountdownState>({ type: 'loading' });
   const firedForBlockRef = useRef<string | null>(null);
   const settings = getSettings();
-  const subjectColorsEnabled = settings.schedule?.subjectColors ?? true;
+  const subjectColorsEnabled = settings.schedule?.subjectColors ?? false;
   const endOfModuleEffectEnabled = settings.schedule?.endOfModuleEffect ?? true;
 
   const weekendMessages = [

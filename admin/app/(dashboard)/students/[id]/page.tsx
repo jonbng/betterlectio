@@ -15,7 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getStudent } from "@/lib/supabase/queries";
+import { getStudent, getStudentSyncedSettings } from "@/lib/supabase/queries";
+import { StudentEditForm } from "@/components/student-edit-form";
+import { SyncedSettingsCard } from "@/components/synced-settings-card";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ export default async function StudentDetailPage({
   const { id } = await params;
   const student = await getStudent(id);
   if (!student) notFound();
+  const synced = await getStudentSyncedSettings(student.supabase_id);
 
   const name =
     [student.lectio_first_name, student.lectio_last_name]
@@ -36,7 +39,7 @@ export default async function StudentDetailPage({
   const school = student.schools as { name: string; display_name: string | null } | null;
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/students">
@@ -92,6 +95,32 @@ export default async function StudentDetailPage({
               <div>Born {student.birthdate}</div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit form (write surface) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Edit profile</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Changes are recorded in the audit log.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <StudentEditForm
+            studentId={student.id}
+            initial={{
+              lectio_first_name: student.lectio_first_name,
+              lectio_last_name: student.lectio_last_name,
+              class_name: student.class_name,
+              description: student.description,
+              instagram: student.instagram,
+              show_birthday: student.show_birthday,
+              app_eligible: student.app_eligible,
+              marked_android_at: student.marked_android_at,
+              dismissed_app_prompt_at: student.dismissed_app_prompt_at,
+            }}
+          />
         </CardContent>
       </Card>
 
@@ -172,6 +201,21 @@ export default async function StudentDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Synced settings */}
+      <SyncedSettingsCard
+        settings={
+          synced.settings
+            ? {
+                settings: synced.settings.settings,
+                schema_version: synced.settings.schema_version,
+                updated_at: synced.settings.updated_at,
+                created_at: synced.settings.created_at,
+              }
+            : null
+        }
+        themes={synced.themes}
+      />
 
       {/* Homework activity */}
       <Card>

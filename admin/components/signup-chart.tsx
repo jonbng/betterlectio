@@ -16,8 +16,8 @@ export function SignupChart({
   data: { date: string; count: number }[];
 }) {
   return (
-    <div className="h-[250px] w-full min-w-0">
-      <ResponsiveContainer width="100%" height={250}>
+    <div className="h-[200px] w-full min-w-0 sm:h-[250px]">
+      <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis

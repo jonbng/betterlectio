@@ -61,7 +61,6 @@ export async function getSignupsByDay(days = 30) {
     counts[day] = (counts[day] ?? 0) + 1;
   }
 
-  // Fill gaps so every day in the range appears
   const result: { date: string; count: number }[] = [];
   const start = new Date(since);
   const end = new Date();
@@ -96,16 +95,15 @@ export async function getTopSchools(limit = 10) {
 
 // ── Students ────────────────────────────────────────────────────────
 
-export async function getStudents() {
-  const { data } = await supabaseAdmin
+export async function getStudents(opts: { schoolId?: number } = {}) {
+  let q = supabaseAdmin
     .from("students")
     .select("*, schools(name)")
     .order("created_at", { ascending: false });
-
+  if (opts.schoolId != null) q = q.eq("school_id", opts.schoolId);
+  const { data } = await q;
   return data ?? [];
 }
-
-// ── Schools ─────────────────────────────────────────────────────────
 
 export async function getStudent(id: string) {
   const { data: student } = await supabaseAdmin
@@ -147,7 +145,6 @@ export async function getStudentsWithProfiles() {
     .or("description.neq.,instagram.neq.")
     .order("created_at", { ascending: false });
 
-  // Filter client-side since .neq. with null is tricky
   return (data ?? []).filter((s) => s.description || s.instagram);
 }
 
@@ -201,4 +198,555 @@ export async function getSchools() {
       ...s,
       stats: statsMap[s.id],
     }));
+}
+
+export async function getSchoolDetail(id: number) {
+  const { data: school } = await supabaseAdmin
+    .from("schools")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (!school) return null;
+
+  const [
+    { data: students },
+    { data: uninstalls },
+    { count: totalStudents },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("students")
+      .select(
+        "id, lectio_first_name, lectio_last_name, class_name, school_id, extension_installed_at, app_installed_at, created_at, custom_pfp_url, lectio_pfp_url, description, instagram, app_eligible, app_qr_scanned_at, marked_android_at, schools(name)",
+      )
+      .eq("school_id", id)
+      .order("created_at", { ascending: false }),
+    supabaseAdmin
+      .from("students")
+      .select(
+        "id, lectio_first_name, lectio_last_name, class_name, extension_uninstalled_at, extension_uninstall_reason, extension_uninstall_feedback",
+      )
+      .eq("school_id", id)
+      .not("extension_uninstalled_at", "is", null)
+      .order("extension_uninstalled_at", { ascending: false })
+      .limit(20),
+    supabaseAdmin
+      .from("students")
+      .select("*", { count: "exact", head: true }),
+  ]);
+
+  const list = students ?? [];
+  const stats = {
+    total: list.length,
+    extension: list.filter((s) => s.extension_installed_at).length,
+    app: list.filter((s) => s.app_installed_at).length,
+    eligible: list.filter((s) => s.app_eligible).length,
+    qrScanned: list.filter((s) => s.app_qr_scanned_at).length,
+    markedAndroid: list.filter((s) => s.marked_android_at).length,
+    pctOfTotal: totalStudents
+      ? Math.round((list.length / totalStudents) * 100)
+      : 0,
+  };
+
+  // Class roster (top classes by size)
+  const classCounts: Record<string, number> = {};
+  for (const s of list) {
+    if (!s.class_name) continue;
+    classCounts[s.class_name] = (classCounts[s.class_name] ?? 0) + 1;
+  }
+  const classes = Object.entries(classCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    school,
+    students: list,
+    uninstalls: uninstalls ?? [],
+    stats,
+    classes,
+  };
+}
+
+// ── Uninstall analytics ─────────────────────────────────────────────
+
+export async function getUninstallStats() {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const since7 = new Date(now - 7 * day).toISOString();
+  const since30 = new Date(now - 30 * day).toISOString();
+
+  const [
+    { count: total },
+    { count: last7 },
+    { count: last30 },
+    { data: rows },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .not("extension_uninstalled_at", "is", null),
+    supabaseAdmin
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .gte("extension_uninstalled_at", since7),
+    supabaseAdmin
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .gte("extension_uninstalled_at", since30),
+    supabaseAdmin
+      .from("students")
+      .select(
+        "id, lectio_first_name, lectio_last_name, school_id, class_name, extension_uninstalled_at, extension_uninstall_reason, extension_uninstall_feedback, schools(name, display_name)",
+      )
+      .not("extension_uninstalled_at", "is", null)
+      .order("extension_uninstalled_at", { ascending: false })
+      .limit(100),
+  ]);
+
+  const reasons: Record<string, number> = {};
+  const distinctSchools = new Set<number>();
+  for (const r of rows ?? []) {
+    distinctSchools.add(r.school_id);
+    const raw = r.extension_uninstall_reason;
+    if (!raw) continue;
+    // Reason can be a single string or comma-separated chips
+    for (const chip of String(raw)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)) {
+      reasons[chip] = (reasons[chip] ?? 0) + 1;
+    }
+  }
+
+  const reasonChips = Object.entries(reasons)
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    total: total ?? 0,
+    last7: last7 ?? 0,
+    last30: last30 ?? 0,
+    distinctSchools: distinctSchools.size,
+    reasonChips,
+    recent: rows ?? [],
+  };
+}
+
+// ── Mobile app funnel ───────────────────────────────────────────────
+
+export async function getMobileFunnel() {
+  const { data: students } = await supabaseAdmin
+    .from("students")
+    .select(
+      "school_id, app_eligible, app_qr_scanned_at, app_installed_at, dismissed_app_prompt_at, marked_android_at, schools(name, display_name)",
+    );
+
+  const list = students ?? [];
+
+  const totals = {
+    total: list.length,
+    eligible: 0,
+    scanned: 0,
+    installed: 0,
+    markedAndroid: 0,
+    dismissed: 0,
+  };
+
+  type SchoolRow = {
+    schoolId: number;
+    name: string;
+    eligible: number;
+    scanned: number;
+    installed: number;
+    markedAndroid: number;
+  };
+  const bySchool: Record<number, SchoolRow> = {};
+
+  for (const s of list) {
+    const school = s.schools as
+      | { name: string; display_name: string | null }
+      | null;
+    const row = (bySchool[s.school_id] ??= {
+      schoolId: s.school_id,
+      name: school?.display_name ?? school?.name ?? `school ${s.school_id}`,
+      eligible: 0,
+      scanned: 0,
+      installed: 0,
+      markedAndroid: 0,
+    });
+    if (s.app_eligible) {
+      totals.eligible++;
+      row.eligible++;
+    }
+    if (s.app_qr_scanned_at) {
+      totals.scanned++;
+      row.scanned++;
+    }
+    if (s.app_installed_at) {
+      totals.installed++;
+      row.installed++;
+    }
+    if (s.marked_android_at) {
+      totals.markedAndroid++;
+      row.markedAndroid++;
+    }
+    if (s.dismissed_app_prompt_at) totals.dismissed++;
+  }
+
+  const schools = Object.values(bySchool)
+    .filter((r) => r.eligible > 0)
+    .sort((a, b) => b.eligible - a.eligible);
+
+  return { totals, schools };
+}
+
+// ── Homework engagement ─────────────────────────────────────────────
+
+export async function getHomeworkOverview() {
+  const since30 = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const since7 = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const [
+    { count: totalRows },
+    { count: doneRows },
+    { data: recentToggles },
+    { data: recentDistinct },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("student_homework")
+      .select("*", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("student_homework")
+      .select("*", { count: "exact", head: true })
+      .eq("is_done", true),
+    supabaseAdmin
+      .from("student_homework")
+      .select("student_id, is_done, done_updated_at")
+      .gte("done_updated_at", since30)
+      .order("done_updated_at", { ascending: false })
+      .limit(5000),
+    supabaseAdmin
+      .from("student_homework")
+      .select("student_id")
+      .gte("done_updated_at", since7),
+  ]);
+
+  // Per-day toggle volume (last 30 days)
+  const dailyCounts: Record<string, number> = {};
+  for (const r of recentToggles ?? []) {
+    const day = r.done_updated_at.slice(0, 10);
+    dailyCounts[day] = (dailyCounts[day] ?? 0) + 1;
+  }
+  const chart: { date: string; count: number }[] = [];
+  const start = new Date(since30);
+  const end = new Date();
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().slice(0, 10);
+    chart.push({ date: key, count: dailyCounts[key] ?? 0 });
+  }
+
+  const distinctActive7 = new Set(
+    (recentDistinct ?? []).map((r) => r.student_id),
+  ).size;
+
+  // Per-school completion rate. Done via cross-join with students for school_id.
+  const studentIds = Array.from(
+    new Set((recentToggles ?? []).map((r) => r.student_id)),
+  );
+  let bySchool: { schoolId: number; name: string; toggles: number; doneShare: number }[] =
+    [];
+
+  if (studentIds.length > 0) {
+    const { data: rosters } = await supabaseAdmin
+      .from("students")
+      .select("id, school_id, schools(name, display_name)")
+      .in("id", studentIds);
+
+    const studentSchool = new Map<string, { id: number; name: string }>();
+    for (const r of rosters ?? []) {
+      const school = r.schools as
+        | { name: string; display_name: string | null }
+        | null;
+      studentSchool.set(r.id, {
+        id: r.school_id,
+        name: school?.display_name ?? school?.name ?? `school ${r.school_id}`,
+      });
+    }
+
+    type SchoolAgg = {
+      schoolId: number;
+      name: string;
+      toggles: number;
+      done: number;
+    };
+    const agg: Record<number, SchoolAgg> = {};
+    for (const r of recentToggles ?? []) {
+      const meta = studentSchool.get(r.student_id);
+      if (!meta) continue;
+      const entry = (agg[meta.id] ??= {
+        schoolId: meta.id,
+        name: meta.name,
+        toggles: 0,
+        done: 0,
+      });
+      entry.toggles++;
+      if (r.is_done) entry.done++;
+    }
+
+    bySchool = Object.values(agg)
+      .map((r) => ({
+        schoolId: r.schoolId,
+        name: r.name,
+        toggles: r.toggles,
+        doneShare: r.toggles > 0 ? r.done / r.toggles : 0,
+      }))
+      .sort((a, b) => b.toggles - a.toggles)
+      .slice(0, 25);
+  }
+
+  // Top 10 active classes
+  const { data: classRosters } = await supabaseAdmin
+    .from("students")
+    .select("id, class_name, school_id");
+  const studentToClass = new Map<
+    string,
+    { class: string; school: number }
+  >();
+  for (const r of classRosters ?? []) {
+    if (!r.class_name) continue;
+    studentToClass.set(r.id, { class: r.class_name, school: r.school_id });
+  }
+  const classCounts: Record<string, number> = {};
+  for (const r of recentToggles ?? []) {
+    const meta = studentToClass.get(r.student_id);
+    if (!meta) continue;
+    const key = `${meta.school}:${meta.class}`;
+    classCounts[key] = (classCounts[key] ?? 0) + 1;
+  }
+  const topClasses = Object.entries(classCounts)
+    .map(([key, count]) => {
+      const [schoolId, className] = key.split(":");
+      return {
+        key,
+        schoolId: Number(schoolId),
+        className,
+        count,
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  return {
+    totalRows: totalRows ?? 0,
+    doneRows: doneRows ?? 0,
+    distinctActive7,
+    chart,
+    bySchool,
+    topClasses,
+  };
+}
+
+// ── Lesson mapping admin ────────────────────────────────────────────
+
+export async function getMappingsForSchool(schoolId: number) {
+  const [{ data: mappings }, { data: overrides }] = await Promise.all([
+    supabaseAdmin
+      .from("school_lesson_mappings")
+      .select("*")
+      .eq("school_id", schoolId)
+      .is("deleted_at", null)
+      .order("canonical_key", { ascending: true }),
+    supabaseAdmin
+      .from("user_lesson_overrides")
+      .select("mapping_id, student_id")
+      .is("deleted_at", null),
+  ]);
+
+  const overrideCounts: Record<string, { total: number; students: Set<string> }> =
+    {};
+  for (const o of overrides ?? []) {
+    const entry = (overrideCounts[o.mapping_id] ??= {
+      total: 0,
+      students: new Set(),
+    });
+    entry.total++;
+    entry.students.add(o.student_id);
+  }
+
+  return (mappings ?? []).map((m) => ({
+    ...m,
+    overrideCount: overrideCounts[m.id]?.total ?? 0,
+    studentCount: overrideCounts[m.id]?.students.size ?? 0,
+  }));
+}
+
+// ── Synced settings ─────────────────────────────────────────────────
+
+export async function getStudentSyncedSettings(supabaseId: string | null) {
+  if (!supabaseId) return { settings: null, themes: [] };
+
+  const [settingsRes, themesRes] = await Promise.all([
+    supabaseAdmin
+      .from("user_settings")
+      .select("*")
+      .eq("supabase_id", supabaseId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("user_school_themes")
+      .select("*")
+      .eq("supabase_id", supabaseId)
+      .order("updated_at", { ascending: false }),
+  ]);
+
+  return {
+    settings: settingsRes.data ?? null,
+    themes: themesRes.data ?? [],
+  };
+}
+
+type LeafCounter = Record<string, Record<string, number>>;
+
+function flattenSettings(
+  settings: unknown,
+  prefix: string,
+  counter: LeafCounter,
+) {
+  if (settings == null) return;
+  if (typeof settings !== "object" || Array.isArray(settings)) {
+    // Treat as a leaf
+    const key = prefix || "(root)";
+    const valueKey =
+      typeof settings === "string" ||
+      typeof settings === "number" ||
+      typeof settings === "boolean"
+        ? String(settings)
+        : JSON.stringify(settings);
+    (counter[key] ??= {})[valueKey] = (counter[key]?.[valueKey] ?? 0) + 1;
+    return;
+  }
+  for (const [k, v] of Object.entries(settings as Record<string, unknown>)) {
+    const next = prefix ? `${prefix}.${k}` : k;
+    flattenSettings(v, next, counter);
+  }
+}
+
+export async function getSettingsOverview() {
+  const [
+    { count: totalSettings },
+    { count: totalThemes },
+    { data: rows },
+    { data: themes },
+    { data: recent },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("user_settings")
+      .select("*", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("user_school_themes")
+      .select("*", { count: "exact", head: true }),
+    supabaseAdmin
+      .from("user_settings")
+      .select("settings, schema_version, updated_at, supabase_id")
+      .limit(2000),
+    supabaseAdmin
+      .from("user_school_themes")
+      .select("theme_id, school_id, updated_at, supabase_id")
+      .limit(2000),
+    supabaseAdmin
+      .from("user_settings")
+      .select("supabase_id, updated_at, schema_version")
+      .order("updated_at", { ascending: false })
+      .limit(20),
+  ]);
+
+  const counter: LeafCounter = {};
+  const versions: Record<string, number> = {};
+  for (const r of rows ?? []) {
+    flattenSettings(r.settings, "", counter);
+    const v = String(r.schema_version);
+    versions[v] = (versions[v] ?? 0) + 1;
+  }
+
+  // Theme distribution
+  const themeUsage: Record<string, number> = {};
+  const distinctThemeUsers = new Set<string>();
+  for (const t of themes ?? []) {
+    themeUsage[t.theme_id] = (themeUsage[t.theme_id] ?? 0) + 1;
+    distinctThemeUsers.add(t.supabase_id);
+  }
+
+  // Pull display names for the 'recent' list
+  const recentIds = (recent ?? []).map((r) => r.supabase_id);
+  const studentByUid = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      schoolId: number;
+      schoolName: string;
+    }
+  >();
+  if (recentIds.length > 0) {
+    const { data: students } = await supabaseAdmin
+      .from("students")
+      .select("id, supabase_id, lectio_first_name, lectio_last_name, school_id, schools(name, display_name)")
+      .in("supabase_id", recentIds);
+    for (const s of students ?? []) {
+      const school = s.schools as
+        | { name: string; display_name: string | null }
+        | null;
+      studentByUid.set(s.supabase_id, {
+        id: s.id,
+        name:
+          [s.lectio_first_name, s.lectio_last_name]
+            .filter(Boolean)
+            .join(" ") || "Unknown",
+        schoolId: s.school_id,
+        schoolName:
+          school?.display_name ?? school?.name ?? `school ${s.school_id}`,
+      });
+    }
+  }
+
+  const recentWithStudent = (recent ?? []).map((r) => ({
+    ...r,
+    student: studentByUid.get(r.supabase_id) ?? null,
+  }));
+
+  // Sorted leaf-key distributions (only show keys that aren't the version number)
+  const keyDistributions = Object.entries(counter)
+    .filter(([k]) => k !== "version")
+    .map(([key, values]) => {
+      const total = Object.values(values).reduce((a, b) => a + b, 0);
+      const sorted = Object.entries(values)
+        .map(([value, count]) => ({ value, count, share: count / total }))
+        .sort((a, b) => b.count - a.count);
+      return { key, total, values: sorted };
+    })
+    .sort((a, b) => a.key.localeCompare(b.key));
+
+  return {
+    totalSettings: totalSettings ?? 0,
+    totalThemes: totalThemes ?? 0,
+    distinctThemeUsers: distinctThemeUsers.size,
+    sampledRows: rows?.length ?? 0,
+    versions,
+    themeUsage: Object.entries(themeUsage)
+      .map(([theme_id, count]) => ({ theme_id, count }))
+      .sort((a, b) => b.count - a.count),
+    keyDistributions,
+    recent: recentWithStudent,
+  };
+}
+
+export async function getOverrideOrphanCount(mappingId: string) {
+  const { count } = await supabaseAdmin
+    .from("user_lesson_overrides")
+    .select("*", { count: "exact", head: true })
+    .eq("mapping_id", mappingId)
+    .is("deleted_at", null);
+  return count ?? 0;
 }

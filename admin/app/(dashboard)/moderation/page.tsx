@@ -7,7 +7,7 @@ export default async function ModerationPage() {
   const students = await getStudentsWithProfiles();
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Profile Moderation

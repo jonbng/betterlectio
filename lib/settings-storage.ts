@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { syncOptOutToExtensionStorage } from '@/lib/posthog';
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/i18n/locales';
+import { setUserJotTheme } from '@/lib/userjot';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isSupportedLocale } from '@/lib/i18n/locales';
+import { setLocale } from '@/lib/i18n/state';
 
 const SETTINGS_KEY = 'bl-feature-settings';
 const LEGACY_SETTINGS_KEY = 'il-feature-settings';
@@ -22,8 +24,9 @@ const ScheduleSettingsSchema = z.object({
   currentTimeIndicator: z.boolean().default(true),
   currentTimeLabel: z.boolean().default(false),
   countdownBar: z.boolean().default(true),
-  subjectColors: z.boolean().default(true),
+  subjectColors: z.boolean().default(false),
   endOfModuleEffect: z.boolean().default(true),
+  opgaveDeadlines: z.boolean().default(false),
 });
 
 const BehaviorSettingsSchema = z.object({
@@ -31,6 +34,7 @@ const BehaviorSettingsSchema = z.object({
   continueToLastSchool: z.boolean().default(true),
   disableSignature: z.boolean().default(false),
   analyticsOptOut: z.boolean().default(false),
+  activityViewMode: z.enum(['modal', 'sheet']).default('modal'),
 });
 
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting
@@ -151,6 +155,34 @@ export function saveSettings(settings: FeatureSettings): void {
   } catch {
     // Ignore storage errors
   }
+
+  // Sync to Supabase so settings follow the user across devices. Suppressed
+  // when the write itself originated from a hydrate (avoids ping-pong) or
+  // when called from a sync-aware test harness.
+  if (syncSuppressionDepth === 0) {
+    void import('@/lib/settings-sync')
+      .then(({ schedulePushSettingsToSupabase }) => schedulePushSettingsToSupabase())
+      .catch(() => {});
+  }
+}
+
+// ── Sync suppression ────────────────────────────────────────────────
+// Used by lib/settings-sync.ts so writes that originate from hydrating
+// remote state don't bounce back as a push.
+
+let syncSuppressionDepth = 0;
+
+export function withSyncSuppressed<T>(fn: () => T): T {
+  syncSuppressionDepth++;
+  try {
+    return fn();
+  } finally {
+    syncSuppressionDepth = Math.max(0, syncSuppressionDepth - 1);
+  }
+}
+
+export function isSyncSuppressed(): boolean {
+  return syncSuppressionDepth > 0;
 }
 
 /**
@@ -261,4 +293,75 @@ function migrateSettings(old: unknown): FeatureSettings {
   // For now, just parse with defaults (will fill in any missing fields)
   // In the future, we can handle specific migrations based on old.version
   return FeatureSettingsSchema.parse(old);
+}
+
+/**
+ * Apply the live side effects of a settings change. Used by both the local
+ * edit path (SettingsModal) and the cross-device hydrate path so they can't
+ * drift apart.
+ *
+ * Side effects intentionally exclude PostHog `setting changed` capture and
+ * person-property updates — those are the per-user-action concern of the
+ * caller, not of the storage layer.
+ */
+export function applySettingsSideEffects(
+  prev: FeatureSettings,
+  next: FeatureSettings,
+): { changed: boolean; requiresReload: boolean } {
+  let changed = false;
+  let requiresReload = false;
+
+  if (prev.visual?.darkMode !== next.visual?.darkMode) {
+    changed = true;
+    document.documentElement.classList.toggle('dark', Boolean(next.visual?.darkMode));
+    setUserJotTheme(next.visual?.darkMode ? 'dark' : 'light');
+  }
+
+  if (prev.interface?.language !== next.interface?.language) {
+    changed = true;
+    if (isSupportedLocale(next.interface?.language)) {
+      setLocale(next.interface.language);
+    }
+  }
+
+  if (prev.schedule?.opgaveDeadlines !== next.schedule?.opgaveDeadlines) {
+    changed = true;
+    window.dispatchEvent(new CustomEvent('betterlectio:opgaveDeadlinesToggled'));
+  }
+
+  if (prev.behavior?.analyticsOptOut !== next.behavior?.analyticsOptOut) {
+    changed = true;
+    syncOptOutToExtensionStorage(Boolean(next.behavior?.analyticsOptOut));
+  }
+
+  // Detect any change that requires a page reload (current-time indicator,
+  // subject colors, today highlight, current-time label).
+  for (const path of SETTINGS_REQUIRING_RELOAD) {
+    const [category, key] = path.split('.') as [
+      keyof FeatureSettings,
+      string,
+    ];
+    const a = (prev[category] as Record<string, unknown> | undefined)?.[key];
+    const b = (next[category] as Record<string, unknown> | undefined)?.[key];
+    if (a !== b) {
+      requiresReload = true;
+      changed = true;
+      break;
+    }
+  }
+
+  // Sidebar/data/schedule toggles that don't have direct DOM side effects
+  // still count as "changed" so the hydrator can fire its event.
+  if (!changed) {
+    if (
+      JSON.stringify(prev.sidebar) !== JSON.stringify(next.sidebar) ||
+      JSON.stringify(prev.data) !== JSON.stringify(next.data) ||
+      JSON.stringify(prev.schedule) !== JSON.stringify(next.schedule) ||
+      JSON.stringify(prev.behavior) !== JSON.stringify(next.behavior)
+    ) {
+      changed = true;
+    }
+  }
+
+  return { changed, requiresReload };
 }

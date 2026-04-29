@@ -74,6 +74,7 @@ import { useQuery } from '@/lib/supabase/hooks';
 import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
 import { SettingsModal } from './SettingsModal';
 import { ActivityClassModal } from './ActivityClassModal';
+import { ActivityClassFullModal } from './ActivityClassFullModal';
 import { PrivatAftaleDialog } from './PrivatAftaleDialog';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
 import type { OpgaveEntry } from './OpgaverPage';
@@ -256,6 +257,15 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     { title: t('sidebar.aendringer.manedskalender'), page: 'kalender' },
   ];
 
+  // Bump on `betterlectio:settings-hydrated` so the sidebar re-renders
+  // when remote settings overwrite local (sidebar visibility toggles).
+  const [, setSettingsTick] = useState(0);
+  useEffect(() => {
+    const onHydrated = () => setSettingsTick((n) => n + 1);
+    window.addEventListener('betterlectio:settings-hydrated', onHydrated);
+    return () => window.removeEventListener('betterlectio:settings-hydrated', onHydrated);
+  }, []);
+
   // Get settings early — must be before any useState that references it
   const settings = getSettings();
   const sidebarSettings = settings.sidebar ?? {};
@@ -269,6 +279,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
+  const [activityViewMode, setActivityViewMode] = useState<'modal' | 'sheet'>(
+    () => settings.behavior?.activityViewMode ?? 'modal',
+  );
+  const swapActivityViewMode = () => {
+    const next = activityViewMode === 'modal' ? 'sheet' : 'modal';
+    setActivityViewMode(next);
+    updateSetting('behavior', 'activityViewMode', next);
+  };
   const [paDialogOpen, setPaDialogOpen] = useState(false);
   const [paDialogUrl, setPaDialogUrl] = useState<string | null>(null);
   const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
@@ -743,16 +761,18 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           >
             <EyeOff className="size-[1.1rem]" />
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT));
-            }}
-            className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
-            title="Debug: open mobile app invite popup"
-          >
-            <Smartphone className="size-[1.1rem]" />
-          </button>
+          {sidebarStudent?.app_eligible && (
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT));
+              }}
+              className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
+              title="Open mobile app invite popup"
+            >
+              <Smartphone className="size-[1.1rem]" />
+            </button>
+          )}
         </div>
         <div className="relative" ref={menuRef}>
             {/* Dropdown menu - positioned above the trigger */}
@@ -903,16 +923,31 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         portalTarget={portalTarget}
         onOpenSettings={() => { closeWelcome(); setSettingsOpen(true); }}
       />
-      <ActivityClassModal
-        open={activityModalOpen}
-        url={activityModalUrl}
-        onOpenChange={(next) => {
-          setActivityModalOpen(next);
-          if (!next) {
-            setActivityModalUrl(null);
-          }
-        }}
-      />
+      {activityViewMode === 'modal' ? (
+        <ActivityClassFullModal
+          open={activityModalOpen}
+          url={activityModalUrl}
+          onOpenChange={(next) => {
+            setActivityModalOpen(next);
+            if (!next) {
+              setActivityModalUrl(null);
+            }
+          }}
+          onSwapViewMode={swapActivityViewMode}
+        />
+      ) : (
+        <ActivityClassModal
+          open={activityModalOpen}
+          url={activityModalUrl}
+          onOpenChange={(next) => {
+            setActivityModalOpen(next);
+            if (!next) {
+              setActivityModalUrl(null);
+            }
+          }}
+          onSwapViewMode={swapActivityViewMode}
+        />
+      )}
       {paDialogUrl && (
         <PrivatAftaleDialog
           open={paDialogOpen}

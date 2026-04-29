@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSchools } from "@/lib/supabase/queries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ export default async function SchoolsPage() {
   const schools = await getSchools();
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Schools</h1>
         <p className="text-sm text-muted-foreground">
@@ -19,7 +20,8 @@ export default async function SchoolsPage() {
         {schools
           .sort((a, b) => b.stats.total - a.stats.total)
           .map((s) => (
-            <Card key={s.id}>
+            <Card key={s.id} className="transition-colors hover:bg-muted/40">
+              <Link href={`/schools/${s.id}`} className="block">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">
                   {s.display_name ?? s.name}
@@ -50,6 +52,7 @@ export default async function SchoolsPage() {
                   )}
                 </div>
               </CardContent>
+              </Link>
             </Card>
           ))}
       </div>

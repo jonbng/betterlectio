@@ -52,3 +52,23 @@ export function stampInviteShown(studentId: string, now = Date.now()): void {
     localStorage.setItem(inviteSnoozeKey(studentId), String(now));
   } catch {}
 }
+
+const INVITE_THANKS_KEY_PREFIX = 'bl-mobile-app-invite-thanks-shown';
+
+function inviteThanksKey(studentId: string): string {
+  return `${INVITE_THANKS_KEY_PREFIX}:${studentId}`;
+}
+
+export function hasInviteThanksBeenShown(studentId: string): boolean {
+  try {
+    return localStorage.getItem(inviteThanksKey(studentId)) != null;
+  } catch {
+    return false;
+  }
+}
+
+export function markInviteThanksShown(studentId: string, now = Date.now()): void {
+  try {
+    localStorage.setItem(inviteThanksKey(studentId), String(now));
+  } catch {}
+}

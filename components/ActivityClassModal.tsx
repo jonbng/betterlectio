@@ -10,7 +10,7 @@ import {
   GraduationCap,
   Link2,
   List,
-  Loader2,
+  Maximize2,
   MapPin,
   User,
   Users,
@@ -25,24 +25,26 @@ import {
 import { fetchMembersFromUrls, type Member } from "@/lib/members-fetch";
 import { getHoldDisplayName, getHoldHue } from "@/lib/hold-mapping";
 import { getTeacherName, loadTeacherNames, type TeacherCache } from "@/lib/teacher-cache";
-import {
-  useSchoolStudents,
-  getStudentFromLookupId,
-  getPreferredStudentPictureUrl,
-  getPreferredStudentDisplayName,
-  type StudentsMap,
-} from "@/lib/supabase/student-lookup";
+import { useSchoolStudents } from "@/lib/supabase/student-lookup";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
+import { MembersPanel } from "@/components/ActivityMembersPanel";
+import {
+  Lightbox,
+  type LightboxItem,
+  extensionFromUrlOrName,
+  lightboxKindForExtension,
+} from "@/components/Lightbox";
 
 interface ActivityClassModalProps {
   open: boolean;
   url: string | null;
   onOpenChange: (open: boolean) => void;
+  onSwapViewMode?: () => void;
 }
 
-export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassModalProps) {
+export function ActivityClassModal({ open, url, onOpenChange, onSwapViewMode }: ActivityClassModalProps) {
   const { t } = useTranslation();
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,6 +56,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
   const [members, setMembers] = useState<Member[] | null>(null);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
+  const [lightboxItem, setLightboxItem] = useState<LightboxItem | null>(null);
 
   useEffect(() => {
     if (!open || !url) return;
@@ -297,14 +300,27 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                     <ChevronRight size={17} />
                   </button>
                 </div>
-                <button
-                  type="button"
-                  className={iconButtonClass}
-                  onClick={() => onOpenChange(false)}
-                  aria-label={t('activityModal.closeLabel')}
-                >
-                  <X size={17} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {onSwapViewMode ? (
+                    <button
+                      type="button"
+                      className={iconButtonClass}
+                      onClick={onSwapViewMode}
+                      aria-label={t('activityModal.swapToModal')}
+                      title={t('activityModal.swapToModal')}
+                    >
+                      <Maximize2 size={16} />
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={iconButtonClass}
+                    onClick={() => onOpenChange(false)}
+                    aria-label={t('activityModal.closeLabel')}
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
               </div>
 
               <h2 className="m-0 text-2xl font-bold leading-tight tracking-tight text-foreground">{resolvedTitle}</h2>
@@ -446,7 +462,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </h3>
                   <div className="flex flex-col gap-3">
                     {detail.homework.map((item) => (
-                      <ContentCard key={item.id} item={item} />
+                      <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
                     ))}
                   </div>
                 </section>
@@ -462,7 +478,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </h3>
                   <div className="flex flex-col gap-3">
                     {detail.presentation.map((item) => (
-                      <ContentCard key={item.id} item={item} />
+                      <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
                     ))}
                   </div>
                 </section>
@@ -478,7 +494,7 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
                   </h3>
                   <div className="flex flex-col gap-3">
                     {detail.otherContent.map((item) => (
-                      <ContentCard key={item.id} item={item} />
+                      <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
                     ))}
                   </div>
                 </section>
@@ -559,156 +575,13 @@ export function ActivityClassModal({ open, url, onOpenChange }: ActivityClassMod
           </>
         )}
       </aside>
+
+      <Lightbox item={lightboxItem} onClose={() => setLightboxItem(null)} />
     </div>
   );
 
   const portalTarget = document.getElementById("il-root") || document.body;
   return createPortal(sheet, portalTarget);
-}
-
-function MembersPanel({
-  members,
-  loading,
-  error,
-  studentsMap,
-  schoolId,
-  accentHue,
-}: {
-  members: Member[] | null;
-  loading: boolean;
-  error: string | null;
-  studentsMap: StudentsMap | null;
-  schoolId: string | null;
-  accentHue: number;
-}) {
-  const { t } = useTranslation();
-  if (loading) {
-    return (
-      <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] px-4 py-5">
-        <Loader2 size={16} className="animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">{t('activityModal.loadingParticipants')}</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mt-4 rounded-xl border border-[oklch(0.83_0.07_25)] bg-[oklch(0.97_0.02_25)] px-4 py-3 text-sm text-[oklch(0.45_0.1_25)] dark:border-[oklch(0.4_0.05_25)] dark:bg-[oklch(0.2_0.02_25)] dark:text-[oklch(0.75_0.07_25)]">
-        {error}
-      </div>
-    );
-  }
-
-  if (!members || members.length === 0) return null;
-
-  // Teachers first, then students sorted by first name
-  const sorted = [...members].sort((a, b) => {
-    if (a.type !== b.type) return a.type === "T" ? -1 : 1;
-    return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "da");
-  });
-
-  const teachers = sorted.filter((m) => m.type === "T");
-  const students = sorted.filter((m) => m.type === "S");
-
-  return (
-    <div className="mt-4 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] overflow-hidden">
-      {teachers.length > 0 ? (
-        <div className="px-3.5 pt-3 pb-2">
-          <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
-            {teachers.length === 1 ? t('activityModal.teacherLabel') : t('activityModal.teachersLabel')}
-          </p>
-          <div className="flex flex-wrap items-start gap-1">
-            {teachers.map((m) => (
-              <MemberChip key={m.id} member={m} studentsMap={studentsMap} schoolId={schoolId} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-      {students.length > 0 ? (
-        <div className={cn("px-3.5 pb-3", teachers.length > 0 ? "pt-2" : "pt-3")}>
-          <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
-            {t('activityModal.studentsLabel')}
-            <span className="ml-1 font-normal opacity-70">{students.length}</span>
-          </p>
-          <div className="flex flex-wrap items-start gap-1">
-            {students.map((m) => (
-              <MemberChip key={m.id} member={m} studentsMap={studentsMap} schoolId={schoolId} />
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MemberChip({
-  member,
-  studentsMap,
-  schoolId,
-}: {
-  member: Member;
-  studentsMap: StudentsMap | null;
-  schoolId: string | null;
-}) {
-  const student = member.type === "S" ? getStudentFromLookupId(studentsMap, member.id) : null;
-  const pictureUrl = member.type === "S"
-    ? getPreferredStudentPictureUrl(student, member.pictureUrl)
-    : member.pictureUrl;
-  const fullName = member.type === "S"
-    ? getPreferredStudentDisplayName(student, `${member.firstName} ${member.lastName}`)
-    : `${member.firstName} ${member.lastName}`;
-
-  // Only show first and last name (drop middle names)
-  const nameParts = fullName.trim().split(/\s+/);
-  const displayName = nameParts.length <= 2
-    ? fullName
-    : `${nameParts[0]} ${nameParts[nameParts.length - 1]}`;
-
-  const scheduleUrl = schoolId
-    ? `/lectio/${schoolId}/SkemaNy.aspx?type=${member.type === "T" ? "laerer" : "elev"}&${member.type === "T" ? "laererid" : "elevid"}=${member.id.slice(1)}`
-    : null;
-
-  const chip = (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-base leading-snug",
-        scheduleUrl
-          ? "transition-[background-color] duration-150 hover:bg-[color-mix(in_oklch,var(--muted)_80%,transparent)] cursor-pointer"
-          : "",
-      )}
-    >
-      <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
-        {pictureUrl ? (
-          <img
-            src={pictureUrl}
-            alt=""
-            className="h-full w-full object-cover object-top"
-            loading="lazy"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-            {displayName.charAt(0).toUpperCase()}
-          </span>
-        )}
-      </span>
-      <span className="truncate max-w-[140px]">{displayName}</span>
-    </span>
-  );
-
-  if (scheduleUrl) {
-    return (
-      <a
-        href={scheduleUrl}
-        data-no-activity-modal="true"
-        className="no-underline text-foreground"
-        target="_blank"
-      >
-        {chip}
-      </a>
-    );
-  }
-
-  return chip;
 }
 
 function isEmptyHtml(html: string): boolean {
@@ -720,41 +593,119 @@ function isEmptyHtml(html: string): boolean {
   return stripped.length === 0;
 }
 
-function ContentCard({ item }: { item: ActivityHomeworkItem }) {
+function buildLightboxItem(url: string, name: string): LightboxItem | null {
+  const ext = extensionFromUrlOrName(name) || extensionFromUrlOrName(url);
+  const kind = lightboxKindForExtension(ext);
+  if (!kind) return null;
+  return { url, name, ext, kind };
+}
+
+function ContentCard({
+  item,
+  onOpenLightbox,
+}: {
+  item: ActivityHomeworkItem;
+  onOpenLightbox: (item: LightboxItem) => void;
+}) {
   const hasContent = item.contentHtml && !isEmptyHtml(item.contentHtml);
   const hasLinks = item.links.length > 0;
+  const hasImage = !!item.image;
+  const titleAsLink = !!item.primaryLink;
+  const hasBody = hasContent || hasImage || hasLinks;
+
+  const titleLightbox = item.primaryLink
+    ? buildLightboxItem(item.primaryLink.url, item.primaryLink.label || item.title)
+    : null;
+
+  const HeadingTag: any = titleAsLink ? "a" : "h4";
+  const headingProps: any = titleAsLink
+    ? {
+        href: item.primaryLink!.url,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        "data-no-activity-modal": "true",
+        onClick: titleLightbox
+          ? (e: MouseEvent) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (e as any).button === 1) return;
+              e.preventDefault();
+              onOpenLightbox(titleLightbox);
+            }
+          : undefined,
+      }
+    : {};
 
   return (
     <article className="overflow-hidden rounded-xl border border-border">
-      <h4 className={cn(
-        "m-0 border-b border-border/70 bg-[color-mix(in_oklch,var(--muted)_50%,transparent)] px-[1.1rem] py-[0.85rem] text-[1.025rem] font-semibold leading-[1.35] text-foreground",
-        !hasContent && !hasLinks && "border-b-0",
-      )}>
-        {item.title}
-      </h4>
+      <HeadingTag
+        {...headingProps}
+        className={cn(
+          "m-0 block px-[1.1rem] py-[0.85rem] text-[1.025rem] font-semibold leading-[1.35] text-foreground no-underline",
+          hasBody && "border-b border-border/70 bg-[color-mix(in_oklch,var(--muted)_50%,transparent)]",
+          titleAsLink && "flex items-center gap-2 transition-[background-color] duration-150 hover:bg-muted cursor-pointer",
+        )}
+      >
+        {titleAsLink ? <FileText size={15} className="shrink-0 text-muted-foreground" /> : null}
+        <span className="min-w-0 break-words">{item.title}</span>
+        {titleAsLink ? <ExternalLink size={13} className="ml-auto shrink-0 text-muted-foreground" /> : null}
+      </HeadingTag>
+
+      {hasImage ? (
+        <button
+          type="button"
+          onClick={() =>
+            onOpenLightbox({
+              url: item.image!.src,
+              name: item.image!.alt || item.title,
+              ext: extensionFromUrlOrName(item.image!.src),
+              kind: "image",
+            })
+          }
+          className="block w-full cursor-zoom-in border-0 bg-[color-mix(in_oklch,var(--muted)_30%,transparent)] p-0 text-left"
+          aria-label={item.image!.alt || item.title}
+        >
+          <img
+            src={item.image!.src}
+            alt={item.image!.alt || item.title}
+            loading="lazy"
+            className="block max-h-[420px] w-full object-contain"
+          />
+        </button>
+      ) : null}
 
       {hasContent ? (
         <div
-          className="overflow-wrap-anywhere px-[1.1rem] py-[0.9rem] text-base leading-[1.6] text-foreground [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-[1.05rem] [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-[1rem] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
+          className="overflow-wrap-anywhere px-[1.1rem] py-[0.9rem] text-base leading-[1.6] text-foreground [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-[1.05rem] [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-[1rem] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[420px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.contentHtml) }}
         />
       ) : null}
 
       {hasLinks ? (
-        <div className={cn("flex flex-wrap gap-2 px-[1.1rem] pb-[0.85rem] pt-[0.6rem]", !hasContent && "pt-[0.85rem]")}>
-          {item.links.map((link, index) => (
-            <a
-              key={`${link.url}-${index}`}
-              href={link.url}
-              data-no-activity-modal="true"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
-            >
-              <FileText size={14} />
-              {link.label}
-            </a>
-          ))}
+        <div className={cn("flex flex-wrap gap-2 px-[1.1rem] pb-[0.85rem] pt-[0.6rem]", !hasContent && !hasImage && "pt-[0.85rem]")}>
+          {item.links.map((link, index) => {
+            const lightboxItem = buildLightboxItem(link.url, link.label);
+            return (
+              <a
+                key={`${link.url}-${index}`}
+                href={link.url}
+                data-no-activity-modal="true"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={
+                  lightboxItem
+                    ? (e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (e as any).button === 1) return;
+                        e.preventDefault();
+                        onOpenLightbox(lightboxItem);
+                      }
+                    : undefined
+                }
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground no-underline transition-[background-color,color] duration-150 hover:bg-muted hover:text-foreground"
+              >
+                <FileText size={14} />
+                {link.label}
+              </a>
+            );
+          })}
         </div>
       ) : null}
     </article>

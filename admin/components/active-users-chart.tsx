@@ -15,8 +15,8 @@ type DataPoint = { date: string; dau: number; wau: number; mau: number };
 
 export function ActiveUsersChart({ data }: { data: DataPoint[] }) {
   return (
-    <div className="h-[300px] w-full min-w-0">
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="h-[240px] w-full min-w-0 sm:h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
           <XAxis

@@ -12,6 +12,8 @@ import {
   isInviteSnoozed,
   stampInviteShown,
   getInviteSnoozeAt,
+  hasInviteThanksBeenShown,
+  markInviteThanksShown,
 } from '@/lib/mobile-app';
 import { getCachedSchedule, getTodaySchedule, type ScheduleBlock } from '@/lib/schedule-cache';
 import { getCountdownState } from '@/components/ScheduleCountdown';
@@ -195,6 +197,12 @@ function PopupInner({
   const [reduceMotion, setReduceMotion] = useState(false);
   const decidedRef = useRef(false);
   const successHandledRef = useRef(false);
+  // Baseline `qrScannedAt` captured at the moment the popup actually opens.
+  // Used to gate the success transition: we only play the thanks view when
+  // `qrScannedAt` flips from null → timestamp WHILE the popup is open. If it
+  // was already a timestamp at open (debug-triggered re-open after a previous
+  // scan), the popup stays on the invite view.
+  const qrAtOpenRef = useRef<string | null | undefined>(undefined);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   const { mutate: updateStudent } = useMutation<Partial<Student>>({
@@ -220,6 +228,7 @@ function PopupInner({
     // Debug bypass: open immediately without touching snooze stamp or analytics.
     if (forceNonce > 0) {
       decidedRef.current = true;
+      qrAtOpenRef.current = qrScannedAt;
       setOpen(true);
       onOpened();
       return;
@@ -234,6 +243,7 @@ function PopupInner({
 
     const previous = getInviteSnoozeAt(studentId);
     stampInviteShown(studentId);
+    qrAtOpenRef.current = qrScannedAt;
     setOpen(true);
     onOpened();
 
@@ -256,12 +266,22 @@ function PopupInner({
 
   // Realtime success transition: when app_qr_scanned_at flips while the popup
   // is open, swap to the thanks view and auto-close after SUCCESS_DISPLAY_MS.
+  // Only fires once per student lifetime — subsequent opens (e.g. via the
+  // debug trigger after scanning) keep showing the QR / invite view.
   useEffect(() => {
     if (!open) return;
     if (view !== 'invite') return;
     if (!qrScannedAt) return;
+    // Only trigger the success transition for fresh scans — i.e. qrScannedAt
+    // flipping from null → timestamp while this popup instance is open. If a
+    // timestamp was already set when the popup opened (e.g. the user reopens
+    // via the debug button after previously scanning), keep showing the
+    // regular invite view.
+    if (qrAtOpenRef.current) return;
     if (successHandledRef.current) return;
+    if (hasInviteThanksBeenShown(studentId)) return;
     successHandledRef.current = true;
+    markInviteThanksShown(studentId);
 
     setView('thanks');
     capture('mobile_app_invite_success_shown', distinctId, {
@@ -279,13 +299,12 @@ function PopupInner({
     }, SUCCESS_DISPLAY_MS);
 
     return () => clearTimeout(closeTimer);
-  }, [open, view, qrScannedAt, distinctId, schoolId, reduceMotion]);
+  }, [open, view, qrScannedAt, distinctId, schoolId, reduceMotion, studentId]);
 
-  // Esc to close (soft snooze) — only in the invite view; the success view
-  // owns its own auto-close timer.
+  // Esc to close (soft snooze) — works in any view so the user can dismiss
+  // the success state instead of being forced to wait it out.
   useEffect(() => {
     if (!open) return;
-    if (view !== 'invite') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeSoft();
     };
@@ -297,9 +316,10 @@ function PopupInner({
   if (dismissed || !open) return null;
 
   function closeSoft() {
-    if (view !== 'invite') return;
     setExiting(true);
-    capture('mobile_app_invite_dismissed', distinctId, { school_id: schoolId });
+    if (view === 'invite') {
+      capture('mobile_app_invite_dismissed', distinctId, { school_id: schoolId });
+    }
     setTimeout(() => {
       setOpen(false);
       setDismissed(true);
@@ -325,7 +345,6 @@ function PopupInner({
 
   function onOverlayClick(e: MouseEvent) {
     if (e.target !== e.currentTarget) return;
-    if (view !== 'invite') return;
     closeSoft();
   }
 
@@ -368,16 +387,14 @@ function PopupInner({
           // applied by tailwindcss-animate.
         }}
       >
-        {view === 'invite' && (
-          <button
-            type="button"
-            onClick={closeSoft}
-            aria-label={t('mobileApp.close')}
-            className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-[color,background-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <X className="size-4" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={closeSoft}
+          aria-label={t('mobileApp.close')}
+          className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-[color,background-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X className="size-4" />
+        </button>
 
         {/* Crossfade between invite and thanks. Both layers are siblings; only
             one is visible at a time. Blur masks the visual gap during the
@@ -419,7 +436,7 @@ interface InviteContentProps {
 
 function InviteContent({ t, qrSvg, onAndroid }: InviteContentProps) {
   return (
-    <div className="flex flex-col-reverse sm:flex-row items-center sm:items-stretch gap-6 sm:gap-8">
+    <div className="flex flex-col-reverse sm:flex-row sm:items-stretch gap-6 sm:gap-8">
       {/* Left: copy + actions. Stagger entrance via animation-delay. */}
       <div className="flex-1 min-w-0 flex flex-col">
         <div
@@ -434,7 +451,7 @@ function InviteContent({ t, qrSvg, onAndroid }: InviteContentProps) {
 
         <h2
           id="bl-mobile-invite-title"
-          className="text-xl sm:text-2xl font-semibold leading-[1.15] tracking-tight text-foreground pr-6 text-balance opacity-0 animate-[bl-rise_360ms_cubic-bezier(0.23,1,0.32,1)_forwards]"
+          className="text-xl sm:text-2xl font-semibold leading-[1.15] tracking-tight text-foreground text-balance opacity-0 animate-[bl-rise_360ms_cubic-bezier(0.23,1,0.32,1)_forwards]"
           style={{ animationDelay: '70ms' }}
         >
           {t('mobileApp.invite.title')}
@@ -484,9 +501,6 @@ function InviteContent({ t, qrSvg, onAndroid }: InviteContentProps) {
             )}
           </div>
         </div>
-        <p className="mt-3 text-center text-xs text-muted-foreground max-w-[200px]">
-          {t('mobileApp.invite.scanHint')}
-        </p>
       </div>
     </div>
   );

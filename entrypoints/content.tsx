@@ -6,7 +6,8 @@ import { ProfilePage } from "@/components/ProfilePage";
 import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
-import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver } from "@/components/OpgaverPage";
+import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver, type OpgaveEntry } from "@/components/OpgaverPage";
+import { getCachedOpgaver, fetchAndCacheOpgaver } from "@/lib/opgaver-deadlines-cache";
 import { BeskederPage, parseBeskederFromDOM } from "@/components/BeskederPage";
 import { newMessage } from "@/lib/beskeder-parser";
 import { BeskederThreadView } from "@/components/BeskederThreadView";
@@ -28,7 +29,7 @@ import { MobileAppDrawer } from "@/components/MobileAppDrawer";
 import { MobileAppInvitePopup } from "@/components/MobileAppInvitePopup";
 import { parseProfilFromDOM } from "@/lib/profil-parser";
 import { parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
-import { ForsideDashboard, parseAktuelInfo, parseLektier, parseBeskeder } from "@/components/ForsideDashboard";
+import { ForsideDashboard, parseAktuelInfo, parseLektier, parseBeskeder, parseGenericIslands } from "@/components/ForsideDashboard";
 import { ForsideSchedulePanel, fetchScheduleWeek } from "@/components/ForsideScheduleCard";
 import { Toaster } from "@/components/ui/sonner";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -48,6 +49,11 @@ import { applyThemeForSchool, getThemePreferenceForSchool } from "@/lib/theme-st
 import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
 import { scanDOMForHolds, replaceHoldCodesInDOM, getHoldHue, getHoldDisplayName, getFullHoldDisplayName, hasHoldMapping } from "@/lib/hold-mapping";
 import { hydrateHoldMappingsFromSupabase, seedKnownHoldMappingsToSupabase } from "@/lib/hold-mapping-sync";
+import {
+  hydrateSettingsFromSupabase,
+  hydrateSchoolThemesFromSupabase,
+  subscribeToSettingsRealtime,
+} from "@/lib/settings-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
@@ -815,6 +821,20 @@ function initLayout() {
       }).catch(() => {});
       void seedKnownHoldMappingsToSupabase().catch(() => {});
 
+      // Settings + per-school theme sync (cross-device). Hydrate is
+      // fire-and-forget; if it changes anything, applySettingsSideEffects
+      // re-applies the live DOM/event side effects, dispatches
+      // `betterlectio:settings-hydrated` so the sidebar re-reads, and
+      // shows a reload toast for settings that need it.
+      void hydrateSettingsFromSupabase().catch(() => {});
+      void hydrateSchoolThemesFromSupabase().then((activeChanged) => {
+        if (activeChanged) applyThemeForSchool(schoolId);
+      }).catch(() => {});
+
+      void subscribeToSettingsRealtime().then((unsub) => {
+        window.addEventListener('pagehide', () => { unsub(); }, { once: true });
+      }).catch(() => {});
+
       const pathnameLower = window.location.pathname.toLowerCase();
       const isSchedulePage =
         pathnameLower.includes("skemany.aspx") ||
@@ -836,6 +856,23 @@ function initLayout() {
 
         // Replace Lectio's cluetip tooltips with custom tooltip cards
         initBrickTooltips();
+
+        // Render assignment-deadline bricks from the cached opgaver list,
+        // then refresh in the background.
+        injectDeadlineBricks();
+        if (isViewingOwnPage()) {
+          const schoolMatch = window.location.pathname.match(/\/lectio\/(\d+)\//);
+          const schoolIdForDeadlines = schoolMatch?.[1];
+          if (schoolIdForDeadlines) {
+            void fetchAndCacheOpgaver(schoolIdForDeadlines).then((fetched) => {
+              if (fetched) injectDeadlineBricks();
+            }).catch(() => {});
+          }
+        }
+        window.addEventListener(
+          "betterlectio:opgaveDeadlinesToggled",
+          () => injectDeadlineBricks(),
+        );
       }
 
       // Forside contains activity bricks too, but does not need schedule-specific
@@ -1220,6 +1257,132 @@ function updateTimeIndicatorPosition() {
     const minutes = now.getMinutes().toString().padStart(2, "0");
     timeLabel.textContent = `${hours}:${minutes}`;
   }
+}
+
+// ── Opgave deadline bricks ─────────────────────────────────────────────
+
+function clearDeadlineBricks() {
+  document
+    .querySelectorAll<HTMLElement>("#il-original-content .il-deadline-brick")
+    .forEach((el) => el.remove());
+}
+
+function renderDeadlineBrick(entry: OpgaveEntry, topEm: number, atEdge: boolean): HTMLAnchorElement {
+  const brick = document.createElement("a");
+  brick.className = "il-deadline-brick" + (atEdge ? " il-deadline-brick--edge" : "");
+  brick.href = entry.url || "#";
+  brick.style.top = `${topEm}em`;
+
+  const hue = entry.hold ? getHoldHue(entry.hold) : 265;
+  brick.style.setProperty("--brick-hue", String(hue));
+
+  if (entry.status === "mangler") brick.classList.add("il-deadline-brick--missing");
+  if (entry.status === "afleveret") brick.classList.add("il-deadline-brick--done");
+
+  const hh = entry.deadline.getHours().toString().padStart(2, "0");
+  const mm = entry.deadline.getMinutes().toString().padStart(2, "0");
+  const subjectLabel = entry.hold ? getHoldDisplayName(entry.hold) : "";
+
+  const time = document.createElement("span");
+  time.className = "il-deadline-brick__time";
+  time.textContent = `${hh}:${mm}`;
+
+  const title = document.createElement("span");
+  title.className = "il-deadline-brick__title";
+  title.textContent = subjectLabel ? `${subjectLabel} · ${entry.title}` : entry.title;
+
+  brick.appendChild(time);
+  brick.appendChild(title);
+
+  brick.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(
+      new CustomEvent("betterlectio:openOpgaveDetail", { detail: { entry } }),
+    );
+  });
+
+  // Tooltip text the native cluetip won't replace (we don't add a data-tooltip)
+  brick.title = `${entry.title}\nFrist: ${hh}:${mm}${subjectLabel ? ` — ${subjectLabel}` : ""}`;
+
+  return brick;
+}
+
+function injectDeadlineBricks() {
+  // Always remove first so toggling off / re-runs leave a clean slate.
+  clearDeadlineBricks();
+
+  if (!isViewingOwnPage()) return;
+
+  const pathname = window.location.pathname.toLowerCase();
+  if (pathname.includes("findskema.aspx")) return;
+
+  const settings = getSettings();
+  if (!(settings.schedule?.opgaveDeadlines ?? false)) return;
+
+  // Resolve schoolId from URL
+  const schoolMatch = pathname.match(/\/lectio\/(\d+)\//);
+  const schoolId = schoolMatch?.[1];
+  if (!schoolId) return;
+
+  const entries = getCachedOpgaver(schoolId);
+  if (!entries || entries.length === 0) return;
+
+  if (!timeCalibration) timeCalibration = calibrateTimeMapping();
+  const cal = timeCalibration ?? {
+    startMinutes: 490,
+    endMinutes: 1200,
+    startEm: 0.636,
+    emPerMin: 0.0636,
+  };
+
+  const brickHeightEm = 1.6;
+  const endEm = cal.startEm + (cal.endMinutes - cal.startMinutes) * cal.emPerMin;
+
+  // Group entries by ISO date (local) for fast lookup.
+  const byDate = new Map<string, OpgaveEntry[]>();
+  for (const entry of entries) {
+    if (entry.status === "afleveret") continue; // hide submitted
+    const d = entry.deadline;
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    let bucket = byDate.get(iso);
+    if (!bucket) {
+      bucket = [];
+      byDate.set(iso, bucket);
+    }
+    bucket.push(entry);
+  }
+
+  const dateCells = document.querySelectorAll<HTMLElement>(
+    "#il-original-content .s2skema td[data-date]",
+  );
+
+  dateCells.forEach((cell) => {
+    const iso = cell.getAttribute("data-date");
+    if (!iso) return;
+    const bucket = byDate.get(iso);
+    if (!bucket || bucket.length === 0) return;
+
+    const container = cell.querySelector<HTMLElement>(".s2skemabrikcontainer");
+    if (!container) return;
+
+    bucket.forEach((entry) => {
+      const minutes = entry.deadline.getHours() * 60 + entry.deadline.getMinutes();
+      let topEm = cal.startEm + (minutes - cal.startMinutes) * cal.emPerMin;
+      let atEdge = false;
+
+      if (minutes < cal.startMinutes) {
+        topEm = cal.startEm;
+        atEdge = true;
+      } else if (minutes > cal.endMinutes) {
+        topEm = endEm - brickHeightEm;
+        atEdge = true;
+      }
+
+      const brick = renderDeadlineBrick(entry, topEm, atEdge);
+      container.appendChild(brick);
+    });
+  });
 }
 
 function injectScheduleColgroup() {
@@ -1623,7 +1786,7 @@ function enhanceScheduleBricks() {
   const bricks = document.querySelectorAll<HTMLElement>(
     "#il-original-content .s2skemabrik.s2bgbox",
   );
-  const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? true;
+  const subjectColorsEnabled = getSettings().schedule?.subjectColors ?? false;
 
   bricks.forEach((brick) => {
     // Skip bricks hidden by merge (cancelled bricks absorbed into replacements)
@@ -1932,9 +2095,31 @@ function injectForsideDashboard(schoolId: string, contentContainer: HTMLElement)
     ? parseBeskeder(beskederIsland)
     : { entries: [], unreadCount: 0 };
 
+  // Parse any other (unsupported) native dashboard islands so they can be
+  // re-rendered into the same dashboard layout with consistent styling.
+  // Exclude the 4 we have custom versions for + the schedule island
+  // (rendered in a side panel) + holdgruppe (different shape, hidden via CSS).
+  const extras = parseGenericIslands(document, [
+    ...FORSIDE_CARD_IDS,
+    's_m_Content_Content_skemaIsland_pa',
+    's_m_Content_Content_holdgruppeIsland_pa',
+  ]);
+
   // ── Hide ONLY these 4 specific cards ──
   for (const id of FORSIDE_CARD_IDS) {
     const islandContent = document.getElementById(id);
+    if (islandContent) {
+      const island = islandContent.closest<HTMLElement>('.lf-island');
+      if (island) {
+        island.style.display = 'none';
+      }
+    }
+  }
+
+  // Hide the native versions of the extras now that we own their rendering.
+  for (const extra of extras) {
+    if (!extra.id) continue;
+    const islandContent = document.getElementById(extra.id);
     if (islandContent) {
       const island = islandContent.closest<HTMLElement>('.lf-island');
       if (island) {
@@ -1963,6 +2148,7 @@ function injectForsideDashboard(schoolId: string, contentContainer: HTMLElement)
       beskeder={beskeder}
       unreadCount={unreadCount}
       schoolId={schoolId}
+      extras={extras}
     />,
     dashboardContainer,
   );

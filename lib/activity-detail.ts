@@ -17,11 +17,20 @@ export interface ActivityHomeworkLink {
   type: "file" | "external" | "internal";
 }
 
+export interface ActivityHomeworkImage {
+  src: string;
+  alt: string;
+}
+
 export interface ActivityHomeworkItem {
   id: string;
   title: string;
   contentHtml: string;
   links: ActivityHomeworkLink[];
+  /** When the heading is a single link, the title becomes clickable and this link is excluded from `links` to avoid duplication. */
+  primaryLink?: ActivityHomeworkLink;
+  /** When the body content is essentially a single image, we render it as a preview and exclude it from `contentHtml`. */
+  image?: ActivityHomeworkImage;
 }
 
 export interface ActivityRelatedItem {
@@ -30,14 +39,25 @@ export interface ActivityRelatedItem {
   iconUrl: string | null;
 }
 
+export type ActivityStatus = "normal" | "cancelled" | "changed" | "moved";
+
+export interface ActivityTeacherRef {
+  id: string;
+  initials: string;
+}
+
 export interface ActivityMeta {
   title: string;
   dateText: string;
   timeText: string;
   hold: string;
+  holdId: string | null;
   teacher: string;
+  teachers: ActivityTeacherRef[];
   room: string;
+  roomId: string | null;
   moduleText: string;
+  status: ActivityStatus;
 }
 
 export interface ActivityNavigation {
@@ -161,14 +181,29 @@ function parseTooltipMeta(rawTooltip: string | null): Partial<ActivityMeta> {
   };
 }
 
+function detectStatus(brick: Element | null, tooltip: string | null): ActivityStatus {
+  if (brick?.classList.contains("s2cancelled")) return "cancelled";
+  if (brick?.classList.contains("s2changed")) return "changed";
+  if (brick?.classList.contains("s2moved")) return "moved";
+
+  const firstLine = tooltip?.split(/\r?\n/, 1)[0]?.trim().toLowerCase() || "";
+  if (firstLine.startsWith("aflyst")) return "cancelled";
+  if (firstLine.startsWith("ændret") || firstLine.startsWith("aendret")) return "changed";
+  if (firstLine.startsWith("flyttet")) return "moved";
+  return "normal";
+}
+
 function parseMeta(doc: Document): ActivityMeta {
   const brick = doc.querySelector("#s_m_Content_Content_tocAndToolbar_actHeader .s2skemabrik");
   const desktop = brick?.querySelector(".s2skemabrikcontent.OnlyDesktop");
   const titleEl = brick?.querySelector(".s2skemabrik-std-title");
   const holdEl = brick?.querySelector<HTMLElement>("span[data-lectiocontextcard^='HE']");
   const teacherEls = brick?.querySelectorAll<HTMLElement>("span[data-lectiocontextcard^='T']");
+  const roomEl = brick?.querySelector<HTMLElement>("span[data-lectiocontextcard^='RO']");
 
-  const tooltipMeta = parseTooltipMeta(brick?.getAttribute("data-tooltip") || null);
+  const rawTooltip = brick?.getAttribute("data-tooltip") || null;
+  const tooltipMeta = parseTooltipMeta(rawTooltip);
+  const status = detectStatus(brick, rawTooltip);
 
   const desktopText = desktop?.textContent?.replace(/\s+/g, " ").trim() || "";
 
@@ -178,12 +213,30 @@ function parseMeta(doc: Document): ActivityMeta {
   }
 
   const hold = holdEl?.textContent?.trim() || tooltipMeta.hold || "";
-  const teacherFromEls = teacherEls && teacherEls.length > 0
-    ? Array.from(teacherEls).map((el) => el.textContent?.trim() || "").filter(Boolean).join(", ")
-    : "";
+  const holdId = holdEl?.getAttribute("data-lectiocontextcard") || null;
+
+  // Lectio renders the brick body twice (OnlyDesktop + OnlyMobile divs) so the
+  // same T* context-card span appears multiple times. Dedupe by id.
+  const seenTeacherIds = new Set<string>();
+  const teachers: ActivityTeacherRef[] = teacherEls
+    ? Array.from(teacherEls)
+        .map((el) => ({
+          id: el.getAttribute("data-lectiocontextcard") || "",
+          initials: el.textContent?.trim() || "",
+        }))
+        .filter((t) => {
+          if (!t.id || !t.initials) return false;
+          if (seenTeacherIds.has(t.id)) return false;
+          seenTeacherIds.add(t.id);
+          return true;
+        })
+    : [];
+
+  const teacherFromEls = teachers.map((t) => t.initials).join(", ");
   const teacher = tooltipMeta.teacher || teacherFromEls || "";
 
-  let room = tooltipMeta.room || "";
+  const roomId = roomEl?.getAttribute("data-lectiocontextcard") || null;
+  let room = roomEl?.textContent?.trim() || tooltipMeta.room || "";
   if (!room && desktopText) {
     const tail = desktopText.split(" - ")[1] || "";
     const parts = tail
@@ -195,18 +248,22 @@ function parseMeta(doc: Document): ActivityMeta {
     }
   }
 
+  // Strip leading "Aflyst! " / "Ændret! " from titles since we render status as a badge.
+  let cleanTitle = titleEl?.textContent?.trim() || tooltipMeta.title || hold || "Aktivitet";
+  cleanTitle = cleanTitle.replace(/^(Aflyst!|Ændret!|Flyttet!?)\s*/i, "").trim() || cleanTitle;
+
   return {
-    title:
-      titleEl?.textContent?.trim() ||
-      tooltipMeta.title ||
-      hold ||
-      "Aktivitet",
+    title: cleanTitle,
     dateText: tooltipMeta.dateText || "",
     timeText: tooltipMeta.timeText || "",
     hold,
+    holdId,
     teacher,
+    teachers,
     room,
+    roomId,
     moduleText,
+    status,
   };
 }
 
@@ -278,6 +335,36 @@ function extractLinksFromElement(el: HTMLElement): ActivityHomeworkLink[] {
   return links;
 }
 
+function findHeadingSoleAnchor(headingEl: HTMLElement): HTMLAnchorElement | null {
+  let anchor: HTMLAnchorElement | null = null;
+  for (const node of Array.from(headingEl.childNodes)) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if ((node.textContent || "").replace(/\s| /g, "").length > 0) return null;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      if (el.tagName === "A" && !anchor) {
+        anchor = el as HTMLAnchorElement;
+      } else {
+        return null;
+      }
+    }
+  }
+  return anchor;
+}
+
+function findSoleImage(bodyRoot: HTMLElement): HTMLImageElement | null {
+  const imgs = bodyRoot.querySelectorAll<HTMLImageElement>("img");
+  if (imgs.length !== 1) return null;
+  const img = imgs[0];
+  if (!img.getAttribute("src")) return null;
+
+  const probe = bodyRoot.cloneNode(true) as HTMLElement;
+  probe.querySelector("img")?.remove();
+  if ((probe.textContent || "").replace(/\s| /g, "").length > 0) return null;
+  if (probe.querySelectorAll("a, video, audio, iframe, table, form").length > 0) return null;
+  return img;
+}
+
 function parseArticle(article: HTMLElement, fallbackLabel: string, index: number): ActivityHomeworkItem {
   // Lectio uses h1 or h2 as the article title heading depending on content type
   const titleEl =
@@ -288,6 +375,9 @@ function parseArticle(article: HTMLElement, fallbackLabel: string, index: number
   // Extract links from heading BEFORE removing it (heading often wraps file download links)
   const h1Links = titleEl ? extractLinksFromElement(titleEl) : [];
 
+  // Detect "title is a single link" case (e.g. <h1><a href="...">Tornerose.pdf</a></h1>)
+  const headingAnchor = titleEl ? findHeadingSoleAnchor(titleEl) : null;
+
   const title = titleEl?.textContent?.replace(/\s+/g, " ").trim() || `${fallbackLabel} ${index + 1}`;
 
   const clone = article.cloneNode(true) as HTMLElement;
@@ -296,16 +386,27 @@ function parseArticle(article: HTMLElement, fallbackLabel: string, index: number
   clone.querySelector(headingTag)?.remove();
   sanitizeActivityHtml(clone);
 
-  // Extract links from the body content
+  // Detect "body is a single image" case (e.g. <article><h1>IMG_6465.jpeg</h1><img src="..."></article>)
+  let image: ActivityHomeworkImage | undefined;
+  const soleImage = findSoleImage(clone);
+  if (soleImage) {
+    const src = soleImage.getAttribute("src") || "";
+    if (src) {
+      image = { src, alt: soleImage.getAttribute("alt") || title };
+      soleImage.remove();
+    }
+  }
+
+  // Extract links from the body content (after image extraction)
   const bodyLinks = extractLinksFromElement(clone);
 
   // Combine h1 links + body links, deduplicating by URL
   const seenUrls = new Set<string>();
-  const links: ActivityHomeworkLink[] = [];
+  const allLinks: ActivityHomeworkLink[] = [];
   for (const link of [...h1Links, ...bodyLinks]) {
     if (!seenUrls.has(link.url)) {
       seenUrls.add(link.url);
-      links.push(link);
+      allLinks.push(link);
     }
   }
 
@@ -313,9 +414,30 @@ function parseArticle(article: HTMLElement, fallbackLabel: string, index: number
   let contentHtml = clone.innerHTML.trim();
   contentHtml = linkifyBareUrls(contentHtml);
 
+  // Promote the heading anchor to a primary link when the body has nothing else meaningful
+  // (no extra links and no remaining content). Pulling it out of `links` avoids the duplicated
+  // pill that otherwise renders directly underneath the title.
+  let primaryLink: ActivityHomeworkLink | undefined;
+  let links = allLinks;
+  if (headingAnchor) {
+    const headingHref = headingAnchor.getAttribute("href");
+    if (headingHref) {
+      try {
+        const absoluteUrl = new URL(headingHref, window.location.origin).href;
+        const match = allLinks.find((l) => l.url === absoluteUrl);
+        if (match && contentHtml.length === 0 && allLinks.length === 1) {
+          primaryLink = match;
+          links = [];
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   const id = article.closest("[id]")?.id || `homework-${index + 1}`;
 
-  return { id, title, contentHtml, links };
+  return { id, title, contentHtml, links, primaryLink, image };
 }
 
 function parsePresentationBlock(block: HTMLElement, index: number): ActivityHomeworkItem {

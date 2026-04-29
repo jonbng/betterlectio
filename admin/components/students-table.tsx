@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { setAppEligibility } from "@/app/(dashboard)/students/actions";
 
 type Student = {
   id: string;
@@ -22,6 +24,7 @@ type Student = {
   school_id: number;
   extension_installed_at: string | null;
   app_installed_at: string | null;
+  app_eligible?: boolean;
   created_at: string;
   custom_pfp_url: string | null;
   lectio_pfp_url: string | null;
@@ -37,18 +40,61 @@ function studentName(s: Student) {
 export function StudentsTable({ students }: { students: Student[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pending, start] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
 
-  const filtered = students.filter((s) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const name = studentName(s).toLowerCase();
-    return (
-      name.includes(q) ||
-      s.class_name?.toLowerCase().includes(q) ||
-      s.schools?.name?.toLowerCase().includes(q) ||
-      s.id.includes(q)
-    );
-  });
+  const filtered = useMemo(
+    () =>
+      students.filter((s) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        const name = studentName(s).toLowerCase();
+        return (
+          name.includes(q) ||
+          s.class_name?.toLowerCase().includes(q) ||
+          s.schools?.name?.toLowerCase().includes(q) ||
+          s.id.includes(q)
+        );
+      }),
+    [students, search],
+  );
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allVisibleSelected =
+    filtered.length > 0 && filtered.every((s) => selected.has(s.id));
+
+  const toggleAllVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const s of filtered) next.delete(s.id);
+      } else {
+        for (const s of filtered) next.add(s.id);
+      }
+      return next;
+    });
+  };
+
+  const apply = (eligible: boolean) => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    start(async () => {
+      setMessage(null);
+      const res = await setAppEligibility(ids, eligible);
+      setMessage(
+        `Updated ${res.updated} student${res.updated === 1 ? "" : "s"}.`,
+      );
+      setSelected(new Set());
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,91 +104,170 @@ export function StudentsTable({ students }: { students: Student[] }) {
         onChange={(e) => setSearch(e.target.value)}
         className="max-w-sm"
       />
+
+      {selected.size > 0 && (
+        <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-y bg-background/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
+          <Badge variant="secondary">
+            {selected.size} selected
+          </Badge>
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => apply(true)}
+          >
+            Mark eligible
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => apply(false)}
+          >
+            Mark not eligible
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear
+          </Button>
+          {message && (
+            <span className="text-xs text-muted-foreground">{message}</span>
+          )}
+        </div>
+      )}
+
       <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Student</TableHead>
-              <TableHead>School</TableHead>
-              <TableHead>Class</TableHead>
-              <TableHead>Platform</TableHead>
-              <TableHead>Profile</TableHead>
-              <TableHead className="text-right">Joined</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((s) => (
-              <TableRow key={s.id} className="cursor-pointer" onClick={() => router.push(`/students/${s.id}`)}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-8">
-                      <AvatarImage
-                        src={s.custom_pfp_url ?? s.lectio_pfp_url ?? undefined}
-                        className="object-top"
-                      />
-                      <AvatarFallback className="text-xs">
-                        {studentName(s).slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">
-                        {studentName(s)}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground font-mono">
-                        {s.id}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleAllVisible}
+                    className="size-4 accent-primary"
+                    aria-label="Select all visible"
+                  />
+                </TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>School</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead>Platform</TableHead>
+                <TableHead>Profile</TableHead>
+                <TableHead className="text-right">Joined</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((s) => (
+                <TableRow
+                  key={s.id}
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    if (
+                      (e.target as HTMLElement).closest(
+                        "input[type='checkbox']",
+                      )
+                    )
+                      return;
+                    router.push(`/students/${s.id}`);
+                  }}
+                >
+                  <TableCell
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-10"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggle(s.id)}
+                      className="size-4 accent-primary"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8">
+                        <AvatarImage
+                          src={s.custom_pfp_url ?? s.lectio_pfp_url ?? undefined}
+                          className="object-top"
+                        />
+                        <AvatarFallback className="text-xs">
+                          {studentName(s).slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {studentName(s)}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground font-mono">
+                          {s.id}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm">
-                  {s.schools?.name ?? s.school_id}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {s.class_name ?? "—"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    {s.extension_installed_at && (
-                      <Badge variant="secondary" className="text-xs">
-                        Extension
-                      </Badge>
-                    )}
-                    {s.app_installed_at && (
-                      <Badge variant="secondary" className="text-xs">
-                        App
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    {s.description && (
-                      <Badge variant="outline" className="text-xs">
-                        Bio
-                      </Badge>
-                    )}
-                    {s.instagram && (
-                      <Badge variant="outline" className="text-xs">
-                        IG
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right text-sm text-muted-foreground">
-                  {new Date(s.created_at).toLocaleDateString("da-DK")}{" "}
-                  {new Date(s.created_at).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" })}
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No students found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {s.schools?.name ?? s.school_id}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {s.class_name ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {s.extension_installed_at && (
+                        <Badge variant="secondary" className="text-xs">
+                          Extension
+                        </Badge>
+                      )}
+                      {s.app_installed_at && (
+                        <Badge variant="secondary" className="text-xs">
+                          App
+                        </Badge>
+                      )}
+                      {s.app_eligible && !s.app_installed_at && (
+                        <Badge variant="outline" className="text-xs">
+                          Eligible
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {s.description && (
+                        <Badge variant="outline" className="text-xs">
+                          Bio
+                        </Badge>
+                      )}
+                      {s.instagram && (
+                        <Badge variant="outline" className="text-xs">
+                          IG
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-sm text-muted-foreground">
+                    {new Date(s.created_at).toLocaleDateString("da-DK")}{" "}
+                    {new Date(s.created_at).toLocaleTimeString("da-DK", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    No students found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

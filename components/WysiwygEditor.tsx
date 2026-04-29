@@ -190,14 +190,14 @@ export function WysiwygEditor({
       <BBCodeToolbar editorRef={editorRef} onFormat={() => syncBBCodeRef.current()} />
       <div className="relative">
         {isEmpty && (
-          <div className="pointer-events-none absolute left-3 top-2.5 text-sm text-muted-foreground/70">
+          <div className="pointer-events-none absolute left-3 top-2.5 text-base text-muted-foreground/70">
             {placeholder}
           </div>
         )}
         <div
           ref={editorRef}
           className={cn(
-            "min-h-20 max-h-60 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none",
+            "min-h-24 max-h-72 overflow-y-auto px-3 py-2.5 text-base leading-relaxed text-foreground outline-none",
             "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2",
             "[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-6",
             "[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-6",

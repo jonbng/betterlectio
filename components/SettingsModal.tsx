@@ -30,15 +30,14 @@ import {
   resetSettings,
   clearAllData,
   requiresReload,
+  applySettingsSideEffects,
   type FeatureSettings,
 } from "@/lib/settings-storage";
-import { setUserJotTheme } from "@/lib/userjot";
 import {
   DEFAULT_LOCALE,
   LOCALE_LABELS,
   SUPPORTED_LOCALES,
   isSupportedLocale,
-  setLocale,
   useTranslation,
   formatLocaleDate,
   getLocaleTag,
@@ -402,6 +401,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
     key: Field,
     value: FeatureSettings[K][Field]
   ) => {
+    const prev = settings;
     // Deep copy to avoid mutation issues
     const newSettings = {
       ...settings,
@@ -423,24 +423,22 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       });
     }
 
-    if (category === "visual" && key === "darkMode") {
-      document.documentElement.classList.toggle("dark", value as boolean);
-      setUserJotTheme((value as boolean) ? "dark" : "light");
-      if (distinctId) {
-        setPersonProperties(distinctId, {
-          dark_mode: value as boolean,
-        });
-      }
-    }
+    // Live DOM/event side effects (dark mode toggle, locale change,
+    // opgave deadlines event, opt-out mirror to extension storage).
+    applySettingsSideEffects(prev, newSettings as FeatureSettings);
 
-    if (category === "interface" && key === "language" && isSupportedLocale(value)) {
-      // Live-apply: dispatches an event the I18nProvider listens for, re-rendering all roots.
-      // Note: setLocale already persists via updateSetting; saveSettings above also persisted,
-      // so the second call is a harmless no-op write of the same value.
-      setLocale(value);
-      if (distinctId) {
-        setPersonProperties(distinctId, { language: value });
-      }
+    // Person-property updates stay here — they're per-user-action and
+    // don't need to fire from the cross-device hydrate path.
+    if (distinctId && category === "visual" && key === "darkMode") {
+      setPersonProperties(distinctId, { dark_mode: value as boolean });
+    }
+    if (
+      distinctId &&
+      category === "interface" &&
+      key === "language" &&
+      isSupportedLocale(value)
+    ) {
+      setPersonProperties(distinctId, { language: value });
     }
 
     if (requiresReload(category, key as string)) {
@@ -912,7 +910,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 id="schedule-subject-colors"
                 label={t('settings.appearance.subjectColorsLabel')}
                 description={t('settings.appearance.subjectColorsDescription')}
-                enabled={settings.schedule?.subjectColors ?? true}
+                enabled={settings.schedule?.subjectColors ?? false}
                 onChange={(v) => handleSettingChange('schedule', 'subjectColors', v)}
                 requiresReload
               />
@@ -922,6 +920,13 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                 description={t('settings.appearance.endOfModuleEffectDescription')}
                 enabled={settings.schedule?.endOfModuleEffect ?? true}
                 onChange={(v) => handleSettingChange('schedule', 'endOfModuleEffect', v)}
+              />
+              <FeatureToggle
+                id="schedule-opgave-deadlines"
+                label={t('settings.appearance.opgaveDeadlinesLabel')}
+                description={t('settings.appearance.opgaveDeadlinesDescription')}
+                enabled={settings.schedule?.opgaveDeadlines ?? false}
+                onChange={(v) => handleSettingChange('schedule', 'opgaveDeadlines', v)}
               />
             </SettingsSection>
 
@@ -1162,6 +1167,37 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
         return (
           <div className="space-y-6">
             <SettingsSection title={t('settings.advanced.behaviorTitle')}>
+              <div className="flex items-center justify-between gap-4 py-3 px-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label className="font-medium">{t('settings.advanced.activityViewModeLabel')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('settings.advanced.activityViewModeDescription')}</p>
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label={t('settings.advanced.activityViewModeLabel')}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-muted/40 p-1"
+                >
+                  {(['modal', 'sheet'] as const).map((mode) => {
+                    const active = (settings.behavior?.activityViewMode ?? 'modal') === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => handleSettingChange('behavior', 'activityViewMode', mode)}
+                        className={`cursor-pointer rounded-md px-3 py-1 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.97] ${
+                          active
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {t(`settings.advanced.activityViewMode.${mode}`)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <FeatureToggle
                 id="behavior-messages"
                 label={t('settings.advanced.messagesLabel')}

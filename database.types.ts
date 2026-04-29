@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor: string
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_id: string | null
+          target_table: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Relationships: []
+      }
       homework_entries: {
         Row: {
           display_date: string
@@ -515,6 +551,54 @@ export type Database = {
           },
         ]
       }
+      user_school_themes: {
+        Row: {
+          created_at: string
+          school_id: string
+          supabase_id: string
+          theme_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          school_id: string
+          supabase_id: string
+          theme_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          school_id?: string
+          supabase_id?: string
+          theme_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          schema_version: number
+          settings: Json
+          supabase_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          schema_version?: number
+          settings?: Json
+          supabase_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          schema_version?: number
+          settings?: Json
+          supabase_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       week_sync: {
         Row: {
           created_at: string
@@ -601,6 +685,14 @@ export type Database = {
           override_id: string
           school_id: number
           student_id: string
+          updated_at: string
+        }[]
+      }
+      list_user_school_themes: {
+        Args: never
+        Returns: {
+          school_id: string
+          theme_id: string
           updated_at: string
         }[]
       }
@@ -696,6 +788,30 @@ export type Database = {
           override_id: string
           school_id: number
           student_id: string
+          updated_at: string
+        }[]
+      }
+      upsert_user_school_theme: {
+        Args: {
+          p_client_updated_at: string
+          p_school_id: string
+          p_theme_id: string
+        }
+        Returns: {
+          school_id: string
+          theme_id: string
+          updated_at: string
+        }[]
+      }
+      upsert_user_settings: {
+        Args: {
+          p_client_updated_at: string
+          p_schema_version?: number
+          p_settings: Json
+        }
+        Returns: {
+          schema_version: number
+          settings: Json
           updated_at: string
         }[]
       }

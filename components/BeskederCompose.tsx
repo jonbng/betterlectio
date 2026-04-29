@@ -536,14 +536,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         >
           <ArrowLeft size={18} />
         </button>
-        <h1 className="text-base font-semibold text-foreground">{t('beskeder.compose.title')}</h1>
+        <h1 className="text-lg font-semibold text-foreground">{t('beskeder.compose.title')}</h1>
       </div>
 
       {/* Card */}
       <div className="rounded-xl border border-border bg-card p-4">
         {/* Recipients field */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.recipientsLabel')}</label>
+          <label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.recipientsLabel')}</label>
           <div className="space-y-2">
             {recipients.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -560,7 +560,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       removingRecipient === r.removePostbackTarget && 'opacity-60',
                     )}
                   >
-                    <span className="inline-flex size-5 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
+                    <span className="inline-flex size-6 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
                       {r.contextId && pictureByContextId[r.contextId] ? (
                         <img
                           src={pictureByContextId[r.contextId] as string}
@@ -572,7 +572,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                         getInitials(r.name)
                       )}
                     </span>
-                    <span className="text-xs font-medium text-foreground">{displayName}</span>
+                    <span className="text-sm font-medium text-foreground">{displayName}</span>
                     {r.removePostbackTarget && (
                       <button
                         type="button"
@@ -602,11 +602,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                 'relative rounded-lg border border-border bg-muted/30 transition',
                 recipientPickerOpen && 'border-primary/30',
               )}>
-                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={recipientInputRef}
                   type="text"
-                  className="h-10 w-full rounded-lg border-0 bg-transparent pl-9 pr-10 text-sm text-foreground outline-none transition focus-visible:ring-0"
+                  className="h-11 w-full rounded-lg border-0 bg-transparent pl-9 pr-10 text-base text-foreground outline-none transition focus-visible:ring-0"
                   value={recipientQuery}
                   onInput={(e) => setRecipientQuery((e.target as HTMLInputElement).value)}
                   onFocus={() => setRecipientPickerOpen(true)}
@@ -621,23 +621,23 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
               {recipientPickerOpen && (
                 <div className="absolute left-0 top-[calc(100%+6px)] z-40 w-full rounded-lg border border-border bg-popover p-1 shadow-[0_4px_16px_oklch(0_0_0/0.08),0_1px_3px_oklch(0_0_0/0.04)]">
                   {recipientDirectoryLoading && (
-                    <div className="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm text-muted-foreground">
-                      <Loader2 size={14} className="animate-spin" />
+                    <div className="inline-flex items-center gap-1.5 px-2 py-2 text-base text-muted-foreground">
+                      <Loader2 size={16} className="animate-spin" />
                       <span>{t('beskeder.compose.loadingRecipients')}</span>
                     </div>
                   )}
                   {!recipientDirectoryLoading && recipientDirectoryError && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-2 text-base text-muted-foreground">
                       {recipientDirectoryError}
                     </div>
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length < 2 && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-2 text-base text-muted-foreground">
                       {t('beskeder.compose.minCharsHint')}
                     </div>
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length >= 2 && recipientSuggestions.length === 0 && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    <div className="px-2 py-2 text-base text-muted-foreground">
                       {t('beskeder.compose.noResults')}
                     </div>
                   )}
@@ -656,7 +656,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       onClick={() => handleAddRecipient(option)}
                       disabled={!!addingRecipientId}
                       >
-                      <span className="inline-flex size-7 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
+                      <span className="inline-flex size-8 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
                         {pictureByContextId[option.id] ? (
                           <img
                             src={pictureByContextId[option.id] as string}
@@ -665,12 +665,12 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                             className="size-full !border-0 object-cover object-top"
                           />
                         ) : (
-                          <UserRound size={14} />
+                          <UserRound size={16} />
                         )}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-foreground">{displayName}</span>
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="block truncate text-base font-medium text-foreground">{displayName}</span>
+                        <span className="block text-sm text-muted-foreground">
                           {getRecipientTypeLabel(option.id)}
                         </span>
                       </span>
@@ -689,17 +689,17 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
           <div className="mt-3">
             <div
               ref={noReplyRef}
-              className="[&_label]:inline-flex [&_label]:items-center [&_label]:gap-2 [&_label]:text-sm [&_label]:text-foreground [&_input[type='checkbox']]:size-4"
+              className="[&_label]:inline-flex [&_label]:items-center [&_label]:gap-2 [&_label]:text-base [&_label]:text-foreground [&_input[type='checkbox']]:size-4"
             />
           </div>
         )}
 
         {/* Subject field */}
         <div className="mt-3 space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.subjectLabel')}</label>
+          <label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.subjectLabel')}</label>
           <input
             type="text"
-            className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             value={title}
             onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
             placeholder={t('beskeder.compose.titlePlaceholder')}
@@ -720,18 +720,18 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
         {/* Error message */}
         {error && (
-          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">{error}</div>
         )}
 
         {/* Attached files */}
         {attachedFiles.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {attachedFiles.map((file, i) => (
-              <span key={`${file.deleteArgument}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-primary/8 px-2 py-1 text-xs text-foreground">
+              <span key={`${file.deleteArgument}-${i}`} className="inline-flex items-center gap-1.5 rounded-md bg-primary/8 px-2.5 py-1.5 text-sm text-foreground">
                 {removingAttachIndex === i ? (
-                  <Loader2 size={12} className="animate-spin" />
+                  <Loader2 size={14} className="animate-spin" />
                 ) : (
-                  <Paperclip size={12} />
+                  <Paperclip size={14} />
                 )}
                 <span>{file.name}</span>
                 <button
@@ -760,18 +760,18 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   onChange={handleFileSelect}
                 />
                 {uploadingFileName ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Loader2 size={14} className="animate-spin" />
+                  <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Loader2 size={15} className="animate-spin" />
                     <span>{t('beskeder.compose.uploading', { fileName: uploadingFileName })}</span>
                   </span>
                 ) : (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                     onClick={() => fileInputRef.current?.click()}
                     title={t('beskeder.compose.attachFileTitle')}
                   >
-                    <Paperclip size={14} />
+                    <Paperclip size={15} />
                     <span>{t('beskeder.compose.attachFile')}</span>
                   </button>
                 )}
@@ -781,19 +781,19 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
           <div className="inline-flex items-center gap-2">
             <button
               type="button"
-              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-[background-color] duration-150 hover:bg-accent"
+              className="rounded-md border border-input bg-background px-3.5 py-2 text-sm font-medium transition-[background-color] duration-150 hover:bg-accent"
               onClick={handleBack}
             >
               {t('beskeder.compose.cancel')}
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border-0 bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md border-0 bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               onClick={handleSend}
               disabled={isBusy}
               title={t('beskeder.compose.sendTitle')}
             >
-              <Send size={15} />
+              <Send size={16} />
               <span>{sending ? t('beskeder.compose.sending') : t('beskeder.compose.send')}</span>
             </button>
           </div>

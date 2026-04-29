@@ -115,7 +115,7 @@ export function OnboardingWizard({
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
   const [themeId, setThemeId] = useState<ThemePresetId>(() => getThemePreferenceForSchool(schoolId).themeId);
   const [isDark, setIsDark] = useState(() => settings.visual?.darkMode ?? false);
-  const [subjectColors, setSubjectColors] = useState(() => settings.schedule?.subjectColors ?? true);
+  const [subjectColors, setSubjectColors] = useState(() => settings.schedule?.subjectColors ?? false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Profile form state
@@ -198,7 +198,7 @@ export function OnboardingWizard({
       setSettings(getSettings());
       setThemeId(getThemePreferenceForSchool(schoolId).themeId);
       setIsDark(getSettings().visual?.darkMode ?? false);
-      setSubjectColors(getSettings().schedule?.subjectColors ?? true);
+      setSubjectColors(getSettings().schedule?.subjectColors ?? false);
       setProfileInitialized(false);
       setSkipProfileLocked(null);
     }

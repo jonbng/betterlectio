@@ -1015,6 +1015,12 @@ html {
     to { opacity: 0; transform: scale(1.6); }
   }
 
+  /* Activity full-modal entrance: opacity + barely-visible scale, never from 0. */
+  @keyframes bl-act-pop {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
   /* Legacy aliases — all point to the same unified animation */
   @keyframes opgaver-slide-up {
     from { opacity: 0; transform: translateY(8px); }
@@ -2554,6 +2560,132 @@ html {
     font-weight: 600;
     color: oklch(0.63 0.21 25);
     white-space: nowrap;
+  }
+
+  /* ── Opgave deadline bricks ───────────────────────────────── */
+
+  #il-original-content .il-deadline-brick {
+    position: absolute;
+    left: 0.55em;
+    right: 0.55em;
+    height: 1.6em;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0 0.5em;
+    border-radius: 0.3em;
+    background: oklch(0.97 0.02 var(--brick-hue, 265));
+    border-left: 3px solid oklch(0.55 0.18 var(--brick-hue, 265));
+    color: oklch(0.32 0.06 var(--brick-hue, 265));
+    font-size: 0.72rem;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    overflow: hidden;
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  }
+
+  #il-original-content .il-deadline-brick,
+  #il-original-content .il-deadline-brick:hover,
+  #il-original-content .il-deadline-brick:focus,
+  #il-original-content .il-deadline-brick:active,
+  #il-original-content .il-deadline-brick:visited {
+    color: oklch(0.32 0.06 var(--brick-hue, 265));
+    text-decoration: none;
+  }
+
+  #il-original-content .il-deadline-brick:hover {
+    background: oklch(0.94 0.04 var(--brick-hue, 265));
+    box-shadow: 0 2px 6px oklch(0 0 0 / 0.12);
+    transform: translateY(-1px);
+  }
+
+  #il-original-content .il-deadline-brick:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
+  }
+
+  #il-original-content .il-deadline-brick__time {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+  }
+
+  #il-original-content .il-deadline-brick__time::before {
+    content: "⏱";
+    margin-right: 0.25em;
+    opacity: 0.7;
+  }
+
+  #il-original-content .il-deadline-brick__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  /* Missing assignments — red accent */
+  #il-original-content .il-deadline-brick--missing,
+  #il-original-content .il-deadline-brick--missing:hover,
+  #il-original-content .il-deadline-brick--missing:focus,
+  #il-original-content .il-deadline-brick--missing:active,
+  #il-original-content .il-deadline-brick--missing:visited {
+    color: oklch(0.35 0.1 25);
+  }
+
+  #il-original-content .il-deadline-brick--missing {
+    background: oklch(0.95 0.04 25);
+    border-left-color: oklch(0.55 0.2 25);
+  }
+
+  #il-original-content .il-deadline-brick--missing:hover {
+    background: oklch(0.92 0.06 25);
+  }
+
+  /* Outside-school-hours — muted */
+  #il-original-content .il-deadline-brick--edge {
+    opacity: 0.85;
+    border-left-style: dashed;
+  }
+
+  /* Dark mode */
+  .dark #il-original-content .il-deadline-brick,
+  .dark #il-original-content .il-deadline-brick:hover,
+  .dark #il-original-content .il-deadline-brick:focus,
+  .dark #il-original-content .il-deadline-brick:active,
+  .dark #il-original-content .il-deadline-brick:visited {
+    color: oklch(0.92 0.02 var(--brick-hue, 265));
+  }
+
+  .dark #il-original-content .il-deadline-brick {
+    background: oklch(0.28 0.04 var(--brick-hue, 265));
+    border-left-color: oklch(0.65 0.16 var(--brick-hue, 265));
+  }
+
+  .dark #il-original-content .il-deadline-brick:hover {
+    background: oklch(0.34 0.06 var(--brick-hue, 265));
+  }
+
+  .dark #il-original-content .il-deadline-brick--missing,
+  .dark #il-original-content .il-deadline-brick--missing:hover,
+  .dark #il-original-content .il-deadline-brick--missing:focus,
+  .dark #il-original-content .il-deadline-brick--missing:active,
+  .dark #il-original-content .il-deadline-brick--missing:visited {
+    color: oklch(0.92 0.04 25);
+  }
+
+  .dark #il-original-content .il-deadline-brick--missing {
+    background: oklch(0.3 0.06 25);
+    border-left-color: oklch(0.65 0.18 25);
+  }
+
+  .dark #il-original-content .il-deadline-brick--missing:hover {
+    background: oklch(0.36 0.08 25);
   }
 
   /* ── Weekend Column Collapse ────────────── */

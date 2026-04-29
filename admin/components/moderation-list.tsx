@@ -128,11 +128,11 @@ export function ModerationList({ students }: { students: Student[] }) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-6 shrink-0 text-destructive hover:text-destructive"
+                      className="shrink-0 text-destructive hover:text-destructive"
                       disabled={pending.has(`${s.id}:instagram`)}
                       onClick={() => handleClear(s.id, "instagram")}
                     >
-                      <Trash2 className="size-3" />
+                      <Trash2 className="size-4" />
                     </Button>
                   </div>
                 )}
