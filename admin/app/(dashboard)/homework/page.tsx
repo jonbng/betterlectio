@@ -60,7 +60,7 @@ export default async function HomeworkPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <SignupChart data={overview.chart} />
+          <SignupChart data={overview.chart} seriesName="Toggles" />
         </CardContent>
       </Card>
 
@@ -73,7 +73,7 @@ export default async function HomeworkPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <SignupChart data={toggleSeries} />
+            <SignupChart data={toggleSeries} seriesName="Toggles" />
           </CardContent>
         </Card>
       )}

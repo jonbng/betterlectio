@@ -12,8 +12,10 @@ import {
 
 export function SignupChart({
   data,
+  seriesName = "Signups",
 }: {
   data: { date: string; count: number }[];
+  seriesName?: string;
 }) {
   return (
     <div className="h-[200px] w-full min-w-0 sm:h-[250px]">
@@ -55,7 +57,7 @@ export function SignupChart({
           <Area
             type="monotone"
             dataKey="count"
-            name="Signups"
+            name={seriesName}
             stroke="var(--color-primary)"
             fill="var(--color-primary)"
             fillOpacity={0.1}
