@@ -14,10 +14,10 @@ type SchoolPoint = {
   stats: { total: number; extension: number; app: number };
 };
 
-const DOT_RADIUS_METERS = 900;
+const DOT_RADIUS_METERS = 750;
 // Vogel sunflower nearest-neighbor distance is ~0.92·R/√n, so for dots of radius
-// r to never overlap we need R ≥ 2.5·r·√n (≈15% safety margin).
-const SPACING_FACTOR = 2.5;
+// r to never overlap we need R ≥ 2.25·r·√n (~5% safety margin).
+const SPACING_FACTOR = 2.25;
 const MAX_DOTS_PER_SCHOOL = 60;
 const ONE_DOT_PER_INSTALL_UP_TO = 8;
 
