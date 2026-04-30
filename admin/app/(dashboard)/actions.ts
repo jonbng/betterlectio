@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
-export const POSTHOG_FORCE_REFRESH_COOKIE = "posthog-force-refresh";
+import { POSTHOG_FORCE_REFRESH_COOKIE } from "@/lib/posthog/constants";
 
 export async function refreshDashboard() {
   const c = await cookies();

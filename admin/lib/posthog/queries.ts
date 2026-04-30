@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { POSTHOG_FORCE_REFRESH_COOKIE } from "@/app/(dashboard)/actions";
+import { POSTHOG_FORCE_REFRESH_COOKIE } from "@/lib/posthog/constants";
 
 const POSTHOG_HOST = "https://eu.posthog.com";
 const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY!;
