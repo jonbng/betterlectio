@@ -76,11 +76,7 @@ Content Scripts (inject into lectio.dk pages)
 
 1. User navigates to lectio.dk
 2. `hide-flash.content.ts` runs at `document_start` — hides page, wraps Lectio CSS in `@layer lectio`
-3. `content.tsx` runs after DOM ready:
-   - Detects main app page, extracts user data
-   - Creates `#il-root`, renders `<DashboardLayout>` with `<AppSidebar>`
-   - Moves (not clones) original DOM into `#il-lectio-content`
-   - Fades out skeleton, initializes preloading
+3. `content.tsx` runs after DOM ready: detects main app page, extracts user data, creates `#il-root`, renders `<DashboardLayout>` with `<AppSidebar>`, moves original DOM into `#il-lectio-content`, fades out skeleton, initializes preloading
 4. User interaction: sidebar nav, activity modals, hover prefetch, original forms work normally
 
 ### Third-Party SDK Policy (MV3)
@@ -94,38 +90,38 @@ Content Scripts (inject into lectio.dk pages)
 **Edge function** (`supabase/functions/verify-lectio-auth/index.ts`):
 1. QR login via `LandingPageQrCode.aspx` → extract session cookies + school ID
 2. Fetch student profile from `digitaltStudiekort.aspx` (name, birthdate, picture URL)
-3. Fetch `SkemaNy.aspx` to resolve `elevid`; if Lectio has not fully propagated the new QR session yet, retry the fetch briefly before failing
+3. Fetch `SkemaNy.aspx` to resolve `elevid`; retry briefly if Lectio hasn't propagated the new QR session yet
 4. `generateLink({ type: 'magiclink' })` → creates/finds auth user, returns `data.user.id`
-5. Download Lectio profile picture (authenticated) → upload to `profile-pictures` storage bucket at `{schoolId}/{userId}.{ext}`
-6. Upsert `students` record with `supabase_id` (auth UID), `lectio_pfp_url` (original), `custom_pfp_url` (Supabase Storage public URL)
+5. Download Lectio profile picture (authenticated) → upload to `profile-pictures` bucket at `{schoolId}/{userId}.{ext}`
+6. Upsert `students` record with `supabase_id`, `lectio_pfp_url`, `custom_pfp_url`
 
 **Background auth orchestration** (`entrypoints/background.ts` + `lib/supabase/session.ts`):
 - `entrypoints/content.tsx` is the primary auth bootstrapper on page load
-- Feature modules should only call `ensureSupabaseSession(...)` as a fallback when auth is still missing
-- The background script dedupes concurrent auth attempts per `schoolId:userId` and shares one in-flight promise across callers, preventing duplicate `generateLink` / `verifyOtp` races that otherwise invalidate the first one-time token
+- Feature modules only call `ensureSupabaseSession(...)` as a fallback
+- Background dedupes concurrent auth attempts per `schoolId:userId` and shares one in-flight promise across callers, preventing duplicate `generateLink` / `verifyOtp` races
 - Auth analytics include a `source` property so callsites can be traced in PostHog
 
-**Storage bucket** `profile-pictures`: public, allows jpeg/png/webp/gif, 5MB limit. Pictures are organized as `{schoolId}/{userId}.{ext}`.
+**Storage bucket** `profile-pictures`: public, allows jpeg/png/webp/gif, 5MB limit. Organized as `{schoolId}/{userId}.{ext}`.
 
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
 
-**Lesson mapping sync v2:** Supabase now has canonical lesson mappings in `school_lesson_mappings` and per-student overrides in `user_lesson_overrides`. Clients normalize raw hold strings into stable `canonical_key` values like `ma`, `srp`, and `kt`, then merge school defaults with user overrides via `get_student_lesson_mappings_v2`. The migration lives in `supabase/migrations/20260324_add_lesson_mapping_v2.sql`; mobile rollout notes live in `docs/mobile-lesson-mapping-migration.md`.
+**Lesson mapping sync v2:** Canonical mappings in `school_lesson_mappings` and per-student overrides in `user_lesson_overrides`. Clients normalize raw hold strings into stable `canonical_key` values like `ma`, `srp`, `kt`, then merge school defaults with overrides via `get_student_lesson_mappings_v2`. Migration: `supabase/migrations/20260324_add_lesson_mapping_v2.sql`.
 
-**Settings sync:** User-chosen settings (`bl-feature-settings`) and per-school theme (`bl-school-themes-v1`) are synced to Supabase so they follow the user across devices/browsers/reinstalls. Two tables, both keyed on `auth.uid()`: `user_settings` (single jsonb blob) and `user_school_themes` (one row per school). Writes go through security-definer RPCs (`upsert_user_settings`, `upsert_user_school_theme`) that enforce last-writer-wins via the client clock. Hydrate runs on bootstrap from `entrypoints/content.tsx`; if remote is newer, local is replaced and `applySettingsSideEffects(prev, next)` re-applies live DOM/event side effects (dark mode, locale, opgave deadlines event, opt-out mirror). A `betterlectio:settings-hydrated` event re-renders the sidebar; for `SETTINGS_REQUIRING_RELOAD` changes a Sonner toast prompts reload. Realtime subscription on both tables (filtered by `supabase_id`) re-hydrates when another device writes. All client writes route through the existing single funnels (`saveSettings` and `saveThemePreferenceForSchool`); a `withSyncSuppressed()` depth counter prevents hydrate writes from echoing back as pushes. Schema lives in `supabase/migrations/20260429_add_user_settings_sync.sql`.
+**Settings sync:** User settings (`bl-feature-settings`) and per-school theme (`bl-school-themes-v1`) are synced to Supabase. Two tables keyed on `auth.uid()`: `user_settings` (single jsonb blob) and `user_school_themes` (one row per school). Writes go through security-definer RPCs (`upsert_user_settings`, `upsert_user_school_theme`) enforcing last-writer-wins via client clock. Hydrate on bootstrap; if remote is newer, local is replaced and `applySettingsSideEffects(prev, next)` re-applies live DOM/event effects (dark mode, locale, opgave deadlines event, opt-out mirror). `betterlectio:settings-hydrated` event re-renders sidebar; `SETTINGS_REQUIRING_RELOAD` shows reload toast. Realtime subscription filtered by `supabase_id` re-hydrates from other devices. All client writes route through `saveSettings` and `saveThemePreferenceForSchool`; `withSyncSuppressed()` depth counter prevents hydrate writes from echoing back. Schema: `supabase/migrations/20260429_add_user_settings_sync.sql`.
 
-**Referral system:** Classmates share `https://betterlectio.dk/r/{referrer_elevid}` links. The full pipeline:
+**Referral system:** Classmates share `https://betterlectio.dk/r/{referrer_elevid}` links. Pipeline:
 
-1. `website/app/r/[elevid]/route.ts` (Next.js route handler) validates the elevid shape and 302s to `https://<project>.supabase.co/functions/v1/referral-click?ref={elevid}`.
-2. `supabase/functions/referral-click` validates the referrer exists in `students`, inserts a row in `referral_clicks` with metadata (UA, `Referer`, hashed IP, country, landing URL), sets a 180-day cookie `bl_ref=<cookie_id>` (`SameSite=None; Secure; HttpOnly`) on the supabase domain, and 302s to `https://betterlectio.dk/download?ref=1`. The `ref=1` triggers an "invited" banner on the download page.
-3. After install, `entrypoints/background.ts`'s `runEnsureSupabaseSession` checks the `wasFirstInstall` flag returned by `verify-lectio-auth` (which is true exactly when it just stamped `extension_installed_at` for the first time). On true, it calls `maybeFinalizeReferral` from `lib/referral.ts`.
-4. `maybeFinalizeReferral` POSTs to `referral-finalize` with `credentials: 'include'` (so the `bl_ref` cookie is sent) and an `Authorization: Bearer <session-jwt>` header. A per-student localStorage flag (`bl-referral-finalize-attempted:{studentId}`) is written *before* the fetch so we never retry — the cookie is single-use and the edge function is the source of truth.
-5. `supabase/functions/referral-finalize` validates the JWT owns the `studentId`, reads the cookie, looks up the click row, runs eligibility gates (`self_referral`, `already_referred`, `returning_user` for installs older than 7d, `expired` for clicks older than 180d), and on success stamps `students.referred_by` + `students.referred_at` + `students.referral_click_id` plus `referral_clicks.converted_at` + `converted_student_id`. Cookie is cleared regardless of outcome. Returns `{ attributed, referrerName }` so the extension can show a Sonner toast.
-6. The background broadcasts `betterlectio:referral-attributed` via `tabs.sendMessage` to every Lectio tab; the content-script listener in `entrypoints/content.tsx` shows the toast.
-7. Stats for the referrer are exposed via the security-definer RPC `get_referral_stats(student_id)`. The Settings → Inviter section in `components/SettingsModal.tsx` mounts `components/ReferralShareCard.tsx`, which renders the share link, copy/native-share buttons, click + conversion counts, and the names of recently-attributed classmates.
+1. `website/app/r/[elevid]/route.ts` validates the elevid shape and 302s to `https://<project>.supabase.co/functions/v1/referral-click?ref={elevid}`.
+2. `referral-click` validates the referrer exists, inserts a `referral_clicks` row with metadata (UA, Referer, hashed IP, country, landing URL), sets a 180-day `bl_ref` cookie (`SameSite=None; Secure; HttpOnly`) on the supabase domain, 302s to `https://betterlectio.dk/download?ref=1` (which triggers an "invited" banner).
+3. After install, `runEnsureSupabaseSession` checks `wasFirstInstall` from `verify-lectio-auth` (true exactly when it just stamped `extension_installed_at` for the first time). On true, calls `maybeFinalizeReferral`.
+4. `maybeFinalizeReferral` POSTs to `referral-finalize` with `credentials: 'include'` and `Authorization: Bearer <jwt>`. Per-student `bl-referral-finalize-attempted:{studentId}` flag written *before* the fetch — cookie is single-use, edge function is source of truth.
+5. `referral-finalize` validates JWT owns the studentId, reads cookie, looks up click row, runs eligibility gates (`self_referral`, `already_referred`, `returning_user` for installs >7d, `expired` for clicks >180d), stamps `students.referred_by` + `referred_at` + `referral_click_id` plus `referral_clicks.converted_at` + `converted_student_id`. Cookie cleared regardless. Returns `{ attributed, referrerName }`.
+6. Background broadcasts via `browser.storage.local['bl-referral-toast-pending']` (manifest doesn't have `tabs` permission); content-script listener shows Sonner toast.
+7. Stats exposed via `get_referral_stats(student_id)` RPC. Settings → Inviter mounts `ReferralShareCard.tsx` with link, copy/share, click+conversion counts, recently-attributed names.
 
-PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `referral attributed`, `referral attribution rejected` (server-side from edge functions), `referral share link copied` (client-side). Schema migration: `supabase/migrations/20260430_add_referral_tracking.sql` plus a follow-up `20260430_referral_tracking_constraints.sql` that adds a CHECK on `rejection_reason`. Admin dashboard: `admin/app/(dashboard)/referrals/page.tsx` with `getReferralOverview / getReferralTimeSeries / getTopReferrers / getRecentAttributions / getReferralRejectionBreakdown / getReferralInviteeBreakdowns` in `admin/lib/supabase/queries.ts`. Both edge functions deploy via `bunx supabase functions deploy referral-click --no-verify-jwt` (public redirect endpoint) and `bunx supabase functions deploy referral-finalize` (JWT-required). The toast handoff between background and content scripts uses `browser.storage.local['bl-referral-toast-pending']` rather than `tabs.sendMessage` (the manifest doesn't have `tabs` permission or `host_permissions` for `*.lectio.dk`).
+PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `referral attributed`, `referral attribution rejected`, `referral share link copied`. Schema: `supabase/migrations/20260430_add_referral_tracking.sql` + `20260430_referral_tracking_constraints.sql`. Admin: `admin/app/(dashboard)/referrals/page.tsx`. Deploy: `bunx supabase functions deploy referral-click --no-verify-jwt` and `bunx supabase functions deploy referral-finalize`.
 
-**Edge function secrets:** `referral-click` reads `BL_IP_HASH_SALT` (a long random string) to compute `ip_hash = sha256(salt + ":" + ip)` for click rows. The salt must be stable across calls so `count(distinct ip_hash)` yields a correct unique-clicker count; rotating it would inflate `unique_clickers` by counting the same IP twice across the rotation. The salt's only privacy purpose is to prevent brute-force reversal of a hash to a known IP if the DB ever leaks — it does not need to be rotated. Set via `bunx supabase secrets set BL_IP_HASH_SALT=<random>`. There is an in-source fallback so the function works in dev without the secret, but production should always have it set. Both `referral-click` and `referral-finalize` also read `POSTHOG_API_KEY` (project key, same as `VITE_POSTHOG_KEY`) and optionally `POSTHOG_HOST` (defaults to `https://eu.i.posthog.com`) for server-side event capture.
+**Edge function secrets:** `referral-click` reads `BL_IP_HASH_SALT` to compute `ip_hash = sha256(salt + ":" + ip)`. Salt must be stable across calls so `count(distinct ip_hash)` yields correct unique counts. Set via `bunx supabase secrets set BL_IP_HASH_SALT=<random>`. Both `referral-click` and `referral-finalize` also read `POSTHOG_API_KEY` (same as `VITE_POSTHOG_KEY`) and optionally `POSTHOG_HOST` (defaults `https://eu.i.posthog.com`).
 
 ---
 
@@ -137,122 +133,122 @@ PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `re
 |--------|---------|
 | `hide-flash.content.ts` | FOUC prevention + CSS cascade layer wrapping via MutationObserver |
 | `session-block.content.ts` | Overrides `window.SessionHelper` to block session timeout popup |
-| `login.content.tsx` | Complete login page redesign with school search, keyboard nav, auto-redirect |
-| `content.tsx` | Primary entry: transforms UI, injects page-specific components, schedule enhancements, enriched hover tooltips |
+| `login.content.tsx` | Login page redesign with school search, keyboard nav, auto-redirect |
+| `content.tsx` | Primary entry: transforms UI, injects page-specific components, schedule enhancements, hover tooltips |
 
 ### Navigation & Layout
 
 | Component | Purpose |
 |-----------|---------|
-| `AppSidebar.tsx` | Custom sidebar navigation with collapsible sections, profile display, settings access, and Supabase-backed student name/avatar fallbacks for the current/viewed profile |
+| `AppSidebar.tsx` | Custom sidebar with collapsible sections, profile display, settings access, Supabase-first student name/avatar |
 | `SettingsModal.tsx` | Settings: appearance, behavior, sidebar toggles, subject mappings, design playground, about |
 | `DesignPlayground.tsx` | Full-screen overlay showcasing all design system tokens and components |
-| `MobileAppDrawer.tsx` | Bottom-right floating drawer pitching the iOS BetterLectio app. Gated on `students.app_eligible=true && app_installed_at is null && app_qr_scanned_at is null && marked_android_at is null && dismissed_app_prompt_at is null`. Expands horizontally to show a QR code that points at `https://betterlectio.dk/download/ios?u={studentId}` (so a real scan stamps `app_qr_scanned_at`), plus a single "Jeg er på Android" action that writes `marked_android_at`. `app_installed_at` is set server-side when the student logs into the mobile app. Shares `appStoreUrlFor()` + `renderAppStoreQrSvg()` with the invite popup via `lib/mobile-app.ts`. |
-| `MobileAppInvitePopup.tsx` | Centered "early access" invite dialog for the same eligible students (including the `app_qr_scanned_at` gate). Shown once on page load, then again **7 days later** if still eligible. Suppressed during quiet hours (02:00–09:00 local) and while the student is currently in a class (uses `getCountdownState` from `ScheduleCountdown` against `getCachedSchedule`/`getTodaySchedule`). Snooze stamp lives in localStorage (`bl-mobile-app-invite-last-shown:{studentId}`). The QR encodes the per-student `?u=` URL so an actual scan hides both surfaces on the next eligibility refresh — there's no "I'll scan" CTA. Soft close (X / Esc / outside-click) just snoozes; "Jeg er på Android" writes `marked_android_at`. |
+| `MobileAppDrawer.tsx` | Bottom-right floating drawer pitching the iOS app. Gated on `students.app_eligible=true && app_installed_at is null && app_qr_scanned_at is null && marked_android_at is null && dismissed_app_prompt_at is null`. Expands to QR pointing at `/download/ios?u={studentId}` plus "Jeg er på Android" CTA. Helpers in `lib/mobile-app.ts`. |
+| `MobileAppInvitePopup.tsx` | Centered "early access" invite for same eligible students. Once on page load then 7 days later if untouched. Suppressed during quiet hours (02:00–09:00) and while in class. Snooze in `bl-mobile-app-invite-last-shown:{studentId}`. QR encodes per-student `?u=` URL. Soft close just snoozes; "Jeg er på Android" writes `marked_android_at`. |
 
 ### FindSkema System
 
 | File | Purpose |
 |------|---------|
-| `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, browse sections, BetterLectio badges on students, Supabase-backed student display names/avatars, and search aliases for both Lectio + preferred names |
-| `ProfilePage.tsx` | Supabase-backed student profile: description, instagram, birthday (if `show_birthday`), custom pfp, inline edit form for own profile. Instagram handles accept `handle`, `@handle`, or pasted Instagram URLs and render consistently as `@handle`. Tabs: schedule, classmates, teachers, hold/groups, documents |
-| `lib/instagram.ts` | Shared Instagram helpers for normalizing stored handles and building consistent `@handle` display text + profile URLs |
-| `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context params, optional BetterLectio badge, and student name/avatar resolution via Supabase before Lectio fallbacks |
-| `lib/supabase/student-lookup.ts` | Shared `useSchoolStudents` hook (Map for O(1) lookups) plus helpers for `getStudentIdFromPersonId`, lookup-ID-based preferred name/avatar resolution, search aliases, and `formatDanishBirthdate` |
+| `FindSkemaPage.tsx` | Redesigned search with fuzzy matching, type filters, starred/recents, person cards, BL badges, Supabase-first names/avatars, search aliases for both Lectio + preferred names |
+| `ProfilePage.tsx` | Supabase-backed student profile: description, instagram, birthday (if `show_birthday`), custom pfp, inline edit form for own profile. Tabs: schedule, classmates, teachers, hold/groups, documents |
+| `lib/instagram.ts` | Shared Instagram helpers — accepts `handle`, `@handle`, or pasted URLs, renders consistently as `@handle` |
+| `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context, optional BL badge, Supabase-first name/avatar |
+| `lib/supabase/student-lookup.ts` | `useSchoolStudents` hook (Map for O(1) lookups), `getStudentIdFromPersonId`, lookup-ID-based name/avatar resolution, search aliases, `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
-| `lib/class-name.ts` | Shared class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes, chained dotted alphanumeric suffixes, and prefixed/suffixless variants (`1x`, `2hf`, `2zq`, `1.4`, `L2d`, `S2x`, `IB1`, `10.st.kl.2`, year-based dropdown names). `normalizeClassCode` also strips Lectio hold IDs like `t25htxvx_1vx` down to the trailing class code |
+| `lib/class-name.ts` | Class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes, chained dotted, prefixed/suffixless variants. `normalizeClassCode` strips Lectio hold IDs like `t25htxvx_1vx` to the trailing class code |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
-| `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache params + shared in-flight/TTL-cached dropdown loader |
+| `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache + shared in-flight/TTL-cached dropdown loader |
 | `lib/findskema-types.ts` | Maps AvanceretSkema IDs (`SC/RO/RE/HE/GE`) to filter types |
 
-**Data Fetching Note:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real AvanceretSkema prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). The dropdown loader is shared with in-flight dedupe to avoid duplicate `DropDown.aspx` traffic.
+**Data fetching:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). Dropdown loader is shared with in-flight dedupe.
 
-**Class Code Note:** Schools can use single-letter grade codes (`1x`), two-character alphanumeric suffixes like `2hf` or `2zq`, numeric ones like `1.4`, chained dotted suffixes like `10.st.kl.2`, letter-prefixed variants like `L2d` or `S2x`, and suffixless prefixed variants like `IB1`. For some students Lectio exposes a hold identifier like `t25htxvx_1vx` in the schedule title — `normalizeClassCode` peels that to the trailing class (`1vx`). FindSkema/member resolution should normalize all through `lib/class-name.ts` before comparing against year-based dropdown entries like `2025x`, `2025zq`, `2025.4`, `L2025d`, or `IB2025`.
+**Class codes:** Schools use single-letter (`1x`), two-character alphanumeric (`2hf`, `2zq`), numeric (`1.4`), chained dotted (`10.st.kl.2`), letter-prefixed (`L2d`, `S2x`), suffixless prefixed (`IB1`). Some schedules expose Lectio hold IDs like `t25htxvx_1vx`; `normalizeClassCode` peels to the trailing class. Always use `lib/class-name.ts` before comparing against year-based dropdown entries (`2025x`, `2025zq`, `2025.4`, `L2025d`, `IB2025`).
 
-**Student Identity Resolution Note:** Student-facing UI should prefer `students.name` for display, while keeping native Lectio names as aliases/search terms. For pictures, prefer `students.custom_pfp_url`, then `students.lectio_pfp_url`, and only fall back to Lectio/context-card image fetches when no Supabase-backed student row is available. The shared helpers in `lib/supabase/student-lookup.ts` accept both raw `elevid` values and prefixed lookup IDs like `S727...` so message names/avatars, FindSkema cards/search, member grids, group submissions, and sidebar/profile surfaces stay consistent.
+**Student identity resolution:** Prefer `students.name` for display, keep Lectio names as aliases/search terms. Pictures: `custom_pfp_url` → `lectio_pfp_url` → Lectio/context-card image fetch. Helpers in `lib/supabase/student-lookup.ts` accept both raw `elevid` and prefixed lookup IDs (`S727...`) so message names/avatars, FindSkema, member grids, group submissions, sidebar/profile stay consistent.
 
 ### Schedule & Activities
 
 | File | Purpose |
 |------|---------|
-| `ActivityClassModal.tsx` | In-place modal for activity details from schedule/forside links. Renders note, lektier, presentation content, øvrigt indhold, related links, and hold navigation in the side sheet |
-| `PrivatAftaleDialog.tsx` | Inline dialog for creating/editing private appointments. Triggered from toolbar (create) or brick click (edit). Fetches ASP.NET form tokens, submits via hidden iframe POST — no page navigation. Edit mode adds delete. Fields: title, start/end date+time, comment |
-| `ScheduleToolbar.tsx` | Custom schedule toolbar: week nav, view mode toggle, calendar link, private appointment dialog trigger, print menu |
-| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content, presentation blocks (`ACP*`), øvrigt indhold, navigation/form tokens, and school-scoped localStorage cache (cache key includes `schoolId`). Recognizes two special homework shapes: a heading wrapping a single `<a>` becomes `primaryLink` (rendered as a clickable title with no duplicate pill below), and a body containing a single `<img>` becomes `image` (rendered as a constrained click-to-enlarge preview). |
-| `components/Lightbox.tsx` | Shared image/PDF overlay viewer. Used by `ActivityClassModal`/`ActivityClassFullModal` (image previews + image/PDF homework links) and by `BeskederThreadView` (attachment previews). Same darkened backdrop, click-outside / Esc to close, and download/close footer as before; PDFs are fetched as blobs (`credentials: 'include'`) so Lectio's `Content-Disposition: attachment` does not force a download. Exports `LightboxItem`, `extensionFromUrlOrName()`, and `lightboxKindForExtension()`. |
-| `lib/privat-aftale.ts` | Fetch/parse `privat_aftale.aspx` form page, extract ASP.NET tokens, submit create/delete via hidden iframe POST |
-| `lib/brick-tooltip.ts` | Custom schedule brick hover tooltip with async-enriched content, including fetched presentation previews when available |
-| `ScheduleCountdown.tsx` | Sidebar countdown: time remaining in current class / until next class |
+| `ActivityClassModal.tsx` | In-place modal for activity details. Renders note, lektier, presentation, øvrigt indhold, related links, hold navigation |
+| `PrivatAftaleDialog.tsx` | Inline create/edit private appointments. Triggered from toolbar (create) or brick click (edit). ASP.NET form tokens, hidden iframe POST. Edit mode adds delete |
+| `ScheduleToolbar.tsx` | Custom toolbar: week nav, view mode toggle, calendar link, private appointment trigger, print menu |
+| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content, presentation blocks (`ACP*`), øvrigt indhold, school-scoped cache. Special homework shapes: heading wrapping single `<a>` becomes `primaryLink`; body with single `<img>` becomes `image` (constrained click-to-enlarge). |
+| `components/Lightbox.tsx` | Shared image/PDF overlay viewer. Used by `ActivityClassModal`/`ActivityClassFullModal` and `BeskederThreadView`. PDFs fetched as blobs (`credentials: 'include'`) so `Content-Disposition: attachment` doesn't force download. Exports `LightboxItem`, `extensionFromUrlOrName()`, `lightboxKindForExtension()`. |
+| `lib/privat-aftale.ts` | Fetch/parse `privat_aftale.aspx`, extract ASP.NET tokens, submit create/delete via hidden iframe POST |
+| `lib/brick-tooltip.ts` | Schedule brick hover tooltip with async-enriched content, fetched presentation previews |
+| `ScheduleCountdown.tsx` | Sidebar countdown: time remaining in current class / until next |
 | `lib/schedule-cache.ts` | School-scoped fetch + cache for today's schedule (45min TTL) |
 
 ### Homework & Assignments
 
 | File | Purpose |
 |------|---------|
-| `LektierPage.tsx` | Day-grouped homework cards with file/activity links, teacher notes, and Supabase-backed done-state sync keyed by Lectio `absid`/`entry_id` while preserving the existing checkbox UI |
-| `OpgaverPage.tsx` | Single chronological timeline of all assignments grouped by week. Auto-scrolls to current week on mount. Compact rows with left-border status indicators (red=missing, amber=waiting, green=completed), fravær badges, hold color pills, inline grade badges, hover-visible ignore toggle for missing items, combined elevtimer per week header. Search + hold filter toolbar. |
-| `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (posts via ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage caching with 5-min TTL, session expiry detection), plus Supabase-backed group-member names/avatars |
-| `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)` fetch+parse, `submitComment(detail, comment)` POST with tokens, `uploadFileAndSubmit(detail, file, comment, schoolId)`, `getCachedDetail`/`invalidateDetailCache` school-scoped localStorage cache |
-| `lib/opgaver-deadlines-cache.ts` | School-scoped localStorage cache (6h TTL) of the parsed `OpgaveEntry[]` list. Populated by `OpgaverPage` whenever it has fresh entries; refreshed in the background by the schedule page via `fetchAndCacheOpgaver` (handles Lectio's `CurrentExerciseFilterCB`/`ShowThisTermOnlyCB` postback). Read by `injectDeadlineBricks()` in `entrypoints/content.tsx` to render deadline bricks on the schedule. |
-| `lib/supabase/resources/homework.ts` | Homework table access plus `upsert_student_homework_status(...)` RPC wrapper. Reads visible `homework_entries` by `school_id` + `entry_id`, writes per-student completion with optimistic invalidation of `homework_entries`/`student_homework` caches |
+| `LektierPage.tsx` | Day-grouped homework cards with file/activity links, teacher notes, Supabase-backed done-state sync keyed by `absid`/`entry_id` |
+| `OpgaverPage.tsx` | Single chronological timeline of all assignments grouped by week. Auto-scrolls to current week. Compact rows with left-border status indicators (red=missing, amber=waiting, green=completed), fravær badges, hold pills, inline grade badges, hover-visible ignore toggle, combined elevtimer per week. Search + hold filter toolbar. |
+| `OpgaveDetailSheet.tsx` | Side sheet with full assignment details, submission history, comment/file upload (ASP.NET form tokens, file upload via `/dokumentupload.aspx`, localStorage cache 5min TTL, session expiry detection), Supabase-first group-member names/avatars |
+| `lib/opgave-detail.ts` | `fetchOpgaveDetail(url)`, `submitComment(detail, comment)`, `uploadFileAndSubmit(detail, file, comment, schoolId)`, school-scoped cache helpers |
+| `lib/opgaver-deadlines-cache.ts` | School-scoped cache (6h TTL) of parsed `OpgaveEntry[]`. Populated by `OpgaverPage`; refreshed by schedule page via `fetchAndCacheOpgaver` (handles `CurrentExerciseFilterCB`/`ShowThisTermOnlyCB` postback). Read by `injectDeadlineBricks()` to render deadline bricks on schedule. |
+| `lib/supabase/resources/homework.ts` | Homework table access + `upsert_student_homework_status(...)` RPC. Reads `homework_entries` by `school_id` + `entry_id`, writes per-student completion with optimistic invalidation |
 
-**Deadline bricks on the schedule:** `injectDeadlineBricks()` in `entrypoints/content.tsx` reads from `getCachedOpgaver(schoolId)`, then for each `td[data-date]` cell appends a custom `<a class="il-deadline-brick">` positioned at `topEm` derived from the existing `calibrateTimeMapping()` (same math as the current-time indicator). Bricks are short (1.6em high), color-matched to the hold via `getHoldHue`, and clicking dispatches `betterlectio:openOpgaveDetail` — caught by the always-mounted `OpgaveDetailSheet` in `AppSidebar`. Gated on `isViewingOwnPage()`, the schedule page (`skemany.aspx` / `skema1dag.aspx`, never `findskema.aspx`), and the `schedule.opgaveDeadlines` setting (default true). Submitted assignments are filtered out; deadlines outside school hours are clamped to the column edge with a muted dashed style. The `betterlectio:opgaveDeadlinesToggled` event from `SettingsModal` triggers a live re-render without page reload.
+**Deadline bricks:** `injectDeadlineBricks()` reads from `getCachedOpgaver(schoolId)`, then for each `td[data-date]` cell appends `<a class="il-deadline-brick">` positioned at `topEm` from `calibrateTimeMapping()`. Bricks are 1.6em high, color-matched via `getHoldHue`, click dispatches `betterlectio:openOpgaveDetail` (caught by always-mounted `OpgaveDetailSheet` in `AppSidebar`). Gated on `isViewingOwnPage()`, schedule page (`skemany.aspx` / `skema1dag.aspx`, never `findskema.aspx`), and `schedule.opgaveDeadlines` setting. Submitted assignments filtered out; deadlines outside school hours clamped to column edge with muted dashed style. `betterlectio:opgaveDeadlinesToggled` event triggers live re-render.
 
-**Homework sync contract:** Completion is stored per student in `public.student_homework` and resolved against shared `public.homework_entries`. The client parses each lektie card's Lectio activity URL and extracts `absid` as the stable `entry_id`. Writes go through the `upsert_student_homework_status` security-definer RPC so legacy rows without `school_id` can be claimed safely on first write, client timestamps can prevent stale overwrites, and both extension/mobile can share the same patch-style contract.
+**Homework sync contract:** Stored per student in `public.student_homework`, resolved against shared `public.homework_entries`. Client parses each lektie card's Lectio activity URL and extracts `absid` as the stable `entry_id`. Writes through `upsert_student_homework_status` security-definer RPC so legacy rows without `school_id` can be claimed safely on first write, client timestamps prevent stale overwrites, extension/mobile share the same patch-style contract.
 
-**Realtime behavior:** `LektierPage.tsx` subscribes to `student_homework` and `homework_entries` via Supabase Realtime. External updates invalidate the browser cache for those tables, which causes the page to refetch and reflect cross-device changes without changing the existing UI.
+**Realtime:** `LektierPage.tsx` subscribes to `student_homework` and `homework_entries` via Supabase Realtime. External updates invalidate browser cache, causing refetch and cross-device reflection.
 
 ### Grades
 
 | File | Purpose |
 |------|---------|
-| `KaraktererPage.tsx` | Grade report redesign: subject cards grouped by hold with big color-coded grade numbers (7-step scale hue mapping), teacher notes inline, summary bar with weighted average + grade distribution, collapsible diploma lines/protocol/remarks sections. Includes `parseKaraktererFromDOM()` parser for all 5 native tables. |
+| `KaraktererPage.tsx` | Grade report redesign: subject cards grouped by hold with big color-coded grades (7-step scale hue mapping), teacher notes inline, summary bar with weighted average + grade distribution, collapsible diploma/protocol/remarks. `parseKaraktererFromDOM()` parser for all 5 native tables. |
 
 ### Documents
 
 | File | Purpose |
 |------|---------|
-| `DokumenterPage.tsx` | Documents page redesign with collapsible folder tree sidebar (hold colors), file list with extension-based type icons and color-coded badges, breadcrumb navigation, client-side search, in-app image/PDF preview overlay, drag-and-drop file upload via `dokumentupload.aspx`, create folder, sort by columns |
-| `lib/dokumenter-parser.ts` | DOM parser for `DokumentOversigt.aspx`: recursive folder tree walking (`#s_m_Content_Content_FolderTreeView`), document grid parsing (desktop + mobile layouts), breadcrumb builder, file category/extension classification, move-target dropdown extraction |
+| `DokumenterPage.tsx` | Documents redesign with collapsible folder tree (hold colors), file list with extension-based icons/badges, breadcrumbs, search, in-app image/PDF preview, drag-and-drop upload via `dokumentupload.aspx`, create folder, sort |
+| `lib/dokumenter-parser.ts` | DOM parser for `DokumentOversigt.aspx`: recursive folder tree (`#s_m_Content_Content_FolderTreeView`), document grid (desktop + mobile), breadcrumb, file category/extension classification, move-target dropdown |
 
-**Folder navigation:** Uses `window.location.href` with `?folderid=XXX` query params (page reload) rather than iframe-post, matching Lectio's native tree navigation. Sort triggers ASP.NET `__doPostBack` natively.
+**Folder navigation:** Uses `window.location.href` with `?folderid=XXX` (page reload) matching Lectio's native tree. Sort triggers ASP.NET `__doPostBack` natively.
 
-**File upload:** Drag-and-drop uploads POST to `dokumentupload.aspx` (same as `LectioFileUpload.ts`), receive `serializedId` JSON, then trigger Lectio's document chooser postback.
+**File upload:** Drag-and-drop POSTs to `dokumentupload.aspx`, receives `serializedId` JSON, then triggers Lectio's document chooser postback.
 
-**Preview:** Images render inline via `<img>` pointing to `dokumenthent.aspx?documentid=XXX`. PDFs use `<iframe>` with the same URL. Both open in a modal overlay with download/edit actions.
+**Preview:** Images via `<img>` to `dokumenthent.aspx?documentid=XXX`. PDFs use `<iframe>` with same URL. Modal overlay with download/edit actions.
 
 ### Hold/Subject Mapping
 
 | File | Purpose |
 |------|---------|
-| `lib/hold-mapping.ts` | Resolve raw hold codes through canonical lesson keys (`1x MA`, `2.4 MA`, `L2d MA` -> `ma`), shared names/colors, ignored non-academic groups, and legacy localStorage migration. ~40 built-in Danish subjects. School-scoped localStorage. Functions: `getCanonicalHoldKey(holdCode)`, `getHoldDisplayName(holdCode)`, `getFullHoldDisplayName(holdCode)` (class-prefixed label), `getHoldHue(holdCode)`, `registerHold(holdCode)`, `scanDOMForHolds(root?)`, `getAllHolds()`, `setHoldDisplayName`/`setHoldColorHue`, `resetAllMappings()`/`clearHoldMappings()` |
-| `lib/hold-mapping-sync.ts` | Hydrates canonical lesson mappings from Supabase v2, seeds discovered local mappings into `school_lesson_mappings`, and upserts/resets `user_lesson_overrides` for cross-device sync |
+| `lib/hold-mapping.ts` | Resolve raw hold codes through canonical lesson keys (`1x MA`, `2.4 MA`, `L2d MA` -> `ma`), shared names/colors, ignored non-academic groups, legacy migration. ~40 built-in Danish subjects. School-scoped localStorage. Functions: `getCanonicalHoldKey`, `getHoldDisplayName`, `getFullHoldDisplayName`, `getHoldHue`, `registerHold`, `scanDOMForHolds`, `getAllHolds`, `setHoldDisplayName`/`setHoldColorHue`, `resetAllMappings`/`clearHoldMappings` |
+| `lib/hold-mapping-sync.ts` | Hydrates canonical mappings from Supabase v2, seeds discovered local mappings into `school_lesson_mappings`, upserts/resets `user_lesson_overrides` |
 | `settings/HoldMappingEditor.tsx` | Settings UI for canonical lesson-key display names/colors |
 
 ### Beskeder (Messages) System
 
-**No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Non-idempotent operations (send/reply/delete) avoid automatic native fallback on uncertain parse errors to prevent duplicate side effects.
+**No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Non-idempotent operations (send/reply/delete) avoid automatic native fallback on parse errors to prevent duplicate side effects.
 
-**Lectio DOM quirk — recipient GridView links:** In `ThreadRecipientsGV`, the delete links use `onclick="javascript:__doPostBack(...)"` with `href="#"`, not `href="javascript:__doPostBack(...)"`. Parsers must check the `onclick` attribute first, then `href` as a fallback — never rely solely on `a[href*="__doPostBack"]` selectors for this table. The same applies to `AttachmentsGV` delete buttons in compose/reply — `parseAttachmentsFromDoc` in `lib/beskeder-submit.ts` must read `onclick` first, otherwise freshly-attached files never render in the UI.
+**Lectio DOM quirk — recipient GridView links:** In `ThreadRecipientsGV`, delete links use `onclick="javascript:__doPostBack(...)"` with `href="#"`. Parsers must check `onclick` first, then `href` fallback. Same for `AttachmentsGV` — `parseAttachmentsFromDoc` in `lib/beskeder-submit.ts` must read `onclick` first, otherwise freshly-attached files never render.
 
 | File | Purpose |
 |------|---------|
-| `BeskederPage.tsx` (in content.tsx) | Thread list with folder pills, sender names/avatars preferring Supabase student data, optimistic flag/read/delete, search, bulk actions |
-| `BeskederThreadView.tsx` | Thread reader with sender names/pictures preferring Supabase student data, signature stripping, no-reload reply + file attachment |
-| `BeskederCompose.tsx` | Card-based compose with a fully custom recipient picker (students/teachers from AvanceretSkema, rendered names/avatars preferring Supabase student data while raw Lectio names remain for postbacks, keyboard navigation), recipient pills with avatars, no-reload add/remove recipient actions, no-reload send, and Ctrl+Enter. Falls back to showing native form if parser fails. |
-| `WysiwygEditor.tsx` | contentEditable editor converting between BBCode and rich HTML |
+| `BeskederPage.tsx` | Thread list with folder pills, Supabase-first sender names/avatars, optimistic flag/read/delete, search, bulk actions |
+| `BeskederThreadView.tsx` | Thread reader with Supabase-first names/pictures, signature stripping, no-reload reply + file attachment |
+| `BeskederCompose.tsx` | Card-based compose with custom recipient picker (Supabase-first names/avatars, keyboard nav), recipient pills, no-reload add/remove/send, Ctrl+Enter. Falls back to native form if parser fails. |
+| `WysiwygEditor.tsx` | contentEditable editor converting BBCode <-> rich HTML |
 | `BBCodeToolbar.tsx` | Formatting toolbar (bold, italic, underline, link) |
 | `lib/beskeder-thread-parser.ts` | Thread DOM parser, state detection, signature stripping |
 | `lib/iframe-post.ts` | Hidden iframe POST utility, form token extraction, session expiry detection |
-| `lib/beskeder-submit.ts` | Mutex-serialized submission layer. Thread list: `toggleFlagViaIframe`, `toggleReadViaIframe`, `deleteThreadViaIframe`, `selectFolderViaIframe`, `executeSearchViaIframe`, `executeBulkActionViaIframe`, `markAllReadViaIframe`. Thread view: `sendReplyViaIframe`. Compose: `addRecipientViaIframe`, `removeRecipientViaIframe`, `sendMessageViaIframe`. Shared: `uploadFileToLectio`, `attachFileViaIframe`. |
+| `lib/beskeder-submit.ts` | Mutex-serialized submission. Thread list: `toggleFlagViaIframe`, `toggleReadViaIframe`, `deleteThreadViaIframe`, `selectFolderViaIframe`, `executeSearchViaIframe`, `executeBulkActionViaIframe`, `markAllReadViaIframe`. Thread view: `sendReplyViaIframe`. Compose: `addRecipientViaIframe`, `removeRecipientViaIframe`, `sendMessageViaIframe`. Shared: `uploadFileToLectio`, `attachFileViaIframe`. |
 
 ### Forside & Other
 
 | File | Purpose |
 |------|---------|
 | `ForsideGreeting.tsx` | Time-based greeting, live clock, Danish date formatting |
-| `ForsideDashboard.tsx` | Redesigned forside dashboard with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides the 4 specific original cards, renders 2-col grid with priority indicators, hold colors, urgency bars, sender names/avatars preferring Supabase student data, relative times. Any other native dashboard island (e.g. Registreringer) is parsed via `parseGenericIslands()` and rendered through `GenericCard` so unsupported cards still appear in the dashboard layout with consistent styling instead of being orphaned in the legacy masonry below. |
+| `ForsideDashboard.tsx` | Redesigned forside with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides original 4 cards, renders 2-col grid with priority indicators, hold colors, urgency bars, Supabase-first names/avatars. Other native dashboard islands (e.g. Registreringer) parsed via `parseGenericIslands()` and rendered through `GenericCard`. |
 | `ForsideOpgaverCard.tsx` | Forside opgaver parser (reused by ForsideDashboard) |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
 | `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |
@@ -261,42 +257,42 @@ PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `re
 
 | File | Purpose |
 |------|---------|
-| `lib/profile-cache.ts` | User profile + viewed entity caching (school-scoped profile keys with same-school merge guard). Helpers: `isViewingOwnPage()`, `getViewedEntityId()`, `extractViewedEntity()` (fallback chain: URL `name` param -> recents/starred lookup -> `"Ukendt"`) |
+| `lib/profile-cache.ts` | User profile + viewed entity caching (school-scoped). Helpers: `isViewingOwnPage()`, `getViewedEntityId()`, `extractViewedEntity()` (URL `name` param → recents/starred → "Ukendt") |
 | `lib/school-storage.ts` | Last school persistence for quick login |
 | `lib/page-titles.ts` | Clean page titles with unread message badge, MutationObserver |
 | `lib/preload.ts` | Speculation Rules API + hover-based prefetching |
-| `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}` (raw elevid). All `capture` / `identify` / session-once helpers / `captureException` validate `isLectioStudentDistinctId` before enqueueing — no anonymous or malformed distinct ids. Identify sends name, school, class, year, dark mode, and theme. Includes once-per-session feature helpers plus page-hide flushing to keep request volume lower without losing short-lived events. `captureException` enriches `$exception` events with auto props + tab `recent_urls` / profile ids when `distinctId` is omitted (`getContentDistinctId()`). All calls silently caught. |
-| `lib/posthog-lifecycle.ts` | Queues deferred lifecycle events (`extension installed` / `extension updated`) in extension storage until an identified user is available in a content script. |
-| `lib/logout-tracking.ts` | Passive Lectio logout/session-loss heuristics. Stores last authenticated activity and recent explicit logout intent so unexpected returns to `login.aspx` can be tracked without touching auth flow. |
-| `lib/lectio-error-popup.ts` | MutationObserver detector for Lectio's native error popup (`LectioAlertBox.RegisterAlerts` renders elements with `[data-title^="Fejl"]`). Extracts title + body, dedupes per DOM element. Wired in `content.tsx` to fire a `lectio native error` PostHog event + paired `captureException` + `toast.info` confirming the report to the user. |
-| `lib/url-history.ts` | Per-tab (sessionStorage) URL breadcrumb trail (`pushUrlToHistory` / `getRecentUrls`) used to enrich error reports with recent navigation context. |
+| `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}`. All helpers validate `isLectioStudentDistinctId` before enqueueing — no anonymous or malformed ids. Identify sends name, school, class, year, dark mode, theme. Page-hide flushing. `captureException` enriches `$exception` events with auto props + tab `recent_urls` / profile ids when `distinctId` omitted (`getContentDistinctId()`). All calls silently caught. |
+| `lib/posthog-lifecycle.ts` | Queues deferred lifecycle events (`extension installed` / `extension updated`) until an identified user is available |
+| `lib/logout-tracking.ts` | Passive Lectio logout/session-loss heuristics. Stores last authenticated activity and recent explicit logout intent |
+| `lib/lectio-error-popup.ts` | MutationObserver detector for Lectio's native error popup (`[data-title^="Fejl"]`). Extracts title + body, dedupes per element. Fires `lectio native error` PostHog event + paired `captureException` + `toast.info`. |
+| `lib/url-history.ts` | Per-tab (sessionStorage) URL breadcrumb trail (`pushUrlToHistory` / `getRecentUrls`) |
 | `lib/utils.ts` | Helper functions (`cn()`) |
 
 ### Internationalization (i18n)
 
-Lightweight, custom i18n covering BetterLectio's injected UI only — Lectio's native DOM is left in Danish. Default locale `da`, with `en` as the second supported locale; both are eagerly bundled (MV3 content scripts can't dynamic-`import()`).
+Lightweight, custom i18n covering BetterLectio's injected UI only — Lectio's native DOM stays in Danish. Default `da`, `en` as second locale; both eagerly bundled (MV3 can't dynamic-import).
 
 | File | Purpose |
 |------|---------|
-| `lib/i18n/locales.ts` | `SUPPORTED_LOCALES = ['da', 'en'] as const`, `DEFAULT_LOCALE`, `LOCALE_LABELS`, `isSupportedLocale()` guard, `LocaleCode` type |
+| `lib/i18n/locales.ts` | `SUPPORTED_LOCALES = ['da', 'en'] as const`, `DEFAULT_LOCALE`, `LOCALE_LABELS`, `isSupportedLocale()`, `LocaleCode` type |
 | `lib/i18n/types.ts` | Recursive `Path<DaDictionary>` for `TranslationKey`, `Dictionary` shape, `TFunction` signature |
-| `lib/i18n/format.ts` | `interpolate(template, vars)` (`{name}` placeholder substitution); `handleMissing(key, locale)` dev-only `console.warn` |
-| `lib/i18n/state.ts` | Module-scope `currentLocale`, `getLocale()` (lazy-init from `resolveInitialLocale`), `setLocale()` (persists via `updateSetting('interface', 'language', code)` and dispatches the `betterlectio:locale-changed` `CustomEvent`) |
-| `lib/i18n/resolve.ts` | `resolveInitialLocale()` — stored setting → `navigator.language` base code → `da`. Synchronous; called inside `useState(() => …)` |
-| `lib/i18n/t.ts` | `makeT(locale)` walks the dictionary by dot-path with default-locale fallback, then key fallback. Plus the non-hook `t(key, vars)` for module-scope code |
-| `lib/i18n/dates.ts` | Locale-aware date formatting built on `Intl.DateTimeFormat`. Exports `getLocaleTag()`, `formatWeekday` / `formatWeekdayCapitalized`, `formatMonth`, `formatLocaleDate`, `formatLocaleTime`. All read `getLocale()` at call time so helpers stay reactive without a hook. Replaces the hardcoded `DANISH_DAYS`/`DANISH_MONTHS` arrays and `'da-DK'` literals that were scattered across forside / lektier / opgaver / fravaer / beskeder components |
-| `lib/i18n/provider.tsx` | `<I18nProvider>` (root state + event listener) and `useTranslation()` hook returning `{ locale, t }` |
-| `lib/i18n/render.tsx` | Drop-in replacement for `preact`'s `render` that wraps every root in `<I18nProvider>`. Both content entrypoints import `render` from here, so every Preact root in the extension has i18n context — Context does not cross roots |
-| `lib/i18n/dictionaries/da.ts` | Source of truth. `DaDictionary = WidenLeaves<typeof da>` widens literal types to `string` so other locales can `satisfies DaDictionary` while keeping nested key inference |
-| `lib/i18n/dictionaries/en.ts` | English dictionary — `satisfies DaDictionary` enforces parity at compile time |
+| `lib/i18n/format.ts` | `interpolate(template, vars)` (`{name}` substitution); `handleMissing` dev-only warn |
+| `lib/i18n/state.ts` | Module-scope `currentLocale`, `getLocale()` (lazy-init from `resolveInitialLocale`), `setLocale()` (persists + dispatches `betterlectio:locale-changed`) |
+| `lib/i18n/resolve.ts` | `resolveInitialLocale()` — stored setting → `navigator.language` base → `da` |
+| `lib/i18n/t.ts` | `makeT(locale)` walks dictionary by dot-path with default-locale fallback. Non-hook `t(key, vars)` for module-scope |
+| `lib/i18n/dates.ts` | Locale-aware date formatting via `Intl.DateTimeFormat`. Exports `getLocaleTag()`, `formatWeekday`/`formatWeekdayCapitalized`, `formatMonth`, `formatLocaleDate`, `formatLocaleTime` |
+| `lib/i18n/provider.tsx` | `<I18nProvider>` + `useTranslation()` hook |
+| `lib/i18n/render.tsx` | Drop-in replacement for `preact`'s `render` that wraps every root in `<I18nProvider>`. Both content entrypoints import from here — Context doesn't cross roots |
+| `lib/i18n/dictionaries/da.ts` | Source of truth. `DaDictionary = WidenLeaves<typeof da>` |
+| `lib/i18n/dictionaries/en.ts` | English dictionary — `satisfies DaDictionary` enforces parity |
 | `lib/i18n/dictionaries/index.ts` | `DICTIONARIES: Record<LocaleCode, DaDictionary>` |
 | `lib/i18n/index.ts` | Public barrel re-export |
 
-**Reactivity:** Preact Context + `useTranslation()`. When `setLocale()` is called from the Settings modal, it dispatches `betterlectio:locale-changed`; every `<I18nProvider>` (one per Preact root) listens, updates its state, and re-renders subscribers. No page reload, no signals, no module-level globals beyond the `currentLocale` cache.
+**Reactivity:** Preact Context + `useTranslation()`. `setLocale()` dispatches `betterlectio:locale-changed`; every `<I18nProvider>` listens, updates state, re-renders. No reload.
 
-**Settings integration:** `interface.language` is a new top-level category in `lib/settings-storage.ts` (separate from `visual` because it mutates rendered JSX, not CSS/DOM). The picker lives in `SettingsModal.tsx` Appearance section. `handleSettingChange` calls `setLocale(value)` for live re-render and `setPersonProperties(distinctId, { language: value })` for PostHog. `language: getLocale()` is also added to the `identifyIfNeeded` person properties on every page load.
+**Settings integration:** `interface.language` is a top-level category in `lib/settings-storage.ts`. Picker in `SettingsModal.tsx` Appearance section. `handleSettingChange` calls `setLocale(value)` and `setPersonProperties(distinctId, { language: value })`. Added to `identifyIfNeeded` person properties.
 
-**Adding a new locale:** create `lib/i18n/dictionaries/<code>.ts` (must `satisfies DaDictionary`), append to `SUPPORTED_LOCALES` in `locales.ts`, add a `LOCALE_LABELS` entry. Two files. The Zod enum derives from `SUPPORTED_LOCALES` so settings storage updates automatically.
+**Adding a locale:** create `lib/i18n/dictionaries/<code>.ts` (must `satisfies DaDictionary`), append to `SUPPORTED_LOCALES`, add `LOCALE_LABELS` entry. Two files. Zod enum derives from `SUPPORTED_LOCALES`.
 
 ---
 
@@ -307,7 +303,7 @@ Lightweight, custom i18n covering BetterLectio's injected UI only — Lectio's n
 Lectio's CSS is wrapped in `@layer lectio { }` at `document_start`:
 
 ```
-Layer order (lowest -> highest priority):
+Layer order (lowest -> highest):
   lectio        <- Lectio's entire CSS bundle + inline styles
   theme         <- Tailwind theme layer
   base          <- Tailwind base + our resets
@@ -315,20 +311,17 @@ Layer order (lowest -> highest priority):
   utilities     <- Tailwind utility classes
 ```
 
-Extension CSS automatically beats Lectio CSS without `!important`. Only ~99 `!important` declarations remain (for inline style overrides, display toggling, critical layout).
+Extension CSS automatically beats Lectio CSS without `!important`. Only ~99 `!important` declarations remain (inline style overrides, display toggling, critical layout).
 
 ### Tailwind-First Rule For Custom UI
 
-All custom/injected Preact UI should be styled with Tailwind utility classes directly in `.tsx` components.
+All custom/injected Preact UI styled with Tailwind utility classes directly in `.tsx` components.
 
-Typography roles for injected UI (title, primary/secondary body, meta, section chrome) are documented in `AGENTS.md` under **Typography / hierarchy**.
+Typography roles documented in `AGENTS.md` under **Typography / hierarchy**.
 
-- Do not add new component-specific plain CSS blocks for custom UI.
-- Prefer semantic token utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`) so theme switching propagates automatically.
-- Keep `globals.css` for platform-level concerns only:
-  - token definitions/overrides (`:root`, `.dark`, `data-il-theme`)
-  - layer/base plumbing
-  - native Lectio overrides and isolation (`#il-original-content`, `.ls-*`, `.s2*`)
+- No new component-specific plain CSS blocks for custom UI.
+- Prefer semantic token utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`).
+- `globals.css` is for platform-level concerns: token definitions (`:root`, `.dark`, `data-il-theme`), layer plumbing, native Lectio overrides.
 
 ### Content Isolation
 
@@ -348,8 +341,7 @@ DOM structure:
 
 ### Lectio Modernizer
 
-The "Lectio Modernizer" section in `globals.css` restyles native Lectio elements in `@layer components`:
-- Tables (`table.lf-grid`, `ls-std-table-inputlist`), buttons (`.buttonfilled`, `.buttonoutlined`, etc.), form elements, schedule bricks (`.s2skemabrik`), links, cards (`.ls-card-filled`, `.lf-island`), tabs, status badges, messages, typography
+"Lectio Modernizer" section in `globals.css` restyles native Lectio elements in `@layer components`: tables (`table.lf-grid`), buttons (`.buttonfilled`, `.buttonoutlined`), form elements, schedule bricks (`.s2skemabrik`), links, cards (`.lf-island`), tabs, status badges, typography.
 
 ### When to use `!important`
 - Overriding inline `style=""` attributes
@@ -388,18 +380,18 @@ Default dev URL: `https://www.lectio.dk/lectio/94/SkemaNy.aspx` (Soro Akademis S
 
 ## Lectio CLI (`tools/lectio-cli`)
 
-Standalone CLI for fetching/posting authenticated Lectio pages, debugging, and automation.
+Standalone CLI for fetching/posting authenticated Lectio pages.
 
 ### Commands
 - `lectio fetch <path>` / `lectio post <path>` - Authenticated GET/POST
-- `lectio asp inspect|postback|field` - ASP.NET WebForms state inspection + postback helpers
-- `lectio keepalive start|stop|status|ping|log` - Background session keepalive daemon
+- `lectio asp inspect|postback|field` - ASP.NET WebForms state inspection
+- `lectio keepalive start|stop|status|ping|log` - Background session keepalive
 
 ### ASP.NET Utilities (`src/lib/aspnet.ts`)
 - `extractASPData`, `extractAllFormFields`, `extractForm` - Parse hidden state fields + form values
 - `extractPostbackTargets` - Discover `__doPostBack()` calls
 - `buildPostBody` - Create URL-encoded POST body
-- Standard postback flow: GET page -> extract fields -> merge user fields -> POST
+- Standard flow: GET page → extract fields → merge user fields → POST
 
 ### HTTP/Auth
 - `src/lib/http.ts` sends `Referer: https://www.lectio.dk` on all requests
@@ -410,9 +402,9 @@ Standalone CLI for fetching/posting authenticated Lectio pages, debugging, and a
 
 ## Reference Materials
 
-- `lectio-scripts/` - Decompiled Lectio JS (internal behavior, event handlers, validation)
-- `lectio-html/` - HTML snapshots (original DOM structure, CSS classes, IDs)
-- `tools/lectio-cli/` - CLI tool for page fetching, ASP.NET postbacks, session management
+- `lectio-scripts/` - Decompiled Lectio JS
+- `lectio-html/` - HTML snapshots
+- `tools/lectio-cli/` - CLI tool
 
 ---
 
@@ -421,6 +413,6 @@ Standalone CLI for fetching/posting authenticated Lectio pages, debugging, and a
 1. **Preact over React** - 3KB vs 40KB+ bundle
 2. **Skeleton loading** - Perceived instant load (FOUC prevention)
 3. **Speculation Rules API** - Browser-level prerendering
-4. **Hover prefetching** - Links prefetched on hover (65ms delay)
-5. **Picture caching** - Profile pictures cached 7 days, lazy-loaded via IntersectionObserver
-6. **CSS Cascade Layers** - No specificity wars, clean style overrides
+4. **Hover prefetching** - 65ms delay
+5. **Picture caching** - 7 days, lazy-loaded via IntersectionObserver
+6. **CSS Cascade Layers** - No specificity wars
