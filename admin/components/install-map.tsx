@@ -14,12 +14,12 @@ type SchoolPoint = {
   stats: { total: number; extension: number; app: number };
 };
 
-const DOT_RADIUS_METERS = 600;
-// Vogel sunflower nearest-neighbor distance is ~0.92·R/√n, so for dots of radius
-// r to never overlap we need R ≥ ~2.17·r·√n. 2.2 keeps a small safety margin.
-const SPACING_FACTOR = 2.2;
-const MAX_DOTS_PER_SCHOOL = 60;
-const ONE_DOT_PER_INSTALL_UP_TO = 8;
+// One dot per install. Big schools shrink dot radius and spacing so clusters
+// don't blow up geographically.
+const DOT_RADIUS_BASE = 600; // small schools
+const DOT_RADIUS_MIN = 180; // very large schools
+const SPACING_FACTOR_BASE = 2.2; // strict non-overlap
+const SPACING_FACTOR_MIN = 1.35; // big schools, dots may visually kiss
 
 export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -112,7 +112,7 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
 
     for (const p of points) {
       const marker = L.circle([p.lat, p.lon], {
-        radius: DOT_RADIUS_METERS,
+        radius: p.dotRadius,
         color: stroke,
         weight: 1,
         opacity: 0.9,
@@ -145,7 +145,7 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
 type ClusterPoint = {
   lat: number;
   lon: number;
-  installs: number;
+  dotRadius: number;
   label: string;
   totalInstalls: number;
   totalStudents: number;
@@ -158,30 +158,23 @@ function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
     if (installs <= 0) continue;
     const label = s.display_name ?? s.name;
 
-    const dotCount =
-      installs <= ONE_DOT_PER_INSTALL_UP_TO
-        ? installs
-        : Math.min(
-            MAX_DOTS_PER_SCHOOL,
-            Math.round(
-              ONE_DOT_PER_INSTALL_UP_TO +
-                Math.pow(installs - ONE_DOT_PER_INSTALL_UP_TO, 0.6) * 1.4,
-            ),
-          );
+    // Smoothly interpolate dot size + spacing toward tighter values as a
+    // school grows, so big schools stay geographically compact.
+    const t = Math.min(1, Math.log10(Math.max(1, installs)) / 3); // 0 at 1, 1 at 1000+
+    const dotRadius = lerp(DOT_RADIUS_BASE, DOT_RADIUS_MIN, t);
+    const spacing = lerp(SPACING_FACTOR_BASE, SPACING_FACTOR_MIN, t);
 
     const clusterRadius =
-      dotCount === 1
-        ? 0
-        : SPACING_FACTOR * DOT_RADIUS_METERS * Math.sqrt(dotCount);
-    const positions = sunflowerOffsets(dotCount, clusterRadius);
+      installs <= 1 ? 0 : spacing * dotRadius * Math.sqrt(installs);
+    const positions = sunflowerOffsets(installs, clusterRadius);
 
-    for (let i = 0; i < dotCount; i++) {
+    for (let i = 0; i < installs; i++) {
       const [dx, dy] = positions[i];
       const [lat, lon] = offsetMeters(s.lat, s.lon, dx, dy);
       out.push({
         lat,
         lon,
-        installs: installs / dotCount,
+        dotRadius,
         label,
         totalInstalls: installs,
         totalStudents: s.stats.total,
@@ -189,6 +182,10 @@ function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
     }
   }
   return out;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
 }
 
 function sunflowerOffsets(n: number, radiusMeters: number): [number, number][] {
