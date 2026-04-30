@@ -27,3 +27,4 @@ export type {
   UserSettingsRow,
   UserSchoolThemeRow,
 } from './user-settings';
+export { maybeTouchLastSeen } from './student-activity';

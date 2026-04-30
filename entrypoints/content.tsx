@@ -535,6 +535,15 @@ function initLayout() {
     import('@/lib/supabase/resources/student').then(({ getStudentsBySchool }) => {
       getStudentsBySchool(schoolId).catch(() => {});
     }).catch(() => {});
+
+    // Stamp `students.last_seen_at` once per day so SQL consumers can answer
+    // "still active". Throttled client-side via localStorage; server enforces a
+    // 12h backstop. Heartbeat must never block rendering.
+    if (bootstrapStudentId) {
+      import('@/lib/supabase/resources/student-activity').then(({ maybeTouchLastSeen }) => {
+        void maybeTouchLastSeen(bootstrapStudentId, schoolId);
+      }).catch(() => {});
+    }
   }
 
   // Update page title to cleaner format

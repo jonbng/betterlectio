@@ -470,6 +470,7 @@ export type Database = {
           extension_uninstalled_at: string | null
           id: string
           instagram: string | null
+          last_seen_at: string | null
           lectio_first_name: string | null
           lectio_last_name: string | null
           lectio_pfp_url: string | null
@@ -499,6 +500,7 @@ export type Database = {
           extension_uninstalled_at?: string | null
           id: string
           instagram?: string | null
+          last_seen_at?: string | null
           lectio_first_name?: string | null
           lectio_last_name?: string | null
           lectio_pfp_url?: string | null
@@ -528,6 +530,7 @@ export type Database = {
           extension_uninstalled_at?: string | null
           id?: string
           instagram?: string | null
+          last_seen_at?: string | null
           lectio_first_name?: string | null
           lectio_last_name?: string | null
           lectio_pfp_url?: string | null
@@ -815,6 +818,10 @@ export type Database = {
           p_student_id: string
         }
         Returns: undefined
+      }
+      touch_student_last_seen: {
+        Args: { p_school_id: number; p_student_id: string }
+        Returns: boolean
       }
       update_school_student_count: {
         Args: { p_count: number; p_school_id: number }
