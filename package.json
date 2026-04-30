@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
+    "geocode:schools": "bun run ./tools/geocode-schools.mjs",
     "import:schools": "bun run ./tools/import-schools-to-supabase.mjs",
     "vendor:userjot": "node ./tools/vendor-userjot.mjs",
     "prebuild": "npm run vendor:userjot",

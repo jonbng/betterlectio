@@ -10,6 +10,7 @@ import {
   ScrollText,
   TrendingDown,
   Smartphone,
+  Map as MapIcon,
   AlertTriangle,
   BookOpen,
   ListTodo,
@@ -47,6 +48,7 @@ const groups = [
   {
     label: "Insights",
     items: [
+      { title: "Map", href: "/map", icon: MapIcon },
       { title: "Mobile app", href: "/mobile-app", icon: Smartphone },
       { title: "Referrals", href: "/referrals", icon: Share2 },
       { title: "Uninstalls", href: "/uninstalls", icon: TrendingDown },

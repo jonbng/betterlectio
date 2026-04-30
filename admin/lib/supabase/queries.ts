@@ -201,6 +201,44 @@ export async function getSchools() {
     }));
 }
 
+export async function getSchoolMapData() {
+  const { data: schools } = await supabaseAdmin
+    .from("schools")
+    .select("id, name, display_name, lat, lon")
+    .not("lat", "is", null)
+    .not("lon", "is", null);
+
+  const { data: students } = await supabaseAdmin
+    .from("students")
+    .select("school_id, extension_installed_at, app_installed_at");
+
+  const statsMap: Record<
+    number,
+    { total: number; extension: number; app: number }
+  > = {};
+  for (const s of students ?? []) {
+    const entry = (statsMap[s.school_id] ??= {
+      total: 0,
+      extension: 0,
+      app: 0,
+    });
+    entry.total++;
+    if (s.extension_installed_at) entry.extension++;
+    if (s.app_installed_at) entry.app++;
+  }
+
+  return (schools ?? [])
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      display_name: s.display_name,
+      lat: s.lat as number,
+      lon: s.lon as number,
+      stats: statsMap[s.id] ?? { total: 0, extension: 0, app: 0 },
+    }))
+    .filter((s) => s.stats.extension > 0);
+}
+
 export async function getSchoolDetail(id: number) {
   const { data: school } = await supabaseAdmin
     .from("schools")

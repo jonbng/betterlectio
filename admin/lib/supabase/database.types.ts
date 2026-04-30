@@ -308,18 +308,24 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: number
+          lat: number | null
+          lon: number | null
           name: string
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           id?: number
+          lat?: number | null
+          lon?: number | null
           name: string
         }
         Update: {
           created_at?: string
           display_name?: string | null
           id?: number
+          lat?: number | null
+          lon?: number | null
           name?: string
         }
         Relationships: []

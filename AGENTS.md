@@ -91,6 +91,7 @@ Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish sch
 - `styles/globals.css` - Main styles, Lectio modernizer, page-specific styling
 
 ### Build Tools
+- `tools/geocode-schools.mjs` - One-off Google Geocoding backfill for `public.schools.lat` / `public.schools.lon`. Queries `${name}, Denmark` against Google Maps Geocoding API v4, writes only single-result matches, reports misses for manual cleanup.
 - `tools/vendor-userjot.mjs` - Downloads UserJot SDK + chunks into `public/vendor/userjot/` for MV3-compliant local loading
 
 ### Lectio CLI (`tools/lectio-cli/`)
@@ -149,6 +150,8 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Student identity rendering rule:** When a UI surface can identify a student (`students.id`, raw `elevid`, or lookup ID like `S727...`), prefer `students.name` for display, then keep Lectio names as aliases/search terms. For pictures: `custom_pfp_url` → `lectio_pfp_url` → Lectio/context-card image fetch. Applies to FindSkema, members, Beskeder, group submissions, sidebar.
 
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
+
+**School coordinates:** `public.schools` now stores nullable `lat` / `lon` (`double precision`) alongside `id` / `name` / `display_name`. Backfill is a one-off maintenance task via `bun run geocode:schools`, which geocodes `${name}, Denmark` through Google Maps Geocoding API v4, persists only exact single-result matches, and leaves misses null for manual follow-up. The live run temporarily creates a permissive `UPDATE` RLS policy on `public.schools` and drops it immediately afterward. Admin uses these coordinates in `admin/app/(dashboard)/map/page.tsx` to render a Leaflet map of Denmark with one circle per school sized by extension-install count (CARTO light tiles, `react-leaflet`/`leaflet`, dynamic-imported client-side via `install-map-client.tsx` so SSR stays clean).
 
 **Lesson mapping sync v2:** Canonical mappings live in `school_lesson_mappings` (school defaults keyed by `canonical_key` like `ma`, `srp`, `kt`) and `user_lesson_overrides` (per-student overrides). Migration: `supabase/migrations/20260324_add_lesson_mapping_v2.sql`.
 
@@ -256,6 +259,7 @@ bun run dev          # Development (Chrome)
 bun run dev:firefox  # Development (Firefox)
 bun run build        # Production build
 bun run zip          # Package extension
+bun run geocode:schools -- --google-key "$GOOGLE_MAPS_API_KEY"  # One-off schools lat/lon backfill
 ```
 
 ## Lectio CLI Tool

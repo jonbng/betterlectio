@@ -48,6 +48,7 @@ betterlectio/
 ├── styles/globals.css        # Main stylesheet
 ├── public/                   # Icons, logos, assets
 │   └── vendor/userjot/       # Vendored UserJot SDK + chunks (MV3-compliant)
+├── tools/geocode-schools.mjs # One-off Google Geocoding backfill for school coordinates
 ├── tools/vendor-userjot.mjs  # Fetches UserJot SDK/chunks before release builds
 ├── tools/lectio-cli/         # Authenticated Lectio CLI + WebForms helpers
 ├── lectio-scripts/           # Reference: Decompiled Lectio JS
@@ -104,6 +105,8 @@ Content Scripts (inject into lectio.dk pages)
 **Storage bucket** `profile-pictures`: public, allows jpeg/png/webp/gif, 5MB limit. Organized as `{schoolId}/{userId}.{ext}`.
 
 **Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
+
+**School coordinates:** `public.schools` includes nullable `lat` / `lon` columns for map-friendly metadata. They are backfilled by `tools/geocode-schools.mjs`, which calls Google Maps Geocoding API v4 using the exact query `${school.name}, Denmark`, biases with `languageCode=da` and `regionCode=DK`, persists only single-match results, and reports misses for manual handling. The live backfill runs through the public Supabase API under a temporary permissive `UPDATE` RLS policy that exists only for the maintenance window.
 
 **Lesson mapping sync v2:** Canonical mappings in `school_lesson_mappings` and per-student overrides in `user_lesson_overrides`. Clients normalize raw hold strings into stable `canonical_key` values like `ma`, `srp`, `kt`, then merge school defaults with overrides via `get_student_lesson_mappings_v2`. Migration: `supabase/migrations/20260324_add_lesson_mapping_v2.sql`.
 
