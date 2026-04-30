@@ -14,9 +14,12 @@ type SchoolPoint = {
   stats: { total: number; extension: number; app: number };
 };
 
-const DOT_METERS_PER_INSTALL = 320;
-const MIN_DOT_METERS = 280;
-const CLUSTER_SPREAD_METERS = 1400;
+const DOT_RADIUS_METERS = 900;
+// Vogel sunflower nearest-neighbor distance is ~0.92·R/√n, so for dots of radius
+// r to never overlap we need R ≥ 2.5·r·√n (≈15% safety margin).
+const SPACING_FACTOR = 2.5;
+const MAX_DOTS_PER_SCHOOL = 60;
+const ONE_DOT_PER_INSTALL_UP_TO = 8;
 
 export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -108,17 +111,13 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
     const stroke = isDark ? "oklch(0.92 0.05 265)" : "oklch(0.35 0.18 265)";
 
     for (const p of points) {
-      const radius = Math.max(
-        MIN_DOT_METERS,
-        Math.sqrt(p.installs) * DOT_METERS_PER_INSTALL,
-      );
       const marker = L.circle([p.lat, p.lon], {
-        radius,
+        radius: DOT_RADIUS_METERS,
         color: stroke,
         weight: 1,
         opacity: 0.9,
         fillColor: fill,
-        fillOpacity: 0.55,
+        fillOpacity: 0.6,
       }).addTo(layer);
 
       marker.bindTooltip(
@@ -138,7 +137,7 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
   return (
     <div
       ref={containerRef}
-      className="install-map-shell h-[640px] w-full overflow-hidden rounded-xl border bg-muted shadow-sm"
+      className="install-map-shell min-h-[480px] w-full flex-1 overflow-hidden rounded-xl border bg-muted shadow-sm"
     />
   );
 }
@@ -159,38 +158,30 @@ function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
     if (installs <= 0) continue;
     const label = s.display_name ?? s.name;
 
-    if (installs <= 4) {
-      const positions = sunflowerOffsets(installs, CLUSTER_SPREAD_METERS * 0.45);
-      for (let i = 0; i < installs; i++) {
-        const [dx, dy] = positions[i];
-        const [lat, lon] = offsetMeters(s.lat, s.lon, dx, dy);
-        out.push({
-          lat,
-          lon,
-          installs: 1,
-          label,
-          totalInstalls: installs,
-          totalStudents: s.stats.total,
-        });
-      }
-      continue;
-    }
+    const dotCount =
+      installs <= ONE_DOT_PER_INSTALL_UP_TO
+        ? installs
+        : Math.min(
+            MAX_DOTS_PER_SCHOOL,
+            Math.round(
+              ONE_DOT_PER_INSTALL_UP_TO +
+                Math.pow(installs - ONE_DOT_PER_INSTALL_UP_TO, 0.6) * 1.4,
+            ),
+          );
 
-    const dotCount = Math.min(
-      30,
-      Math.max(6, Math.round(Math.sqrt(installs) * 1.6)),
-    );
-    const perDot = installs / dotCount;
-    const radius =
-      CLUSTER_SPREAD_METERS * Math.min(1, 0.4 + Math.sqrt(installs) * 0.06);
-    const positions = sunflowerOffsets(dotCount, radius);
+    const clusterRadius =
+      dotCount === 1
+        ? 0
+        : SPACING_FACTOR * DOT_RADIUS_METERS * Math.sqrt(dotCount);
+    const positions = sunflowerOffsets(dotCount, clusterRadius);
+
     for (let i = 0; i < dotCount; i++) {
       const [dx, dy] = positions[i];
       const [lat, lon] = offsetMeters(s.lat, s.lon, dx, dy);
       out.push({
         lat,
         lon,
-        installs: perDot,
+        installs: installs / dotCount,
         label,
         totalInstalls: installs,
         totalStudents: s.stats.total,
@@ -201,6 +192,7 @@ function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
 }
 
 function sunflowerOffsets(n: number, radiusMeters: number): [number, number][] {
+  if (n <= 1) return [[0, 0]];
   const phi = (1 + Math.sqrt(5)) / 2;
   const out: [number, number][] = [];
   for (let i = 0; i < n; i++) {
