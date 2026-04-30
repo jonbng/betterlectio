@@ -54,13 +54,9 @@ export async function maybeFinalizeReferral(opts: {
   if (!studentId || !accessToken) return null;
   if (await alreadyAttempted(studentId)) return null;
 
-  // Stamp BEFORE the fetch — even if the request fails (network, CORS) we
-  // don't want to retry on every subsequent page load. The cookie is at
-  // most 180 days old; missing the attribution window is a fine outcome.
-  await markAttempted(studentId);
-
+  let resp: Response;
   try {
-    const resp = await fetch(`${SUPABASE_URL}/functions/v1/referral-finalize`, {
+    resp = await fetch(`${SUPABASE_URL}/functions/v1/referral-finalize`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -73,10 +69,22 @@ export async function maybeFinalizeReferral(opts: {
         extensionVersion,
       }),
     });
+  } catch {
+    // Genuine network error (offline, DNS, abort). The server didn't
+    // hear from us, so nothing changed server-side. Don't mark attempted
+    // — let the next session try again. `wasFirstInstall` is one-shot
+    // so this is the only retry shot we get.
+    return null;
+  }
 
-    if (!resp.ok) return null;
-    const json = (await resp.json()) as FinalizeResponse;
-    return json;
+  // Server responded → outcome is deterministic. Mark attempted before
+  // parsing so a 500 response (which clears the cookie server-side) is
+  // recorded as a final attempt. This avoids re-banging the endpoint.
+  await markAttempted(studentId);
+
+  if (!resp.ok) return null;
+  try {
+    return (await resp.json()) as FinalizeResponse;
   } catch {
     return null;
   }

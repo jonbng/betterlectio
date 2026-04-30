@@ -115,7 +115,7 @@ async function recordRejection(
   }
 
   if (studentId) {
-    capturePostHog('referral attribution rejected', `lectio:${studentId}`, {
+    await capturePostHog('referral attribution rejected', `lectio:${studentId}`, {
       reason,
       referrer_student_id: referrerStudentId,
     });
@@ -184,9 +184,18 @@ Deno.serve(async (req: Request) => {
 
   // Now read the cookie.
   const cookie = parseCookie(req, COOKIE_NAME);
-  if (!cookie || !UUID_RE.test(cookie)) {
-    // No cookie → silent no-op, do NOT clear (nothing to clear).
+  if (!cookie) {
+    // No cookie at all → silent no-op, nothing to clear.
     return jsonResponse({ attributed: false, reason: 'no_cookie' satisfies RejectionReason });
+  }
+  if (!UUID_RE.test(cookie)) {
+    // Malformed cookie value (corrupted/manually set/version mismatch).
+    // Clear it so it doesn't poison every future finalize call.
+    return jsonResponse(
+      { attributed: false, reason: 'unknown_cookie' satisfies RejectionReason },
+      200,
+      clearCookie,
+    );
   }
 
   const { data: click, error: clickErr } = await supabaseAdmin
@@ -243,7 +252,13 @@ Deno.serve(async (req: Request) => {
   // ── Attribute ────────────────────────────────────────────────────────
   const nowIso = new Date().toISOString();
 
-  const { error: studentUpdateErr } = await supabaseAdmin
+  // `.is('referred_by', null)` is an idempotency guard against a
+  // concurrent finalize beating us to it. We need `.select()` to know
+  // whether our update actually landed — without it, `error: null` is
+  // returned even when 0 rows matched and we'd happily mark the click
+  // as "ours" while another finalize already attributed the student
+  // to a different referrer.
+  const { data: updatedStudents, error: studentUpdateErr } = await supabaseAdmin
     .from('students')
     .update({
       referred_by: click.referrer_student_id,
@@ -251,13 +266,30 @@ Deno.serve(async (req: Request) => {
       referral_click_id: click.id,
     })
     .eq('id', studentId)
-    .is('referred_by', null);
+    .is('referred_by', null)
+    .select('id');
 
   if (studentUpdateErr) {
     console.error('[referral-finalize] student update failed', studentUpdateErr);
     return jsonResponse(
       { error: 'Could not attribute', stage: 'student-update' },
       500,
+      clearCookie,
+    );
+  }
+
+  if (!updatedStudents || updatedStudents.length === 0) {
+    // Lost a race — another finalize already set `referred_by` to a
+    // different referrer between our SELECT and UPDATE. Don't touch
+    // the click row; clear the cookie so we stop trying.
+    console.warn('[referral-finalize] lost attribution race for', studentId);
+    await capturePostHog('referral attribution rejected', `lectio:${studentId}`, {
+      reason: 'race_lost',
+      referrer_student_id: click.referrer_student_id,
+    });
+    return jsonResponse(
+      { attributed: false, reason: 'already_referred' satisfies RejectionReason },
+      200,
       clearCookie,
     );
   }
@@ -273,7 +305,7 @@ Deno.serve(async (req: Request) => {
     // Student already attributed — keep going, just return success.
   }
 
-  capturePostHog('referral attributed', `lectio:${studentId}`, {
+  await capturePostHog('referral attributed', `lectio:${studentId}`, {
     referrer_student_id: click.referrer_student_id,
     click_age_seconds: Math.round(clickAge / 1000),
     school_id: schoolId ?? student.school_id ?? null,

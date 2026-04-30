@@ -1020,57 +1020,58 @@ export async function getReferralRejectionBreakdown() {
     .sort((a, b) => b.count - a.count);
 }
 
-export async function getReferralInviteeBreakdowns(limit = 10) {
-  const { data: rows } = await referralClicks()
-    .select("converted_student_id")
-    .not("converted_student_id", "is", null);
+export type ReferralBreakdown = {
+  schools: { schoolId: number; name: string; count: number }[];
+  classes: { className: string; count: number }[];
+  years: { year: string; count: number }[];
+  total: number;
+};
 
-  const ids = Array.from(
-    new Set(
-      (rows ?? [])
-        .map((r) => r.converted_student_id)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  );
-
-  if (ids.length === 0) {
-    return { schools: [], classes: [], years: [], total: 0 };
-  }
-
-  const { data: students } = await supabaseAdmin
-    .from("students")
-    .select("id, class_name, school_id, schools(name, display_name)")
-    .in("id", ids);
-
+function aggregateBreakdown(
+  students: {
+    id: string;
+    class_name: string | null;
+    school_id: number;
+    schools:
+      | { name: string; display_name: string | null }
+      | { name: string; display_name: string | null }[]
+      | null;
+  }[],
+  weights: Record<string, number>,
+  limit: number,
+): ReferralBreakdown {
   const schoolCounts: Record<
     string,
     { schoolId: number; name: string; count: number }
   > = {};
   const classCounts: Record<string, number> = {};
   const yearCounts: Record<string, number> = {};
+  let total = 0;
 
-  for (const s of students ?? []) {
-    const school = s.schools as
-      | { name: string; display_name: string | null }
-      | null
-      | undefined;
-    const schoolName = school?.display_name ?? school?.name ?? "Unknown school";
+  for (const s of students) {
+    const w = weights[s.id] ?? 0;
+    if (w === 0) continue;
+    total += w;
+
+    const schoolRel = Array.isArray(s.schools) ? s.schools[0] : s.schools;
+    const schoolName =
+      schoolRel?.display_name ?? schoolRel?.name ?? "Unknown school";
     const schoolKey = `${s.school_id}`;
     const existing = schoolCounts[schoolKey];
-    if (existing) existing.count += 1;
+    if (existing) existing.count += w;
     else
       schoolCounts[schoolKey] = {
         schoolId: s.school_id,
         name: schoolName,
-        count: 1,
+        count: w,
       };
 
     if (s.class_name) {
-      classCounts[s.class_name] = (classCounts[s.class_name] ?? 0) + 1;
+      classCounts[s.class_name] = (classCounts[s.class_name] ?? 0) + w;
       const grade = getSchoolYearFromClassName(s.class_name);
       if (grade !== null) {
         const key = `${grade}.g`;
-        yearCounts[key] = (yearCounts[key] ?? 0) + 1;
+        yearCounts[key] = (yearCounts[key] ?? 0) + w;
       }
     }
   }
@@ -1086,12 +1087,54 @@ export async function getReferralInviteeBreakdowns(limit = 10) {
 
   const years = Object.entries(yearCounts)
     .map(([year, count]) => ({ year, count }))
-    .sort((a, b) => {
-      const ay = parseInt(a.year, 10);
-      const by = parseInt(b.year, 10);
-      return ay - by;
-    });
+    .sort(
+      (a, b) => parseInt(a.year, 10) - parseInt(b.year, 10),
+    );
 
-  return { schools, classes, years, total: students?.length ?? 0 };
+  return { schools, classes, years, total };
+}
+
+export async function getReferralBreakdowns(
+  limit = 10,
+): Promise<{ referrers: ReferralBreakdown; invitees: ReferralBreakdown }> {
+  // referrers: weight by # of conversions they generated
+  // invitees: each converted student counts once
+  const { data: rows } = await referralClicks()
+    .select("referrer_student_id, converted_student_id")
+    .not("converted_student_id", "is", null);
+
+  const referrerWeights: Record<string, number> = {};
+  const inviteeWeights: Record<string, number> = {};
+  for (const r of rows ?? []) {
+    if (!r.converted_student_id) continue;
+    referrerWeights[r.referrer_student_id] =
+      (referrerWeights[r.referrer_student_id] ?? 0) + 1;
+    inviteeWeights[r.converted_student_id] =
+      (inviteeWeights[r.converted_student_id] ?? 0) + 1;
+  }
+
+  const ids = Array.from(
+    new Set([...Object.keys(referrerWeights), ...Object.keys(inviteeWeights)]),
+  );
+
+  if (ids.length === 0) {
+    const empty: ReferralBreakdown = {
+      schools: [],
+      classes: [],
+      years: [],
+      total: 0,
+    };
+    return { referrers: empty, invitees: empty };
+  }
+
+  const { data: students } = await supabaseAdmin
+    .from("students")
+    .select("id, class_name, school_id, schools(name, display_name)")
+    .in("id", ids);
+
+  return {
+    referrers: aggregateBreakdown(students ?? [], referrerWeights, limit),
+    invitees: aggregateBreakdown(students ?? [], inviteeWeights, limit),
+  };
 }
 

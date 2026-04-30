@@ -19,8 +19,9 @@ import {
   getTopReferrers,
   getRecentAttributions,
   getReferralRejectionBreakdown,
-  getReferralInviteeBreakdowns,
+  getReferralBreakdowns,
 } from "@/lib/supabase/queries";
+import type { ReferralBreakdown } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function ReferralsPage() {
       getTopReferrers(20),
       getRecentAttributions(50),
       getReferralRejectionBreakdown(),
-      getReferralInviteeBreakdowns(10),
+      getReferralBreakdowns(10),
     ]);
 
   return (
@@ -184,44 +185,17 @@ export default async function ReferralsPage() {
         </Card>
       </div>
 
-      {breakdowns.total > 0 && (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <BreakdownCard
-            icon={School}
-            title="By school"
-            empty="No invitees yet"
-            total={breakdowns.total}
-            rows={breakdowns.schools.map((s) => ({
-              key: `${s.schoolId}`,
-              label: s.name,
-              href: `/schools/${s.schoolId}`,
-              count: s.count,
-            }))}
-          />
-          <BreakdownCard
-            icon={Users}
-            title="By class"
-            empty="No invitees yet"
-            total={breakdowns.total}
-            rows={breakdowns.classes.map((c) => ({
-              key: c.className,
-              label: c.className,
-              count: c.count,
-            }))}
-          />
-          <BreakdownCard
-            icon={GraduationCap}
-            title="By school year"
-            empty="No invitees yet"
-            total={breakdowns.total}
-            rows={breakdowns.years.map((y) => ({
-              key: y.year,
-              label: y.year,
-              count: y.count,
-            }))}
-          />
-        </div>
-      )}
+      <BreakdownSection
+        heading="Invitees — who's joining via referrals"
+        subtitle="Each converted student counted once. Weight by attribution."
+        breakdown={breakdowns.invitees}
+      />
+
+      <BreakdownSection
+        heading="Referrers — who's sending invites that convert"
+        subtitle="Each referrer weighted by # of classmates they've onboarded."
+        breakdown={breakdowns.referrers}
+      />
 
       <Card>
         <CardHeader>
@@ -299,6 +273,62 @@ function formatLag(seconds: number): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
   return `${Math.round(seconds / 86400)}d`;
+}
+
+function BreakdownSection({
+  heading,
+  subtitle,
+  breakdown,
+}: {
+  heading: string;
+  subtitle: string;
+  breakdown: ReferralBreakdown;
+}) {
+  if (breakdown.total === 0) return null;
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold tracking-tight">{heading}</h2>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <BreakdownCard
+          icon={School}
+          title="By school"
+          empty="—"
+          total={breakdown.total}
+          rows={breakdown.schools.map((s) => ({
+            key: `${s.schoolId}`,
+            label: s.name,
+            href: `/schools/${s.schoolId}`,
+            count: s.count,
+          }))}
+        />
+        <BreakdownCard
+          icon={Users}
+          title="By class"
+          empty="—"
+          total={breakdown.total}
+          rows={breakdown.classes.map((c) => ({
+            key: c.className,
+            label: c.className,
+            count: c.count,
+          }))}
+        />
+        <BreakdownCard
+          icon={GraduationCap}
+          title="By school year"
+          empty="—"
+          total={breakdown.total}
+          rows={breakdown.years.map((y) => ({
+            key: y.year,
+            label: y.year,
+            count: y.count,
+          }))}
+        />
+      </div>
+    </section>
+  );
 }
 
 function BreakdownCard({

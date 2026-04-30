@@ -83,15 +83,50 @@ export default defineContentScript({
       if (message.action === "openSettings") {
         window.dispatchEvent(new CustomEvent("betterlectio:openSettings"));
       }
-      if (message?.type === "betterlectio:referral-attributed") {
-        const name = (message as { referrerName?: string | null }).referrerName;
-        toast.success(
-          name
-            ? `Tak — du blev inviteret af ${name}!`
-            : "Tak — din invitation er registreret!",
-          { duration: 8000 },
-        );
+    });
+
+    // Referral attribution toast handoff. Background can't reliably push
+    // to all Lectio tabs without `tabs` / lectio.dk host_permissions, so
+    // it parks the payload in extension storage instead. We pick it up
+    // via storage.onChanged, show the toast, and clear the key. The `ts`
+    // gate prevents duplicate firings if multiple tabs see the change.
+    let lastReferralToastTs = 0;
+    const handleReferralToast = (raw: unknown) => {
+      if (!raw || typeof raw !== "object") return;
+      const payload = raw as {
+        ts?: number;
+        referrerName?: string | null;
+        studentId?: string;
+      };
+      if (!payload.ts || payload.ts === lastReferralToastTs) return;
+      lastReferralToastTs = payload.ts;
+      const profile = getCachedProfile();
+      // Skip if the toast is for someone other than the currently
+      // identified student on this page.
+      if (payload.studentId && profile?.studentId && payload.studentId !== profile.studentId) {
+        return;
       }
+      const name = payload.referrerName;
+      toast.success(
+        name
+          ? `Tak — du blev inviteret af ${name}!`
+          : "Tak — din invitation er registreret!",
+        { duration: 8000 },
+      );
+      // Clear the key so it doesn't re-fire on the next page load. The
+      // first tab to win the race clears it; other tabs already updated
+      // their `lastReferralToastTs` from the same change event.
+      browser.storage.local.remove("bl-referral-toast-pending").catch(() => {});
+    };
+    browser.storage.local
+      .get("bl-referral-toast-pending")
+      .then((r) => handleReferralToast(r["bl-referral-toast-pending"]))
+      .catch(() => {});
+    browser.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      const change = changes["bl-referral-toast-pending"];
+      if (!change || !change.newValue) return;
+      handleReferralToast(change.newValue);
     });
 
     // Wait for DOM to be ready
