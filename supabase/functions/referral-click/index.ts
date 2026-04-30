@@ -28,13 +28,23 @@ const DOWNLOAD_URL = 'https://betterlectio.dk/download?ref=1';
 const COOKIE_NAME = 'bl_ref';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // 180d
 
-// Daily-rotated salt for ip hashing — same IP within a single UTC day
-// produces the same hash (so we can dedupe `unique_clickers` within a day),
-// but the hash isn't stable long-term. No raw IPs ever stored.
-function dailySalt(): string {
-  // toISOString() = "2026-04-30T11:55:59.969Z" → "2026-04-30"
-  const ymd = new Date().toISOString().slice(0, 10);
-  return `bl-referral-${ymd}`;
+// Stable salt for IP hashing. The point of hashing here is twofold:
+//   (1) we never want to store raw IPs;
+//   (2) `count(distinct ip_hash)` should give us the number of unique
+//       people who clicked a link.
+//
+// (2) requires a STABLE salt — if the salt rotates per day, the same IP
+// on two days produces two hashes and `unique_clickers` overcounts. The
+// previous daily-rotated salt also leaked: the format was in source so
+// any past day's salt could be derived, providing no real privacy.
+//
+// Set `BL_IP_HASH_SALT` as a Supabase edge function secret to a long
+// random string. The fallback keeps the function operating in dev/
+// preview environments without requiring secret setup, but production
+// should always have the secret set.
+function ipSalt(): string {
+  const v = Deno.env.get('BL_IP_HASH_SALT');
+  return v && v.length > 0 ? v : 'bl-referral-static-fallback';
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -137,7 +147,7 @@ Deno.serve(async (req: Request) => {
     const city =
       req.headers.get('cf-ipcity') ?? req.headers.get('x-vercel-ip-city');
     const ip = getClientIp(req);
-    const ipHash = ip ? await sha256Hex(`${dailySalt()}:${ip}`) : null;
+    const ipHash = ip ? await sha256Hex(`${ipSalt()}:${ip}`) : null;
     const landingUrl = `https://betterlectio.dk/r/${ref}`;
 
     // The cookie is the source of truth that links a click to a future
