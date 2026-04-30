@@ -18,7 +18,12 @@ export default async function SchoolsPage() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {schools
-          .sort((a, b) => b.stats.total - a.stats.total)
+          .sort((a, b) => {
+            const ap = a.stats.adoptionPct ?? -1;
+            const bp = b.stats.adoptionPct ?? -1;
+            if (bp !== ap) return bp - ap;
+            return b.stats.total - a.stats.total;
+          })
           .map((s) => (
             <Card key={s.id} className="transition-colors hover:bg-muted/40">
               <Link href={`/schools/${s.id}`} className="block">
@@ -36,9 +41,30 @@ export default async function SchoolsPage() {
                     {s.stats.total}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    students
+                    BL students
                   </span>
+                  {s.student_count != null && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      / {s.student_count.toLocaleString()} total
+                    </span>
+                  )}
                 </div>
+                {s.stats.adoptionPct != null && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Adoption</span>
+                      <span className="font-mono font-medium text-foreground">
+                        {s.stats.adoptionPct.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted">
+                      <div
+                        className="h-1.5 rounded-full bg-primary"
+                        style={{ width: `${s.stats.adoptionPct}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="mt-2 flex gap-1.5">
                   {s.stats.extension > 0 && (
                     <Badge variant="secondary" className="text-xs">

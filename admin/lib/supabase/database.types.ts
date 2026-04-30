@@ -311,6 +311,8 @@ export type Database = {
           lat: number | null
           lon: number | null
           name: string
+          student_count: number | null
+          student_count_updated_at: string | null
         }
         Insert: {
           created_at?: string
@@ -319,6 +321,8 @@ export type Database = {
           lat?: number | null
           lon?: number | null
           name: string
+          student_count?: number | null
+          student_count_updated_at?: string | null
         }
         Update: {
           created_at?: string
@@ -327,6 +331,8 @@ export type Database = {
           lat?: number | null
           lon?: number | null
           name?: string
+          student_count?: number | null
+          student_count_updated_at?: string | null
         }
         Relationships: []
       }

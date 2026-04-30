@@ -195,16 +195,23 @@ export async function getSchools() {
 
   return (schools ?? [])
     .filter((s) => statsMap[s.id]?.total > 0)
-    .map((s) => ({
-      ...s,
-      stats: statsMap[s.id],
-    }));
+    .map((s) => {
+      const base = statsMap[s.id];
+      const adoptionPct =
+        s.student_count && s.student_count > 0
+          ? Math.min(100, (base.extension / s.student_count) * 100)
+          : null;
+      return {
+        ...s,
+        stats: { ...base, adoptionPct },
+      };
+    });
 }
 
 export async function getSchoolMapData() {
   const { data: schools } = await supabaseAdmin
     .from("schools")
-    .select("id, name, display_name, lat, lon")
+    .select("id, name, display_name, lat, lon, student_count")
     .not("lat", "is", null)
     .not("lon", "is", null);
 
@@ -228,14 +235,22 @@ export async function getSchoolMapData() {
   }
 
   return (schools ?? [])
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      display_name: s.display_name,
-      lat: s.lat as number,
-      lon: s.lon as number,
-      stats: statsMap[s.id] ?? { total: 0, extension: 0, app: 0 },
-    }))
+    .map((s) => {
+      const base = statsMap[s.id] ?? { total: 0, extension: 0, app: 0 };
+      const adoptionPct =
+        s.student_count && s.student_count > 0
+          ? Math.min(100, (base.extension / s.student_count) * 100)
+          : null;
+      return {
+        id: s.id,
+        name: s.name,
+        display_name: s.display_name,
+        lat: s.lat as number,
+        lon: s.lon as number,
+        student_count: s.student_count,
+        stats: { ...base, adoptionPct },
+      };
+    })
     .filter((s) => s.stats.extension > 0);
 }
 
@@ -274,9 +289,10 @@ export async function getSchoolDetail(id: number) {
   ]);
 
   const list = students ?? [];
+  const extensionCount = list.filter((s) => s.extension_installed_at).length;
   const stats = {
     total: list.length,
-    extension: list.filter((s) => s.extension_installed_at).length,
+    extension: extensionCount,
     app: list.filter((s) => s.app_installed_at).length,
     eligible: list.filter((s) => s.app_eligible).length,
     qrScanned: list.filter((s) => s.app_qr_scanned_at).length,
@@ -284,6 +300,10 @@ export async function getSchoolDetail(id: number) {
     pctOfTotal: totalStudents
       ? Math.round((list.length / totalStudents) * 100)
       : 0,
+    adoptionPct:
+      school.student_count && school.student_count > 0
+        ? Math.min(100, (extensionCount / school.student_count) * 100)
+        : null,
   };
 
   // Class roster (top classes by size)

@@ -84,6 +84,36 @@ export default async function SchoolDetailPage({
         <Stat icon={Apple} title="QR scanned" value={stats.qrScanned} />
         <Stat icon={Smartphone} title="Marked Android" value={stats.markedAndroid} />
       </div>
+      {stats.adoptionPct != null && school.student_count != null && (
+        <Card>
+          <CardContent className="flex flex-col gap-2 py-4">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <p className="text-sm font-medium">School-wide adoption</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.extension.toLocaleString()} of{" "}
+                  {school.student_count.toLocaleString()} students
+                  {school.student_count_updated_at && (
+                    <>
+                      {" · enrollment updated "}
+                      {new Date(school.student_count_updated_at).toLocaleDateString("da-DK")}
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="text-2xl font-bold tabular-nums">
+                {stats.adoptionPct.toFixed(1)}%
+              </div>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-primary"
+                style={{ width: `${stats.adoptionPct}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <p className="text-xs text-muted-foreground">
         {stats.pctOfTotal}% of all BetterLectio students.
       </p>

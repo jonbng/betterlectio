@@ -11,7 +11,13 @@ type SchoolPoint = {
   display_name: string | null;
   lat: number;
   lon: number;
-  stats: { total: number; extension: number; app: number };
+  student_count: number | null;
+  stats: {
+    total: number;
+    extension: number;
+    app: number;
+    adoptionPct: number | null;
+  };
 };
 
 // One dot per install. Big schools shrink dot radius and spacing so clusters
@@ -123,7 +129,9 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
       marker.bindTooltip(
         `<div style="font-weight:600">${escapeHtml(p.label)}</div>` +
           `<div>${p.totalInstalls} install${p.totalInstalls === 1 ? "" : "s"}</div>` +
-          `<div style="opacity:0.7">${p.totalStudents} total students</div>`,
+          (p.schoolStudentCount != null
+            ? `<div style="opacity:0.7">${p.schoolStudentCount.toLocaleString()} students total · ${p.adoptionPct!.toFixed(1)}% adoption</div>`
+            : `<div style="opacity:0.7">${p.totalBlStudents} BL students · enrollment unknown</div>`),
         { direction: "top" },
       );
     }
@@ -148,7 +156,9 @@ type ClusterPoint = {
   dotRadius: number;
   label: string;
   totalInstalls: number;
-  totalStudents: number;
+  totalBlStudents: number;
+  schoolStudentCount: number | null;
+  adoptionPct: number | null;
 };
 
 function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
@@ -177,7 +187,9 @@ function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
         dotRadius,
         label,
         totalInstalls: installs,
-        totalStudents: s.stats.total,
+        totalBlStudents: s.stats.total,
+        schoolStudentCount: s.student_count,
+        adoptionPct: s.stats.adoptionPct,
       });
     }
   }
