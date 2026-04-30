@@ -1,3 +1,5 @@
+import { maybeUpdateSchoolStudentCount } from './school-student-count';
+
 export interface AvanceretSkemaCacheParams {
   afdelingId: string;
   subcache: string;
@@ -61,6 +63,7 @@ export async function fetchAvanceretSkemaDropdownItems(schoolId: string): Promis
       expiresAt: now + DROPDOWN_CACHE_TTL_MS,
       items,
     });
+    maybeUpdateSchoolStudentCount(schoolId, items);
     return items;
   })();
 

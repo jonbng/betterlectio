@@ -311,6 +311,8 @@ export type Database = {
           lat: number | null
           lon: number | null
           name: string
+          student_count: number | null
+          student_count_updated_at: string | null
         }
         Insert: {
           created_at?: string
@@ -319,6 +321,8 @@ export type Database = {
           lat?: number | null
           lon?: number | null
           name: string
+          student_count?: number | null
+          student_count_updated_at?: string | null
         }
         Update: {
           created_at?: string
@@ -327,6 +331,8 @@ export type Database = {
           lat?: number | null
           lon?: number | null
           name?: string
+          student_count?: number | null
+          student_count_updated_at?: string | null
         }
         Relationships: []
       }
@@ -809,6 +815,10 @@ export type Database = {
           p_student_id: string
         }
         Returns: undefined
+      }
+      update_school_student_count: {
+        Args: { p_count: number; p_school_id: number }
+        Returns: boolean
       }
       upsert_student_homework_status:
         | {
