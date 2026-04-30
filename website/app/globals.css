@@ -324,29 +324,163 @@
 }
 
 .brand-root .referral-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem;
+  align-items: stretch;
+  border: 4px solid var(--brand-text);
+  padding: 1.25rem 1.5rem 1.25rem 1.25rem;
+  margin-bottom: 2.5rem;
+  background: var(--brand-bg);
+  max-width: 720px;
+  box-shadow: 8px 8px 0 0 var(--brand-accent);
+  transform: rotate(-1.25deg);
+  transform-origin: left center;
+  animation: referral-banner-in 480ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.brand-root .referral-banner::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px dashed var(--brand-text);
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.brand-root .referral-banner__stamp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--brand-accent);
+  color: var(--brand-bg);
+  border: 3px double var(--brand-bg);
+  outline: 3px solid var(--brand-accent);
+  min-width: 4.25rem;
+  transform: rotate(4deg);
+  align-self: center;
+}
+
+.brand-root .referral-banner__stamp-mark {
+  font-size: 1.6rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.brand-root .referral-banner__stamp-id {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.brand-root .referral-banner__body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  border: 4px solid var(--brand-accent);
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.75rem;
-  background: var(--brand-bg);
-  max-width: 640px;
+  min-width: 0;
 }
 
 .brand-root .referral-banner__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-family: var(--font-mono), monospace;
   font-weight: 800;
   font-size: 0.7rem;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
   color: var(--brand-accent);
 }
 
-.brand-root .referral-banner__text {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.4;
+.brand-root .referral-banner__label-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--brand-accent);
+  border-radius: 50%;
+  animation: referral-banner-pulse 1.6s ease-in-out infinite;
+}
+
+.brand-root .referral-banner__headline {
+  font-size: clamp(1.5rem, 3.6vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
   color: var(--brand-text);
+  text-transform: none;
+}
+
+.brand-root .referral-banner__headline em {
+  font-style: normal;
+  display: inline-block;
+  background: var(--brand-accent);
+  color: var(--brand-bg);
+  padding: 0 0.25em;
+  margin-left: 0.05em;
+  transform: rotate(-1deg) translateY(-0.04em);
+}
+
+.brand-root .referral-banner__text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--brand-text);
+  max-width: 48ch;
+}
+
+.brand-root .referral-banner__corner {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 32px;
+  height: 32px;
+  background:
+    linear-gradient(135deg, transparent 50%, var(--brand-text) 50%);
+  pointer-events: none;
+}
+
+@keyframes referral-banner-in {
+  from {
+    opacity: 0;
+    transform: rotate(-1.25deg) translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-1.25deg) translateY(0) scale(1);
+  }
+}
+
+@keyframes referral-banner-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+@media (max-width: 540px) {
+  .brand-root .referral-banner {
+    grid-template-columns: 1fr;
+    transform: rotate(-1deg);
+    padding: 1rem 1.1rem;
+  }
+  .brand-root .referral-banner__stamp {
+    align-self: flex-start;
+    transform: rotate(-3deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-root .referral-banner {
+    animation: none;
+  }
+  .brand-root .referral-banner__label-dot {
+    animation: none;
+  }
 }
 
 .brand-root .download-title {

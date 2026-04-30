@@ -29,11 +29,11 @@ const COOKIE_NAME = 'bl_ref';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // 180d
 
 // Daily-rotated salt for ip hashing — same IP within a single UTC day
-// produces the same hash (so we can dedupe `unique_clickers`), but the
-// hash isn't stable long-term. No raw IPs ever stored.
+// produces the same hash (so we can dedupe `unique_clickers` within a day),
+// but the hash isn't stable long-term. No raw IPs ever stored.
 function dailySalt(): string {
-  const now = new Date();
-  const ymd = `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}`;
+  // toISOString() = "2026-04-30T11:55:59.969Z" → "2026-04-30"
+  const ymd = new Date().toISOString().slice(0, 10);
   return `bl-referral-${ymd}`;
 }
 
@@ -123,7 +123,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (!referrer) {
-      capturePostHog('referral link clicked invalid', `lectio:${ref}`, {
+      await capturePostHog('referral link clicked invalid', `lectio:${ref}`, {
         reason: 'unknown_referrer',
       });
       return redirectResponse(DOWNLOAD_URL);
@@ -140,7 +140,11 @@ Deno.serve(async (req: Request) => {
     const ipHash = ip ? await sha256Hex(`${dailySalt()}:${ip}`) : null;
     const landingUrl = `https://betterlectio.dk/r/${ref}`;
 
-    // Fire-and-forget insert — the redirect is the contract, not the row.
+    // The cookie is the source of truth that links a click to a future
+    // install. If the insert fails we MUST NOT set the cookie — finalize
+    // would later look it up, get nothing, and silently drop the
+    // attribution. Better to redirect with no cookie so the user's next
+    // click can try again on a healthy DB.
     const { error: insertError } = await supabaseAdmin
       .from('referral_clicks')
       .insert({
@@ -156,8 +160,10 @@ Deno.serve(async (req: Request) => {
 
     if (insertError) {
       console.error('[referral-click] insert failed', insertError);
-      // Still set the cookie + redirect; we'd rather have a working flow
-      // with a missing row than break attribution entirely.
+      await capturePostHog('referral link clicked invalid', `lectio:${ref}`, {
+        reason: 'insert_failed',
+      });
+      return redirectResponse(DOWNLOAD_URL);
     }
 
     const cookie = [
@@ -169,7 +175,7 @@ Deno.serve(async (req: Request) => {
       'SameSite=None',
     ].join('; ');
 
-    capturePostHog('referral link clicked', `lectio:${ref}`, {
+    await capturePostHog('referral link clicked', `lectio:${ref}`, {
       country,
       referer_host: refererHost(referer),
       has_referer: !!referer,

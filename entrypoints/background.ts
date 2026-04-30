@@ -59,26 +59,28 @@ async function runReferralFinalize(opts: {
       extensionVersion: browser.runtime.getManifest().version,
     });
     if (!result?.attributed) return;
-    // Tell every active content script — `tabs.query()` followed by
-    // `tabs.sendMessage()` reaches Lectio tabs in both Chrome and Firefox.
+
+    // Side-channel through extension storage. We can't broadcast via
+    // `tabs.sendMessage` reliably here because:
+    //   1. `tabs.query({ url: '*://*.lectio.dk/*' })` needs `tabs` perm
+    //      or matching host_permissions, neither of which we have.
+    //   2. We don't have any other way to enumerate Lectio tabs.
+    // Content scripts subscribe to `browser.storage.onChanged` for this
+    // key and pop the toast. The flag carries a `ts` so a subsequent
+    // identical attribution from elsewhere (shouldn't happen, but
+    // defensive) doesn't fire a duplicate toast.
+    const payload = {
+      ts: Date.now(),
+      studentId: opts.studentId,
+      referrerName: result.referrerName ?? null,
+      referrerStudentId: result.referrerStudentId ?? null,
+    };
     try {
-      const tabs = await browser.tabs.query({ url: '*://*.lectio.dk/*' });
-      await Promise.all(
-        tabs.map((tab) =>
-          tab.id
-            ? browser.tabs
-                .sendMessage(tab.id, {
-                  type: 'betterlectio:referral-attributed',
-                  referrerName: result.referrerName ?? null,
-                  referrerStudentId: result.referrerStudentId ?? null,
-                })
-                .catch(() => {})
-            : Promise.resolve(),
-        ),
-      );
-    } catch {
-      // Best-effort: missing tabs API or no Lectio tabs open — the
-      // attribution is already persisted server-side.
+      await browser.storage.local.set({
+        'bl-referral-toast-pending': payload,
+      });
+    } catch (err) {
+      console.warn('[BetterLectio] Referral toast handoff failed:', err);
     }
   } catch (err) {
     console.warn('[BetterLectio] Referral finalize failed:', err);

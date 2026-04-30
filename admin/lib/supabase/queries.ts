@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./admin";
+import { getSchoolYearFromClassName } from "@/lib/class-name";
 
 // ── Overview stats ──────────────────────────────────────────────────
 
@@ -1019,18 +1020,78 @@ export async function getReferralRejectionBreakdown() {
     .sort((a, b) => b.count - a.count);
 }
 
-export async function getReferralCountryBreakdown(limit = 10) {
+export async function getReferralInviteeBreakdowns(limit = 10) {
   const { data: rows } = await referralClicks()
-    .select("country")
-    .not("country", "is", null);
-  const counts: Record<string, number> = {};
-  for (const r of rows ?? []) {
-    if (!r.country) continue;
-    counts[r.country] = (counts[r.country] ?? 0) + 1;
+    .select("converted_student_id")
+    .not("converted_student_id", "is", null);
+
+  const ids = Array.from(
+    new Set(
+      (rows ?? [])
+        .map((r) => r.converted_student_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+
+  if (ids.length === 0) {
+    return { schools: [], classes: [], years: [], total: 0 };
   }
-  return Object.entries(counts)
-    .map(([country, count]) => ({ country, count }))
+
+  const { data: students } = await supabaseAdmin
+    .from("students")
+    .select("id, class_name, school_id, schools(name, display_name)")
+    .in("id", ids);
+
+  const schoolCounts: Record<
+    string,
+    { schoolId: number; name: string; count: number }
+  > = {};
+  const classCounts: Record<string, number> = {};
+  const yearCounts: Record<string, number> = {};
+
+  for (const s of students ?? []) {
+    const school = s.schools as
+      | { name: string; display_name: string | null }
+      | null
+      | undefined;
+    const schoolName = school?.display_name ?? school?.name ?? "Unknown school";
+    const schoolKey = `${s.school_id}`;
+    const existing = schoolCounts[schoolKey];
+    if (existing) existing.count += 1;
+    else
+      schoolCounts[schoolKey] = {
+        schoolId: s.school_id,
+        name: schoolName,
+        count: 1,
+      };
+
+    if (s.class_name) {
+      classCounts[s.class_name] = (classCounts[s.class_name] ?? 0) + 1;
+      const grade = getSchoolYearFromClassName(s.class_name);
+      if (grade !== null) {
+        const key = `${grade}.g`;
+        yearCounts[key] = (yearCounts[key] ?? 0) + 1;
+      }
+    }
+  }
+
+  const schools = Object.values(schoolCounts)
     .sort((a, b) => b.count - a.count)
     .slice(0, limit);
+
+  const classes = Object.entries(classCounts)
+    .map(([className, count]) => ({ className, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+
+  const years = Object.entries(yearCounts)
+    .map(([year, count]) => ({ year, count }))
+    .sort((a, b) => {
+      const ay = parseInt(a.year, 10);
+      const by = parseInt(b.year, 10);
+      return ay - by;
+    });
+
+  return { schools, classes, years, total: students?.length ?? 0 };
 }
 

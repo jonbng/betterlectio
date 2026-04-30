@@ -4,7 +4,9 @@ import {
   TrendingUp,
   CheckCheck,
   Timer,
-  Globe,
+  School,
+  GraduationCap,
+  Users,
   XCircle,
 } from "lucide-react";
 
@@ -17,20 +19,20 @@ import {
   getTopReferrers,
   getRecentAttributions,
   getReferralRejectionBreakdown,
-  getReferralCountryBreakdown,
+  getReferralInviteeBreakdowns,
 } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReferralsPage() {
-  const [overview, series, topRefs, recent, rejections, countries] =
+  const [overview, series, topRefs, recent, rejections, breakdowns] =
     await Promise.all([
       getReferralOverview(),
       getReferralTimeSeries(30),
       getTopReferrers(20),
       getRecentAttributions(50),
       getReferralRejectionBreakdown(),
-      getReferralCountryBreakdown(10),
+      getReferralInviteeBreakdowns(10),
     ]);
 
   return (
@@ -182,24 +184,43 @@ export default async function ReferralsPage() {
         </Card>
       </div>
 
-      {countries.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Globe className="size-4 text-muted-foreground" />
-              Top click countries
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {countries.map((c) => (
-                <Badge key={c.country} variant="secondary">
-                  {c.country.toUpperCase()} · {c.count}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {breakdowns.total > 0 && (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <BreakdownCard
+            icon={School}
+            title="By school"
+            empty="No invitees yet"
+            total={breakdowns.total}
+            rows={breakdowns.schools.map((s) => ({
+              key: `${s.schoolId}`,
+              label: s.name,
+              href: `/schools/${s.schoolId}`,
+              count: s.count,
+            }))}
+          />
+          <BreakdownCard
+            icon={Users}
+            title="By class"
+            empty="No invitees yet"
+            total={breakdowns.total}
+            rows={breakdowns.classes.map((c) => ({
+              key: c.className,
+              label: c.className,
+              count: c.count,
+            }))}
+          />
+          <BreakdownCard
+            icon={GraduationCap}
+            title="By school year"
+            empty="No invitees yet"
+            total={breakdowns.total}
+            rows={breakdowns.years.map((y) => ({
+              key: y.year,
+              label: y.year,
+              count: y.count,
+            }))}
+          />
+        </div>
       )}
 
       <Card>
@@ -278,6 +299,67 @@ function formatLag(seconds: number): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
   if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
   return `${Math.round(seconds / 86400)}d`;
+}
+
+function BreakdownCard({
+  icon: Icon,
+  title,
+  empty,
+  total,
+  rows,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  empty: string;
+  total: number;
+  rows: { key: string; label: string; href?: string; count: number }[];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Icon className="size-4 text-muted-foreground" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{empty}</p>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((r) => {
+              const pct = total > 0 ? (r.count / total) * 100 : 0;
+              return (
+                <li key={r.key} className="space-y-1">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    {r.href ? (
+                      <Link
+                        href={r.href}
+                        className="truncate font-medium hover:underline"
+                      >
+                        {r.label}
+                      </Link>
+                    ) : (
+                      <span className="truncate font-medium">{r.label}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                      {r.count} · {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted">
+                    <div
+                      className="h-1.5 rounded-full bg-primary/70"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function Stat({
