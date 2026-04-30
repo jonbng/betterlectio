@@ -9,6 +9,7 @@ import type {
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
 import { capture, captureException, identify, getDistinctId, isLectioStudentDistinctId, loadOptOutFlag } from '@/lib/posthog';
 import { queueLifecycleEvent } from '@/lib/posthog-lifecycle';
+import { maybeFinalizeReferral } from '@/lib/referral';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -43,6 +44,46 @@ let cachedAnalyticsIdentity:
   | null = null;
 const UNINSTALL_URL_BASE = 'https://betterlectio.dk/uninstall';
 let lastUninstallStudentId: string | null = null;
+
+async function runReferralFinalize(opts: {
+  studentId: string;
+  schoolId?: string;
+  accessToken: string;
+  distinctId?: string;
+}): Promise<void> {
+  try {
+    const result = await maybeFinalizeReferral({
+      studentId: opts.studentId,
+      schoolId: opts.schoolId,
+      accessToken: opts.accessToken,
+      extensionVersion: browser.runtime.getManifest().version,
+    });
+    if (!result?.attributed) return;
+    // Tell every active content script — `tabs.query()` followed by
+    // `tabs.sendMessage()` reaches Lectio tabs in both Chrome and Firefox.
+    try {
+      const tabs = await browser.tabs.query({ url: '*://*.lectio.dk/*' });
+      await Promise.all(
+        tabs.map((tab) =>
+          tab.id
+            ? browser.tabs
+                .sendMessage(tab.id, {
+                  type: 'betterlectio:referral-attributed',
+                  referrerName: result.referrerName ?? null,
+                  referrerStudentId: result.referrerStudentId ?? null,
+                })
+                .catch(() => {})
+            : Promise.resolve(),
+        ),
+      );
+    } catch {
+      // Best-effort: missing tabs API or no Lectio tabs open — the
+      // attribution is already persisted server-side.
+    }
+  } catch (err) {
+    console.warn('[BetterLectio] Referral finalize failed:', err);
+  }
+}
 
 function setUninstallUrlForStudent(studentId: string): void {
   if (!studentId || lastUninstallStudentId === studentId) return;
@@ -488,6 +529,7 @@ interface AuthAttemptResult {
   authStage?: string;
   authServerSchoolId?: string;
   elevid?: string;
+  wasFirstInstall?: boolean;
 }
 
 async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<AuthAttemptResult> {
@@ -515,7 +557,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     }
   }
 
-  const { tokenHash, error, schoolId: serverSchoolId, elevid } = await resp.json();
+  const { tokenHash, error, schoolId: serverSchoolId, elevid, wasFirstInstall } = await resp.json();
   if (error || !tokenHash) {
     return {
       success: false,
@@ -545,6 +587,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     authStage: 'verify-otp',
     authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
     elevid: typeof elevid === 'string' ? elevid : undefined,
+    wasFirstInstall: wasFirstInstall === true,
   };
 }
 
@@ -719,6 +762,18 @@ async function runEnsureSupabaseSession(
             source,
             auth_stage: result.authStage,
             auth_server_school_id: result.authServerSchoolId,
+          });
+        }
+        // Referral attribution — only on this very first auth, gated by the
+        // edge function's wasFirstInstall flag (which is true exactly when
+        // it just stamped extension_installed_at). Best-effort, never fails
+        // the auth flow.
+        if (studentId && result.wasFirstInstall && newData.session?.access_token) {
+          void runReferralFinalize({
+            studentId,
+            schoolId,
+            accessToken: newData.session.access_token,
+            distinctId: identity?.distinctId,
           });
         }
         return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };

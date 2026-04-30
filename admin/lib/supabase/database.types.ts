@@ -193,6 +193,72 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_clicks: {
+        Row: {
+          city: string | null
+          converted_at: string | null
+          converted_student_id: string | null
+          cookie_id: string
+          country: string | null
+          created_at: string
+          expired_at: string | null
+          id: string
+          ip_hash: string | null
+          landing_url: string | null
+          referer: string | null
+          referrer_student_id: string
+          rejection_reason: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          city?: string | null
+          converted_at?: string | null
+          converted_student_id?: string | null
+          cookie_id: string
+          country?: string | null
+          created_at?: string
+          expired_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          landing_url?: string | null
+          referer?: string | null
+          referrer_student_id: string
+          rejection_reason?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          city?: string | null
+          converted_at?: string | null
+          converted_student_id?: string | null
+          cookie_id?: string
+          country?: string | null
+          created_at?: string
+          expired_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          landing_url?: string | null
+          referer?: string | null
+          referrer_student_id?: string
+          rejection_reason?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_clicks_converted_student_id_fkey"
+            columns: ["converted_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_clicks_referrer_student_id_fkey"
+            columns: ["referrer_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_lesson_mappings: {
         Row: {
           canonical_key: string
@@ -398,6 +464,9 @@ export type Database = {
           marked_android_at: string | null
           name: string | null
           pfp_hash: string | null
+          referral_click_id: string | null
+          referred_at: string | null
+          referred_by: string | null
           school_id: number
           show_birthday: boolean
           supabase_id: string
@@ -424,6 +493,9 @@ export type Database = {
           marked_android_at?: string | null
           name?: string | null
           pfp_hash?: string | null
+          referral_click_id?: string | null
+          referred_at?: string | null
+          referred_by?: string | null
           school_id: number
           show_birthday?: boolean
           supabase_id: string
@@ -450,11 +522,28 @@ export type Database = {
           marked_android_at?: string | null
           name?: string | null
           pfp_hash?: string | null
+          referral_click_id?: string | null
+          referred_at?: string | null
+          referred_by?: string | null
           school_id?: number
           show_birthday?: boolean
           supabase_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "students_referral_click_id_fkey"
+            columns: ["referral_click_id"]
+            isOneToOne: false
+            referencedRelation: "referral_clicks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "students_school_id_fkey"
             columns: ["school_id"]
@@ -491,54 +580,6 @@ export type Database = {
           old_state?: Json | null
           record_id?: string | null
           table_name?: string
-        }
-        Relationships: []
-      }
-      user_settings: {
-        Row: {
-          created_at: string
-          schema_version: number
-          settings: Json
-          supabase_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          schema_version?: number
-          settings?: Json
-          supabase_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          schema_version?: number
-          settings?: Json
-          supabase_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      user_school_themes: {
-        Row: {
-          created_at: string
-          school_id: string
-          supabase_id: string
-          theme_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          school_id: string
-          supabase_id: string
-          theme_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          school_id?: string
-          supabase_id?: string
-          theme_id?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -599,6 +640,54 @@ export type Database = {
           },
         ]
       }
+      user_school_themes: {
+        Row: {
+          created_at: string
+          school_id: string
+          supabase_id: string
+          theme_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          school_id: string
+          supabase_id: string
+          theme_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          school_id?: string
+          supabase_id?: string
+          theme_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          schema_version: number
+          settings: Json
+          supabase_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          schema_version?: number
+          settings?: Json
+          supabase_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          schema_version?: number
+          settings?: Json
+          supabase_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       week_sync: {
         Row: {
           created_at: string
@@ -640,6 +729,15 @@ export type Database = {
     }
     Functions: {
       get_my_school_id: { Args: never; Returns: number }
+      get_referral_stats: {
+        Args: { p_student_id: string }
+        Returns: {
+          conversions: number
+          recent_referrals: Json
+          total_clicks: number
+          unique_clickers: number
+        }[]
+      }
       get_student_homework_statuses: {
         Args: { p_school_id: number; p_student_id: string }
         Returns: {
@@ -685,6 +783,14 @@ export type Database = {
           override_id: string
           school_id: number
           student_id: string
+          updated_at: string
+        }[]
+      }
+      list_user_school_themes: {
+        Args: never
+        Returns: {
+          school_id: string
+          theme_id: string
           updated_at: string
         }[]
       }
@@ -780,6 +886,30 @@ export type Database = {
           override_id: string
           school_id: number
           student_id: string
+          updated_at: string
+        }[]
+      }
+      upsert_user_school_theme: {
+        Args: {
+          p_client_updated_at: string
+          p_school_id: string
+          p_theme_id: string
+        }
+        Returns: {
+          school_id: string
+          theme_id: string
+          updated_at: string
+        }[]
+      }
+      upsert_user_settings: {
+        Args: {
+          p_client_updated_at: string
+          p_schema_version?: number
+          p_settings: Json
+        }
+        Returns: {
+          schema_version: number
+          settings: Json
           updated_at: string
         }[]
       }

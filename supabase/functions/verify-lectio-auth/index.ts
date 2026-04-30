@@ -233,6 +233,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Step 5: Upsert student record ────────────────────────────────
+    let wasFirstInstall = false;
     try {
       // Preserve the existing first-install timestamp if the row already
       // has one. Only set extension_installed_at when it's currently null
@@ -248,6 +249,7 @@ Deno.serve(async (req: Request) => {
       };
       if (!existing?.extension_installed_at) {
         studentRecord.extension_installed_at = new Date().toISOString();
+        wasFirstInstall = true;
       }
       if (supabaseAuthId) studentRecord.supabase_id = supabaseAuthId;
       if (firstName) studentRecord.lectio_first_name = firstName;
@@ -272,7 +274,7 @@ Deno.serve(async (req: Request) => {
       console.warn('Failed to upsert student record:', e);
     }
 
-    return jsonResponse({ tokenHash: data.properties.hashed_token, schoolId, elevid });
+    return jsonResponse({ tokenHash: data.properties.hashed_token, schoolId, elevid, wasFirstInstall });
   } catch (err) {
     console.error('Edge function error:', err);
     return errorResponse('Internal server error', 500, 'unhandled', null);

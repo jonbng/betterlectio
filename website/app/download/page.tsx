@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
 
 import { DOWNLOAD_LINKS } from "@/lib/download-links"
 import { captureDownloadClicked } from "@/lib/posthog"
@@ -73,7 +74,17 @@ function detectPlatform(): DetectedPlatform {
 }
 
 export default function DownloadPage() {
+  return (
+    <Suspense fallback={null}>
+      <DownloadPageInner />
+    </Suspense>
+  )
+}
+
+function DownloadPageInner() {
   const [detected, setDetected] = useState<DetectedPlatform | null>(null)
+  const searchParams = useSearchParams()
+  const wasReferred = searchParams.get("ref") === "1"
 
   useEffect(() => {
     setDetected(detectPlatform())
@@ -101,6 +112,16 @@ export default function DownloadPage() {
       </div>
 
       <main className="download-page">
+        {wasReferred && (
+          <div className="referral-banner">
+            <span className="referral-banner__label">DU BLEV INVITERET</span>
+            <span className="referral-banner__text">
+              En klassekammerat har inviteret dig til BetterLectio. Installér
+              udvidelsen for at acceptere invitationen.
+            </span>
+          </div>
+        )}
+
         <h1 className="download-title">
           <span className="title-top">Hent</span>
           <span className="title-bottom">BetterLectio</span>

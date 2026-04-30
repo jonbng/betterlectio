@@ -85,9 +85,11 @@ import {
   Check,
   Sparkles,
   Loader2,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DesignPlayground } from "@/components/DesignPlayground";
+import { ReferralShareCard } from "@/components/ReferralShareCard";
 
 interface SettingsModalProps {
   open: boolean;
@@ -227,6 +229,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
     { id: "appearance", name: t('settings.nav.appearance'), icon: Palette },
     { id: "sidebar", name: t('settings.nav.sidebar'), icon: PanelLeft },
     { id: "subjects", name: t('settings.nav.subjects'), icon: GraduationCap },
+    { id: "invite", name: "Inviter", icon: UserPlus },
     { id: "sessions", name: t('settings.nav.sessions'), icon: Shield },
     { id: "advanced", name: t('settings.nav.advanced'), icon: Wrench },
     { id: "about", name: t('settings.nav.about'), icon: Info },
@@ -1054,6 +1057,18 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
 
       case "subjects":
         return <HoldMappingEditor />;
+
+      case "invite":
+        return (
+          <div className="space-y-6">
+            <SettingsSection
+              title="Inviter klassekammerater"
+              description="Del dit personlige link og få æren for at have inviteret dem."
+            >
+              <ReferralShareCard />
+            </SettingsSection>
+          </div>
+        );
 
       case "sessions":
         return (

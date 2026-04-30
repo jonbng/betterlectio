@@ -14,6 +14,7 @@ import {
   BookOpen,
   ListTodo,
   Settings,
+  Share2,
   LogOut,
 } from "lucide-react";
 
@@ -47,6 +48,7 @@ const groups = [
     label: "Insights",
     items: [
       { title: "Mobile app", href: "/mobile-app", icon: Smartphone },
+      { title: "Referrals", href: "/referrals", icon: Share2 },
       { title: "Uninstalls", href: "/uninstalls", icon: TrendingDown },
       { title: "Errors", href: "/errors", icon: AlertTriangle },
       { title: "Homework", href: "/homework", icon: ListTodo },

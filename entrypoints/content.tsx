@@ -83,6 +83,15 @@ export default defineContentScript({
       if (message.action === "openSettings") {
         window.dispatchEvent(new CustomEvent("betterlectio:openSettings"));
       }
+      if (message?.type === "betterlectio:referral-attributed") {
+        const name = (message as { referrerName?: string | null }).referrerName;
+        toast.success(
+          name
+            ? `Tak — du blev inviteret af ${name}!`
+            : "Tak — din invitation er registreret!",
+          { duration: 8000 },
+        );
+      }
     });
 
     // Wait for DOM to be ready

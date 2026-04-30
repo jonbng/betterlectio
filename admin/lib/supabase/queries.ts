@@ -750,3 +750,287 @@ export async function getOverrideOrphanCount(mappingId: string) {
     .is("deleted_at", null);
   return count ?? 0;
 }
+
+// ── Referrals ───────────────────────────────────────────────────────
+//
+// `referral_clicks` is defined in `20260430_add_referral_tracking.sql`.
+
+const referralClicks = () => supabaseAdmin.from("referral_clicks");
+
+function fillDailySeries(
+  rows: { day: string; count: number }[],
+  days: number,
+): { date: string; count: number }[] {
+  const counts: Record<string, number> = {};
+  for (const r of rows) counts[r.day] = r.count;
+  const result: { date: string; count: number }[] = [];
+  const since = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000);
+  for (
+    let d = new Date(since.toISOString().slice(0, 10));
+    d <= new Date();
+    d.setDate(d.getDate() + 1)
+  ) {
+    const key = d.toISOString().slice(0, 10);
+    result.push({ date: key, count: counts[key] ?? 0 });
+  }
+  return result;
+}
+
+export async function getReferralOverview() {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const since30 = new Date(now - 30 * day).toISOString();
+  const since7 = new Date(now - 7 * day).toISOString();
+
+  const [
+    { count: totalClicks },
+    { count: clicksLast7 },
+    { count: clicksLast30 },
+    { count: totalConversions },
+    { count: conversionsLast7 },
+    { count: conversionsLast30 },
+  ] = await Promise.all([
+    referralClicks().select("*", { count: "exact", head: true }),
+    referralClicks()
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", since7),
+    referralClicks()
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", since30),
+    referralClicks()
+      .select("*", { count: "exact", head: true })
+      .not("converted_at", "is", null),
+    referralClicks()
+      .select("*", { count: "exact", head: true })
+      .gte("converted_at", since7),
+    referralClicks()
+      .select("*", { count: "exact", head: true })
+      .gte("converted_at", since30),
+  ]);
+
+  const clicks = (totalClicks as number) ?? 0;
+  const conversions = (totalConversions as number) ?? 0;
+
+  // Median click → conversion lag
+  const { data: convertedRows } = await referralClicks()
+    .select("created_at, converted_at")
+    .not("converted_at", "is", null)
+    .gte("converted_at", since30);
+
+  const lagsHrs: number[] = [];
+  for (const r of convertedRows ?? []) {
+    if (!r.converted_at) continue;
+    const lag = (new Date(r.converted_at).getTime() - new Date(r.created_at).getTime()) / 3600000;
+    if (Number.isFinite(lag) && lag >= 0) lagsHrs.push(lag);
+  }
+  lagsHrs.sort((a, b) => a - b);
+  const medianLagHours = lagsHrs.length
+    ? Math.round(lagsHrs[Math.floor(lagsHrs.length / 2)] * 10) / 10
+    : 0;
+
+  return {
+    totalClicks: clicks,
+    clicksLast7: (clicksLast7 as number) ?? 0,
+    clicksLast30: (clicksLast30 as number) ?? 0,
+    totalConversions: conversions,
+    conversionsLast7: (conversionsLast7 as number) ?? 0,
+    conversionsLast30: (conversionsLast30 as number) ?? 0,
+    conversionRate: clicks > 0 ? conversions / clicks : 0,
+    medianLagHours,
+  };
+}
+
+export async function getReferralTimeSeries(days = 30) {
+  const since = new Date(
+    Date.now() - days * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const [{ data: clicks }, { data: conversions }] = await Promise.all([
+    referralClicks()
+      .select("created_at")
+      .gte("created_at", since)
+      .order("created_at", { ascending: true }),
+    referralClicks()
+      .select("converted_at")
+      .not("converted_at", "is", null)
+      .gte("converted_at", since)
+      .order("converted_at", { ascending: true }),
+  ]);
+
+  const clickCounts: Record<string, number> = {};
+  for (const r of clicks ?? []) {
+    const day = r.created_at.slice(0, 10);
+    clickCounts[day] = (clickCounts[day] ?? 0) + 1;
+  }
+
+  const conversionCounts: Record<string, number> = {};
+  for (const r of conversions ?? []) {
+    if (!r.converted_at) continue;
+    const day = r.converted_at.slice(0, 10);
+    conversionCounts[day] = (conversionCounts[day] ?? 0) + 1;
+  }
+
+  return fillDailySeries(
+    Object.entries(clickCounts).map(([day, count]) => ({ day, count })),
+    days,
+  ).map((row) => ({
+    ...row,
+    conversions: conversionCounts[row.date] ?? 0,
+  }));
+}
+
+export async function getTopReferrers(limit = 20) {
+  // Aggregate clicks
+  const { data: clickRows } = await referralClicks().select(
+    "referrer_student_id, converted_at",
+  );
+
+  const clicks: Record<string, number> = {};
+  const conversions: Record<string, number> = {};
+  for (const r of clickRows ?? []) {
+    clicks[r.referrer_student_id] = (clicks[r.referrer_student_id] ?? 0) + 1;
+    if (r.converted_at) {
+      conversions[r.referrer_student_id] =
+        (conversions[r.referrer_student_id] ?? 0) + 1;
+    }
+  }
+
+  const topIds = Object.entries(conversions)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+
+  if (topIds.length === 0) return [];
+
+  const { data: students } = await supabaseAdmin
+    .from("students")
+    .select("id, lectio_first_name, lectio_last_name, school_id, class_name, schools(name, display_name)")
+    .in("id", topIds);
+
+  return topIds.map((id) => {
+    const s = students?.find((row) => row.id === id);
+    const school = s?.schools as
+      | { name: string; display_name: string | null }
+      | null
+      | undefined;
+    const click = clicks[id] ?? 0;
+    const conv = conversions[id] ?? 0;
+    return {
+      id,
+      name:
+        [s?.lectio_first_name, s?.lectio_last_name]
+          .filter(Boolean)
+          .join(" ") || "Unknown",
+      schoolId: s?.school_id ?? null,
+      schoolName: school?.display_name ?? school?.name ?? null,
+      className: s?.class_name ?? null,
+      clicks: click,
+      conversions: conv,
+      conversionRate: click > 0 ? conv / click : 0,
+    };
+  });
+}
+
+export async function getRecentAttributions(limit = 50) {
+  const { data: rows } = await referralClicks()
+    .select("*")
+    .not("converted_at", "is", null)
+    .order("converted_at", { ascending: false })
+    .limit(limit);
+
+  if (!rows || rows.length === 0) return [];
+
+  const ids = new Set<string>();
+  for (const r of rows) {
+    ids.add(r.referrer_student_id);
+    if (r.converted_student_id) ids.add(r.converted_student_id);
+  }
+
+  const { data: students } = await supabaseAdmin
+    .from("students")
+    .select("id, lectio_first_name, lectio_last_name, school_id, class_name, schools(name, display_name)")
+    .in("id", Array.from(ids));
+
+  const byId = new Map(students?.map((s) => [s.id, s]) ?? []);
+  const fullName = (id: string | null) => {
+    if (!id) return null;
+    const s = byId.get(id);
+    if (!s) return null;
+    return (
+      [s.lectio_first_name, s.lectio_last_name].filter(Boolean).join(" ") ||
+      "Unknown"
+    );
+  };
+  const schoolFor = (id: string | null) => {
+    if (!id) return null;
+    const s = byId.get(id);
+    const school = s?.schools as
+      | { name: string; display_name: string | null }
+      | null
+      | undefined;
+    return school?.display_name ?? school?.name ?? null;
+  };
+
+  return rows.map((r) => {
+    const lagSeconds = r.converted_at
+      ? Math.round(
+          (new Date(r.converted_at).getTime() - new Date(r.created_at).getTime()) /
+            1000,
+        )
+      : null;
+    let referer_host: string | null = null;
+    try {
+      if (r.referer) referer_host = new URL(r.referer).host;
+    } catch {
+      /* noop */
+    }
+    return {
+      id: r.id,
+      created_at: r.created_at,
+      converted_at: r.converted_at,
+      country: r.country,
+      referer_host,
+      lag_seconds: lagSeconds,
+      referrer: {
+        id: r.referrer_student_id,
+        name: fullName(r.referrer_student_id),
+        school: schoolFor(r.referrer_student_id),
+      },
+      invitee: {
+        id: r.converted_student_id,
+        name: fullName(r.converted_student_id),
+        school: schoolFor(r.converted_student_id),
+      },
+    };
+  });
+}
+
+export async function getReferralRejectionBreakdown() {
+  const { data: rows } = await referralClicks()
+    .select("rejection_reason")
+    .not("rejection_reason", "is", null);
+  const counts: Record<string, number> = {};
+  for (const r of rows ?? []) {
+    if (!r.rejection_reason) continue;
+    counts[r.rejection_reason] = (counts[r.rejection_reason] ?? 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export async function getReferralCountryBreakdown(limit = 10) {
+  const { data: rows } = await referralClicks()
+    .select("country")
+    .not("country", "is", null);
+  const counts: Record<string, number> = {};
+  for (const r of rows ?? []) {
+    if (!r.country) continue;
+    counts[r.country] = (counts[r.country] ?? 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+

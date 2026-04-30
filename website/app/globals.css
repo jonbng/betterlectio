@@ -323,6 +323,32 @@
   align-items: flex-start;
 }
 
+.brand-root .referral-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 4px solid var(--brand-accent);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.75rem;
+  background: var(--brand-bg);
+  max-width: 640px;
+}
+
+.brand-root .referral-banner__label {
+  font-family: var(--font-mono), monospace;
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  color: var(--brand-accent);
+}
+
+.brand-root .referral-banner__text {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--brand-text);
+}
+
 .brand-root .download-title {
   font-size: clamp(4rem, 12vw, 9rem);
   font-weight: 900;

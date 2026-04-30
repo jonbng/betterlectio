@@ -193,6 +193,72 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_clicks: {
+        Row: {
+          city: string | null
+          converted_at: string | null
+          converted_student_id: string | null
+          cookie_id: string
+          country: string | null
+          created_at: string
+          expired_at: string | null
+          id: string
+          ip_hash: string | null
+          landing_url: string | null
+          referer: string | null
+          referrer_student_id: string
+          rejection_reason: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          city?: string | null
+          converted_at?: string | null
+          converted_student_id?: string | null
+          cookie_id: string
+          country?: string | null
+          created_at?: string
+          expired_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          landing_url?: string | null
+          referer?: string | null
+          referrer_student_id: string
+          rejection_reason?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          city?: string | null
+          converted_at?: string | null
+          converted_student_id?: string | null
+          cookie_id?: string
+          country?: string | null
+          created_at?: string
+          expired_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          landing_url?: string | null
+          referer?: string | null
+          referrer_student_id?: string
+          rejection_reason?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_clicks_converted_student_id_fkey"
+            columns: ["converted_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_clicks_referrer_student_id_fkey"
+            columns: ["referrer_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_lesson_mappings: {
         Row: {
           canonical_key: string
@@ -398,6 +464,9 @@ export type Database = {
           marked_android_at: string | null
           name: string | null
           pfp_hash: string | null
+          referral_click_id: string | null
+          referred_at: string | null
+          referred_by: string | null
           school_id: number
           show_birthday: boolean
           supabase_id: string
@@ -424,6 +493,9 @@ export type Database = {
           marked_android_at?: string | null
           name?: string | null
           pfp_hash?: string | null
+          referral_click_id?: string | null
+          referred_at?: string | null
+          referred_by?: string | null
           school_id: number
           show_birthday?: boolean
           supabase_id: string
@@ -450,11 +522,28 @@ export type Database = {
           marked_android_at?: string | null
           name?: string | null
           pfp_hash?: string | null
+          referral_click_id?: string | null
+          referred_at?: string | null
+          referred_by?: string | null
           school_id?: number
           show_birthday?: boolean
           supabase_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "students_referral_click_id_fkey"
+            columns: ["referral_click_id"]
+            isOneToOne: false
+            referencedRelation: "referral_clicks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "students_school_id_fkey"
             columns: ["school_id"]
@@ -640,6 +729,15 @@ export type Database = {
     }
     Functions: {
       get_my_school_id: { Args: never; Returns: number }
+      get_referral_stats: {
+        Args: { p_student_id: string }
+        Returns: {
+          conversions: number
+          recent_referrals: Json
+          total_clicks: number
+          unique_clickers: number
+        }[]
+      }
       get_student_homework_statuses: {
         Args: { p_school_id: number; p_student_id: string }
         Returns: {
