@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { useTheme } from "next-themes";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -13,15 +14,18 @@ type SchoolPoint = {
   stats: { total: number; extension: number; app: number };
 };
 
+const DOT_METERS_PER_INSTALL = 320;
+const MIN_DOT_METERS = 280;
+const CLUSTER_SPREAD_METERS = 1400;
+
 export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-
-  const maxInstalls = useMemo(
-    () =>
-      schools.reduce((m, s) => Math.max(m, s.stats.extension), 1),
-    [schools],
-  );
+  const tileRef = useRef<L.TileLayer | null>(null);
+  const labelsRef = useRef<L.TileLayer | null>(null);
+  const markersRef = useRef<L.LayerGroup | null>(null);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -30,26 +34,23 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
       center: [56.05, 11.0],
       zoom: 7,
       minZoom: 6,
-      maxZoom: 12,
+      maxZoom: 14,
       zoomControl: true,
       scrollWheelZoom: true,
       attributionControl: true,
+      preferCanvas: true,
     });
     mapRef.current = map;
 
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 19,
-      },
-    ).addTo(map);
+    const labelsPane = map.createPane("labels");
+    labelsPane.style.zIndex = "650";
+    labelsPane.style.pointerEvents = "none";
 
     return () => {
       map.remove();
       mapRef.current = null;
+      tileRef.current = null;
+      markersRef.current = null;
     };
   }, []);
 
@@ -57,41 +58,171 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
     const map = mapRef.current;
     if (!map) return;
 
+    if (tileRef.current) {
+      tileRef.current.remove();
+      tileRef.current = null;
+    }
+    if (labelsRef.current) {
+      labelsRef.current.remove();
+      labelsRef.current = null;
+    }
+
+    const url = isDark
+      ? "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png";
+
+    const labelsUrl = isDark
+      ? "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png";
+
+    tileRef.current = L.tileLayer(url, {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 19,
+    }).addTo(map);
+
+    labelsRef.current = L.tileLayer(labelsUrl, {
+      attribution: "",
+      subdomains: "abcd",
+      maxZoom: 19,
+      pane: "labels",
+    }).addTo(map);
+  }, [isDark]);
+
+  const points = useMemo(() => buildClusterPoints(schools), [schools]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (markersRef.current) {
+      markersRef.current.remove();
+      markersRef.current = null;
+    }
+
     const layer = L.layerGroup().addTo(map);
+    markersRef.current = layer;
 
-    for (const s of schools) {
-      const installs = s.stats.extension;
-      const t = Math.sqrt(installs / maxInstalls);
-      const radius = 4 + t * 22;
+    const fill = isDark ? "oklch(0.72 0.18 265)" : "oklch(0.55 0.22 265)";
+    const stroke = isDark ? "oklch(0.92 0.05 265)" : "oklch(0.35 0.18 265)";
 
-      const marker = L.circleMarker([s.lat, s.lon], {
+    for (const p of points) {
+      const radius = Math.max(
+        MIN_DOT_METERS,
+        Math.sqrt(p.installs) * DOT_METERS_PER_INSTALL,
+      );
+      const marker = L.circle([p.lat, p.lon], {
         radius,
-        color: "oklch(0.54 0.2 265)",
-        weight: 1.5,
-        fillColor: "oklch(0.65 0.16 265)",
+        color: stroke,
+        weight: 1,
+        opacity: 0.9,
+        fillColor: fill,
         fillOpacity: 0.55,
       }).addTo(layer);
 
-      const label = s.display_name ?? s.name;
       marker.bindTooltip(
-        `<div style="font-weight:600">${escapeHtml(label)}</div>` +
-          `<div>${installs} install${installs === 1 ? "" : "s"}</div>` +
-          `<div style="opacity:0.7">${s.stats.total} total students</div>`,
-        { direction: "top", offset: [0, -radius] },
+        `<div style="font-weight:600">${escapeHtml(p.label)}</div>` +
+          `<div>${p.totalInstalls} install${p.totalInstalls === 1 ? "" : "s"}</div>` +
+          `<div style="opacity:0.7">${p.totalStudents} total students</div>`,
+        { direction: "top" },
       );
     }
 
     return () => {
       layer.remove();
+      markersRef.current = null;
     };
-  }, [schools, maxInstalls]);
+  }, [points, isDark]);
 
   return (
     <div
       ref={containerRef}
-      className="h-[640px] w-full overflow-hidden rounded-lg border bg-muted"
+      className="install-map-shell h-[640px] w-full overflow-hidden rounded-xl border bg-muted shadow-sm"
     />
   );
+}
+
+type ClusterPoint = {
+  lat: number;
+  lon: number;
+  installs: number;
+  label: string;
+  totalInstalls: number;
+  totalStudents: number;
+};
+
+function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
+  const out: ClusterPoint[] = [];
+  for (const s of schools) {
+    const installs = s.stats.extension;
+    if (installs <= 0) continue;
+    const label = s.display_name ?? s.name;
+
+    if (installs <= 4) {
+      const positions = sunflowerOffsets(installs, CLUSTER_SPREAD_METERS * 0.45);
+      for (let i = 0; i < installs; i++) {
+        const [dx, dy] = positions[i];
+        const [lat, lon] = offsetMeters(s.lat, s.lon, dx, dy);
+        out.push({
+          lat,
+          lon,
+          installs: 1,
+          label,
+          totalInstalls: installs,
+          totalStudents: s.stats.total,
+        });
+      }
+      continue;
+    }
+
+    const dotCount = Math.min(
+      30,
+      Math.max(6, Math.round(Math.sqrt(installs) * 1.6)),
+    );
+    const perDot = installs / dotCount;
+    const radius =
+      CLUSTER_SPREAD_METERS * Math.min(1, 0.4 + Math.sqrt(installs) * 0.06);
+    const positions = sunflowerOffsets(dotCount, radius);
+    for (let i = 0; i < dotCount; i++) {
+      const [dx, dy] = positions[i];
+      const [lat, lon] = offsetMeters(s.lat, s.lon, dx, dy);
+      out.push({
+        lat,
+        lon,
+        installs: perDot,
+        label,
+        totalInstalls: installs,
+        totalStudents: s.stats.total,
+      });
+    }
+  }
+  return out;
+}
+
+function sunflowerOffsets(n: number, radiusMeters: number): [number, number][] {
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const out: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const r = radiusMeters * Math.sqrt((i + 0.5) / n);
+    const theta = 2 * Math.PI * i * (1 / (phi * phi));
+    out.push([r * Math.cos(theta), r * Math.sin(theta)]);
+  }
+  return out;
+}
+
+function offsetMeters(
+  lat: number,
+  lon: number,
+  dxMeters: number,
+  dyMeters: number,
+): [number, number] {
+  const earthR = 6378137;
+  const dLat = (dyMeters / earthR) * (180 / Math.PI);
+  const dLon =
+    ((dxMeters / earthR) * (180 / Math.PI)) /
+    Math.cos((lat * Math.PI) / 180);
+  return [lat + dLat, lon + dLon];
 }
 
 function escapeHtml(s: string) {
