@@ -114,24 +114,14 @@ function DownloadPageInner() {
       <main className="download-page">
         {wasReferred && (
           <div className="referral-banner" role="status" aria-live="polite">
-            <div className="referral-banner__stamp" aria-hidden="true">
-              <span className="referral-banner__stamp-mark">★</span>
-              <span className="referral-banner__stamp-id">N°&nbsp;001</span>
-            </div>
-            <div className="referral-banner__body">
-              <span className="referral-banner__label">
-                <span className="referral-banner__label-dot" aria-hidden="true" />
-                Personlig invitation
-              </span>
-              <span className="referral-banner__headline">
-                Du blev inviteret <em>af en klassekammerat.</em>
-              </span>
-              <span className="referral-banner__text">
-                Installér udvidelsen nedenfor — så bliver invitationen
-                automatisk knyttet til den der inviterede dig.
-              </span>
-            </div>
-            <span className="referral-banner__corner" aria-hidden="true" />
+            <span className="referral-banner__label">Personlig invitation</span>
+            <span className="referral-banner__headline">
+              Du blev inviteret af en klassekammerat.
+            </span>
+            <span className="referral-banner__text">
+              Installér udvidelsen nedenfor — så bliver invitationen
+              automatisk knyttet til den der inviterede dig.
+            </span>
           </div>
         )}
 
