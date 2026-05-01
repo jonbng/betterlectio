@@ -10,6 +10,12 @@ function countStudents(items: DropdownItem[]): number {
     const id = item[1];
     if (typeof id !== 'string' || id.length === 0) continue;
     if (id[0] !== 'S' || id[1] === 'C') continue;
+    // Lectio marks alumni / inactive entries with `i` in the flags field
+    // (index 2). Without this filter we'd be counting every student who
+    // ever attended the school. See `Autocomplete.ts`:
+    //   isInactive: !!recordArr.flags.match(/i/)
+    const flags = item[2];
+    if (typeof flags === 'string' && flags.includes('i')) continue;
     n++;
   }
   return n;
