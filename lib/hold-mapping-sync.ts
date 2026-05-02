@@ -36,12 +36,22 @@ let hydratePromise: Promise<boolean> | null = null;
 let seedPromise: Promise<void> | null = null;
 
 const HYDRATED_AT_KEY = 'bl-hold-mappings-hydrated-at';
+const SEEDED_AT_KEY = 'bl-hold-mappings-seeded-at';
 // Skip the bootstrap GET if hydrated recently. Override mutations write
 // through immediately and bypass this gate.
 const HYDRATE_TTL_MS = 30 * 60_000;
+// Seed is a one-time backfill of all locally-known mappings to Supabase.
+// User edits go through `syncHoldMappingOverrideToSupabase` directly, so
+// re-seeding adds no value and just floods writes. 7-day TTL covers the
+// case where local snapshots gain new entries during normal use.
+const SEED_TTL_MS = 7 * 24 * 60 * 60_000;
 
 function hydrateKey(schoolId: string, studentId: string): string {
   return `${HYDRATED_AT_KEY}:${schoolId}:${studentId}`;
+}
+
+function seedKey(schoolId: string, studentId: string): string {
+  return `${SEEDED_AT_KEY}:${schoolId}:${studentId}`;
 }
 
 function isHydrateFresh(schoolId: string, studentId: string): boolean {
@@ -56,9 +66,29 @@ function isHydrateFresh(schoolId: string, studentId: string): boolean {
   }
 }
 
+function isSeedFresh(schoolId: string, studentId: string): boolean {
+  try {
+    const raw = localStorage.getItem(seedKey(schoolId, studentId));
+    if (!raw) return false;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return false;
+    return Date.now() - parsed < SEED_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
 function stampHydrate(schoolId: string, studentId: string): void {
   try {
     localStorage.setItem(hydrateKey(schoolId, studentId), String(Date.now()));
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+function stampSeed(schoolId: string, studentId: string): void {
+  try {
+    localStorage.setItem(seedKey(schoolId, studentId), String(Date.now()));
   } catch {
     // Ignore storage errors.
   }
@@ -172,6 +202,10 @@ export async function seedKnownHoldMappingsToSupabase(): Promise<void> {
     const context = await getSyncContext();
     if (!context) return;
 
+    // Skip if we seeded for this user recently. User edits go through
+    // `syncHoldMappingOverrideToSupabase` so a re-seed adds no value.
+    if (isSeedFresh(context.schoolId, context.studentId)) return;
+
     const snapshots = getAllLessonMappingSnapshots();
     for (const mapping of snapshots) {
       await upsertUserLessonOverrideV2(context.schoolId, context.studentId, {
@@ -185,6 +219,7 @@ export async function seedKnownHoldMappingsToSupabase(): Promise<void> {
         clientUpdatedAt: new Date().toISOString(),
       }, { invalidate: false });
     }
+    stampSeed(context.schoolId, context.studentId);
   })().catch((error) => {
     const studentId = getLoggedInUserId();
     if (studentId && !isAuthOwnershipError(error)) {

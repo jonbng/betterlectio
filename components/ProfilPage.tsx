@@ -25,6 +25,7 @@ import type { ProfilData, StudiekortData } from '@/lib/profil-parser';
 import { fetchStudiekortData } from '@/lib/profil-parser';
 import type { Tables } from '@/database.types';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
+import { invalidateStudentsCacheIfStale } from '@/lib/supabase/student-lookup';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
@@ -229,6 +230,13 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
     single: true,
     enabled: !!loggedInId,
   });
+
+  // Force-fresh on mount so cross-device edits (e.g. updated on phone, then
+  // open ProfilPage on laptop) show current values instead of the long-TTL
+  // cache. 30s debounce in `invalidateStudentsCacheIfStale` keeps this cheap.
+  useEffect(() => {
+    void invalidateStudentsCacheIfStale(schoolId);
+  }, [schoolId]);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
