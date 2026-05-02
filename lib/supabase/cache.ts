@@ -18,7 +18,13 @@ const DEFAULT_TTL = 15 * 60_000; // 15 min
 
 const TABLE_TTL: Partial<Record<TableName, number>> = {
   schools: 2 * 60 * 60_000,          // 2 hours
-  students: 30 * 60_000,             // 30 min
+  // 24h. ProfilePage / FindSkemaPage force-fresh on mount via
+  // `useSchoolStudents({ refreshOnMount: true })` → `invalidateStudentsCacheIfStale`,
+  // so opening a profile always shows current data. Own-row mutations
+  // invalidate locally via `mutate()`. Background surfaces (Beskeder/Forside
+  // avatars, FindSkema search) accept up to 24h staleness for names/avatars.
+  students: 24 * 60 * 60_000,        // 24 hours
+
   lessons: 15 * 60_000,              // 15 min
   student_lessons: 15 * 60_000,
   homework_entries: 6 * 60 * 60_000, // 6 hours — effectively immutable join registry; mutations invalidate locally
