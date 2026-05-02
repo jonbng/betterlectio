@@ -481,7 +481,6 @@ export function LektierPage({ entries }: LektierPageProps) {
     if (!schoolId || !studentId) return;
 
     const studentChannel = `student-homework:${schoolId}:${studentId}`;
-    const homeworkChannel = `homework-entries:${schoolId}`;
 
     void subscribe({
       channel: studentChannel,
@@ -490,16 +489,8 @@ export function LektierPage({ entries }: LektierPageProps) {
       filter: `student_id=eq.${studentId}`,
     });
 
-    void subscribe({
-      channel: homeworkChannel,
-      table: 'homework_entries',
-      schoolId,
-      filter: `school_id=eq.${schoolId}`,
-    });
-
     return () => {
       void unsubscribe(studentChannel);
-      void unsubscribe(homeworkChannel);
     };
   }, [schoolId, studentId]);
 

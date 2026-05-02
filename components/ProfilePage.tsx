@@ -197,7 +197,7 @@ export function ProfilePage({
   const hasBetterLectio = !!(student?.extension_installed_at || student?.app_installed_at);
   const displayName = getPreferredStudentDisplayName(student, name);
   const firstName = displayName.split(' ')[0];
-  const effectivePictureUrl = student?.custom_pfp_url || student?.lectio_pfp_url || pictureUrl;
+  const effectivePictureUrl = student?.custom_pfp_url || pictureUrl;
   const canEnlargePicture = Boolean(effectivePictureUrl && hasBetterLectio);
   const titleSubject = subtitle ? `${displayName} (${subtitle})` : displayName;
   const pinningEnabled = getSettings().data?.starredPeople ?? false;

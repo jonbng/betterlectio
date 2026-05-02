@@ -27,9 +27,16 @@ import type { Json } from '@/database.types';
 
 const SYNCED_AT_KEY = 'bl-settings-synced-at';
 const THEME_SYNCED_AT_KEY = 'bl-themes-synced-at';
+const SETTINGS_HYDRATED_AT_KEY = 'bl-settings-hydrated-at';
+const THEMES_HYDRATED_AT_KEY = 'bl-themes-hydrated-at';
 const FEATURE_SETTINGS_KEY = 'bl-feature-settings';
 
 const DEBOUNCE_MS = 500;
+// Skip the bootstrap GET if we hydrated within this window. Realtime
+// subscription covers cross-device updates while a tab is open; the only
+// regression is a fresh tab on device B within the TTL after a change on
+// device A — next page load past TTL fixes it.
+const HYDRATE_TTL_MS = 30 * 60_000;
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let themePushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,6 +94,30 @@ function writeSyncedAt(key: string, isoTime: string): void {
   }
 }
 
+function hydrateKey(prefix: string, supabaseId: string): string {
+  return `${prefix}:${supabaseId}`;
+}
+
+function isHydrateFresh(prefix: string, supabaseId: string): boolean {
+  try {
+    const raw = localStorage.getItem(hydrateKey(prefix, supabaseId));
+    if (!raw) return false;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return false;
+    return Date.now() - parsed < HYDRATE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function stampHydrate(prefix: string, supabaseId: string): void {
+  try {
+    localStorage.setItem(hydrateKey(prefix, supabaseId), String(Date.now()));
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 function ensurePageHideFlush(): void {
   if (pageHideHooked) return;
   pageHideHooked = true;
@@ -123,8 +154,15 @@ export async function hydrateSettingsFromSupabase(force = false): Promise<boolea
     const ctx = await getSyncContext();
     if (!ctx) return false;
 
+    // Skip the GET when we recently hydrated this user. Realtime keeps tabs
+    // up to date in-session; bootstrap-on-every-page-load was redundant.
+    if (!force && isHydrateFresh(SETTINGS_HYDRATED_AT_KEY, ctx.supabaseId)) {
+      return false;
+    }
+
     try {
       const row = await getUserSettingsRow(ctx.supabaseId);
+      stampHydrate(SETTINGS_HYDRATED_AT_KEY, ctx.supabaseId);
       if (!row) {
         // No remote row yet — push current local state if it's been touched
         // (otherwise defaults are fine to leave unsaved).
@@ -215,6 +253,7 @@ async function pushSettingsNow(): Promise<void> {
       supabaseId: ctx.supabaseId,
     });
     if (result?.updated_at) writeSyncedAt(SYNCED_AT_KEY, result.updated_at);
+    stampHydrate(SETTINGS_HYDRATED_AT_KEY, ctx.supabaseId);
   } catch (error) {
     if (!isAuthOwnershipError(error)) {
       captureException(error, getDistinctId(ctx.studentId), {
@@ -252,8 +291,13 @@ export async function hydrateSchoolThemesFromSupabase(force = false): Promise<bo
     const ctx = await getSyncContext();
     if (!ctx) return false;
 
+    if (!force && isHydrateFresh(THEMES_HYDRATED_AT_KEY, ctx.supabaseId)) {
+      return false;
+    }
+
     try {
       const rows = await getUserSchoolThemes(ctx.supabaseId);
+      stampHydrate(THEMES_HYDRATED_AT_KEY, ctx.supabaseId);
       if (rows.length === 0) {
         const localPref = getThemePreferenceForSchool(ctx.schoolId);
         if (localPref.themeId !== 'default') {
@@ -327,6 +371,7 @@ async function pushCurrentSchoolThemeNow(): Promise<void> {
       supabaseId: ctx.supabaseId,
     });
     if (result?.updated_at) writeSyncedAt(THEME_SYNCED_AT_KEY, result.updated_at);
+    stampHydrate(THEMES_HYDRATED_AT_KEY, ctx.supabaseId);
   } catch (error) {
     if (!isAuthOwnershipError(error)) {
       captureException(error, getDistinctId(ctx.studentId), {

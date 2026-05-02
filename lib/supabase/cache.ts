@@ -21,10 +21,10 @@ const TABLE_TTL: Partial<Record<TableName, number>> = {
   students: 30 * 60_000,             // 30 min
   lessons: 15 * 60_000,              // 15 min
   student_lessons: 15 * 60_000,
-  homework_entries: 10 * 60_000,     // 10 min
+  homework_entries: 6 * 60 * 60_000, // 6 hours — effectively immutable join registry; mutations invalidate locally
   student_homework: 5 * 60_000,      // 5 min (user-mutable)
-  lesson_mappings: 60 * 60_000,      // 1 hour
-  school_lesson_mappings: 60 * 60_000,
+  lesson_mappings: 24 * 60 * 60_000, // 24 hours — admin-curated, mutations invalidate locally
+  school_lesson_mappings: 24 * 60 * 60_000,
   student_lessoncontrols: 30 * 60_000,
   user_lesson_overrides: 5 * 60_000,
   week_sync: 15 * 60_000,

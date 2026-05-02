@@ -531,11 +531,6 @@ function initLayout() {
       void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId);
     }).catch(() => {});
 
-    // Prefetch all school students into cache (for BL badges + profile data)
-    import('@/lib/supabase/resources/student').then(({ getStudentsBySchool }) => {
-      getStudentsBySchool(schoolId).catch(() => {});
-    }).catch(() => {});
-
     // Stamp `students.last_seen_at` once per day so SQL consumers can answer
     // "still active". Throttled client-side via localStorage; server enforces a
     // 12h backstop. Heartbeat must never block rendering.

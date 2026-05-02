@@ -42,6 +42,7 @@ export function useSchoolStudents(
   const { data: students, isLoading } = useQuery<Student[]>({
     schoolId,
     table: 'students',
+    select: 'id,name,lectio_first_name,lectio_last_name,custom_pfp_url,extension_installed_at,app_installed_at',
     filters: [{ column: 'school_id', op: 'eq', value: Number(schoolId) }],
     enabled: refreshReady,
   });
@@ -118,10 +119,10 @@ export async function invalidateStudentsCacheIfStale(
 }
 
 export function getPreferredStudentPictureUrl(
-  student: Pick<Student, 'custom_pfp_url' | 'lectio_pfp_url'> | null | undefined,
+  student: Pick<Student, 'custom_pfp_url'> | null | undefined,
   fallbackPictureUrl?: string | null,
 ): string | null {
-  return student?.custom_pfp_url || student?.lectio_pfp_url || fallbackPictureUrl || null;
+  return student?.custom_pfp_url || fallbackPictureUrl || null;
 }
 
 export function getPreferredStudentDisplayName(

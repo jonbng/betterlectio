@@ -35,6 +35,35 @@ function isAuthOwnershipError(error: unknown): boolean {
 let hydratePromise: Promise<boolean> | null = null;
 let seedPromise: Promise<void> | null = null;
 
+const HYDRATED_AT_KEY = 'bl-hold-mappings-hydrated-at';
+// Skip the bootstrap GET if hydrated recently. Override mutations write
+// through immediately and bypass this gate.
+const HYDRATE_TTL_MS = 30 * 60_000;
+
+function hydrateKey(schoolId: string, studentId: string): string {
+  return `${HYDRATED_AT_KEY}:${schoolId}:${studentId}`;
+}
+
+function isHydrateFresh(schoolId: string, studentId: string): boolean {
+  try {
+    const raw = localStorage.getItem(hydrateKey(schoolId, studentId));
+    if (!raw) return false;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return false;
+    return Date.now() - parsed < HYDRATE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function stampHydrate(schoolId: string, studentId: string): void {
+  try {
+    localStorage.setItem(hydrateKey(schoolId, studentId), String(Date.now()));
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 async function getSyncContext() {
   const schoolId = getCurrentSchoolId();
   const studentId = getLoggedInUserId();
@@ -67,8 +96,13 @@ export async function hydrateHoldMappingsFromSupabase(force = false): Promise<bo
     const context = await getSyncContext();
     if (!context) return false;
 
+    if (!force && isHydrateFresh(context.schoolId, context.studentId)) {
+      return false;
+    }
+
     try {
       const rows = await getStudentLessonMappingsV2(context.schoolId, context.studentId);
+      stampHydrate(context.schoolId, context.studentId);
       return applySupabaseLessonMappings(rows);
     } catch (error) {
       if (!isAuthOwnershipError(error)) {
@@ -103,6 +137,7 @@ export async function syncHoldMappingOverrideToSupabase(
     const hasOverride = !mapping.autoGuessed || mapping.colorHue !== null || mapping.icon !== null;
     if (!hasOverride) {
       await resetUserLessonOverrideV2(context.schoolId, context.studentId, canonicalKey, lastModifiedBy);
+      stampHydrate(context.schoolId, context.studentId);
       return;
     }
 
@@ -116,6 +151,7 @@ export async function syncHoldMappingOverrideToSupabase(
       lastModifiedBy,
       clientUpdatedAt: new Date().toISOString(),
     });
+    stampHydrate(context.schoolId, context.studentId);
   } catch (error) {
     if (!isAuthOwnershipError(error)) {
       captureException(error, getDistinctId(context.studentId), {
