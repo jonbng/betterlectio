@@ -550,6 +550,107 @@
   text-underline-offset: 4px;
 }
 
+.brand-root .text-page-meta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin-bottom: 1.5rem;
+}
+
+.brand-root .text-page-prose {
+  width: 100%;
+  max-width: 65ch;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--brand-text);
+}
+
+.brand-root .text-page-prose h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  margin-top: 3.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.brand-root .text-page-prose h2:first-child {
+  margin-top: 0;
+}
+
+.brand-root .text-page-prose h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.brand-root .text-page-prose p {
+  margin: 0 0 1rem;
+}
+
+.brand-root .text-page-prose ul {
+  margin: 0 0 1.25rem;
+  padding-left: 1.25rem;
+  list-style: none;
+}
+
+.brand-root .text-page-prose ul li {
+  position: relative;
+  padding-left: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.brand-root .text-page-prose ul li::before {
+  content: "";
+  position: absolute;
+  left: -1rem;
+  top: 0.65em;
+  width: 0.5rem;
+  height: 2px;
+  background: var(--brand-text);
+}
+
+.brand-root .text-page-prose strong {
+  font-weight: 800;
+}
+
+.brand-root .text-page-prose a {
+  color: var(--brand-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  word-break: break-word;
+}
+
+.brand-root .text-page-prose hr {
+  border: 0;
+  border-top: 2px solid var(--brand-text);
+  margin: 3rem 0 1.5rem;
+  opacity: 0.15;
+}
+
+.brand-root .text-page-prose .summary {
+  margin-top: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 2px solid var(--brand-text);
+  background: transparent;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.brand-root .text-page-prose .summary strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+}
+
 /* Uninstall feedback page */
 .brand-root .uninstall-page {
   max-width: 720px;

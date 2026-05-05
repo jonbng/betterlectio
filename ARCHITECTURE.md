@@ -354,6 +354,12 @@ DOM structure:
 
 ---
 
+## Marketing site (`website/`)
+
+Next.js 16 (App Router, Turbopack) at `betterlectio.dk`. Contains the download page, privacy page, uninstall flow, referral redirect, and per-school SEO landing pages.
+
+**Per-school SEO pages** (`/skoler/[slug]`) — at `next build`, `generateStaticParams` reads every row of `public.schools` via the server-only admin client (`website/lib/supabase.ts`), fans out one static page per school. Title is `[displayName] Lectio` (bypassing the layout's `%s — BetterLectio` template via `title.absolute`) to match `[skole] lectio` Google searches verbatim. Slug = `slugify(display_name ?? name)` with diacritic folding (`ø→oe`, `æ→ae`, `å→aa`, then `NFD` strip) and `-id` suffix on collision. Page body is composed from copy pools in `website/lib/schools-content.ts`: a 6-variant intro paragraph, ordered benefit grid, 3-variant closing CTA, 4-of-6 FAQ subset, and per-section heading variants. All variation is keyed deterministically on `(school.id, slot)` via FNV-1a + seeded Mulberry32 in `website/lib/schools.ts` (`pickByKey`, `pickManyByKey`) — same school always renders identical HTML across builds, different schools render different copy ordering and subsets so the corpus doesn't read as duplicate/doorway content. `app/sitemap.ts` includes one entry per school. Build needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (already required for existing server paths); the helper falls back to an empty list on fetch failure so a deploy without DB access still ships.
+
 ## Browser Compatibility
 
 | Browser | Manifest | Status |
