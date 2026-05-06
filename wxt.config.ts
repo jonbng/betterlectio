@@ -7,7 +7,7 @@ export default defineConfig({
   manifest: {
     name: 'Better Lectio',
     description: 'Gør Lectio suverent bedre. Installér mobil appen også!',
-    version: '0.0.31',
+    version: '0.0.32',
     author: 'Jonathan Bangert <betterlectio@jonathanb.dk>' as any,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
