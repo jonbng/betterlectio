@@ -15,6 +15,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { setAppEligibility } from "@/app/(dashboard)/students/actions";
+import {
+  ACTIVE_WINDOW_DAYS,
+  isActiveStudent,
+} from "@/lib/active-user";
 
 type Student = {
   id: string;
@@ -23,6 +27,8 @@ type Student = {
   class_name: string | null;
   school_id: number;
   extension_installed_at: string | null;
+  extension_uninstalled_at: string | null;
+  last_seen_at: string | null;
   app_installed_at: string | null;
   app_eligible?: boolean;
   created_at: string;
@@ -33,13 +39,49 @@ type Student = {
   schools: { name: string } | null;
 };
 
+type ActivityState = "active" | "inactive" | "uninstalled" | "never";
+
+function activityState(s: Student): ActivityState {
+  if (s.extension_uninstalled_at) return "uninstalled";
+  if (isActiveStudent(s)) return "active";
+  if (s.last_seen_at || s.extension_installed_at) return "inactive";
+  return "never";
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return "—";
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.floor(mo / 12)}y ago`;
+}
+
 function studentName(s: Student) {
   return [s.lectio_first_name, s.lectio_last_name].filter(Boolean).join(" ") || "Unknown";
 }
 
+type ActivityFilter = "all" | ActivityState;
+
+const ACTIVITY_FILTERS: { value: ActivityFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+  { value: "uninstalled", label: "Uninstalled" },
+  { value: "never", label: "Never seen" },
+];
+
 export function StudentsTable({ students }: { students: Student[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -47,6 +89,9 @@ export function StudentsTable({ students }: { students: Student[] }) {
   const filtered = useMemo(
     () =>
       students.filter((s) => {
+        if (activityFilter !== "all" && activityState(s) !== activityFilter) {
+          return false;
+        }
         if (!search) return true;
         const q = search.toLowerCase();
         const name = studentName(s).toLowerCase();
@@ -57,7 +102,7 @@ export function StudentsTable({ students }: { students: Student[] }) {
           s.id.includes(q)
         );
       }),
-    [students, search],
+    [students, search, activityFilter],
   );
 
   const toggle = (id: string) =>
@@ -98,12 +143,26 @@ export function StudentsTable({ students }: { students: Student[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Input
-        placeholder="Search by name, class, school, or ID..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="max-w-sm"
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Search by name, class, school, or ID..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
+        <div className="flex flex-wrap gap-1">
+          {ACTIVITY_FILTERS.map((f) => (
+            <Button
+              key={f.value}
+              size="sm"
+              variant={activityFilter === f.value ? "default" : "outline"}
+              onClick={() => setActivityFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {selected.size > 0 && (
         <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-y bg-background/95 px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
@@ -156,6 +215,7 @@ export function StudentsTable({ students }: { students: Student[] }) {
                 <TableHead>School</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Platform</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Profile</TableHead>
                 <TableHead className="text-right">Joined</TableHead>
               </TableRow>
@@ -233,6 +293,9 @@ export function StudentsTable({ students }: { students: Student[] }) {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <ActivityCell student={s} />
+                  </TableCell>
+                  <TableCell>
                     <div className="flex gap-1">
                       {s.description && (
                         <Badge variant="outline" className="text-xs">
@@ -258,7 +321,7 @@ export function StudentsTable({ students }: { students: Student[] }) {
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-muted-foreground py-8"
                   >
                     No students found
@@ -270,5 +333,46 @@ export function StudentsTable({ students }: { students: Student[] }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ActivityCell({ student }: { student: Student }) {
+  const state = activityState(student);
+  const lastSignal = student.last_seen_at ?? student.extension_installed_at;
+  const tooltip = (() => {
+    const parts: string[] = [];
+    if (student.last_seen_at) parts.push(`Last seen: ${formatRelative(student.last_seen_at)}`);
+    if (student.extension_installed_at) parts.push(`Installed: ${formatRelative(student.extension_installed_at)}`);
+    if (student.extension_uninstalled_at) parts.push(`Uninstalled: ${formatRelative(student.extension_uninstalled_at)}`);
+    return parts.join("\n");
+  })();
+
+  if (state === "uninstalled") {
+    return (
+      <Badge variant="outline" className="text-xs" title={tooltip}>
+        Uninstalled
+      </Badge>
+    );
+  }
+  if (state === "active") {
+    return (
+      <div className="flex items-center gap-1.5" title={tooltip}>
+        <span className="size-1.5 rounded-full bg-emerald-500" />
+        <span className="text-xs">{formatRelative(lastSignal)}</span>
+      </div>
+    );
+  }
+  if (state === "inactive") {
+    return (
+      <div className="flex items-center gap-1.5" title={tooltip}>
+        <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+        <span className="text-xs text-muted-foreground">{formatRelative(lastSignal)}</span>
+      </div>
+    );
+  }
+  return (
+    <span className="text-xs text-muted-foreground" title={`Active window: ${ACTIVE_WINDOW_DAYS}d`}>
+      —
+    </span>
   );
 }

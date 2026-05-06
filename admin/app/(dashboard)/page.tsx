@@ -7,6 +7,7 @@ import {
   Activity,
   CalendarDays,
   CalendarRange,
+  Heart,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,11 @@ export default async function OverviewPage() {
     { title: "Schools", value: stats.totalSchools, icon: School },
     { title: "Extension Users", value: stats.extensionUsers, icon: Monitor },
     { title: "App Users", value: stats.appUsers, icon: Smartphone },
+    {
+      title: `Active (${stats.activeWindowDays}d)`,
+      value: stats.activeUsers,
+      icon: Heart,
+    },
     { title: "New (7d)", value: stats.recentSignups, icon: UserPlus },
   ];
 

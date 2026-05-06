@@ -176,12 +176,12 @@ export default defineContentScript({
   matches: ['*://*.lectio.dk/*'],
   runAt: 'document_start',
   main() {
-    // One-shot escape hatch: user armed `bl-bypass-redesigns` from the sidebar
-    // to render this load as native Lectio. Skip the CSS layer-wrapping and the
-    // theme bootstrap so Lectio's own styles apply at their original priority
-    // and our modernizer in `@layer components` loses the cascade automatically.
-    // The flag is consumed by `content.tsx` (not here), so the next load resumes
-    // normal BetterLectio rendering.
+    // Escape hatch: user armed `bl-bypass-redesigns` from the sidebar to render
+    // Lectio without our redesigns. Skip the CSS layer-wrapping and the theme
+    // bootstrap so Lectio's own styles apply at their original priority and our
+    // modernizer in `@layer components` loses the cascade automatically. The
+    // flag stays active for 5 minutes (auto-expiry) or until the user clicks
+    // the floating re-enable button injected by `content.tsx`.
     if (isBypassActive()) {
       document.documentElement.classList.add('il-ready');
       return;

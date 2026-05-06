@@ -62,7 +62,8 @@ import { capture, captureException, captureFeatureUsedOncePerSession, captureOnc
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
-import { isBypassActive, consumeBypass } from "@/lib/bypass-redesigns";
+import { isBypassActive, disableBypass, getBypassRemainingMs } from "@/lib/bypass-redesigns";
+import { t as tLocale } from "@/lib/i18n/t";
 import { toast } from "sonner";
 import {
   clearLogoutIntent,
@@ -407,14 +408,90 @@ function installActivityModalClickInterceptor() {
   );
 }
 
+function injectBypassReenableButton(): void {
+  if (document.getElementById('il-bypass-reenable')) return;
+
+  const mount = () => {
+    if (document.getElementById('il-bypass-reenable')) return;
+    if (!document.body) {
+      document.addEventListener('DOMContentLoaded', mount, { once: true });
+      return;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.id = 'il-bypass-reenable';
+    wrap.setAttribute('style', [
+      'position:fixed',
+      'right:16px',
+      'bottom:16px',
+      'z-index:2147483647',
+      'font-family:Geist,Inter,system-ui,sans-serif',
+      'font-size:13px',
+      'line-height:1.4',
+      'color:#fff',
+    ].join(';'));
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('style', [
+      'all:unset',
+      'box-sizing:border-box',
+      'display:inline-flex',
+      'align-items:center',
+      'gap:8px',
+      'padding:10px 14px',
+      'border-radius:10px',
+      'background:oklch(0.54 0.2 265)',
+      'color:#fff',
+      'font-weight:500',
+      'cursor:pointer',
+      'box-shadow:0 8px 24px oklch(0 0 0 / 0.25)',
+      'transition:transform 120ms ease, box-shadow 120ms ease',
+    ].join(';'));
+
+    const label = document.createElement('span');
+    label.textContent = tLocale('sidebar.bypassReenableLabel');
+    btn.appendChild(label);
+    wrap.appendChild(btn);
+
+    const checkExpiry = () => {
+      if (getBypassRemainingMs() <= 0) {
+        wrap.remove();
+        if (timer) clearInterval(timer);
+      }
+    };
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.transform = 'translateY(-1px)';
+      btn.style.boxShadow = '0 10px 28px oklch(0 0 0 / 0.3)';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = '';
+      btn.style.boxShadow = '0 8px 24px oklch(0 0 0 / 0.25)';
+    });
+    btn.addEventListener('click', () => {
+      disableBypass();
+      window.location.reload();
+    });
+    btn.title = tLocale('sidebar.bypassReenableTitle');
+
+    checkExpiry();
+    const timer = window.setInterval(checkExpiry, 1000);
+    document.body.appendChild(wrap);
+  };
+
+  mount();
+}
+
 function initLayout() {
-  // One-shot escape hatch: user armed `bl-bypass-redesigns` from the sidebar.
-  // Consume the flag here (so the next load is normal again) and skip all
-  // injection. `hide-flash.content.ts` already skipped the CSS layer-wrap, so
-  // Lectio's native DOM renders with its original styles.
+  // Escape hatch: user armed `bl-bypass-redesigns` from the sidebar. The flag
+  // stays active for 5 minutes (auto-expiry) or until the user clicks the
+  // floating re-enable button injected below. `hide-flash.content.ts` already
+  // skipped the CSS layer-wrap, so Lectio's native DOM renders with its
+  // original styles. We skip all other injection here.
   if (isBypassActive()) {
-    consumeBypass();
     document.documentElement.classList.add("il-ready");
+    injectBypassReenableButton();
     return;
   }
 

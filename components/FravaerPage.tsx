@@ -122,10 +122,25 @@ function buildDistribution(holds: FravaerHoldEntry[]): DistributionSlice[] {
   let totalAmount = 0;
 
   for (const hold of holds) {
-    const { amount } = parseFraction(hold.almOpgjortModuler);
-    if (amount <= 0) continue;
+    // Prefer absolute module counts when available (legacy 9-col layout).
+    // Fall back to absence percentage as the slice weight when Lectio only
+    // provides percentages (2026-05 compact 5-col layout).
+    const { amount: modAmount, total: modTotal } = parseFraction(hold.almOpgjortModuler);
+    const pctValue = parsePct(hold.almOpgjortPct);
+
+    let amount: number;
+    let total: number;
+    if (modAmount > 0) {
+      amount = modAmount;
+      total = modTotal;
+    } else if (pctValue > 0) {
+      amount = pctValue;
+      total = 0;
+    } else {
+      continue;
+    }
+
     totalAmount += amount;
-    const { total } = parseFraction(hold.almOpgjortModuler);
     items.push({
       label: getHoldDisplayName(hold.hold) || hold.hold,
       hue: getHoldHue(hold.hold),
@@ -229,6 +244,11 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     .map((record, index) => ({ record, index, isMissing: isMissingReasonRecord(record) }))
     .sort((a, b) => {
       if (a.isMissing !== b.isMissing) return a.isMissing ? -1 : 1;
+      const aDate = a.record.dateISO;
+      const bDate = b.record.dateISO;
+      if (aDate && bDate && aDate !== bDate) return bDate.localeCompare(aDate);
+      if (aDate && !bDate) return -1;
+      if (!aDate && bDate) return 1;
       return a.index - b.index;
     });
 
@@ -563,6 +583,10 @@ function SummaryCard({
 
 function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
   const totalAmount = slices.reduce((sum, s) => sum + s.amount, 0);
+  // When Lectio omits absolute module counts (compact 2026-05 layout),
+  // slices fall back to percentage weighting and have `total === 0`.
+  // In that mode the totalAmount and per-slice "amount" are absence %, not module counts.
+  const isPercentMode = slices.every(s => s.total === 0);
 
   // Build SVG donut segments
   const donutSize = 96;
@@ -615,8 +639,14 @@ function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
             ))}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-extrabold tabular-nums text-foreground">{formatNumber(totalAmount)}</span>
-            <DistributionModulesLabel />
+            {isPercentMode ? (
+              <span className="text-base font-bold uppercase tracking-wider text-muted-foreground">%</span>
+            ) : (
+              <>
+                <span className="text-lg font-extrabold tabular-nums text-foreground">{formatNumber(totalAmount)}</span>
+                <DistributionModulesLabel />
+              </>
+            )}
           </div>
         </div>
 
@@ -630,7 +660,7 @@ function DistributionCard({ slices }: { slices: DistributionSlice[] }) {
               />
               <span className="min-w-0 truncate text-sm text-foreground">{slice.label}</span>
               <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
-                {formatNumber(slice.amount)}
+                {isPercentMode ? `${formatNumber(slice.amount)}%` : formatNumber(slice.amount)}
               </span>
             </div>
           ))}
@@ -669,8 +699,14 @@ function MissingReasonsBanner({
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const preview = expanded ? records : records.slice(0, 3);
-  const hasMore = records.length > 3;
+  const sorted = [...records].sort((a, b) => {
+    if (a.dateISO && b.dateISO && a.dateISO !== b.dateISO) return b.dateISO.localeCompare(a.dateISO);
+    if (a.dateISO && !b.dateISO) return -1;
+    if (!a.dateISO && b.dateISO) return 1;
+    return 0;
+  });
+  const preview = expanded ? sorted : sorted.slice(0, 3);
+  const hasMore = sorted.length > 3;
 
   return (
     <section className="mb-7 animate-[bl-fade-in_350ms_var(--ease-out)_both]">

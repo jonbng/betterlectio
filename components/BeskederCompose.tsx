@@ -525,25 +525,25 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   const isBusy = sending || !!uploadingFileName || removingAttachIndex !== null || !!addingRecipientId;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-3 px-10 pb-12 pt-8">
+    <div className="mx-auto max-w-5xl space-y-4 px-10 pb-16 pt-10">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border pb-4 mb-3">
+      <div className="flex items-center gap-4 border-b border-border pb-5 mb-4">
         <button
           type="button"
-          className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-[background-color] duration-150 hover:bg-accent"
+          className="inline-flex size-11 items-center justify-center rounded-md border border-border bg-background text-foreground transition-[background-color] duration-150 hover:bg-accent"
           onClick={handleBack}
           title={t('beskeder.compose.backTitle')}
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-semibold text-foreground">{t('beskeder.compose.title')}</h1>
+        <h1 className="text-2xl font-semibold text-foreground">{t('beskeder.compose.title')}</h1>
       </div>
 
       {/* Card */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-xl border border-border bg-card p-6">
         {/* Recipients field */}
         <div className="space-y-2">
-          <label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.recipientsLabel')}</label>
+          <label className="text-base font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.recipientsLabel')}</label>
           <div className="space-y-2">
             {recipients.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -556,11 +556,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   <span
                     key={r.removePostbackTarget}
                     className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.08] px-2 py-1',
+                      'inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 py-1.5',
                       removingRecipient === r.removePostbackTarget && 'opacity-60',
                     )}
                   >
-                    <span className="inline-flex size-6 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
+                    <span className="inline-flex size-7 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-semibold text-primary">
                       {r.contextId && pictureByContextId[r.contextId] ? (
                         <img
                           src={pictureByContextId[r.contextId] as string}
@@ -572,18 +572,18 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                         getInitials(r.name)
                       )}
                     </span>
-                    <span className="text-sm font-medium text-foreground">{displayName}</span>
+                    <span className="text-base font-medium text-foreground">{displayName}</span>
                     {r.removePostbackTarget && (
                       <button
                         type="button"
-                        className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
+                        className="inline-flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-[background-color,color] duration-150 hover:bg-accent hover:text-foreground"
                         onClick={() => handleRemoveRecipient(r.removePostbackTarget)}
                         disabled={!!removingRecipient}
                         title={t('beskeder.compose.removeRecipient', { name: displayName })}
                       >
                         {removingRecipient === r.removePostbackTarget
-                          ? <Loader2 size={13} className="animate-spin" />
-                          : <X size={13} />
+                          ? <Loader2 size={14} className="animate-spin" />
+                          : <X size={14} />
                         }
                       </button>
                     )}
@@ -602,11 +602,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                 'relative rounded-lg border border-border bg-muted/30 transition',
                 recipientPickerOpen && 'border-primary/30',
               )}>
-                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   ref={recipientInputRef}
                   type="text"
-                  className="h-11 w-full rounded-lg border-0 bg-transparent pl-9 pr-10 text-base text-foreground outline-none transition focus-visible:ring-0"
+                  className="h-12 w-full rounded-lg border-0 bg-transparent pl-10 pr-10 text-lg text-foreground outline-none transition focus-visible:ring-0"
                   value={recipientQuery}
                   onInput={(e) => setRecipientQuery((e.target as HTMLInputElement).value)}
                   onFocus={() => setRecipientPickerOpen(true)}
@@ -649,14 +649,14 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       key={option.id}
                       type="button"
                       className={cn(
-                        'flex w-full items-center gap-2 rounded-md !border-0 px-2 py-1.5 text-left hover:bg-accent',
+                        'flex w-full items-center gap-3 rounded-md !border-0 px-2.5 py-2 text-left hover:bg-accent',
                         index === activeSuggestionIndex && 'bg-accent',
                       )}
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleAddRecipient(option)}
                       disabled={!!addingRecipientId}
                       >
-                      <span className="inline-flex size-8 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
+                      <span className="inline-flex size-10 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
                         {pictureByContextId[option.id] ? (
                           <img
                             src={pictureByContextId[option.id] as string}
@@ -665,7 +665,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                             className="size-full !border-0 object-cover object-top"
                           />
                         ) : (
-                          <UserRound size={16} />
+                          <UserRound size={18} />
                         )}
                       </span>
                       <span className="min-w-0">
@@ -686,7 +686,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
         {/* No-reply toggle */}
         {data.noReplyCheckbox && (
-          <div className="mt-3">
+          <div className="mt-4">
             <div
               ref={noReplyRef}
               className="[&_label]:inline-flex [&_label]:items-center [&_label]:gap-2 [&_label]:text-base [&_label]:text-foreground [&_input[type='checkbox']]:size-4"
@@ -695,11 +695,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         )}
 
         {/* Subject field */}
-        <div className="mt-3 space-y-2">
-          <label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.subjectLabel')}</label>
+        <div className="mt-4 space-y-2">
+          <label className="text-base font-semibold uppercase tracking-wide text-muted-foreground">{t('beskeder.compose.subjectLabel')}</label>
           <input
             type="text"
-            className="h-11 w-full rounded-lg border border-border bg-background px-3 text-base text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+            className="h-12 w-full rounded-lg border border-border bg-background px-3.5 text-lg text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
             value={title}
             onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
             placeholder={t('beskeder.compose.titlePlaceholder')}
@@ -708,7 +708,10 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         </div>
 
         {/* Body field with WYSIWYG editor */}
-        <div className="mt-3" id="bl-compose-editor">
+        <div
+          className="mt-4 [&_[contenteditable]]:min-h-72 [&_[contenteditable]]:max-h-[28rem] [&_[contenteditable]]:px-4 [&_[contenteditable]]:py-3.5 [&_[contenteditable]]:text-lg"
+          id="bl-compose-editor"
+        >
           <WysiwygEditor
             initialBBCode={data.currentBody}
             onBBCodeChange={setBodyBBCode}
@@ -720,7 +723,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
 
         {/* Error message */}
         {error && (
-          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-base text-destructive">{error}</div>
+          <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-base text-destructive">{error}</div>
         )}
 
         {/* Attached files */}
@@ -749,7 +752,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         )}
 
         {/* Footer */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-3">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-4">
           <div className="inline-flex items-center gap-2">
             {attachPostbackTarget && (
               <>
@@ -760,18 +763,18 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                   onChange={handleFileSelect}
                 />
                 {uploadingFileName ? (
-                  <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Loader2 size={15} className="animate-spin" />
+                  <span className="inline-flex items-center gap-2 text-base text-muted-foreground">
+                    <Loader2 size={17} className="animate-spin" />
                     <span>{t('beskeder.compose.uploading', { fileName: uploadingFileName })}</span>
                   </span>
                 ) : (
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
+                    className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2.5 text-base font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
                     onClick={() => fileInputRef.current?.click()}
                     title={t('beskeder.compose.attachFileTitle')}
                   >
-                    <Paperclip size={15} />
+                    <Paperclip size={17} />
                     <span>{t('beskeder.compose.attachFile')}</span>
                   </button>
                 )}
@@ -781,19 +784,19 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
           <div className="inline-flex items-center gap-2">
             <button
               type="button"
-              className="rounded-md border border-input bg-background px-3.5 py-2 text-sm font-medium transition-[background-color] duration-150 hover:bg-accent"
+              className="rounded-md border border-input bg-background px-4 py-2.5 text-base font-medium transition-[background-color] duration-150 hover:bg-accent"
               onClick={handleBack}
             >
               {t('beskeder.compose.cancel')}
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-md border-0 bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-md border-0 bg-primary px-4 py-2.5 text-base font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               onClick={handleSend}
               disabled={isBusy}
               title={t('beskeder.compose.sendTitle')}
             >
-              <Send size={16} />
+              <Send size={18} />
               <span>{sending ? t('beskeder.compose.sending') : t('beskeder.compose.send')}</span>
             </button>
           </div>

@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { TrendingDown, CalendarRange, Calendar, School } from "lucide-react";
+import {
+  TrendingDown,
+  CalendarRange,
+  Calendar,
+  School,
+  Undo2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,10 +37,20 @@ export default async function UninstallsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
         <Stat icon={TrendingDown} title="Total" value={stats.total} />
         <Stat icon={Calendar} title="Last 7d" value={stats.last7} />
         <Stat icon={CalendarRange} title="Last 30d" value={stats.last30} />
+        <Stat
+          icon={Undo2}
+          title="Reinstalled"
+          value={stats.reinstalled}
+          hint={
+            stats.total > 0
+              ? `${Math.round((stats.reinstalled / stats.total) * 100)}% recovered`
+              : undefined
+          }
+        />
         <Stat icon={School} title="Schools" value={stats.distinctSchools} />
       </div>
 
@@ -111,6 +127,18 @@ export default async function UninstallsPage() {
                           {school.display_name ?? school.name}
                         </span>
                       )}
+                      {u.extension_reinstalled_at && (
+                        <Badge
+                          variant="default"
+                          className="gap-1 bg-emerald-600 text-xs hover:bg-emerald-600"
+                        >
+                          <Undo2 className="size-3" />
+                          Reinstalled{" "}
+                          {new Date(
+                            u.extension_reinstalled_at,
+                          ).toLocaleDateString("da-DK")}
+                        </Badge>
+                      )}
                       <span className="ml-auto text-xs text-muted-foreground">
                         {u.extension_uninstalled_at
                           ? new Date(u.extension_uninstalled_at).toLocaleString(
@@ -156,10 +184,12 @@ function Stat({
   icon: Icon,
   title,
   value,
+  hint,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   value: number;
+  hint?: string;
 }) {
   return (
     <Card>
@@ -171,6 +201,9 @@ function Stat({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value.toLocaleString()}</div>
+        {hint && (
+          <div className="text-xs text-muted-foreground">{hint}</div>
+        )}
       </CardContent>
     </Card>
   );

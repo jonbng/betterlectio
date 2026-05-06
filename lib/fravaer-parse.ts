@@ -85,12 +85,13 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
   const titleEl = root.querySelector('#s_m_HeaderContent_MainTitle');
   const studentName = titleEl?.textContent?.trim()?.replace(/\s*-\s*Fravær.*$/i, '') || '';
 
-  // Extract period
+  // Extract period — match by ID suffix so we tolerate Lectio's UpdatePanel wrappers
+  // (e.g. `s_m_Content_Content_ElevUpdatePanel_PeriodePicker_start__date_tb`).
   const startInput = root.querySelector<HTMLInputElement>(
-    '#s_m_Content_Content_PeriodePicker_start__date_tb'
+    '[id$="_PeriodePicker_start__date_tb"]'
   );
   const endInput = root.querySelector<HTMLInputElement>(
-    '#s_m_Content_Content_PeriodePicker_end__date_tb'
+    '[id$="_PeriodePicker_end__date_tb"]'
   );
   const period: FravaerPeriod = {
     start: startInput?.value || '',
@@ -99,14 +100,20 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
 
   // Parse main absence table
   const table = root.querySelector<HTMLTableElement>(
-    '#s_m_Content_Content_SFTabStudentAbsenceDataTable'
+    '[id$="_SFTabStudentAbsenceDataTable"]'
   );
   if (table) {
     const rows = Array.from(table.querySelectorAll('tr'));
 
     for (const row of rows) {
       const cells = Array.from(row.querySelectorAll<HTMLTableCellElement>('td'));
-      if (cells.length < 9) continue;
+      // Lectio's table has two layouts:
+      //   - Legacy 9-col: hold | almPct | almModuler | almAarPct | almAarModuler | skrPct | skrTid | skrAarPct | skrAarTid
+      //   - 2026-05 5-col: hold | almPeriode% | almOpgjort% | skrPeriode% | skrOpgjort%
+      // The newer layout dropped the absolute moduler/elevtid columns entirely.
+      const isLegacy = cells.length >= 9;
+      const isCompact = cells.length === 5;
+      if (!isLegacy && !isCompact) continue;
 
       const holdCell = cells[0];
       const holdLink = holdCell.querySelector<HTMLAnchorElement>('a');
@@ -119,17 +126,30 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
 
       const cellTexts = cells.map(c => c.textContent?.trim() || '');
 
+      const entry = isLegacy
+        ? {
+            almOpgjortPct: cellTexts[1],
+            almOpgjortModuler: cellTexts[2],
+            almAarPct: cellTexts[3],
+            almAarModuler: cellTexts[4],
+            skrOpgjortPct: cellTexts[5],
+            skrOpgjortTid: cellTexts[6],
+            skrAarPct: cellTexts[7],
+            skrAarTid: cellTexts[8],
+          }
+        : {
+            almOpgjortPct: cellTexts[1],
+            almOpgjortModuler: '',
+            almAarPct: cellTexts[2],
+            almAarModuler: '',
+            skrOpgjortPct: cellTexts[3],
+            skrOpgjortTid: '',
+            skrAarPct: cellTexts[4],
+            skrAarTid: '',
+          };
+
       if (isTotalRow) {
-        totals = {
-          almOpgjortPct: cellTexts[1],
-          almOpgjortModuler: cellTexts[2],
-          almAarPct: cellTexts[3],
-          almAarModuler: cellTexts[4],
-          skrOpgjortPct: cellTexts[5],
-          skrOpgjortTid: cellTexts[6],
-          skrAarPct: cellTexts[7],
-          skrAarTid: cellTexts[8],
-        };
+        totals = entry;
       } else {
         const holdUrl = holdLink?.getAttribute('href') || '';
         const contextCard = holdLink?.getAttribute('data-lectioContextCard') ||
@@ -141,14 +161,7 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
           hold: holdText,
           holdUrl,
           holdelementId,
-          almOpgjortPct: cellTexts[1],
-          almOpgjortModuler: cellTexts[2],
-          almAarPct: cellTexts[3],
-          almAarModuler: cellTexts[4],
-          skrOpgjortPct: cellTexts[5],
-          skrOpgjortTid: cellTexts[6],
-          skrAarPct: cellTexts[7],
-          skrAarTid: cellTexts[8],
+          ...entry,
         });
       }
     }
@@ -156,14 +169,14 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
 
   // Chart image
   const chartImg = root.querySelector<HTMLImageElement>(
-    '#s_m_Content_Content_SFTabAbsenceimg'
+    '[id$="_SFTabAbsenceimg"]'
   );
   const chartImageUrl = chartImg?.getAttribute('src') || null;
 
   // Warnings (Bemærkninger)
   const warnings: FravaerWarning[] = [];
   const warningTable = root.querySelector<HTMLTableElement>(
-    '#s_m_Content_Content_SFTabWarningGV'
+    '[id$="_SFTabWarningGV"]'
   );
   if (warningTable && !warningTable.querySelector('.noRecord')) {
     const warnRows = Array.from(warningTable.querySelectorAll('tr'));
@@ -253,9 +266,13 @@ function parseRecordTable(table: HTMLTableElement, out: FravaerRecord[]) {
     const dateMatch = brikText.match(/^(\w+\s+\d+\/\d+)\s*/);
     const date = dateMatch?.[1] || '';
 
-    // Extract full date from tooltip (e.g. "17/9-2025 12:25 til 14:05")
+    // Extract full date from tooltip. For lessons without a title the tooltip
+    // starts with `17/9-2025 12:25 til 14:05`, but when the lesson has a title
+    // (or `Ændret!` banner) the date appears on a later line. Match anywhere
+    // and require the trailing `HH:MM til` so we don't accidentally pick up
+    // some other date that might appear in the body (e.g. lektier).
     const tooltip = activityLink?.getAttribute('data-tooltip') || '';
-    const fullDateMatch = tooltip.match(/^(\d{1,2})\/(\d{1,2})-(\d{4})/);
+    const fullDateMatch = tooltip.match(/(\d{1,2})\/(\d{1,2})-(\d{4})\s+\d{1,2}:\d{2}\s+til\b/);
     let dateISO = '';
     if (fullDateMatch) {
       const [, dd, mm, yyyy] = fullDateMatch;
@@ -503,10 +520,29 @@ export async function submitPeriodChange(
   }
   if (!formData) return null;
 
+  // Resolve the actual ASP.NET name prefix — Lectio recently wrapped this page
+  // in an `ElevUpdatePanel`, which inserts `$ElevUpdatePanel$` between
+  // `Content$Content` and the control names. Discover by suffix match so we
+  // keep working if the wrapper changes again.
+  const fieldNames = Object.keys(formData);
+  const startName = fieldNames.find(n => n.endsWith('$PeriodePicker$start$_date$tb'))
+    ?? 's$m$Content$Content$PeriodePicker$start$_date$tb';
+  const endName = fieldNames.find(n => n.endsWith('$PeriodePicker$end$_date$tb'))
+    ?? 's$m$Content$Content$PeriodePicker$end$_date$tb';
+  const visBtnName = fieldNames.find(n => n.endsWith('$VisPeriodeBtn'))
+    ?? (() => {
+      // The submit button isn't always present in the extracted form fields
+      // (it's rendered as a postback link, not an <input>). Fall back to deriving
+      // it from another control's prefix.
+      const sample = fieldNames.find(n => /\$PeriodePicker\$/.test(n));
+      if (sample) return sample.replace(/\$PeriodePicker\$.*$/, '$VisPeriodeBtn');
+      return 's$m$Content$Content$VisPeriodeBtn';
+    })();
+
   // Update period inputs
-  formData['s$m$Content$Content$PeriodePicker$start$_date$tb'] = start;
-  formData['s$m$Content$Content$PeriodePicker$end$_date$tb'] = end;
-  formData['__EVENTTARGET'] = 's$m$Content$Content$VisPeriodeBtn';
+  formData[startName] = start;
+  formData[endName] = end;
+  formData['__EVENTTARGET'] = visBtnName;
   formData['__EVENTARGUMENT'] = '';
 
   try {

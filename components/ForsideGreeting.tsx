@@ -193,7 +193,12 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
     function checkCancelled() {
       const blocks = getCachedSchedule(schoolId);
       if (blocks) {
-        setCancelledCount(blocks.filter(b => b.cancelled).length);
+        // Don't count a cancelled block as cancelled if another non-cancelled
+        // block overlaps the same time slot — Lectio represents subject swaps
+        // as the original being cancelled and a new brick added at the same time.
+        const replaced = (b: { start: number; end: number }) =>
+          blocks.some(o => !o.cancelled && o.start < b.end && o.end > b.start);
+        setCancelledCount(blocks.filter(b => b.cancelled && !replaced(b)).length);
         return true;
       }
       return false;

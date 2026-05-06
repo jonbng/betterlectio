@@ -66,7 +66,7 @@ import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
 import { setUserJotTheme } from '@/lib/userjot';
-import { armBypassForNextLoad } from '@/lib/bypass-redesigns';
+import { armBypass } from '@/lib/bypass-redesigns';
 import { captureBypassEngaged } from '@/lib/bypass-analytics';
 import { MOBILE_APP_INVITE_OPEN_EVENT } from '@/components/MobileAppInvitePopup';
 import { toast } from 'sonner';
@@ -742,7 +742,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               // rich analytics event (with page/context/any-visible-error
               // popup) and await its flush so the HTTP request isn't killed by
               // the reload that follows.
-              armBypassForNextLoad();
+              armBypass();
               try {
                 toast.info(t('sidebar.bypassToast'), {
                   description: t('sidebar.bypassToastDescription'),

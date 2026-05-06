@@ -240,7 +240,7 @@ Deno.serve(async (req: Request) => {
       // (or the row doesn't exist yet).
       const { data: existing } = await supabaseAdmin
         .from('students')
-        .select('extension_installed_at')
+        .select('extension_installed_at, extension_uninstalled_at, extension_reinstalled_at')
         .eq('id', elevid)
         .maybeSingle();
       const studentRecord: Record<string, unknown> = {
@@ -250,6 +250,14 @@ Deno.serve(async (req: Request) => {
       if (!existing?.extension_installed_at) {
         studentRecord.extension_installed_at = new Date().toISOString();
         wasFirstInstall = true;
+      } else if (
+        existing.extension_uninstalled_at &&
+        !existing.extension_reinstalled_at
+      ) {
+        // Student previously uninstalled and is now back. Stamp once so the
+        // admin dashboard can surface the recovery without losing the
+        // original uninstall timestamp.
+        studentRecord.extension_reinstalled_at = new Date().toISOString();
       }
       if (supabaseAuthId) studentRecord.supabase_id = supabaseAuthId;
       if (firstName) studentRecord.lectio_first_name = firstName;

@@ -42,7 +42,7 @@ export function useSchoolStudents(
   const { data: students, isLoading } = useQuery<Student[]>({
     schoolId,
     table: 'students',
-    select: 'id,name,lectio_first_name,lectio_last_name,custom_pfp_url,extension_installed_at,app_installed_at',
+    select: 'id,name,lectio_first_name,lectio_last_name,custom_pfp_url,extension_installed_at,extension_uninstalled_at,last_seen_at,app_installed_at',
     filters: [{ column: 'school_id', op: 'eq', value: Number(schoolId) }],
     enabled: refreshReady,
   });

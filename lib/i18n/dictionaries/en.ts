@@ -276,9 +276,11 @@ export const en = {
     settingsTitle: 'Settings',
     lightModeTitle: 'Switch to light mode',
     darkModeTitle: 'Switch to dark mode',
-    bypassTitle: 'Show original Lectio for this page (next page navigation brings BetterLectio back)',
+    bypassTitle: 'Show original Lectio (turns BetterLectio off for 5 minutes)',
     bypassToast: 'Showing original Lectio',
-    bypassToastDescription: 'Page will reload without BetterLectio. The error has been reported.',
+    bypassToastDescription: 'BetterLectio is off for 5 minutes. Press the button in the corner to turn it back on. The error has been reported.',
+    bypassReenableLabel: 'Turn BetterLectio on',
+    bypassReenableTitle: 'Turn BetterLectio back on and reload the page',
     menu: {
       profile: 'Profile',
       sps: 'SPS',

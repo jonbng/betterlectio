@@ -1,48 +1,88 @@
-// One-shot escape hatch that renders the next page load with BetterLectio
-// redesigns suppressed. The user arms this from the sidebar footer when a
-// native Lectio flow is misbehaving under our custom wrapper; the flag is
-// consumed by `content.tsx` on the very next load so the tab returns to the
-// normal BetterLectio UI after a single navigation.
+// Escape hatch that renders Lectio without BetterLectio's redesigns when a
+// native flow is misbehaving under our wrapper. Activated from the sidebar
+// footer. Stays active for 5 minutes (auto-expiry) or until the user presses
+// the floating re-enable button injected by `content.tsx`.
 //
-// Stored in sessionStorage so the flag is scoped to the current tab and
-// auto-clears when the tab closes — matches the pattern in `lib/url-history.ts`.
+// Stored in localStorage so the bypass applies across all open Lectio tabs —
+// if the redesign is broken on one page it's likely broken everywhere, and a
+// per-tab flag forced users to re-arm in every tab.
 
 const BYPASS_KEY = 'bl-bypass-redesigns';
 
-/**
- * Read-only check. Returns true if the user armed the bypass before this load.
- * Safe to call from both `document_start` (hide-flash) and `document_idle`
- * (content.tsx) — the flag is only cleared by `consumeBypass()`.
- */
-export function isBypassActive(): boolean {
+export const BYPASS_DURATION_MS = 5 * 60 * 1000;
+
+interface BypassState {
+  activatedAt: number;
+}
+
+function readState(): BypassState | null {
   try {
-    return sessionStorage.getItem(BYPASS_KEY) === '1';
+    const raw = localStorage.getItem(BYPASS_KEY);
+    if (!raw) return null;
+    if (raw === '1') {
+      // Legacy sessionStorage format — migrate to current shape.
+      return { activatedAt: Date.now() };
+    }
+    const parsed = JSON.parse(raw) as Partial<BypassState> | null;
+    if (!parsed || typeof parsed.activatedAt !== 'number') return null;
+    return { activatedAt: parsed.activatedAt };
   } catch {
-    return false;
+    return null;
   }
 }
 
-/**
- * Arm the bypass for the next page load in this tab. Caller is expected to
- * trigger a reload immediately after.
- */
-export function armBypassForNextLoad(): void {
+function writeState(state: BypassState): void {
   try {
-    sessionStorage.setItem(BYPASS_KEY, '1');
+    localStorage.setItem(BYPASS_KEY, JSON.stringify(state));
   } catch {
-    // Non-critical — if sessionStorage is unavailable the feature just no-ops.
+    // Non-critical — feature just no-ops if storage is unavailable.
   }
 }
 
-/**
- * Clear the flag. Called by `content.tsx` after it has already honoured the
- * bypass on the current load, so the following navigation / reload brings
- * BetterLectio back automatically.
- */
-export function consumeBypass(): void {
+function clearState(): void {
   try {
-    sessionStorage.removeItem(BYPASS_KEY);
+    localStorage.removeItem(BYPASS_KEY);
   } catch {
     // Non-critical
   }
+}
+
+/**
+ * Returns true if the bypass is armed and hasn't expired. Safe to call from
+ * `document_start` and `document_idle`. Side effect: clears the flag if it
+ * has expired so subsequent loads don't re-check the timestamp forever.
+ */
+export function isBypassActive(): boolean {
+  const state = readState();
+  if (!state) return false;
+  if (Date.now() - state.activatedAt >= BYPASS_DURATION_MS) {
+    clearState();
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Arm the bypass. The next page load (and the following 5 minutes) will skip
+ * BetterLectio rendering until the user manually re-enables or the timer
+ * expires. Caller is expected to reload immediately after.
+ */
+export function armBypass(): void {
+  writeState({ activatedAt: Date.now() });
+}
+
+/** Clear the bypass immediately. Caller should reload to re-render the page. */
+export function disableBypass(): void {
+  clearState();
+}
+
+/**
+ * Milliseconds remaining on the active bypass, or 0 if not active. Use to
+ * drive a countdown UI on the re-enable button.
+ */
+export function getBypassRemainingMs(): number {
+  const state = readState();
+  if (!state) return 0;
+  const remaining = BYPASS_DURATION_MS - (Date.now() - state.activatedAt);
+  return remaining > 0 ? remaining : 0;
 }

@@ -1,14 +1,17 @@
 import { supabaseAdmin } from "./admin";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
+import { ACTIVE_WINDOW_DAYS, activeCutoffIso } from "@/lib/active-user";
 
 // ── Overview stats ──────────────────────────────────────────────────
 
 export async function getOverviewStats() {
+  const cutoff = activeCutoffIso();
   const [
     { count: totalStudents },
     { data: schoolIds },
     { count: extensionUsers },
     { count: appUsers },
+    { count: activeUsers },
     { count: recentSignups },
   ] = await Promise.all([
     supabaseAdmin
@@ -25,6 +28,15 @@ export async function getOverviewStats() {
       .from("students")
       .select("*", { count: "exact", head: true })
       .not("app_installed_at", "is", null),
+    // "Active" = recent heartbeat (last_seen_at) AND not uninstalled.
+    // No install-time fallback here — overview is meant to reflect the
+    // heartbeat signal honestly. FindSkema/profile UI applies its own
+    // fallback so fresh installs without a ping yet still get the badge.
+    supabaseAdmin
+      .from("students")
+      .select("*", { count: "exact", head: true })
+      .is("extension_uninstalled_at", null)
+      .gte("last_seen_at", cutoff),
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
@@ -41,6 +53,8 @@ export async function getOverviewStats() {
     totalSchools: activeSchools,
     extensionUsers: extensionUsers ?? 0,
     appUsers: appUsers ?? 0,
+    activeUsers: activeUsers ?? 0,
+    activeWindowDays: ACTIVE_WINDOW_DAYS,
     recentSignups: recentSignups ?? 0,
   };
 }
@@ -337,6 +351,7 @@ export async function getUninstallStats() {
     { count: total },
     { count: last7 },
     { count: last30 },
+    { count: reinstalled },
     { data: rows },
   ] = await Promise.all([
     supabaseAdmin
@@ -353,8 +368,13 @@ export async function getUninstallStats() {
       .gte("extension_uninstalled_at", since30),
     supabaseAdmin
       .from("students")
+      .select("*", { count: "exact", head: true })
+      .not("extension_uninstalled_at", "is", null)
+      .not("extension_reinstalled_at", "is", null),
+    supabaseAdmin
+      .from("students")
       .select(
-        "id, lectio_first_name, lectio_last_name, school_id, class_name, extension_uninstalled_at, extension_uninstall_reason, extension_uninstall_feedback, schools(name, display_name)",
+        "id, lectio_first_name, lectio_last_name, school_id, class_name, extension_uninstalled_at, extension_reinstalled_at, extension_uninstall_reason, extension_uninstall_feedback, schools(name, display_name)",
       )
       .not("extension_uninstalled_at", "is", null)
       .order("extension_uninstalled_at", { ascending: false })
@@ -384,6 +404,7 @@ export async function getUninstallStats() {
     total: total ?? 0,
     last7: last7 ?? 0,
     last30: last30 ?? 0,
+    reinstalled: reinstalled ?? 0,
     distinctSchools: distinctSchools.size,
     reasonChips,
     recent: rows ?? [],
