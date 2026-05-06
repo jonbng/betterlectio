@@ -187,6 +187,7 @@ export const en = {
       recipientSearchPlaceholder: 'Search student, teacher, team or group...',
       loadingRecipients: 'Loading recipients...',
       minCharsHint: 'Type at least 2 characters to search',
+      recentRecipientsLabel: 'Recent recipients',
       noResults: 'No results',
       subjectLabel: 'Subject',
       titlePlaceholder: 'Title',

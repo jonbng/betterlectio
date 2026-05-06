@@ -15,6 +15,7 @@ import {
   type AttachedFile,
 } from '@/lib/beskeder-submit';
 import { fetchBeskederRecipientItems } from '@/lib/beskeder-recipients-cache';
+import { getRecentRecipients, addRecentRecipient, type RecentRecipient } from '@/lib/beskeder-compose-recents';
 import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
 import { normalizeString, fuzzyMatch } from '@/lib/fuzzy-search';
 import { cn } from '@/lib/utils';
@@ -58,6 +59,7 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
   const [removingAttachIndex, setRemovingAttachIndex] = useState<number | null>(null);
+  const [recentRecipients, setRecentRecipients] = useState<RecentRecipient[]>(() => getRecentRecipients(schoolId));
   const [formState, setFormState] = useState<FormState>(() => {
     const { tokens, action } = parseFormTokens();
     return { tokens, action };
@@ -283,6 +285,20 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     setActiveSuggestionIndex(0);
   }, [recipientQuery]);
 
+  const visibleRecentRecipients = useMemo(() => {
+    const chosenIds = new Set(
+      recipientsWithContext
+        .map((r) => r.contextId)
+        .filter((id): id is string => !!id),
+    );
+    const chosenNames = new Set(recipients.map((r) => normalizeRecipientName(r.name)));
+    return recentRecipients.filter((r) => {
+      if (chosenIds.has(r.id)) return false;
+      if (chosenNames.has(normalizeRecipientName(r.name))) return false;
+      return true;
+    });
+  }, [recentRecipients, recipientsWithContext, recipients, normalizeRecipientName]);
+
   useEffect(() => {
     for (const option of recipientSuggestions.slice(0, 6)) {
       if (option.id.startsWith('S') || option.id.startsWith('T')) {
@@ -294,7 +310,12 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         loadRecipientPicture(recipient.contextId);
       }
     }
-  }, [recipientSuggestions, recipientsWithContext, loadRecipientPicture]);
+    for (const recent of visibleRecentRecipients) {
+      if (recent.id.startsWith('S') || recent.id.startsWith('T')) {
+        loadRecipientPicture(recent.id);
+      }
+    }
+  }, [recipientSuggestions, recipientsWithContext, visibleRecentRecipients, loadRecipientPicture]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -332,13 +353,15 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
         setRecipientQuery('');
         setRecipientPickerOpen(false);
         recipientInputRef.current?.focus();
+        addRecentRecipient(schoolId, { id: option.id, name: option.name, type: option.type });
+        setRecentRecipients(getRecentRecipients(schoolId));
       } else if (result.error.kind === 'session_expired') {
         setError(t('beskeder.errors.sessionExpired'));
       } else {
         setError(t('beskeder.compose.errors.addRecipientRetry'));
       }
     });
-  }, [addingRecipientId, sending, data, formState, formStateWithNoReply]);
+  }, [addingRecipientId, sending, data, formState, formStateWithNoReply, schoolId, t]);
 
   const handleBack = useCallback(() => {
     if (data.cancelPostbackTarget) {
@@ -631,9 +654,55 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
                       {recipientDirectoryError}
                     </div>
                   )}
-                  {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length < 2 && (
+                  {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length < 2 && visibleRecentRecipients.length === 0 && (
                     <div className="px-2 py-2 text-base text-muted-foreground">
                       {t('beskeder.compose.minCharsHint')}
+                    </div>
+                  )}
+                  {!recipientDirectoryError && normalizeString(recipientQuery).length < 2 && visibleRecentRecipients.length > 0 && (
+                    <div>
+                      <div className="px-2.5 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('beskeder.compose.recentRecipientsLabel')}
+                      </div>
+                      {visibleRecentRecipients.map((recent) => {
+                        const liveOption = recipientOptions.find((o) => o.id === recent.id);
+                        const option: ComposeRecipientOption = liveOption || {
+                          id: recent.id,
+                          name: recent.name,
+                          type: recent.type,
+                          searchText: '',
+                        };
+                        const displayName = getDisplayNameFromLookupId(studentsMap, option.id, option.name);
+                        return (
+                          <button
+                            key={recent.id}
+                            type="button"
+                            className="flex w-full items-center gap-3 rounded-md !border-0 px-2.5 py-2 text-left hover:bg-accent"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleAddRecipient(option)}
+                            disabled={!!addingRecipientId}
+                          >
+                            <span className="inline-flex size-10 items-center justify-center overflow-hidden rounded-full !border-0 bg-muted text-muted-foreground">
+                              {pictureByContextId[option.id] ? (
+                                <img
+                                  src={pictureByContextId[option.id] as string}
+                                  alt=""
+                                  loading="lazy"
+                                  className="size-full !border-0 object-cover object-top"
+                                />
+                              ) : (
+                                <UserRound size={18} />
+                              )}
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate text-base font-medium text-foreground">{displayName}</span>
+                              <span className="block text-sm text-muted-foreground">
+                                {getRecipientTypeLabel(option.id)}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   {!recipientDirectoryLoading && !recipientDirectoryError && normalizeString(recipientQuery).length >= 2 && recipientSuggestions.length === 0 && (

@@ -185,6 +185,7 @@ export const da = {
       recipientSearchPlaceholder: 'Søg elev, lærer, hold eller gruppe...',
       loadingRecipients: 'Indlæser modtagere...',
       minCharsHint: 'Skriv mindst 2 tegn for at søge',
+      recentRecipientsLabel: 'Seneste modtagere',
       noResults: 'Ingen resultater',
       subjectLabel: 'Emne',
       titlePlaceholder: 'Titel',
