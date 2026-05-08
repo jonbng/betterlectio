@@ -48,7 +48,7 @@ export default async function OverviewPage() {
     ]);
 
   const supabaseMetrics = [
-    { title: "Total Students", value: stats.totalStudents, icon: Users },
+    { title: "Ever onboarded", value: stats.totalStudents, icon: Users },
     { title: "Schools", value: stats.totalSchools, icon: School },
     { title: "Extension Users", value: stats.extensionUsers, icon: Monitor },
     { title: "App Users", value: stats.appUsers, icon: Smartphone },

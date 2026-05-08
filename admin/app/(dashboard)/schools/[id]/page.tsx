@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Monitor, Smartphone, Users, UserCheck, Apple } from "lucide-react";
+import {
+  ArrowLeft,
+  Activity,
+  Monitor,
+  Smartphone,
+  UserCheck,
+  Apple,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +84,7 @@ export default async function SchoolDetailPage({
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
-        <Stat icon={Users} title="Students" value={stats.total} />
+        <Stat icon={Activity} title="Active" value={stats.active} />
         <Stat icon={Monitor} title="Extension" value={stats.extension} />
         <Stat icon={Smartphone} title="App" value={stats.app} />
         <Stat icon={UserCheck} title="App eligible" value={stats.eligible} />
@@ -91,8 +98,9 @@ export default async function SchoolDetailPage({
               <div>
                 <p className="text-sm font-medium">School-wide adoption</p>
                 <p className="text-xs text-muted-foreground">
-                  {stats.extension.toLocaleString()} of{" "}
-                  {school.student_count.toLocaleString()} students
+                  {stats.active.toLocaleString()} active of{" "}
+                  {school.student_count.toLocaleString()} students ·{" "}
+                  {stats.total.toLocaleString()} ever onboarded
                   {school.student_count_updated_at && (
                     <>
                       {" · enrollment updated "}
@@ -115,7 +123,7 @@ export default async function SchoolDetailPage({
         </Card>
       )}
       <p className="text-xs text-muted-foreground">
-        {stats.pctOfTotal}% of all BetterLectio students.
+        {stats.pctOfTotal}% of all active BetterLectio users.
       </p>
 
       {/* PostHog scoped active users */}

@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 export default async function MapPage() {
   const schools = await getSchoolMapData();
 
-  const totalInstalls = schools.reduce((n, s) => n + s.stats.extension, 0);
+  const totalActive = schools.reduce((n, s) => n + s.stats.active, 0);
   const topSchool = [...schools].sort(
-    (a, b) => b.stats.extension - a.stats.extension,
+    (a, b) => b.stats.active - a.stats.active,
   )[0];
 
   return (
@@ -17,10 +17,10 @@ export default async function MapPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Map</h1>
           <p className="text-sm text-muted-foreground">
-            {schools.length} schools with installs · {totalInstalls} extension
-            installs
+            {schools.length} schools with active users · {totalActive} active
+            BetterLectio users
             {topSchool
-              ? ` · top: ${topSchool.display_name ?? topSchool.name} (${topSchool.stats.extension})`
+              ? ` · top: ${topSchool.display_name ?? topSchool.name} (${topSchool.stats.active})`
               : ""}
           </p>
         </div>

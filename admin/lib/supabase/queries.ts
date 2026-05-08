@@ -8,7 +8,7 @@ export async function getOverviewStats() {
   const cutoff = activeCutoffIso();
   const [
     { count: totalStudents },
-    { data: schoolIds },
+    { data: schoolPresenceRows },
     { count: extensionUsers },
     { count: appUsers },
     { count: activeUsers },
@@ -17,13 +17,21 @@ export async function getOverviewStats() {
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true }),
+    // Schools count: distinct schools that *currently* have at least one
+    // BetterLectio user — extension still installed, or app installed.
+    // Schools where everyone uninstalled drop off.
     supabaseAdmin
       .from("students")
-      .select("school_id"),
+      .select(
+        "school_id, extension_installed_at, extension_uninstalled_at, app_installed_at",
+      ),
+    // "Extension Users" = currently has the extension (installed AND not
+    // uninstalled). Directly comparable to "Active (Nd)".
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
-      .not("extension_installed_at", "is", null),
+      .not("extension_installed_at", "is", null)
+      .is("extension_uninstalled_at", null),
     supabaseAdmin
       .from("students")
       .select("*", { count: "exact", head: true })
@@ -46,11 +54,18 @@ export async function getOverviewStats() {
       ),
   ]);
 
-  const activeSchools = new Set((schoolIds ?? []).map((s) => s.school_id)).size;
+  const activeSchoolIds = new Set<number>();
+  for (const r of schoolPresenceRows ?? []) {
+    const hasExtension =
+      r.extension_installed_at && !r.extension_uninstalled_at;
+    if (hasExtension || r.app_installed_at) {
+      activeSchoolIds.add(r.school_id);
+    }
+  }
 
   return {
     totalStudents: totalStudents ?? 0,
-    totalSchools: activeSchools,
+    totalSchools: activeSchoolIds.size,
     extensionUsers: extensionUsers ?? 0,
     appUsers: appUsers ?? 0,
     activeUsers: activeUsers ?? 0,
@@ -183,6 +198,7 @@ export async function clearStudentField(
 // ── Schools ─────────────────────────────────────────────────────────
 
 export async function getSchools() {
+  const cutoff = activeCutoffIso();
   const { data: schools } = await supabaseAdmin
     .from("schools")
     .select("*")
@@ -190,21 +206,29 @@ export async function getSchools() {
 
   const { data: students } = await supabaseAdmin
     .from("students")
-    .select("school_id, extension_installed_at, app_installed_at");
+    .select(
+      "school_id, extension_installed_at, extension_uninstalled_at, last_seen_at, app_installed_at",
+    );
 
   const statsMap: Record<
     number,
-    { total: number; extension: number; app: number }
+    { total: number; extension: number; app: number; active: number }
   > = {};
   for (const s of students ?? []) {
     const entry = (statsMap[s.school_id] ??= {
       total: 0,
       extension: 0,
       app: 0,
+      active: 0,
     });
     entry.total++;
     if (s.extension_installed_at) entry.extension++;
     if (s.app_installed_at) entry.app++;
+    const heartbeatActive =
+      !s.extension_uninstalled_at &&
+      s.last_seen_at != null &&
+      s.last_seen_at >= cutoff;
+    if (heartbeatActive || s.app_installed_at) entry.active++;
   }
 
   return (schools ?? [])
@@ -213,7 +237,7 @@ export async function getSchools() {
       const base = statsMap[s.id];
       const adoptionPct =
         s.student_count && s.student_count > 0
-          ? Math.min(100, (base.extension / s.student_count) * 100)
+          ? Math.min(100, (base.active / s.student_count) * 100)
           : null;
       return {
         ...s,
@@ -231,29 +255,44 @@ export async function getSchoolMapData() {
 
   const { data: students } = await supabaseAdmin
     .from("students")
-    .select("school_id, extension_installed_at, app_installed_at");
+    .select(
+      "school_id, extension_installed_at, extension_uninstalled_at, last_seen_at, app_installed_at",
+    );
+
+  const cutoff = activeCutoffIso();
 
   const statsMap: Record<
     number,
-    { total: number; extension: number; app: number }
+    { total: number; extension: number; app: number; active: number }
   > = {};
   for (const s of students ?? []) {
     const entry = (statsMap[s.school_id] ??= {
       total: 0,
       extension: 0,
       app: 0,
+      active: 0,
     });
     entry.total++;
     if (s.extension_installed_at) entry.extension++;
     if (s.app_installed_at) entry.app++;
+    const heartbeatActive =
+      !s.extension_uninstalled_at &&
+      s.last_seen_at != null &&
+      s.last_seen_at >= cutoff;
+    if (heartbeatActive || s.app_installed_at) entry.active++;
   }
 
   return (schools ?? [])
     .map((s) => {
-      const base = statsMap[s.id] ?? { total: 0, extension: 0, app: 0 };
+      const base = statsMap[s.id] ?? {
+        total: 0,
+        extension: 0,
+        app: 0,
+        active: 0,
+      };
       const adoptionPct =
         s.student_count && s.student_count > 0
-          ? Math.min(100, (base.extension / s.student_count) * 100)
+          ? Math.min(100, (base.active / s.student_count) * 100)
           : null;
       return {
         id: s.id,
@@ -265,10 +304,11 @@ export async function getSchoolMapData() {
         stats: { ...base, adoptionPct },
       };
     })
-    .filter((s) => s.stats.extension > 0);
+    .filter((s) => s.stats.active > 0);
 }
 
 export async function getSchoolDetail(id: number) {
+  const cutoff = activeCutoffIso();
   const { data: school } = await supabaseAdmin
     .from("schools")
     .select("*")
@@ -279,12 +319,12 @@ export async function getSchoolDetail(id: number) {
   const [
     { data: students },
     { data: uninstalls },
-    { count: totalStudents },
+    { count: totalActiveStudents },
   ] = await Promise.all([
     supabaseAdmin
       .from("students")
       .select(
-        "id, lectio_first_name, lectio_last_name, class_name, school_id, extension_installed_at, app_installed_at, created_at, custom_pfp_url, lectio_pfp_url, description, instagram, app_eligible, app_qr_scanned_at, marked_android_at, schools(name)",
+        "id, lectio_first_name, lectio_last_name, class_name, school_id, extension_installed_at, extension_uninstalled_at, last_seen_at, app_installed_at, created_at, custom_pfp_url, lectio_pfp_url, description, instagram, app_eligible, app_qr_scanned_at, marked_android_at, schools(name)",
       )
       .eq("school_id", id)
       .order("created_at", { ascending: false }),
@@ -297,26 +337,38 @@ export async function getSchoolDetail(id: number) {
       .not("extension_uninstalled_at", "is", null)
       .order("extension_uninstalled_at", { ascending: false })
       .limit(20),
+    // Total active users across all schools — denominator for "this
+    // school's share of the active user base".
     supabaseAdmin
       .from("students")
-      .select("*", { count: "exact", head: true }),
+      .select("*", { count: "exact", head: true })
+      .is("extension_uninstalled_at", null)
+      .gte("last_seen_at", cutoff),
   ]);
 
   const list = students ?? [];
   const extensionCount = list.filter((s) => s.extension_installed_at).length;
+  const activeCount = list.filter((s) => {
+    const heartbeatActive =
+      !s.extension_uninstalled_at &&
+      s.last_seen_at != null &&
+      s.last_seen_at >= cutoff;
+    return heartbeatActive || s.app_installed_at;
+  }).length;
   const stats = {
     total: list.length,
+    active: activeCount,
     extension: extensionCount,
     app: list.filter((s) => s.app_installed_at).length,
     eligible: list.filter((s) => s.app_eligible).length,
     qrScanned: list.filter((s) => s.app_qr_scanned_at).length,
     markedAndroid: list.filter((s) => s.marked_android_at).length,
-    pctOfTotal: totalStudents
-      ? Math.round((list.length / totalStudents) * 100)
+    pctOfTotal: totalActiveStudents
+      ? Math.round((activeCount / totalActiveStudents) * 100)
       : 0,
     adoptionPct:
       school.student_count && school.student_count > 0
-        ? Math.min(100, (extensionCount / school.student_count) * 100)
+        ? Math.min(100, (activeCount / school.student_count) * 100)
         : null,
   };
 
@@ -819,6 +871,325 @@ export async function getSettingsOverview() {
       .sort((a, b) => b.count - a.count),
     keyDistributions,
     recent: recentWithStudent,
+  };
+}
+
+// ── Graveyard (churn analytics) ─────────────────────────────────────
+//
+// "Graveyard" = anyone who once had BetterLectio but is no longer active.
+// Two cohorts:
+//   - uninstalled: extension_uninstalled_at set, not reinstalled
+//   - silent:      extension still installed, no app, no heartbeat in 14d,
+//                  and installed long enough ago that we'd expect a heartbeat
+//                  (mirrors the install-time fallback in lib/active-user.ts).
+
+const GRAVEYARD_WINDOW_DAYS = 14;
+const GRAVEYARD_TREND_DAYS = 90;
+
+export async function getGraveyardStats() {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const cutoff = activeCutoffIso(now); // 14d ago — boundary for silent-inactive
+  const trendStart = new Date(now - GRAVEYARD_TREND_DAYS * day);
+  const trendStartIso = trendStart.toISOString();
+
+  const { data: rows } = await supabaseAdmin
+    .from("students")
+    .select(
+      "id, lectio_first_name, lectio_last_name, school_id, class_name, extension_installed_at, extension_uninstalled_at, extension_reinstalled_at, extension_uninstall_reason, extension_uninstall_feedback, app_installed_at, last_seen_at, schools(name, display_name)",
+    )
+    .limit(20000);
+
+  const list = rows ?? [];
+
+  type Cohort = "uninstalled" | "silent" | null;
+  const classify = (s: (typeof list)[number]): Cohort => {
+    if (s.extension_uninstalled_at && !s.extension_reinstalled_at) {
+      return "uninstalled";
+    }
+    if (
+      s.extension_installed_at &&
+      !s.extension_uninstalled_at &&
+      !s.app_installed_at &&
+      s.extension_installed_at < cutoff
+    ) {
+      const stale = !s.last_seen_at || s.last_seen_at < cutoff;
+      if (stale) return "silent";
+    }
+    return null;
+  };
+
+  let uninstalled = 0;
+  let silentInactive = 0;
+  let reinstalled = 0;
+  let everInstalled = 0;
+  for (const s of list) {
+    if (s.extension_installed_at || s.extension_uninstalled_at) everInstalled++;
+    if (s.extension_uninstalled_at && s.extension_reinstalled_at) {
+      reinstalled++;
+    }
+    const c = classify(s);
+    if (c === "uninstalled") uninstalled++;
+    else if (c === "silent") silentInactive++;
+  }
+  const total = uninstalled + silentInactive;
+
+  // Uninstalls by day (last 90d)
+  const uninstallCounts: Record<string, number> = {};
+  for (const s of list) {
+    if (!s.extension_uninstalled_at) continue;
+    if (s.extension_reinstalled_at) continue;
+    if (s.extension_uninstalled_at < trendStartIso) continue;
+    const d = s.extension_uninstalled_at.slice(0, 10);
+    uninstallCounts[d] = (uninstallCounts[d] ?? 0) + 1;
+  }
+  const uninstallsByDay: { date: string; count: number }[] = [];
+  for (
+    let d = new Date(trendStartIso.slice(0, 10));
+    d <= new Date();
+    d.setDate(d.getDate() + 1)
+  ) {
+    const key = d.toISOString().slice(0, 10);
+    uninstallsByDay.push({ date: key, count: uninstallCounts[key] ?? 0 });
+  }
+
+  // Cumulative trend: graveyard size vs ever-installed.
+  const installsAfter: Record<string, number> = {};
+  const graveyardAfter: Record<string, number> = {};
+  let installsBeforeWindow = 0;
+  let graveyardBeforeWindow = 0;
+
+  for (const s of list) {
+    const installAt = s.extension_installed_at ?? s.extension_uninstalled_at;
+    if (!installAt) continue;
+    if (installAt < trendStartIso) installsBeforeWindow++;
+    else {
+      const d = installAt.slice(0, 10);
+      installsAfter[d] = (installsAfter[d] ?? 0) + 1;
+    }
+
+    const c = classify(s);
+    if (!c) continue;
+    const leftAt =
+      c === "uninstalled"
+        ? s.extension_uninstalled_at
+        : (s.last_seen_at ?? s.extension_installed_at);
+    if (!leftAt) continue;
+    if (leftAt < trendStartIso) graveyardBeforeWindow++;
+    else {
+      const d = leftAt.slice(0, 10);
+      graveyardAfter[d] = (graveyardAfter[d] ?? 0) + 1;
+    }
+  }
+
+  const churnTrend: {
+    date: string;
+    graveyard: number;
+    everInstalled: number;
+  }[] = [];
+  let cumInstall = installsBeforeWindow;
+  let cumGrave = graveyardBeforeWindow;
+  for (
+    let d = new Date(trendStartIso.slice(0, 10));
+    d <= new Date();
+    d.setDate(d.getDate() + 1)
+  ) {
+    const key = d.toISOString().slice(0, 10);
+    cumInstall += installsAfter[key] ?? 0;
+    cumGrave += graveyardAfter[key] ?? 0;
+    churnTrend.push({
+      date: key,
+      graveyard: cumGrave,
+      everInstalled: cumInstall,
+    });
+  }
+
+  // By school
+  type SchoolAgg = {
+    schoolId: number;
+    name: string;
+    everInstalled: number;
+    graveyard: number;
+    uninstalled: number;
+    silentInactive: number;
+  };
+  const schoolMap: Record<number, SchoolAgg> = {};
+  for (const s of list) {
+    const school = s.schools as
+      | { name: string; display_name: string | null }
+      | null;
+    const entry = (schoolMap[s.school_id] ??= {
+      schoolId: s.school_id,
+      name: school?.display_name ?? school?.name ?? `school ${s.school_id}`,
+      everInstalled: 0,
+      graveyard: 0,
+      uninstalled: 0,
+      silentInactive: 0,
+    });
+    if (s.extension_installed_at || s.extension_uninstalled_at) {
+      entry.everInstalled++;
+    }
+    const c = classify(s);
+    if (c === "uninstalled") {
+      entry.graveyard++;
+      entry.uninstalled++;
+    } else if (c === "silent") {
+      entry.graveyard++;
+      entry.silentInactive++;
+    }
+  }
+  const bySchool = Object.values(schoolMap)
+    .filter((r) => r.everInstalled >= 10)
+    .map((r) => ({
+      ...r,
+      churnRate: r.everInstalled > 0 ? r.graveyard / r.everInstalled : 0,
+    }))
+    .sort((a, b) => b.churnRate - a.churnRate || b.graveyard - a.graveyard)
+    .slice(0, 25);
+
+  // By year/grade
+  const yearAgg: Record<
+    string,
+    { graveyard: number; everInstalled: number }
+  > = {};
+  for (const s of list) {
+    if (!s.class_name) continue;
+    const grade = getSchoolYearFromClassName(s.class_name);
+    if (grade === null) continue;
+    const key = `${grade}.g`;
+    const entry = (yearAgg[key] ??= { graveyard: 0, everInstalled: 0 });
+    if (s.extension_installed_at || s.extension_uninstalled_at) {
+      entry.everInstalled++;
+    }
+    if (classify(s)) entry.graveyard++;
+  }
+  const byYear = Object.entries(yearAgg)
+    .map(([year, v]) => ({
+      year,
+      graveyard: v.graveyard,
+      everInstalled: v.everInstalled,
+      churnRate: v.everInstalled > 0 ? v.graveyard / v.everInstalled : 0,
+    }))
+    .sort((a, b) => parseInt(a.year, 10) - parseInt(b.year, 10));
+
+  // Time-to-churn buckets
+  const buckets = [
+    { bucket: "<7 dage", min: 0, max: 7, count: 0 },
+    { bucket: "7–30 dage", min: 7, max: 30, count: 0 },
+    { bucket: "30–90 dage", min: 30, max: 90, count: 0 },
+    { bucket: "90+ dage", min: 90, max: Infinity, count: 0 },
+  ];
+  for (const s of list) {
+    const c = classify(s);
+    if (!c) continue;
+    if (!s.extension_installed_at) continue;
+    const leftAt =
+      c === "uninstalled"
+        ? s.extension_uninstalled_at
+        : (s.last_seen_at ?? null);
+    if (!leftAt) continue;
+    const days =
+      (Date.parse(leftAt) - Date.parse(s.extension_installed_at)) / day;
+    if (!Number.isFinite(days) || days < 0) continue;
+    for (const b of buckets) {
+      if (days >= b.min && days < b.max) {
+        b.count++;
+        break;
+      }
+    }
+  }
+  const timeToChurn = buckets.map((b) => ({
+    bucket: b.bucket,
+    count: b.count,
+  }));
+
+  // Reason chips (graveyard cohort only — uninstalled with reasons)
+  const reasons: Record<string, number> = {};
+  for (const s of list) {
+    if (classify(s) !== "uninstalled") continue;
+    const raw = s.extension_uninstall_reason;
+    if (!raw) continue;
+    for (const chip of String(raw)
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean)) {
+      reasons[chip] = (reasons[chip] ?? 0) + 1;
+    }
+  }
+  const reasonChips = Object.entries(reasons)
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Recent leavers (mixed cohorts, top 50 by leftAt desc)
+  type RecentRow = {
+    id: string;
+    fullName: string;
+    className: string | null;
+    schoolName: string | null;
+    cohort: "uninstalled" | "silent";
+    leftAt: string | null;
+    daysWithExtension: number | null;
+    reason: string | null;
+    feedback: string | null;
+    reinstalledAt: string | null;
+  };
+  const recent: RecentRow[] = [];
+  for (const s of list) {
+    const c = classify(s);
+    if (!c) continue;
+    const school = s.schools as
+      | { name: string; display_name: string | null }
+      | null;
+    const leftAt =
+      c === "uninstalled"
+        ? s.extension_uninstalled_at
+        : (s.last_seen_at ?? null);
+    let days: number | null = null;
+    if (leftAt && s.extension_installed_at) {
+      const v =
+        (Date.parse(leftAt) - Date.parse(s.extension_installed_at)) / day;
+      if (Number.isFinite(v) && v >= 0) days = Math.round(v);
+    }
+    recent.push({
+      id: s.id,
+      fullName:
+        [s.lectio_first_name, s.lectio_last_name]
+          .filter(Boolean)
+          .join(" ") || "Unknown",
+      className: s.class_name ?? null,
+      schoolName: school?.display_name ?? school?.name ?? null,
+      cohort: c,
+      leftAt,
+      daysWithExtension: days,
+      reason: s.extension_uninstall_reason ?? null,
+      feedback: s.extension_uninstall_feedback ?? null,
+      reinstalledAt: s.extension_reinstalled_at ?? null,
+    });
+  }
+  recent.sort((a, b) => {
+    const av = a.leftAt ? Date.parse(a.leftAt) : 0;
+    const bv = b.leftAt ? Date.parse(b.leftAt) : 0;
+    return bv - av;
+  });
+
+  return {
+    totals: {
+      total,
+      uninstalled,
+      silentInactive,
+      reinstalled,
+      everInstalled,
+      churnRate: everInstalled > 0 ? total / everInstalled : 0,
+    },
+    uninstallsByDay,
+    churnTrend,
+    bySchool,
+    byYear,
+    timeToChurn,
+    reasonChips,
+    recent: recent.slice(0, 50),
+    windowDays: GRAVEYARD_WINDOW_DAYS,
+    trendDays: GRAVEYARD_TREND_DAYS,
   };
 }
 

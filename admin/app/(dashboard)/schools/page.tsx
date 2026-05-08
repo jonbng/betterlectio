@@ -19,6 +19,8 @@ export default async function SchoolsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {schools
           .sort((a, b) => {
+            if (b.stats.active !== a.stats.active)
+              return b.stats.active - a.stats.active;
             const ap = a.stats.adoptionPct ?? -1;
             const bp = b.stats.adoptionPct ?? -1;
             if (bp !== ap) return bp - ap;
@@ -38,10 +40,10 @@ export default async function SchoolsPage() {
               <CardContent>
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold">
-                    {s.stats.total}
+                    {s.stats.active}
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    BL students
+                    active
                   </span>
                   {s.student_count != null && (
                     <span className="ml-auto text-xs text-muted-foreground">
@@ -49,6 +51,9 @@ export default async function SchoolsPage() {
                     </span>
                   )}
                 </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {s.stats.total} ever onboarded
+                </p>
                 {s.stats.adoptionPct != null && (
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">

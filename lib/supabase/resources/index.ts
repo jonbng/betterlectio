@@ -1,4 +1,4 @@
-export { getStudent, getStudentsBySchool, updateStudent } from './student';
+export { getStudent, updateStudent } from './student';
 export {
   getHomework,
   getStudentHomework,

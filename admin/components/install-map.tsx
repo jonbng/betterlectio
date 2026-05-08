@@ -16,12 +16,13 @@ type SchoolPoint = {
     total: number;
     extension: number;
     app: number;
+    active: number;
     adoptionPct: number | null;
   };
 };
 
-// One dot per install. Big schools shrink dot radius and spacing so clusters
-// don't blow up geographically.
+// One dot per active user. Big schools shrink dot radius and spacing so
+// clusters don't blow up geographically.
 const DOT_RADIUS_BASE = 600; // small schools
 const DOT_RADIUS_MIN = 180; // very large schools
 const SPACING_FACTOR_BASE = 2.2; // strict non-overlap
@@ -128,10 +129,11 @@ export function InstallMap({ schools }: { schools: SchoolPoint[] }) {
 
       marker.bindTooltip(
         `<div style="font-weight:600">${escapeHtml(p.label)}</div>` +
-          `<div>${p.totalInstalls} install${p.totalInstalls === 1 ? "" : "s"}</div>` +
+          `<div>${p.activeUsers} active user${p.activeUsers === 1 ? "" : "s"}</div>` +
           (p.schoolStudentCount != null
             ? `<div style="opacity:0.7">${p.schoolStudentCount.toLocaleString()} students total · ${p.adoptionPct!.toFixed(1)}% adoption</div>`
-            : `<div style="opacity:0.7">${p.totalBlStudents} BL students · enrollment unknown</div>`),
+            : `<div style="opacity:0.7">${p.totalBlStudents} BL students · enrollment unknown</div>`) +
+          `<div style="opacity:0.55;font-size:11px;margin-top:2px">${p.everInstalled} ever installed${p.appUsers > 0 ? ` · ${p.appUsers} app` : ""}</div>`,
         { direction: "top" },
       );
     }
@@ -155,7 +157,9 @@ type ClusterPoint = {
   lon: number;
   dotRadius: number;
   label: string;
-  totalInstalls: number;
+  activeUsers: number;
+  everInstalled: number;
+  appUsers: number;
   totalBlStudents: number;
   schoolStudentCount: number | null;
   adoptionPct: number | null;
@@ -164,21 +168,21 @@ type ClusterPoint = {
 function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
   const out: ClusterPoint[] = [];
   for (const s of schools) {
-    const installs = s.stats.extension;
-    if (installs <= 0) continue;
+    const active = s.stats.active;
+    if (active <= 0) continue;
     const label = s.display_name ?? s.name;
 
     // Smoothly interpolate dot size + spacing toward tighter values as a
     // school grows, so big schools stay geographically compact.
-    const t = Math.min(1, Math.log10(Math.max(1, installs)) / 3); // 0 at 1, 1 at 1000+
+    const t = Math.min(1, Math.log10(Math.max(1, active)) / 3); // 0 at 1, 1 at 1000+
     const dotRadius = lerp(DOT_RADIUS_BASE, DOT_RADIUS_MIN, t);
     const spacing = lerp(SPACING_FACTOR_BASE, SPACING_FACTOR_MIN, t);
 
     const clusterRadius =
-      installs <= 1 ? 0 : spacing * dotRadius * Math.sqrt(installs);
-    const positions = sunflowerOffsets(installs, clusterRadius);
+      active <= 1 ? 0 : spacing * dotRadius * Math.sqrt(active);
+    const positions = sunflowerOffsets(active, clusterRadius);
 
-    for (let i = 0; i < installs; i++) {
+    for (let i = 0; i < active; i++) {
       const [dx, dy] = positions[i];
       const [lat, lon] = offsetMeters(s.lat, s.lon, dx, dy);
       out.push({
@@ -186,7 +190,9 @@ function buildClusterPoints(schools: SchoolPoint[]): ClusterPoint[] {
         lon,
         dotRadius,
         label,
-        totalInstalls: installs,
+        activeUsers: active,
+        everInstalled: s.stats.extension,
+        appUsers: s.stats.app,
         totalBlStudents: s.stats.total,
         schoolStudentCount: s.student_count,
         adoptionPct: s.stats.adoptionPct,

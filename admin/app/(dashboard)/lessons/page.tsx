@@ -14,7 +14,11 @@ export default async function LessonsPage({
 }) {
   const { school } = await searchParams;
   const schools = await getSchools();
-  const sorted = [...schools].sort((a, b) => b.stats.total - a.stats.total);
+  const sorted = [...schools].sort((a, b) => {
+    if (b.stats.active !== a.stats.active)
+      return b.stats.active - a.stats.active;
+    return b.stats.total - a.stats.total;
+  });
 
   const selectedId =
     school && Number.isFinite(Number(school))
@@ -62,7 +66,7 @@ export default async function LessonsPage({
                       : "text-muted-foreground"
                   }`}
                 >
-                  {s.stats.total}
+                  {s.stats.active}
                 </span>
               </Link>
             ))}

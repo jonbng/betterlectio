@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Tables } from '@/database.types';
 import { useQuery } from './hooks';
 import { invalidateTable } from './cache';
+import { isActiveStudent } from '@/lib/active-user';
 
 export type Student = Tables<'students'>;
 export type StudentsMap = Map<string, Student>;
@@ -59,38 +60,57 @@ export function useSchoolStudents(
   return { students, studentsMap, isLoading: !refreshReady || isLoading };
 }
 
-/** Hook that checks BetterLectio adoption counts for skip-profile-step logic. */
+/**
+ * Hook that checks BetterLectio adoption counts for skip-profile-step logic.
+ *
+ * "Adoption" here means *currently active* — recent heartbeat & not uninstalled,
+ * or has the iOS app. Counting historical installs would inflate adoption in
+ * churned schools and wrongly hide the onboarding profile prompt.
+ */
 export function useAdoptionCounts(
   schoolId: string,
   className: string | null,
 ): { schoolCount: number | null; classCount: number | null; isLoading: boolean } {
-  const { data: schoolStudents, isLoading: schoolLoading } = useQuery<Pick<Student, 'id'>[]>({
+  type Row = Pick<
+    Student,
+    | 'id'
+    | 'class_name'
+    | 'extension_installed_at'
+    | 'extension_uninstalled_at'
+    | 'last_seen_at'
+    | 'app_installed_at'
+  >;
+
+  const { data: schoolStudents, isLoading } = useQuery<Row[]>({
     schoolId,
     table: 'students',
-    select: 'id',
-    filters: [
-      { column: 'school_id', op: 'eq', value: Number(schoolId) },
-      { column: 'extension_installed_at', op: 'not.is', value: null },
-    ],
+    select:
+      'id,class_name,extension_installed_at,extension_uninstalled_at,last_seen_at,app_installed_at',
+    filters: [{ column: 'school_id', op: 'eq', value: Number(schoolId) }],
     enabled: Boolean(schoolId),
   });
 
-  const { data: classStudents, isLoading: classLoading } = useQuery<Pick<Student, 'id'>[]>({
-    schoolId,
-    table: 'students',
-    select: 'id',
-    filters: [
-      { column: 'school_id', op: 'eq', value: Number(schoolId) },
-      { column: 'extension_installed_at', op: 'not.is', value: null },
-      { column: 'class_name', op: 'eq', value: className! },
-    ],
-    enabled: Boolean(schoolId) && Boolean(className),
-  });
+  const counts = useMemo(() => {
+    if (!schoolStudents) return { schoolCount: null, classCount: null };
+    let school = 0;
+    let cls = 0;
+    for (const s of schoolStudents) {
+      const isCurrentlyActive =
+        isActiveStudent(s) || Boolean(s.app_installed_at);
+      if (!isCurrentlyActive) continue;
+      school++;
+      if (className && s.class_name === className) cls++;
+    }
+    return {
+      schoolCount: school,
+      classCount: className ? cls : null,
+    };
+  }, [schoolStudents, className]);
 
   return {
-    schoolCount: schoolStudents ? schoolStudents.length : null,
-    classCount: className ? (classStudents ? classStudents.length : null) : null,
-    isLoading: schoolLoading || (Boolean(className) && classLoading),
+    schoolCount: counts.schoolCount,
+    classCount: counts.classCount,
+    isLoading,
   };
 }
 

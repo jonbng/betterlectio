@@ -48,7 +48,7 @@ export default async function HomeworkPage() {
         <Stat icon={Activity} title="% done" value={doneShare} suffix="%" />
         <Stat
           icon={Users}
-          title="Active students (7d)"
+          title="Homework users (7d)"
           value={overview.distinctActive7}
         />
       </div>
