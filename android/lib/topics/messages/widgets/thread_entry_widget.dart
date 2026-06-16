@@ -58,7 +58,7 @@ class ThreadEntryWidget extends StatelessWidget {
                             style: Theme.of(context).textTheme.labelMedium)
                       ],
                     ),
-                    LppHtml(content: entry.content),
+                    BlHtml(content: entry.content),
                     MessageFileRow(files: entry.files)
                   ],
                 ),

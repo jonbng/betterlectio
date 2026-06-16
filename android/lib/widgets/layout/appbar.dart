@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:betterlectio/logic/app/typography.dart';
 
-class LppAppbar extends StatelessWidget implements PreferredSizeWidget {
+class BlAppbar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final Widget? titleWidget;
   final bool hideMenu;
@@ -9,7 +9,7 @@ class LppAppbar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;
   final bool noStyle;
-  const LppAppbar({
+  const BlAppbar({
     super.key,
     required this.title,
     this.titleWidget,
@@ -23,7 +23,7 @@ class LppAppbar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      titleTextStyle: LppTypography.headlineSmall(context)
+      titleTextStyle: BlTypography.headlineSmall(context)
               ?.copyWith(overflow: TextOverflow.ellipsis) ??
           const TextStyle(),
       bottom: bottom,

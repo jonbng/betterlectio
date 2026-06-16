@@ -6,7 +6,7 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 >=3.0.0"
+  sdk: ">=3.6.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -22,7 +22,7 @@ dependencies:
   intl: ^0.20.2
   webview_flutter: ^4.2.2
   freezed_annotation: ^2.4.1
-  flutter_local_notifications: ^19.4.0
+  flutter_local_notifications: ^22.0.1
   open_filex: ^4.7.0
   url_launcher_ios: ^6.3.1
   path_provider: ^2.0.15
@@ -36,15 +36,15 @@ dependencies:
   flutter_speed_dial: ^7.0.0
   aura_box: ^1.0.2
   json_annotation: ^4.9.0
-  dots_indicator: ^3.0.0
+  dots_indicator: ^4.0.1
   intl_translation: ^0.20.0
   step_progress_indicator: ^1.0.2
   dio: ^5.7.0
-  android_intent_plus: ^5.3.0
-  package_info_plus: ^4.2.0
+  android_intent_plus: ^6.0.0
+  package_info_plus: ^10.1.0
   workmanager: ^0.9.0+2
   disable_battery_optimizations_latest: ^1.0.0
-  upgrader: ^11.5.0
+  upgrader: ^13.5.0
   flutter_localizations:
     sdk: flutter
 
@@ -53,10 +53,10 @@ dev_dependencies:
     sdk: flutter
   flutter_launcher_icons: ^0.14.3
   freezed: ^2.0.0
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.6
   json_serializable: ^6.8.0
-  very_good_analysis: ^7.0.0
+  very_good_analysis: ^10.0.0
 
 flutter_launcher_icons:
   android: "launcher_icon"

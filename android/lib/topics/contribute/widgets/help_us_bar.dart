@@ -34,7 +34,7 @@ class HelpUsBar extends StatelessWidget {
                         children: [
                           Text(
                             "Har du opdaget?",
-                            style: LppTypography.headlineSmall(context)
+                            style: BlTypography.headlineSmall(context)
                                 ?.copyWith(color: colorScheme.onTertiary),
                           ),
                           Column(

@@ -15,7 +15,7 @@ class CausesSheet extends StatelessWidget {
         children: [
           Text(
             "Vælg årsag",
-            style: LppTypography.headlineSmall(context),
+            style: BlTypography.headlineSmall(context),
           ),
           ListView(
             primary: false,

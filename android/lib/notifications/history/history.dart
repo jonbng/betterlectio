@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _listKey = "dk.betterlectio.android.notification.history";
 
 class NotificationHistory {
-  save(bool error, bool newData) async {
+  Future<void> save(bool error, bool newData) async {
     var entry =
         HistoryEntry(time: DateTime.now(), error: error, newData: newData);
 

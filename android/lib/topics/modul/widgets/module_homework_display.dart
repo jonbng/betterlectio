@@ -17,12 +17,12 @@ class ModuleHomeworkDisplay extends StatelessWidget {
     }
     return SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: LppHtml(content: details.htmlContent));
+        child: BlHtml(content: details.htmlContent));
   }
 }
 
-class LppHtml extends StatelessWidget {
-  const LppHtml({super.key, required this.content});
+class BlHtml extends StatelessWidget {
+  const BlHtml({super.key, required this.content});
   final String content;
   @override
   Widget build(BuildContext context) {

@@ -23,7 +23,7 @@ class AbsenceRegistrationsCubit extends StudentCubit<List<AbsenceCauseEntry>> {
   }
 
   @override
-  void refresh() async {
+  Future<void> refresh() async {
     await load();
   }
 }

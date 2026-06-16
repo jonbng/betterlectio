@@ -25,13 +25,13 @@ class GymScreen extends StatelessWidget {
             children: [
               Text(
                 context.l10n.welcome_gym_title,
-                style: LppTypography.headlineSmall(context),
+                style: BlTypography.headlineSmall(context),
                 textAlign: TextAlign.center,
               ),
               Text(
                 context.l10n.welcome_gym_description, 
                 textAlign: TextAlign.center,
-                style: LppTypography.bodySmall(context),
+                style: BlTypography.bodySmall(context),
               ),
             ],
           ),

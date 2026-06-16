@@ -21,7 +21,7 @@ class MessageDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: LppAppbar(
+      appBar: BlAppbar(
         title: ref.topic,
         actions: [
           BlocBuilder<StudentCubit<BasicInfo>, StatePattern<BasicInfo?>>(

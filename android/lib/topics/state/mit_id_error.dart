@@ -26,12 +26,12 @@ class MitIdErrorScreen extends StatelessWidget {
                   children: [
                     Text(
                       "Login med MitID fejlede",
-                      style: LppTypography.headlineSmall(context),
+                      style: BlTypography.headlineSmall(context),
                       textAlign: TextAlign.center,
                     ),
                     Text(
                       "Ca. 1 gang om måneden kræver Lectio, at du logger ind med MitID på frisk. Andre gange fejler det bare.",
-                      style: LppTypography.bodySmall(context),
+                      style: BlTypography.bodySmall(context),
                       textAlign: TextAlign.center,
                     )
                   ],

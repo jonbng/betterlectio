@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class LppTypography {
+class BlTypography {
   static TextStyle? bodySmall(BuildContext context) {
     var colorScheme = Theme.of(context).colorScheme;
     return Theme.of(context)

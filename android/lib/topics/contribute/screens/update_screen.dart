@@ -19,7 +19,7 @@ class UpdateScreen extends StatelessWidget {
           children: [
             Text(
               "BetterLectio er nu fri for reklamer",
-              style: LppTypography.headlineSmall(context),
+              style: BlTypography.headlineSmall(context),
             ),
             Text(
               """Vent... Det bliver bedre endnu.
@@ -28,14 +28,14 @@ class UpdateScreen extends StatelessWidget {
           Lyder det interessant? Følg linket nedenfor.
           """
                   .replaceAll(whitespaceRE, " "),
-              style: LppTypography.bodySmall(context),
+              style: BlTypography.bodySmall(context),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 FilledButton.icon(
                   onPressed: () {
-                    launchUrlString("https://github.com/oscarspalk/lectio_plus_plus");
+                    launchUrlString("https://github.com/jonbng/betterlectio");
                   },
                   label: const Text("Github"),
                   icon: const Icon(EvaIcons.githubOutline),

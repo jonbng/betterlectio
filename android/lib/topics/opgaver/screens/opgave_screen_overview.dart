@@ -30,7 +30,7 @@ class _OpgaveScreenOverviewState extends State<OpgaveScreenOverview> {
             identifier: 'assignment-filter',
             child: const Icon(EvaIcons.funnelOutline)),
       ),
-      appBar: const LppAppbar(
+      appBar: const BlAppbar(
         title: "Opgaver",
       ),
       body: RefreshIndicator(

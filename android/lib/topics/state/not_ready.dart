@@ -14,7 +14,7 @@ class NotReadyScreen extends StatelessWidget {
           const Illustration(illustration: "season_change"),
           Text(
             "Kommer snart",
-            style: LppTypography.labelSmall(context),
+            style: BlTypography.labelSmall(context),
           ),
         ],
       ),

@@ -6,7 +6,7 @@ import 'package:betterlectio/topics/contribute/widgets/help_us_bar.dart';
 import 'package:betterlectio/utils/ad_route.dart';
 import 'package:betterlectio/widgets/layout/text_divider.dart';
 import 'package:betterlectio/widgets/loading/student_bloc_builder.dart';
-import 'package:betterlectio/widgets/primitive/lpp_shimmer.dart';
+import 'package:betterlectio/widgets/primitive/bl_shimmer.dart';
 
 import '../../logic/student/student_bloc.dart';
 import '../../logic/student/student_cubit.dart';
@@ -27,8 +27,8 @@ class Destination {
   bool onlyFromEdge;
 }
 
-class LppDrawer extends StatelessWidget {
-  const LppDrawer(
+class BlDrawer extends StatelessWidget {
+  const BlDrawer(
       {super.key,
       required this.destinations,
       required this.relatedDestinations});
@@ -67,7 +67,7 @@ class LppDrawer extends StatelessWidget {
               var textTheme = Theme.of(context).textTheme;
               return StudentBlocBuilder<StudentCubit<BasicInfo>, BasicInfo?>(
                   small: true,
-                  customLoadingWidget: LppShimmer(
+                  customLoadingWidget: BlShimmer(
                       enabled: true,
                       child: ListTile(
                         leading: const CircleAvatar(),

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:betterlectio/constants.dart';
 import 'package:betterlectio/notifications/history/history.dart';
@@ -13,18 +14,18 @@ const notificationId = 0;
 Future<void> callbackDispatcher() async {
   Workmanager().executeTask((task, inputData) async {
     final startTime = DateTime.now();
-    print('🚀 Task started: $task');
-    print('📊 Input data: $inputData');
+    debugPrint('🚀 Task started: $task');
+    debugPrint('📊 Input data: $inputData');
 
     try {
       await handleNotifications();
 
       final duration = DateTime.now().difference(startTime);
-      print('✅ Task completed in ${duration.inSeconds}s');
+      debugPrint('✅ Task completed in ${duration.inSeconds}s');
     } catch (e, stackTrace) {
       final duration = DateTime.now().difference(startTime);
-      print('❌ Task failed after ${duration.inSeconds}s: $e');
-      print('📋 Stack trace: $stackTrace');
+      debugPrint('❌ Task failed after ${duration.inSeconds}s: $e');
+      debugPrint('📋 Stack trace: $stackTrace');
     }
     return true;
   });
@@ -33,7 +34,7 @@ Future<void> callbackDispatcher() async {
 @pragma('vm:entry-point')
 Future<void> handleNotifications() async {
   DartPluginRegistrant.ensureInitialized();
-  print("Running notification service");
+  debugPrint("Running notification service");
 
   bool error = false;
   bool newData = false;
@@ -72,7 +73,7 @@ Future<FlutterLocalNotificationsPlugin> initializeNotifcations() async {
       ]);
 
   const AndroidInitializationSettings androidInitializationSettings =
-      AndroidInitializationSettings("@drawable/ic_lpp_notification_2");
+      AndroidInitializationSettings("@drawable/ic_notification");
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     notificationChannelId,
@@ -84,9 +85,10 @@ Future<FlutterLocalNotificationsPlugin> initializeNotifcations() async {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  await flutterLocalNotificationsPlugin.initialize(const InitializationSettings(
-      iOS: initializationSettingsDarwin,
-      android: androidInitializationSettings));
+  await flutterLocalNotificationsPlugin.initialize(
+      settings: const InitializationSettings(
+          iOS: initializationSettingsDarwin,
+          android: androidInitializationSettings));
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
@@ -95,7 +97,7 @@ Future<FlutterLocalNotificationsPlugin> initializeNotifcations() async {
 }
 
 Future<void> registerPeriodicTask() async {
-  print("Registered tasks");
+  debugPrint("Registered tasks");
   await Workmanager().registerPeriodicTask(
       "dk.betterlectio.android.notification", "Notifications",
       frequency: const Duration(minutes: 20),

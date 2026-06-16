@@ -66,7 +66,7 @@ class _EditAbsenceState extends State<EditAbsence> {
         children: [
           Text(
             "Rediger Fravær",
-            style: LppTypography.headlineSmall(context),
+            style: BlTypography.headlineSmall(context),
           ),
           InputDecorator(
               decoration: const InputDecoration(

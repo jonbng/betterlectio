@@ -28,12 +28,12 @@ class GreetingsScreen extends StatelessWidget {
                 Text(
                   context.l10n.welcome_greeting_title
                   ,
-                  style: LppTypography.headlineSmall(context),
+                  style: BlTypography.headlineSmall(context),
                   textAlign: TextAlign.center,
                 ),
                 Text(
                   context.l10n.welcome_greeting_description,
-                  style: LppTypography.bodySmall(context),
+                  style: BlTypography.bodySmall(context),
                   textAlign: TextAlign.center,
                 ),
               ],

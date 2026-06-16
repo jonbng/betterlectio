@@ -63,7 +63,7 @@ class StudiekortScreen extends StatelessWidget {
                                         children: [
                                           Text(
                                             state.state!.$1!.name,
-                                            style: LppTypography.headlineSmall(
+                                            style: BlTypography.headlineSmall(
                                                     context)
                                                 ?.copyWith(
                                                     color: colorscheme

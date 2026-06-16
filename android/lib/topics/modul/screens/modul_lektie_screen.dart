@@ -31,7 +31,7 @@ class _ModulLektieScreenState extends State<ModulLektieScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: LppAppbar(
+        appBar: BlAppbar(
           title: widget.content.name,
           hideMenu: true,
         ),

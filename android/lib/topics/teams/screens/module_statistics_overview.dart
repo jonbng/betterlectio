@@ -11,7 +11,7 @@ class ModuleStatisticsOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const LppAppbar(title: "Modulregnskab"),
+      appBar: const BlAppbar(title: "Modulregnskab"),
       body: BlocBuilder<ModuleStatisticsBloc, ModulStatsState>(
         builder: (context, state) {
           if (state.total == 0 || state.current != state.total) {

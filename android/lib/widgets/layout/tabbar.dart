@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-class LppTabBar extends StatelessWidget implements PreferredSizeWidget {
+class BlTabBar extends StatelessWidget implements PreferredSizeWidget {
   final List<String> tabs;
 
-  const LppTabBar(
+  const BlTabBar(
       {super.key,
       required this.tabs,
       this.controller,

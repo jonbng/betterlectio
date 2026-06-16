@@ -15,7 +15,7 @@ class SuccessScreen extends StatelessWidget {
           const Illustration(illustration: "order_confirmed"),
           Text(
             "Det virkede",
-            style: LppTypography.headlineSmall(context),
+            style: BlTypography.headlineSmall(context),
           )
         ],
       ),

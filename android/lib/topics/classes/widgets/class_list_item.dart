@@ -26,7 +26,7 @@ class ClassListItem extends StatelessWidget {
             children: [
               Text(
                 klasse.name,
-                style: LppTypography.labelSmall(context),
+                style: BlTypography.labelSmall(context),
                 textAlign: TextAlign.end,
                 maxLines: 2,
               ),

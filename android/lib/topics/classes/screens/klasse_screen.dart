@@ -12,9 +12,9 @@ class KlasseScreen extends StatelessWidget {
     return const DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: LppAppbar(
+        appBar: BlAppbar(
           title: "Klasser",
-          bottom: LppTabBar(tabs: [
+          bottom: BlTabBar(tabs: [
             "Klasser",
             "Mine hold",
           ]),

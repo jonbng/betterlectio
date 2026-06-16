@@ -14,7 +14,7 @@ class PlanDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: LppAppbar(title: ref.title),
+      appBar: BlAppbar(title: ref.title),
       body: StudentBlocBuilder<StudentCubit<StudyPlanEntry>, StudyPlanEntry?>(
         bloc: StudentCubit(
             student: getStudentBloc(context).state.student!,

@@ -16,7 +16,7 @@ class InformationsDialog extends StatelessWidget {
           children: [
             Text(
               "Informationer",
-              style: LppTypography.headlineSmall(context),
+              style: BlTypography.headlineSmall(context),
             ),
             ListView(
               padding: EdgeInsets.zero,

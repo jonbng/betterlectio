@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:betterlectio/widgets/primitive/lpp_shimmer.dart';
+import 'package:betterlectio/widgets/primitive/bl_shimmer.dart';
 
 class TextShimmer extends StatelessWidget {
   const TextShimmer(this.content,
@@ -10,7 +10,7 @@ class TextShimmer extends StatelessWidget {
   final TextStyle? style;
   @override
   Widget build(BuildContext context) {
-    return LppShimmer(
+    return BlShimmer(
       enabled: content.isEmpty,
       child: content.isEmpty
           ? Container(

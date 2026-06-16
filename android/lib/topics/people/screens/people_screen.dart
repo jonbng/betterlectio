@@ -18,7 +18,7 @@ class PeopleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: LppAppbar(
+        appBar: BlAppbar(
           title: "Personer",
           actions: [
             IconButton(
@@ -42,7 +42,6 @@ class PeopleScreen extends StatelessWidget {
               );
             }
             return  ListView.builder(
-                cacheExtent: 500.0,
                 itemCount: state.people.length,
                 itemBuilder: (context, i) {
                   return PersonTile(person: state.people.elementAt(i));

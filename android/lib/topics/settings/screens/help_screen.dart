@@ -12,7 +12,7 @@ class HelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const LppAppbar(title: "Hjælp"),
+      appBar: const BlAppbar(title: "Hjælp"),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Center(
@@ -21,11 +21,11 @@ class HelpScreen extends StatelessWidget {
             PaddedColumn(padding: 4.0, children: [
               Text(
                 "Brug for hjælp?",
-                style: LppTypography.headlineSmall(context),
+                style: BlTypography.headlineSmall(context),
               ),
               Text(
                 "Tryk på knappen nedenfor for at kontakte os på GitHub.",
-                style: LppTypography.bodySmall(context),
+                style: BlTypography.bodySmall(context),
               )
             ]),
             OverflowBar(

@@ -23,7 +23,7 @@ class OpgaveScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: LppAppbar(
+        appBar: BlAppbar(
           hideMenu: true,
           title: ref.title,
         ),

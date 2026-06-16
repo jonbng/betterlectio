@@ -24,18 +24,22 @@ class FilterSheet extends StatelessWidget {
     return SafeArea(
       child: BlocBuilder<OpgaveBloc, AssignmentState>(
         builder: (context, state) {
-          return Column(
-            children: AssignmentFilters.values.map((filter) {
-              return RadioListTile(
-                secondary: Icon(iconFromFilter(filter)),
-                title: Text(filter.name),
-                value: filter,
-                onChanged: (value) {
-                  context.read<OpgaveBloc>().add(ToggleFilter(filter));
-                },
-                groupValue: state.appliedFilter,
-              );
-            }).toList(),
+          return RadioGroup<AssignmentFilters>(
+            groupValue: state.appliedFilter,
+            onChanged: (value) {
+              if (value != null) {
+                context.read<OpgaveBloc>().add(ToggleFilter(value));
+              }
+            },
+            child: Column(
+              children: AssignmentFilters.values.map((filter) {
+                return RadioListTile<AssignmentFilters>(
+                  secondary: Icon(iconFromFilter(filter)),
+                  title: Text(filter.name),
+                  value: filter,
+                );
+              }).toList(),
+            ),
           );
         },
       ),

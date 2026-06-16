@@ -24,7 +24,7 @@ class _RootControllerState extends State<RootController> {
     return Scaffold(
       body:  LectioProvider(
           child: NavigatorPopHandler(
-            onPop: () => _navKey.currentState?.pop(),
+            onPopWithResult: (result) => _navKey.currentState?.pop(),
             child: Navigator(
               key: _navKey,
               observers: [

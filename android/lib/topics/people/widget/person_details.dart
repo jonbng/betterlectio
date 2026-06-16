@@ -31,7 +31,7 @@ class _PersonDetailsState extends State<PersonDetails> {
     setState(() {});
   }
 
-  _initIds() async {
+  Future<void> _initIds() async {
     if (widget.person != null) {
       student = widget.person;
     }
@@ -94,7 +94,7 @@ class _PersonDetailsState extends State<PersonDetails> {
               padding: const EdgeInsets.all(4.0),
               child: Text(
                 student?.name ?? "",
-                style: LppTypography.headlineSmall(context),
+                style: BlTypography.headlineSmall(context),
                 textAlign: TextAlign.center,
               ),
             ),

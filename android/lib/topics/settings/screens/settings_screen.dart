@@ -43,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const LppAppbar(title: "Indstillinger"),
+      appBar: const BlAppbar(title: "Indstillinger"),
       body: BlocBuilder<SettingsBloc, SettingsState>(builder: (context, state) {
         return Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

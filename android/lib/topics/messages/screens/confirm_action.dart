@@ -23,7 +23,7 @@ class ConfirmAction extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: Text(
               confirmText,
-              style: LppTypography.labelSmall(context),
+              style: BlTypography.labelSmall(context),
               textAlign: TextAlign.center,
             ),
           ),

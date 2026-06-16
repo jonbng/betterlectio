@@ -14,24 +14,24 @@ class LoginBloc extends Cubit<LoginState> {
   Function()? onGymSubmitted;
   LoginBloc() : super(LoginState(0, "", ""));
 
-  login(BuildContext context) async {
+  Future<void> login(BuildContext context) async {
     context.read<StudentBloc>().add(StudentLoggedIn(
         Account(state.selectedGym, state.username, state.password), true));
   }
 
-  setUsername(String username) {
+  void setUsername(String username) {
     emit(state..username = username);
   }
 
-  setPassword(String password) {
+  void setPassword(String password) {
     emit(state..password = password);
   }
 
-  setGymSubmittedCallback(Function() onGymSubmitted) {
+  void setGymSubmittedCallback(Function() onGymSubmitted) {
     this.onGymSubmitted = onGymSubmitted;
   }
 
-  setGym(int selected) {
+  void setGym(int selected) {
     emit(state..selectedGym = selected);
     if (onGymSubmitted != null) {
       onGymSubmitted!();

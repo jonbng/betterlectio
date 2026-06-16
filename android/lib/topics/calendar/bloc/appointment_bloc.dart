@@ -16,19 +16,19 @@ class AppointmentBloc extends Cubit<PrivateAppointmentState> {
                 DateTime.now().copyWith(hour: TimeOfDay.now().hour, minute: 30),
               ));
 
-  setStart(DateTime start) {
+  void setStart(DateTime start) {
     emit(state.copyWith(start: start));
   }
 
-  setEnd(DateTime end) {
+  void setEnd(DateTime end) {
     emit(state.copyWith(end: end));
   }
 
-  setTitle(String title) {
+  void setTitle(String title) {
     emit(state.copyWith(title: title));
   }
 
-  setNote(String note) {
+  void setNote(String note) {
     emit(state.copyWith(note: note));
   }
 }

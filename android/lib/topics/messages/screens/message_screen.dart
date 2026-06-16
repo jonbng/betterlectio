@@ -13,7 +13,7 @@ class MessageScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const LppAppbar(
+      appBar: const BlAppbar(
         title: "Beskeder",
       ),
       body: BlocBuilder<MessageBloc, MessagesState>(

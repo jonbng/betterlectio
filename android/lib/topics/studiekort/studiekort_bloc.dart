@@ -14,7 +14,7 @@ class StudiekortBloc extends StudentCubit<(Kort?, DioImage?)> {
     emit(StatePattern((card, null), States.okay));
   }
 
-  qr() async {
+  Future<void> qr() async {
     emit(state..status = States.loading);
     var newQrCode = await student.kort.qr();
     emit(StatePattern((state.state?.$1, newQrCode), States.okay));

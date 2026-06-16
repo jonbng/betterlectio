@@ -18,7 +18,7 @@ class ModuleStatisticsBloc extends Cubit<ModulStatsState> {
     }
   }
 
-  _load() {
+  void _load() {
     student.teams.list().then(
       (teams) {
         emit(state..total = teams.length);

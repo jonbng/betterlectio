@@ -11,7 +11,7 @@ class EventDetailsBloc extends Cubit<EventDetailsState> {
     _load();
   }
 
-  _load() async {
+  Future<void> _load() async {
     List<Student> teachers = [];
     for (var teacher in calendarEvent.teacherObjs) {
       var teacherContext =

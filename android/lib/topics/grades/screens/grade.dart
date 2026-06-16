@@ -39,9 +39,9 @@ class _GradeScreenState extends State<GradeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: LppAppbar(
+        appBar: BlAppbar(
           title: "Karakterer",
-          bottom: LppTabBar(
+          bottom: BlTabBar(
             tabs: names,
             scrollable: true,
             controller: _tabController,

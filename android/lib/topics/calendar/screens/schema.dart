@@ -83,7 +83,7 @@ class _SchemaScreenState extends State<SchemaScreen> {
                 .firstOrNull
             : null;
         return Scaffold(
-          appBar: LppAppbar(
+          appBar: BlAppbar(
             title: "",
             actions: [
               if (matchingDay != null && matchingDay.informations.isNotEmpty)

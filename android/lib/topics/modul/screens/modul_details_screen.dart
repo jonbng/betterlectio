@@ -60,10 +60,10 @@ class _ModulDetailsScreenState extends State<ModulDetailsScreen>
             getStudentBloc(context).state.student!, widget.event),
         builder: (context, state) {
           return Scaffold(
-              appBar: LppAppbar(
+              appBar: BlAppbar(
                 bottom: _controller.length == 1
                     ? null
-                    : LppTabBar(
+                    : BlTabBar(
                         controller: _controller,
                         tabs: tabs,
                       ),

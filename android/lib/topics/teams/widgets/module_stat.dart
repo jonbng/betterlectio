@@ -45,7 +45,7 @@ class ModuleStat extends StatelessWidget {
                       children: [
                         Text(
                           "Afholdte",
-                          style: LppTypography.bodySmall(context),
+                          style: BlTypography.bodySmall(context),
                         ),
                         StepProgressIndicator(
                           totalSteps: steps,
@@ -55,7 +55,7 @@ class ModuleStat extends StatelessWidget {
                         ),
                         Text(
                           "${statistics.hosted}/${statistics.normal} moduler",
-                          style: LppTypography.bodySmall(context),
+                          style: BlTypography.bodySmall(context),
                         ),
                       ],
                     ),
@@ -70,7 +70,7 @@ class ModuleStat extends StatelessWidget {
                       children: [
                         Text(
                           "Planlagte",
-                          style: LppTypography.bodySmall(context),
+                          style: BlTypography.bodySmall(context),
                         ),
                         StepProgressIndicator(
                           totalSteps: steps,
@@ -85,7 +85,7 @@ class ModuleStat extends StatelessWidget {
                         ),
                         Text(
                           "${(statistics.deviation * 100).toStringAsFixed(1)}% afvigelse",
-                          style: LppTypography.bodySmall(context),
+                          style: BlTypography.bodySmall(context),
                         ),
                       ],
                     ),

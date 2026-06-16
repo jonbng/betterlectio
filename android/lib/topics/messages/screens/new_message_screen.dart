@@ -31,10 +31,10 @@ class _NewMessageScreenState extends State<NewMessageScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: LppAppbar(
+      appBar: BlAppbar(
           title: "Vælg modtagere",
           bottom:
-              LppTabBar(scrollable: true, controller: _controller, tabs: const [
+              BlTabBar(scrollable: true, controller: _controller, tabs: const [
             "Valgte",
             "Favoritter",
             "Elever",

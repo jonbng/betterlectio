@@ -35,7 +35,7 @@ class TeamListItem extends StatelessWidget {
                 builder: (name) {
                   return Text(
                     name,
-                    style: LppTypography.labelSmall(context),
+                    style: BlTypography.labelSmall(context),
                     textAlign: TextAlign.end,
                     maxLines: 2,
                   );

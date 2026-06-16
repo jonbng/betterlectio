@@ -26,15 +26,15 @@ class ReplyMessageBloc extends Cubit<ReplyState> {
           topic: message.thread[0].topic,
         ));
 
-  setTopic(String topic) {
+  void setTopic(String topic) {
     emit(state.copyWith(topic: topic));
   }
 
-  setContent(String content) {
+  void setContent(String content) {
     emit(state.copyWith(content: content));
   }
 
-  submit(BuildContext context) {
+  void submit(BuildContext context) {
     var bloc = context.read<MessageBloc>();
     bloc.add(ReplyMessage(Reply(state.topic, message, state.content)));
   }

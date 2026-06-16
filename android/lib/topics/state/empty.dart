@@ -18,7 +18,7 @@ class EmptyScreen extends StatelessWidget {
             Illustration(illustration: noEvents ? "relax" : "empty"),
             Text(
               text ?? "Der var tomt",
-              style: LppTypography.headlineSmall(context),
+              style: BlTypography.headlineSmall(context),
               textAlign: TextAlign.center,
             )
           ],

@@ -8,7 +8,7 @@ class OpgaveDetailsBloc extends Cubit<Assignment?> {
 
   List<Assignment> assignments = [];
 
-  load(AssignmentRef ref) async {
+  Future<void> load(AssignmentRef ref) async {
     int indexOfSaved =
         assignments.indexWhere((element) => element.id == ref.id);
     if (indexOfSaved != -1) {

@@ -47,7 +47,7 @@ class SettingsBloc extends Bloc<SettingsBlocEvent, SettingsState> {
           color: event.color, brightness: event.brightness, theme: newTheme));
       final prefs = await SharedPreferences.getInstance();
       prefs.setBool("dark", event.brightness == Brightness.dark);
-      prefs.setInt("color", event.color.value);
+      prefs.setInt("color", event.color.toARGB32());
     });
 
     on<CheckForTheme>(

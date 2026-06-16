@@ -20,7 +20,7 @@ class RoomOverview extends StatelessWidget {
         },
         child: const Icon(EvaIcons.searchOutline),
       ),
-      appBar: const LppAppbar(
+      appBar: const BlAppbar(
         title: "Lokaler",
         bottom: PreferredSize(
             preferredSize: Size.fromHeight(0.0), child: SizedBox()),

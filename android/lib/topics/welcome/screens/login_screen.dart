@@ -52,13 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Text(
                       "Login",
-                      style: LppTypography.headlineSmall(context),
+                      style: BlTypography.headlineSmall(context),
                       textAlign: TextAlign.center,
                     ),
                     Text(
                       "Log ind nedenfor med dit normale Lectio login.",
                       textAlign: TextAlign.center,
-                      style: LppTypography.bodySmall(context),
+                      style: BlTypography.bodySmall(context),
                     ),
                   ],
                 ),

@@ -49,7 +49,7 @@ class _IllustrationState extends State<IllustrationHelper> {
     String svgContent = await rootBundle
         .loadString("assets/illustrations/${widget.svgName}.svg");
     String newColor =
-        "rgb(${widget.primary.red},${widget.primary.green},${widget.primary.blue})";
+        "rgb(${(widget.primary.r * 255.0).round()},${(widget.primary.g * 255.0).round()},${(widget.primary.b * 255.0).round()})";
     if (mounted) {
       setState(() {
         svgCode = svgContent

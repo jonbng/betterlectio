@@ -9,7 +9,12 @@ class AbsenceChart extends StatelessWidget {
   final List<AbsenceEntry> entries;
 
   charts.Color _transformColor(Color c) {
-    return charts.Color(r: c.red, g: c.green, b: c.blue, a: c.alpha);
+    return charts.Color(
+      r: (c.r * 255.0).round() & 0xff,
+      g: (c.g * 255.0).round() & 0xff,
+      b: (c.b * 255.0).round() & 0xff,
+      a: (c.a * 255.0).round() & 0xff,
+    );
   }
 
   @override

@@ -29,9 +29,9 @@ class _AbsenceScreenState extends State<AbsenceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: LppAppbar(
+      appBar: BlAppbar(
         title: "Fravær",
-        bottom: LppTabBar(
+        bottom: BlTabBar(
             controller: tabController,
             tabs: const ["Oversigt", "Registreringer"]),
       ),

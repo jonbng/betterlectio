@@ -31,7 +31,7 @@ class Statistic extends StatelessWidget {
                 children: [
                   Text(
                     header,
-                    style: LppTypography.labelSmall(context),
+                    style: BlTypography.labelSmall(context),
                     textAlign: TextAlign.left,
                   ),
                   ...stats.map((stat) {
@@ -44,12 +44,12 @@ class Statistic extends StatelessWidget {
                         ),
                         Text(
                           stat.title.trim(),
-                          style: LppTypography.bodySmall(context),
+                          style: BlTypography.bodySmall(context),
                         ),
                         Text(
                           stat.data.trim(),
                           overflow: TextOverflow.ellipsis,
-                          style: LppTypography.headlineSmall(context),
+                          style: BlTypography.headlineSmall(context),
                         ),
                       ],
                     );

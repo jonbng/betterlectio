@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-class LppShimmer extends StatelessWidget {
-  const LppShimmer({super.key, required this.child, required this.enabled});
+class BlShimmer extends StatelessWidget {
+  const BlShimmer({super.key, required this.child, required this.enabled});
   final Widget child;
   final bool enabled;
   @override

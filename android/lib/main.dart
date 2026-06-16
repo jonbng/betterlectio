@@ -63,7 +63,7 @@ class LectioApp extends StatelessWidget {
         ),
         title: appName,
         theme: theme,
-        home: const LppUpgrader(child:  AppRouter()),
+        home: const BlUpgrader(child:  AppRouter()),
       );
     });
   }

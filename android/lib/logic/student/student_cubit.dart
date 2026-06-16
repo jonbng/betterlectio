@@ -11,14 +11,14 @@ class StudentCubit<T> extends Cubit<StatePattern<T?>> {
     load();
   }
 
-  load() async {
+  Future<void> load() async {
     if (selector != null) {
       var list = await selector!(student).timeout(const Duration(seconds: 20));
       emit(StatePattern(list, States.okay));
     }
   }
 
-  refresh() async {
+  Future<void> refresh() async {
     emit(StatePattern(null, States.loading));
     load();
   }

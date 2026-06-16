@@ -65,7 +65,7 @@ class _PrimaryActivitiesState extends State<PrimaryActivities> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        bottomNavigationBar: LppBottombar(
+        bottomNavigationBar: BlBottombar(
             onSelected: setScreen,
             selectedIndex: _selectedScreen,
             destinations: bottomDestinations),

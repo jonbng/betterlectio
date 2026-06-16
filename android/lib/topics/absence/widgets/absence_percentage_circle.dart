@@ -68,7 +68,7 @@ class _AbsencePercentageCircleState extends State<AbsencePercentageCircle> {
       Center(
         child: Text(
           percentage,
-          style: LppTypography.bodySmall(context),
+          style: BlTypography.bodySmall(context),
         ),
       ),
       AspectRatio(

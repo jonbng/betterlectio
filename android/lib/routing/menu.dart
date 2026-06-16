@@ -92,14 +92,14 @@ class Menu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: const LppAppbar(
+        appBar: const BlAppbar(
           title: "Mere",
         ),
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: LppDrawer(
+              child: BlDrawer(
                   destinations: destinations,
                   relatedDestinations: relatedDestinations),
             ),

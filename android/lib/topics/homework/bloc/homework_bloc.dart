@@ -7,7 +7,7 @@ class HomeworkManagerBloc extends Cubit<List<ManagedHomework>> {
     _load();
   }
 
-  _load() async {
+  Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     List<ManagedHomework> mHomework = [];
     var homeworkList = prefs.getStringList("homework");
@@ -19,7 +19,7 @@ class HomeworkManagerBloc extends Cubit<List<ManagedHomework>> {
     }
   }
 
-  _save() async {
+  Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
     if (state.isNotEmpty) {
       List<String> data = [];
@@ -30,7 +30,7 @@ class HomeworkManagerBloc extends Cubit<List<ManagedHomework>> {
     }
   }
 
-  toggle(Homework homework) {
+  void toggle(Homework homework) {
     var index = state
         .indexWhere((element) => element.homeworkId == homework.activity.id);
     var copiedState = state.take(state.length).toList();

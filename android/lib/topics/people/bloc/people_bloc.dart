@@ -13,7 +13,7 @@ class PeopleBloc extends Cubit<PeopleState> {
   final Student student;
   PeopleBloc(this.student) : super(PeopleState(0, []));
 
-  load() {
+  void load() {
     student.students.list().listen((event) {
       emit(PeopleState(state.progress + 1, [...event, ...state.people]));
     });

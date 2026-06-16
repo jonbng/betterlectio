@@ -23,27 +23,29 @@ class ChangeYearScreen extends StatelessWidget {
               ),
             );
           }
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: state.map(
-              (e) {
-                return RadioListTile<Term>(
-                  tileColor: Colors.transparent,
-                  title: Text(e.name),
-                  value: e,
-                  groupValue: selected,
-                  onChanged: (value) {
-                    if (value != null && !value.active) {
-                      var bloc = context.read<TermBloc>();
-                      bloc.set(value);
-                      Navigator.popUntil(context, (_) => true);
-                      Navigator.pushReplacement(
-                          context, adRoute(const AppRouter(), noAd: true));
-                    }
-                  },
-                );
-              },
-            ).toList(),
+          return RadioGroup<Term>(
+            groupValue: selected,
+            onChanged: (value) {
+              if (value != null && !value.active) {
+                var bloc = context.read<TermBloc>();
+                bloc.set(value);
+                Navigator.popUntil(context, (_) => true);
+                Navigator.pushReplacement(
+                    context, adRoute(const AppRouter(), noAd: true));
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: state.map(
+                (e) {
+                  return RadioListTile<Term>(
+                    tileColor: Colors.transparent,
+                    title: Text(e.name),
+                    value: e,
+                  );
+                },
+              ).toList(),
+            ),
           );
         }),
       ),

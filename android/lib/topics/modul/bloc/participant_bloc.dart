@@ -18,7 +18,7 @@ class ParticipantBloc extends Cubit<ParticipantsState?> {
     _load();
   }
 
-  _load() async {
+  Future<void> _load() async {
     List<Student> fetchedStudents = [];
     List<Student> fetchedTeachers = [];
     for (var teacher in teachers) {

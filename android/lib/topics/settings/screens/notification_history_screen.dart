@@ -38,7 +38,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const LppAppbar(title: "Notifikations historik"),
+      appBar: const BlAppbar(title: "Notifikations historik"),
       body: RefreshIndicator(
                   onRefresh: () async {
                     loadData();

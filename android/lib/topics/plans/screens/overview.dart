@@ -13,7 +13,7 @@ class PlanOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const LppAppbar(title: "Studieplan"),
+      appBar: const BlAppbar(title: "Studieplan"),
       body: StudentBlocBuilder<StudentCubit<List<StudyTeamEntry>>,
           List<StudyTeamEntry>?>(
         builder: (context, state) {

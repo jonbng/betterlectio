@@ -17,7 +17,7 @@ class KlasseMembersScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: LppAppbar(
+      appBar: BlAppbar(
         title: klasseRef.name,
         hideMenu: true,
         titleWidget: isGroup ? TeamName(teamName: klasseRef.name) : null,

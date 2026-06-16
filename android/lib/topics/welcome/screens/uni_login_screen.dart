@@ -29,7 +29,7 @@ class _UniLoginScreenState extends State<UniLoginScreen> {
     setup();
   }
 
-  setup() async {
+  Future<void> setup() async {
     var studentBloc = context.read<StudentBloc>();
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -86,7 +86,7 @@ class _UniLoginScreenState extends State<UniLoginScreen> {
       return const LoadingScreen();
     }
     return Scaffold(
-        appBar: LppAppbar(
+        appBar: BlAppbar(
           actions: [
             IconButton(
                 onPressed: () {

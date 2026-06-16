@@ -93,10 +93,10 @@ class NotificationService {
         await initializeNotifcations();
     for (var notification in notifications) {
       await flutterLocalNotificationsPlugin.show(
-        notificationId,
-        notification.title,
-        notification.body,
-        NotificationDetails(
+        id: notificationId,
+        title: notification.title,
+        body: notification.body,
+        notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(notificationChannelId, appName,
                 ongoing: false, tag: notification.id),
             iOS: DarwinNotificationDetails(

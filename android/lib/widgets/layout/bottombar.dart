@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:betterlectio/widgets/layout/drawer.dart';
 
-class LppBottombar extends StatelessWidget {
-  const LppBottombar(
+class BlBottombar extends StatelessWidget {
+  const BlBottombar(
       {super.key,
       required this.destinations,
       required this.onSelected,

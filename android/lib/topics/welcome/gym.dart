@@ -28,7 +28,7 @@ class GymScreen extends StatelessWidget {
                 child: Column(children: [
                   Text(
                     "Næsten færdig",
-                    style: LppTypography.headlineSmall(context),
+                    style: BlTypography.headlineSmall(context),
                     textAlign: TextAlign.center,
                   ),
                   const Text(

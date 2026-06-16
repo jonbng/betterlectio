@@ -41,7 +41,7 @@ class ThemeController extends StatelessWidget {
               children: [
                 Text(
                   "Temaer",
-                  style: LppTypography.headlineSmall(context),
+                  style: BlTypography.headlineSmall(context),
                 ),
                 GridView.count(
                     padding: EdgeInsets.zero,
