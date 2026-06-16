@@ -523,7 +523,7 @@ export function parseComposeFromDOM(doc: Document = document): ComposeFormData |
 // ── Actions ────────────────────────────────────────────────────────────
 
 const BETTERLECTIO_SIGNATURE =
-  '\n\n[url=https://chromewebstore.google.com/detail/betterlectio/cbopfnaegoknpplkngoppmmomppimhkh]Sendt med BetterLectio[/url]';
+  '\n\n[url=https://betterlectio.dk/download]Sendt med BetterLectio[/url]';
 
 /**
  * Returns true when the signature should be skipped — i.e. the only recipient

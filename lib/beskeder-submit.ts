@@ -357,7 +357,7 @@ export function refreshThreadListViaIframe(
 // ── Thread View Operations ─────────────────────────────────────────────
 
 const BETTERLECTIO_SIGNATURE =
-  '\n\n[url=https://chromewebstore.google.com/detail/betterlectio/cbopfnaegoknpplkngoppmmomppimhkh]Sendt med BetterLectio[/url]';
+  '\n\n[url=https://betterlectio.dk/download]Sendt med BetterLectio[/url]';
 
 /** Serializable reply form fields that may change between postbacks (ctl index shifts). */
 export interface ReplyFormTargets {
