@@ -1,6 +1,11 @@
 # Dependencies
 node_modules
 
+# This project uses Bun — never commit other package managers' lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Build output
 .output
 .wxt

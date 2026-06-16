@@ -287,6 +287,14 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     setActivityViewMode(next);
     updateSetting('behavior', 'activityViewMode', next);
   };
+  const [opgaveViewMode, setOpgaveViewMode] = useState<'modal' | 'sheet'>(
+    () => settings.behavior?.opgaveViewMode ?? 'sheet',
+  );
+  const swapOpgaveViewMode = () => {
+    const next = opgaveViewMode === 'modal' ? 'sheet' : 'modal';
+    setOpgaveViewMode(next);
+    updateSetting('behavior', 'opgaveViewMode', next);
+  };
   const [paDialogOpen, setPaDialogOpen] = useState(false);
   const [paDialogUrl, setPaDialogUrl] = useState<string | null>(null);
   const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
@@ -966,6 +974,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         }}
         entry={opgaveSheetEntry}
         schoolId={schoolId}
+        viewMode={opgaveViewMode}
+        onSwapViewMode={swapOpgaveViewMode}
       />
     </Sidebar>
   );

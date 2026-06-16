@@ -27,7 +27,7 @@ function endSoonIntensity(remaining: number): number {
 
 export type CountdownState =
   | { type: 'loading' }
-  | { type: 'in-class'; label: string; holdCode: string; elapsed: number; total: number; remaining: number }
+  | { type: 'in-class'; label: string; holdCode: string; elapsed: number; total: number; remaining: number; activityUrl?: string }
   | { type: 'break'; label: string; holdCode: string; remaining: number }
   | { type: 'before-school'; label: string; holdCode: string; remaining: number }
   | { type: 'after-school' }
@@ -87,6 +87,7 @@ export function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, n
       return {
         type: 'in-class', label: block.label, holdCode: block.holdCode,
         elapsed: elapsedSec, total: totalSec, remaining: Math.max(0, totalSec - elapsedSec),
+        ...(block.activityUrl ? { activityUrl: block.activityUrl } : {}),
       };
     }
   }
@@ -373,12 +374,39 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   const intensity = endOfModuleEffectEnabled ? endSoonIntensity(state.remaining) : 0;
   const endSoon = stage !== 'none';
 
+  const activityUrl = state.activityUrl;
+  const openActivity = () => {
+    if (!activityUrl) return;
+    try {
+      const parsed = new URL(activityUrl);
+      // Route private appointments to their own dialog, like brick clicks do.
+      if (/\/lectio\/\d+\/privat_aftale\.aspx$/i.test(parsed.pathname)) {
+        window.dispatchEvent(new CustomEvent('betterlectio:openPrivatAftale', { detail: { url: activityUrl } }));
+        return;
+      }
+    } catch { /* fall through to activity modal */ }
+    window.dispatchEvent(new CustomEvent('betterlectio:openActivityModal', { detail: { url: activityUrl } }));
+  };
+
   return (
     <div
       ref={widgetRef}
-      className={cn(baseCd, endSoon && "il-cd-endsoon")}
+      className={cn(
+        baseCd,
+        endSoon && "il-cd-endsoon",
+        activityUrl && "cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      )}
       data-endsoon-stage={stage}
       style={{ '--cd-hue': hue, '--cd-intensity': intensity } as React.CSSProperties}
+      {...(activityUrl ? {
+        role: 'button',
+        tabIndex: 0,
+        title: t('scheduleCountdown.openActivity'),
+        onClick: openActivity,
+        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActivity(); }
+        },
+      } : {})}
     >
       <div className={baseTop}>
         <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject">{state.label}</span>

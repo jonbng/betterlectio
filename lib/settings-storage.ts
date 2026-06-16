@@ -35,6 +35,7 @@ const BehaviorSettingsSchema = z.object({
   disableSignature: z.boolean().default(false),
   analyticsOptOut: z.boolean().default(false),
   activityViewMode: z.enum(['modal', 'sheet']).default('modal'),
+  opgaveViewMode: z.enum(['modal', 'sheet']).default('sheet'),
 });
 
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting

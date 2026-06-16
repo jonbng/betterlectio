@@ -206,7 +206,7 @@ PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `re
 
 | File | Purpose |
 |------|---------|
-| `KaraktererPage.tsx` | Grade report redesign: subject cards grouped by hold with big color-coded grades (7-step scale hue mapping), teacher notes inline, summary bar with weighted average + grade distribution, collapsible diploma/protocol/remarks. `parseKaraktererFromDOM()` parser for all 5 native tables. |
+| `KaraktererPage.tsx` | Grade report redesign: subject cards grouped by hold with big color-coded grades (7-step scale hue mapping), teacher notes inline, summary bar with weighted average + grade distribution, collapsible diploma/protocol/remarks. `parseKaraktererFromDOM()` parses all native tables. **Grade columns are derived from the live `KarakterGV` header row** (`canonicalColumnKey` normalizes labels → keys) rather than a hardcoded set — Lectio varies the columns per school/term (it added "Afsluttende års-/standpunktskarakter" between Intern prøve and the standpunkt columns), and a fixed list shifted every later value, swapping årskarakter ↔ eksamen and dropping the real eksamen column. Diploma blocks are matched by id suffix (`[id$="_printareaDiplomaLines"]`), one per Bevistype, because Lectio prefixes them with the `DiplomaTypeRepeater_ctlNN` control (bare-id lookup kept as legacy fallback). The summary (`KaraktererSummary`) avoids any unlabeled average: an emphasized official *Eksamensresultat* card (only when reported), a *Gennemsnit* card listing each populated column's weighted average with its own label, and a *Karakterfordeling* card over one representative grade per subject. Grade pills are a single `.il-grade-pill` element whose dark colors live in inline `--bl-grade-*-dark` custom props, promoted by `.dark .il-grade-pill { … !important }` in globals.css (verified Chromium + Firefox) — not Tailwind `dark:` display-toggling, which hid the numbers. |
 
 ### Documents
 
@@ -255,6 +255,7 @@ PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `re
 | `ForsideOpgaverCard.tsx` | Forside opgaver parser (reused by ForsideDashboard) |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
 | `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |
+| `lib/proevehold-enhance.ts` | DOM-only polish for the native `proevehold.aspx` (exam team) page — no Preact rebuild (stability over exam times/dates). Page-scoping `il-proevehold-page` class, disclaimer banner (i18n `proevehold.*`), and own-row highlight via `il-current-student`. Exam schedule bricks (`s2bgboxeksamen`) forced yellow via `EXAM_BRICK_HUE` in `content.tsx`. Page-scoped CSS lives in the "Lectio Modernizer" section of `globals.css`. |
 
 ### Shared Utilities
 

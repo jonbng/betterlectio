@@ -109,8 +109,13 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
       const cells = Array.from(row.querySelectorAll<HTMLTableCellElement>('td'));
       // Lectio's table has two layouts:
       //   - Legacy 9-col: hold | almPct | almModuler | almAarPct | almAarModuler | skrPct | skrTid | skrAarPct | skrAarTid
-      //   - 2026-05 5-col: hold | almPeriode% | almOpgjort% | skrPeriode% | skrOpgjort%
-      // The newer layout dropped the absolute moduler/elevtid columns entirely.
+      //   - 2026-05 5-col: hold | almPeriode(moduler) | almOpgjort% | skrPeriode(elevtid) | skrOpgjort%
+      //     The newer layout groups each absence type into a "Periode" column
+      //     (a `count/total` fraction — modules for almindeligt, elevtid for
+      //     skriftligt) and an "Opgjort" column (the assessed year percentage).
+      //     It dropped the separate "år" percent column entirely. We classify
+      //     each cell by its content (% vs fraction) instead of trusting a
+      //     fixed index, since Lectio keeps reshuffling these columns.
       const isLegacy = cells.length >= 9;
       const isCompact = cells.length === 5;
       if (!isLegacy && !isCompact) continue;
@@ -137,16 +142,27 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
             skrAarPct: cellTexts[7],
             skrAarTid: cellTexts[8],
           }
-        : {
-            almOpgjortPct: cellTexts[1],
-            almOpgjortModuler: '',
-            almAarPct: cellTexts[2],
-            almAarModuler: '',
-            skrOpgjortPct: cellTexts[3],
-            skrOpgjortTid: '',
-            skrAarPct: cellTexts[4],
-            skrAarTid: '',
-          };
+        : (() => {
+            // 4 data cells = 2 almindeligt + 2 skriftligt. Within each pair,
+            // the cell containing '%' is the assessed (Opgjort) percentage and
+            // the cell containing '/' is the period count (moduler / elevtid).
+            const data = cellTexts.slice(1);
+            const mid = Math.ceil(data.length / 2);
+            const almCells = data.slice(0, mid);
+            const skrCells = data.slice(mid);
+            const pct = (cs: string[]) => cs.find(c => c.includes('%')) || '';
+            const frac = (cs: string[]) => cs.find(c => c.includes('/')) || '';
+            return {
+              almOpgjortPct: pct(almCells),
+              almOpgjortModuler: frac(almCells),
+              almAarPct: '',
+              almAarModuler: '',
+              skrOpgjortPct: pct(skrCells),
+              skrOpgjortTid: frac(skrCells),
+              skrAarPct: '',
+              skrAarTid: '',
+            };
+          })();
 
       if (isTotalRow) {
         totals = entry;
@@ -248,12 +264,23 @@ function parseRecordTable(table: HTMLTableElement, out: FravaerRecord[]) {
       row.querySelectorAll<HTMLTableCellElement>('td')
     ).filter(td => !td.classList.contains('OnlyMobile'));
 
-    if (desktopCells.length < 7) continue;
+    // Anchor on the activity brick and the edit link rather than fixed indices.
+    // Lectio's 2026 layout dropped the standalone "type" (Godskrevet) column and
+    // merged it into the Fravær cell, so every column after Fravær shifted left
+    // by one. Mapping by content keeps us robust to that and to future shuffles.
+    // Column order (desktop): Uge | Aktivitet | Fravær | Registreret | Bemærkning | Fraværsårsag | (edit).
+    // The missing-årsag table is shorter: Uge | Aktivitet | Fravær | Bemærkning | (edit).
+    const activityCell = desktopCells.find(c => c.querySelector('a.s2skemabrik'));
+    const editCell = [...desktopCells].reverse().find(c =>
+      c.querySelector('a[href*="fravaer_aarsag"]')
+    );
+    if (!activityCell || !editCell) continue;
+
+    const activityIdx = desktopCells.indexOf(activityCell);
+    const editIdx = desktopCells.indexOf(editCell);
 
     const uge = desktopCells[0]?.textContent?.trim() || '';
 
-    // Activity cell — contains the schedule brick
-    const activityCell = desktopCells[1];
     const activityLink = activityCell?.querySelector<HTMLAnchorElement>('a.s2skemabrik');
     const activityUrl = activityLink?.getAttribute('href') || '';
     const activityBrikHtml = activityLink?.outerHTML || '';
@@ -303,32 +330,40 @@ function parseRecordTable(table: HTMLTableElement, out: FravaerRecord[]) {
     const brikId = activityLink?.getAttribute('data-brikid') || '';
     const absid = brikId.replace(/^ABS/, '');
 
-    // Fravær percentage
-    const fravaerText = desktopCells[2]?.textContent?.trim() || '0%';
-    const fravaerPct = parseFloat(fravaerText.replace('%', '').replace(',', '.')) || 0;
-
-    // Type: Fravær or Godskrevet
-    const typeCell = desktopCells[3];
-    const hasGodskrevet = !!typeCell?.querySelector('img[src*="ok.gif"]');
+    // Fravær cell (right after the activity). Lectio now renders the type and
+    // percentage together as "Fravær 100%" / "Godskrevet 100%", so pull the
+    // number out with a regex and detect godskrevet from the text (the old
+    // ok.gif image column is gone).
+    const fravaerCell = desktopCells[activityIdx + 1];
+    const fravaerText = fravaerCell?.textContent?.replace(/\s+/g, ' ').trim() || '';
+    const pctMatch = fravaerText.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    const fravaerPct = pctMatch ? parseFloat(pctMatch[1].replace(',', '.')) : 0;
+    const hasGodskrevet =
+      /godskrevet/i.test(fravaerText) || !!fravaerCell?.querySelector('img[src*="ok.gif"]');
     const fravaerType: 'fravaer' | 'godskrevet' = hasGodskrevet ? 'godskrevet' : 'fravaer';
 
-    // Registreret (registration date + teacher)
-    const registreret = desktopCells[4]?.textContent?.trim() || '';
+    // Columns between Fravær and the edit link. For the main table these are
+    // [Registreret, Bemærkning, Fraværsårsag]; the missing-årsag table only has
+    // [Bemærkning] (and årsag is, by definition, absent).
+    const middleCells = desktopCells.slice(activityIdx + 2, editIdx);
 
-    // Bemærkning
-    const bemaerkning = desktopCells[5]?.textContent?.trim() || '';
-
+    let registreret = '';
+    let bemaerkning = '';
     let aarsag = '';
     let note = '';
-    const aarsagCell = !isMissingReasonsTable ? desktopCells[6] : null;
-    if (aarsagCell) {
-      const aarsagParts = aarsagCell.innerHTML.split(/<br\s*\/?>/i);
-      aarsag = aarsagParts[0]?.replace(/<[^>]*>/g, '').trim() || '';
-      note = aarsagParts.slice(1).join(' ').replace(/<[^>]*>/g, '').trim() || '';
+    if (isMissingReasonsTable) {
+      bemaerkning = middleCells[0]?.textContent?.trim() || '';
+    } else {
+      registreret = middleCells[0]?.textContent?.trim() || '';
+      bemaerkning = middleCells[1]?.textContent?.trim() || '';
+      const aarsagCell = middleCells[2];
+      if (aarsagCell) {
+        const aarsagParts = aarsagCell.innerHTML.split(/<br\s*\/?>/i);
+        aarsag = aarsagParts[0]?.replace(/<[^>]*>/g, '').trim() || '';
+        note = aarsagParts.slice(1).join(' ').replace(/<[^>]*>/g, '').trim() || '';
+      }
     }
 
-    // Edit URL — last cell
-    const editCell = desktopCells[desktopCells.length - 1];
     const editLink = editCell?.querySelector<HTMLAnchorElement>('a[href*="fravaer_aarsag"]');
     const editUrl = editLink?.getAttribute('href') || '';
 

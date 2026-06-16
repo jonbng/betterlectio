@@ -13,17 +13,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.2.1",
-    "chalk": "^5.4.1",
-    "commander": "^13.0.0",
-    "fuse.js": "^7.0.0",
-    "ora": "^8.1.1",
-    "puppeteer": "^24.0.0",
-    "tough-cookie": "^5.1.0"
+    "@inquirer/prompts": "^7.10.1",
+    "chalk": "^5.6.2",
+    "commander": "^15.0.0",
+    "fuse.js": "^7.4.2",
+    "ora": "^9.4.0",
+    "puppeteer": "^25.1.0",
+    "tough-cookie": "^6.0.1"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
+    "@types/node": "^22.19.21",
     "@types/tough-cookie": "^4.0.5",
-    "typescript": "^5.7.3"
+    "typescript": "^5.9.3"
   }
 }

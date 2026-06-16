@@ -83,6 +83,12 @@ export const da = {
         modal: 'Modal',
         sheet: 'Sidepanel',
       },
+      opgaveViewModeLabel: 'Vis opgave som',
+      opgaveViewModeDescription: 'Vælg hvordan opgavens detaljer åbnes når du klikker på en opgave.',
+      opgaveViewMode: {
+        modal: 'Modal',
+        sheet: 'Sidepanel',
+      },
       messagesLabel: 'Beskeder til Nyeste',
       messagesDescription: "Åbn beskeder i 'Nyeste' mappe som standard",
       lastSchoolLabel: 'Fortsæt til sidst brugte skole',
@@ -458,6 +464,8 @@ export const da = {
   opgaveDetail: {
     defaultTitle: 'Opgave',
     closeLabel: 'Luk',
+    swapToSheet: 'Åbn i sidepanel',
+    swapToModal: 'Åbn som modal',
     moreActions: 'Flere handlinger',
     openInLectio: 'Åbn i Lectio',
     ignoreMissing: 'Ignorer manglende',
@@ -686,11 +694,18 @@ export const da = {
     notes: 'Bemærkninger',
     hideSubjectsWithoutAbsence: 'Skjul {n} fag uden fravær',
     subjectsWithoutAbsence: '{n} fag uden fravær',
+    period: 'Periode',
+    periodFrom: 'Fra',
+    periodTo: 'Til',
+    applyPeriod: 'Vis',
+    schoolYear: 'Hele skoleåret',
+    last30Days: 'Seneste 30 dage',
   },
   karaktererPage: {
     intern: 'Intern',
     annual: 'Årskar.',
     exam: 'Eksamen',
+    final: 'Afsluttende',
     writtenShort: 'Skr.',
     oralShort: 'Mdt.',
     examAverage: 'Eksamenssnit',
@@ -712,6 +727,13 @@ export const da = {
     term: 'Termin',
     type: 'Type',
     counts: 'Medtæller',
+    examResult: 'Eksamensresultat',
+    inclBonus: 'inkl. bonus',
+    basedOnCurrent: 'Baseret på nuværende karakterer',
+    averagesTitle: 'Gennemsnit',
+    weightedNote: 'vægtet',
+    distributionTitle: 'Karakterfordeling',
+    subjectsTotal: 'fag',
   },
   lektierPage: {
     title: 'Lektier',
@@ -923,6 +945,7 @@ export const da = {
     freeFor: 'fri i {time}',
     endsAt: 'slutter kl. {time}',
     startingAt: 'kl. {time}',
+    openActivity: 'Åbn lektion',
     weekend: {
       goodWeekend: 'God weekend',
       enjoyWeekend: 'Nyd weekenden',
@@ -978,6 +1001,11 @@ export const da = {
       thanksTitle: 'Tak — vi sender dig til App Store!',
       thanksBody: 'Hent BetterLectio på din iPhone og log ind med samme konto. Du kan altid åbne appen igen via QR-koden i sidepanelet.',
     },
+  },
+  proevehold: {
+    disclaimerTitle: 'Lige en venlig påmindelse',
+    disclaimerBody:
+      'Dobbelttjek altid dine eksamenstider i Lectio — vi tager forbehold for fejl.',
   },
 } as const;
 

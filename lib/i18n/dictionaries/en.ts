@@ -85,6 +85,12 @@ export const en = {
         modal: 'Modal',
         sheet: 'Side panel',
       },
+      opgaveViewModeLabel: 'Show assignment as',
+      opgaveViewModeDescription: "Choose how an assignment's details open when you click it.",
+      opgaveViewMode: {
+        modal: 'Modal',
+        sheet: 'Side panel',
+      },
       messagesLabel: 'Messages to Newest',
       messagesDescription: "Open messages in 'Newest' folder by default",
       lastSchoolLabel: 'Continue to last used school',
@@ -460,6 +466,8 @@ export const en = {
   opgaveDetail: {
     defaultTitle: 'Assignment',
     closeLabel: 'Close',
+    swapToSheet: 'Open in side panel',
+    swapToModal: 'Open as modal',
     moreActions: 'More actions',
     openInLectio: 'Open in Lectio',
     ignoreMissing: 'Ignore missing',
@@ -688,11 +696,18 @@ export const en = {
     notes: 'Notes',
     hideSubjectsWithoutAbsence: 'Hide {n} subjects without absence',
     subjectsWithoutAbsence: '{n} subjects without absence',
+    period: 'Period',
+    periodFrom: 'From',
+    periodTo: 'To',
+    applyPeriod: 'Show',
+    schoolYear: 'Whole school year',
+    last30Days: 'Last 30 days',
   },
   karaktererPage: {
     intern: 'Internal',
     annual: 'Annual',
     exam: 'Exam',
+    final: 'Final',
     writtenShort: 'Wr.',
     oralShort: 'Or.',
     examAverage: 'Exam avg.',
@@ -714,6 +729,13 @@ export const en = {
     term: 'Term',
     type: 'Type',
     counts: 'Counts',
+    examResult: 'Exam result',
+    inclBonus: 'incl. bonus',
+    basedOnCurrent: 'Based on current grades',
+    averagesTitle: 'Averages',
+    weightedNote: 'weighted',
+    distributionTitle: 'Grade distribution',
+    subjectsTotal: 'subjects',
   },
   lektierPage: {
     title: 'Homework',
@@ -925,6 +947,7 @@ export const en = {
     freeFor: 'free for {time}',
     endsAt: 'ends at {time}',
     startingAt: 'at {time}',
+    openActivity: 'Open lesson',
     weekend: {
       goodWeekend: 'Have a great weekend',
       enjoyWeekend: 'Enjoy the weekend',
@@ -980,5 +1003,10 @@ export const en = {
       thanksTitle: 'Thanks — heading to the App Store!',
       thanksBody: 'Install BetterLectio on your iPhone and sign in with the same account. You can always reopen the QR from the sidebar.',
     },
+  },
+  proevehold: {
+    disclaimerTitle: 'Just a friendly heads-up',
+    disclaimerBody:
+      "Always double-check your exam times in Lectio — we can't be held responsible for mistakes.",
   },
 } as const satisfies DaDictionary;

@@ -115,32 +115,32 @@ html {
      Near-achromatic grays with barely perceptible warm undertone.
      Chroma kept ≤ 0.006 on neutrals so surfaces read as true
      charcoal, not tinted blue. Primary indigo pops cleanly. ── */
-  --background: oklch(0.13 0.004 285);
+  --background: oklch(0.17 0.004 285);
   --foreground: oklch(0.93 0.003 90);
-  --card: oklch(0.16 0.004 285);
+  --card: oklch(0.205 0.004 285);
   --card-foreground: oklch(0.93 0.003 90);
-  --popover: oklch(0.18 0.004 285);
+  --popover: oklch(0.225 0.004 285);
   --popover-foreground: oklch(0.93 0.003 90);
   --primary: oklch(0.65 0.16 265);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.21 0.005 285);
+  --secondary: oklch(0.255 0.005 285);
   --secondary-foreground: oklch(0.88 0.003 90);
-  --muted: oklch(0.21 0.005 285);
-  --muted-foreground: oklch(0.58 0.006 285);
-  --accent: oklch(0.22 0.005 285);
+  --muted: oklch(0.255 0.005 285);
+  --muted-foreground: oklch(0.62 0.006 285);
+  --accent: oklch(0.27 0.005 285);
   --accent-foreground: oklch(0.88 0.003 90);
   --destructive: oklch(0.55 0.2 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.25 0.004 285);
-  --input: oklch(0.22 0.004 285);
+  --border: oklch(0.3 0.004 285);
+  --input: oklch(0.27 0.004 285);
   --ring: oklch(0.65 0.16 265);
-  --sidebar: oklch(0.14 0.004 285);
+  --sidebar: oklch(0.185 0.004 285);
   --sidebar-foreground: oklch(0.85 0.003 90);
   --sidebar-primary: oklch(0.65 0.16 265);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.2 0.005 285);
+  --sidebar-accent: oklch(0.25 0.005 285);
   --sidebar-accent-foreground: oklch(0.85 0.003 90);
-  --sidebar-border: oklch(0.22 0.004 285);
+  --sidebar-border: oklch(0.27 0.004 285);
   --sidebar-ring: oklch(0.65 0.16 265);
   --lectio-dark-bg: var(--card);
   --lectio-dark-surface: var(--background);
@@ -152,9 +152,9 @@ html {
   --lectio-dark-calendar: var(--accent);
   --lectio-dark-info: var(--muted-foreground);
   --lectio-dark-header: var(--foreground);
-  --scrollbar-track: oklch(0.15 0.004 285);
-  --scrollbar-thumb: oklch(0.32 0.004 285);
-  --scrollbar-thumb-hover: oklch(0.4 0.005 285);
+  --scrollbar-track: oklch(0.19 0.004 285);
+  --scrollbar-thumb: oklch(0.36 0.004 285);
+  --scrollbar-thumb-hover: oklch(0.44 0.005 285);
 }
 
 /* ── Preset base themes (school scoped via html[data-il-theme]) ─────────────── */
@@ -981,6 +981,15 @@ html {
   .dark .hold-pill-dynamic {
     background: oklch(0.24 0.06 var(--hold-hue, 265));
     color: oklch(0.75 0.12 var(--hold-hue, 265));
+  }
+
+  /* ── Grade pills (Karakterer page) ──
+     A single pill element carries its dark colors as inline custom props; this
+     rule promotes them in dark mode. !important is required to beat the inline
+     light colors set on the same element. */
+  .dark .il-grade-pill {
+    color: var(--bl-grade-fg-dark) !important;
+    background-color: var(--bl-grade-bg-dark) !important;
   }
 
 
@@ -3965,6 +3974,251 @@ html {
     vertical-align: top;
   }
 
+  /* ── Prøvehold (exam team) page ──────────── */
+  /* Page-scoped (html.il-proevehold-page) so generic table.list elsewhere is
+     untouched. Native DOM is preserved — these only restyle the two tables,
+     highlight the student's own row, and style the disclaimer banner. */
+
+  html.il-proevehold-page #il-original-content table.list {
+    width: 100%;
+    border: none;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+
+  html.il-proevehold-page #il-original-content table.list td {
+    padding: 0.55rem 0.9rem;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--foreground);
+    text-align: left;
+  }
+
+  /* Summary table (label:value pairs — no border attr): muted label columns */
+  html.il-proevehold-page
+    #il-original-content
+    table.list:not([border])
+    td:nth-child(odd) {
+    color: var(--muted-foreground);
+    font-weight: 500;
+    white-space: nowrap;
+    width: 1%;
+  }
+
+  /* Student list table (bordered): card-like container */
+  html.il-proevehold-page #il-original-content table.list[border] {
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+
+  /* Header row (Lectio renders header cells as plain <td> in the first row) */
+  html.il-proevehold-page
+    #il-original-content
+    table.list[border]
+    tr:first-child
+    td {
+    background: var(--card);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  html.il-proevehold-page
+    #il-original-content
+    table.list[border]
+    tr:first-child
+    td:first-child {
+    border-top-left-radius: 0.5rem;
+  }
+
+  html.il-proevehold-page
+    #il-original-content
+    table.list[border]
+    tr:first-child
+    td:last-child {
+    border-top-right-radius: 0.5rem;
+  }
+
+  html.il-proevehold-page
+    #il-original-content
+    table.list[border]
+    tr:last-child
+    td {
+    border-bottom: none;
+  }
+
+  html.il-proevehold-page
+    #il-original-content
+    table.list[border]
+    tr:not(:first-child):hover
+    td {
+    background: var(--muted);
+  }
+
+  /* Own row highlight */
+  html.il-proevehold-page
+    #il-original-content
+    table.list
+    tr.il-current-student
+    td,
+  html.il-proevehold-page
+    #il-original-content
+    table.list
+    tr.il-current-student:hover
+    td {
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  html.il-proevehold-page
+    #il-original-content
+    table.list
+    tr.il-current-student
+    td:first-child {
+    border-left: 3px solid var(--primary);
+  }
+
+  /* Disclaimer banner */
+  html.il-proevehold-page #il-original-content .il-proevehold-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    background: color-mix(in oklch, var(--primary) 8%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--primary) 25%, var(--border));
+    border-radius: 0.5rem;
+  }
+
+  html.il-proevehold-page #il-original-content .il-proevehold-notice-icon {
+    flex-shrink: 0;
+    color: var(--primary);
+    font-size: 1.1rem;
+    line-height: 1.35;
+  }
+
+  html.il-proevehold-page #il-original-content .il-proevehold-notice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  html.il-proevehold-page #il-original-content .il-proevehold-notice-text strong {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  html.il-proevehold-page #il-original-content .il-proevehold-notice-text span {
+    color: var(--muted-foreground);
+  }
+
+  /* ── Studieplan (year calendar) page ─────── */
+  /* The native year-table (.yeartable) has one column per hold, so it can be
+     far wider than the viewport — especially on small screens. Lectio's own
+     TableScroll bails on mobile, and our #il-lectio-content clips horizontal
+     overflow, so the table got cut off with no way to reach the right side.
+     Page-scoped (html.il-studieplan-page) so we don't touch other pages.
+
+     Two problems had to be solved:
+       1. A right-edge gutter on big screens. Lectio makes the content wrappers
+          shrink-to-fit (#contenttable.ls-content is `display: table-cell`,
+          #masterContent is `display: table`, #aspnetForm is `table-cell`), so
+          they sized to content instead of filling the viewport. Forcing the
+          whole chain to `display: block` makes them fill their parent's width.
+       2. Horizontal scrolling when the table is wider than the viewport. The
+          scroll must NOT live on #il-original-content: that element is height-
+          clamped by the flex column, so `overflow-x:auto` there coerces
+          overflow-y to auto and a vertical scrollbar eats ~11px on the right
+          (another gutter). Instead we scroll on #contenttable, which sizes to
+          its content height — no vertical overflow, no vertical scrollbar —
+          while still scrolling sideways. */
+  html.il-studieplan-page #il-original-content #masterContent,
+  html.il-studieplan-page #il-original-content #aspnetForm,
+  html.il-studieplan-page #il-original-content #s_m_outerContentFrameDiv,
+  html.il-studieplan-page #il-original-content .outerContentFrame,
+  html.il-studieplan-page #il-original-content .ls-content-container,
+  html.il-studieplan-page #il-original-content #contenttable,
+  html.il-studieplan-page #il-original-content .ls-content,
+  html.il-studieplan-page #il-original-content #s_m_Content_Content_TextTablePnl {
+    display: block;
+    max-width: none;
+    width: auto;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* The horizontal scroll container: viewport-width, content-height. */
+  html.il-studieplan-page #il-original-content #contenttable {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Strip the island chrome on this page so the wide calendar gets the full
+     width and sits flush — no rounded corners, margin, border or padding. */
+  html.il-studieplan-page #il-original-content .lf-island {
+    display: block;
+    /* Grow to the table's full width so the island background/border spans the
+       whole scrollable area, but never narrower than the viewport. */
+    width: max-content;
+    min-width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-sizing: border-box;
+  }
+
+  html.il-studieplan-page #il-original-content .islandContent {
+    width: max-content;
+    min-width: 100%;
+    max-width: none;
+    padding: 1.5rem;
+    box-sizing: border-box;
+  }
+
+  html.il-studieplan-page #il-original-content .islandHeaderContainer {
+    border-radius: 0;
+  }
+
+  /* Both views: the year-table has a small intrinsic width and bunches up on the
+     left, leaving empty card to the right. Stretch it to fill the island so the
+     calendar uses the whole width. table-layout stays auto, so columns keep
+     content-based widths and the slack is distributed across them. On small
+     screens the table's min-content floor still kicks in, overflowing into the
+     #contenttable horizontal scroll. (In the horizontal view the slack lands in
+     the label columns since the time bars are pinned to a fixed px scale, but
+     full-width still reads better than a compact left-aligned table.) */
+  html.il-studieplan-page #il-original-content .yeartable {
+    width: 100%;
+  }
+
+  /* Horizontal (Gantt) view: holds are thin rows, so the table is only ~500px
+     tall and leaves the lower half of the screen empty. Give every body row an
+     equal height so they grow uniformly to fill the screen — setting `height`
+     on the table instead let the browser dump all the slack into a single empty
+     row (e.g. 1x FF) while the rest stayed tiny. vh scales the fill with the
+     viewport; holds with both a phase and an exercise span two rows, matching
+     Lectio's native proportions. Tunable: lower the vh if many-hold schedules
+     overflow into a vertical scroll. */
+  html.il-studieplan-page #il-original-content .yeartable.timehorizontal tbody tr {
+    height: 5vh;
+  }
+
   /* ── Buttons ─────────────────────────────── */
 
   /* Primary filled button */
@@ -4977,6 +5231,29 @@ html {
 
   .dark #il-original-content table.lf-grid tbody tr:hover td:first-child {
     box-shadow: inset 2px 0 0 var(--primary);
+  }
+
+  /* Prøvehold: header + own-row need a touch more contrast on dark surfaces.
+     Both .dark and .il-proevehold-page live on <html>, so they compound. */
+  html.dark.il-proevehold-page
+    #il-original-content
+    table.list[border]
+    tr:first-child
+    td {
+    background: oklch(0.18 0.004 285);
+  }
+
+  html.dark.il-proevehold-page
+    #il-original-content
+    table.list
+    tr.il-current-student
+    td,
+  html.dark.il-proevehold-page
+    #il-original-content
+    table.list
+    tr.il-current-student:hover
+    td {
+    background: color-mix(in oklch, var(--primary) 22%, var(--card));
   }
 
   .dark #il-original-content table.lf-grid tr.separationCell td {

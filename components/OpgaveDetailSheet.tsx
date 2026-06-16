@@ -20,6 +20,9 @@ import {
   Plus,
   ChevronDown,
   MessageSquare,
+  PanelRightOpen,
+  Maximize2,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -48,6 +51,8 @@ interface OpgaveDetailSheetProps {
   onOpenChange: (open: boolean) => void;
   entry: OpgaveEntry | null;
   schoolId: string;
+  viewMode?: 'modal' | 'sheet';
+  onSwapViewMode?: () => void;
 }
 
 type DerivedStatus = 'mangler' | 'venter' | 'afleveret' | 'bedoemt';
@@ -154,8 +159,9 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: OpgaveDetailSheetProps) {
+export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMode = 'sheet', onSwapViewMode }: OpgaveDetailSheetProps) {
   const { t } = useTranslation();
+  const isModal = viewMode === 'modal';
   const [detail, setDetail] = useState<OpgaveDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -217,8 +223,19 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       if (e.key === 'Escape') onOpenChange(false);
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onOpenChange]);
+
+    // Lock body scroll in modal mode so the centered dialog feels like a modal.
+    let prevOverflow: string | null = null;
+    if (isModal) {
+      prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (isModal) document.body.style.overflow = prevOverflow ?? '';
+    };
+  }, [open, onOpenChange, isModal]);
 
   const handleSubmit = async () => {
     if (!detail || !entry || (!comment.trim() && !selectedFile)) return;
@@ -460,6 +477,92 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
   const shouldCollapseSubmit = derivedStatus === 'bedoemt' || derivedStatus === 'afleveret';
   const submitFormExpanded = !shouldCollapseSubmit || submitFormOpen;
 
+  // ── Shared submission form fields ────────────────────────────────────
+  // Identical markup in the sheet footer and the modal's submit section.
+  const renderSubmitFields = () => (
+    <>
+      <textarea
+        className="min-h-12 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+        placeholder={t('opgaveDetail.submit.commentPlaceholder')}
+        value={comment}
+        onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
+        rows={2}
+        disabled={submitting}
+      />
+
+      <button
+        type="button"
+        className={cn(
+          "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-[color,background-color] duration-150 hover:bg-accent/20",
+          dragOver && "border-ring bg-accent/30",
+          selectedFile && "border-border bg-background",
+          submitting && "cursor-not-allowed opacity-70",
+        )}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleFileDrop}
+        onClick={() => !selectedFile && fileInputRef.current?.click()}
+        disabled={submitting}
+      >
+        {selectedFile ? (
+          <div className="flex items-center gap-2">
+            <FileText size={16} />
+            <span className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
+              {selectedFile.name}
+            </span>
+            <span className="shrink-0 text-sm text-muted-foreground">
+              {formatFileSize(selectedFile.size)}
+            </span>
+            <button
+              type="button"
+              className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-base text-muted-foreground">
+            <Upload size={16} />
+            <span>{t('opgaveDetail.submit.fileDropLabel')}</span>
+          </div>
+        )}
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileSelect}
+        disabled={submitting}
+      />
+
+      <button
+        type="button"
+        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+        disabled={submitting || (!comment.trim() && !selectedFile)}
+        onClick={handleSubmit}
+      >
+        {submitting ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <Send size={16} />
+        )}
+        {submitting ? submitLabel : t('opgaveDetail.submit.sendButton')}
+      </button>
+    </>
+  );
+
+  // ── Modal-layout content flags ───────────────────────────────────────
+  const hasBrief = !!detail && (!!detail.note || detail.descriptionFiles.length > 0);
+  const hasGroup = !!detail && (detail.groupMembers.length > 0 || detail.hasGroupForm);
+  const hasGradeHeroContent = derivedStatus === 'bedoemt' && !!displayGrade;
+  const hasLeftColumn = hasGradeHeroContent || hasBrief;
+  const hasRightColumn = !!detail && (detail.hasSubmissionForm || hasGroup || timelineEntries.length > 0);
+  const emptyCopy = derivedStatus === 'mangler' || derivedStatus === 'venter'
+    ? t('opgaveDetail.empty.pendingCopy')
+    : t('opgaveDetail.empty.otherCopy');
+  const accentStyle = { '--accent-hue': holdHue } as Record<string, string | number>;
+
   const sheetContent = (
     <div className="fixed inset-0 z-100 pointer-events-auto">
       {/* Backdrop */}
@@ -472,9 +575,23 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
       {/* Panel */}
       <div
         className="absolute right-0 top-0 bottom-0 flex w-[92%] max-w-xl flex-col overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300"
+        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={entry?.title || t('opgaveDetail.defaultTitle')}
       >
+        {/* Swap view mode */}
+        {onSwapViewMode && (
+          <button
+            type="button"
+            className="absolute right-[3.75rem] top-5 z-10 inline-flex size-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground cursor-pointer"
+            onClick={onSwapViewMode}
+            aria-label={isModal ? t('opgaveDetail.swapToSheet') : t('opgaveDetail.swapToModal')}
+            title={isModal ? t('opgaveDetail.swapToSheet') : t('opgaveDetail.swapToModal')}
+          >
+            {isModal ? <PanelRightOpen size={18} /> : <Maximize2 size={18} />}
+          </button>
+        )}
+
         {/* Close */}
         <button
           type="button"
@@ -488,7 +605,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
         {/* Header */}
         <div className="shrink-0 border-b border-border px-7 pb-5 pt-7">
           <div className="flex flex-col gap-3">
-            <h2 className="pr-12 text-2xl font-bold tracking-[-0.02em] text-foreground leading-snug">
+            <h2 className={cn('text-2xl font-bold tracking-[-0.02em] text-foreground leading-snug', onSwapViewMode ? 'pr-24' : 'pr-12')}>
               {entry?.title || t('opgaveDetail.defaultTitle')}
             </h2>
             {entry && (
@@ -606,10 +723,10 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                           href={file.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
+                          className="inline-flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
                         >
-                          <FileDown size={16} className="text-muted-foreground" />
-                          <span className="truncate">{file.name}</span>
+                          <FileDown size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+                          <span className="line-clamp-2 min-w-0 break-words">{file.name}</span>
                         </a>
                       ))}
                     </div>
@@ -800,74 +917,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
                   </div>
                 )}
 
-                <textarea
-                  className="min-h-12 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  placeholder={t('opgaveDetail.submit.commentPlaceholder')}
-                  value={comment}
-                  onInput={(e) => setComment((e.target as HTMLTextAreaElement).value)}
-                  rows={2}
-                  disabled={submitting}
-                />
-
-                <button
-                  type="button"
-                  className={cn(
-                    "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-[color,background-color] duration-150 hover:bg-accent/20",
-                    dragOver && "border-ring bg-accent/30",
-                    selectedFile && "border-border bg-background",
-                    submitting && "cursor-not-allowed opacity-70",
-                  )}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={handleFileDrop}
-                  onClick={() => !selectedFile && fileInputRef.current?.click()}
-                  disabled={submitting}
-                >
-                  {selectedFile ? (
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} />
-                      <span className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
-                        {selectedFile.name}
-                      </span>
-                      <span className="shrink-0 text-sm text-muted-foreground">
-                        {formatFileSize(selectedFile.size)}
-                      </span>
-                      <button
-                        type="button"
-                        className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
-                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-base text-muted-foreground">
-                      <Upload size={16} />
-                      <span>{t('opgaveDetail.submit.fileDropLabel')}</span>
-                    </div>
-                  )}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  disabled={submitting}
-                />
-
-                <button
-                  type="button"
-                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                  disabled={submitting || (!comment.trim() && !selectedFile)}
-                  onClick={handleSubmit}
-                >
-                  {submitting ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Send size={16} />
-                  )}
-                  {submitting ? submitLabel : t('opgaveDetail.submit.sendButton')}
-                </button>
+                {renderSubmitFields()}
               </div>
             )}
 
@@ -891,8 +941,362 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId }: Opgav
     </div>
   );
 
+  // ── Modal layout — wide, horizontal overview (matches schedule modal) ─
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-100 flex items-center justify-center pointer-events-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-label={entry?.title || t('opgaveDetail.defaultTitle')}
+      style={accentStyle}
+    >
+      <div
+        className="absolute inset-0 bg-[oklch(0_0_0/0.55)] backdrop-blur-md animate-[act-sheet-fade-in_0.18s_ease-out]"
+        onClick={() => onOpenChange(false)}
+        aria-hidden="true"
+      />
+
+      <div
+        className="relative z-10 mx-4 flex w-full max-w-[1080px] max-h-[88vh] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-[0_32px_72px_-24px_oklch(0_0_0/0.45),0_12px_24px_-12px_oklch(0_0_0/0.22)] animate-[bl-act-pop_0.26s_cubic-bezier(0.23,1,0.32,1)] motion-reduce:animate-[act-sheet-fade-in_0.2s_ease-out]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Hold-hue accent rail + soft glow behind the hero */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.7_0.14_var(--accent-hue))]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-64 w-[640px] rounded-full opacity-50 blur-3xl"
+          style={{ background: "radial-gradient(closest-side, oklch(0.85 0.16 var(--accent-hue) / 0.45), transparent 70%)" }}
+        />
+
+        {loading || (!detail && !error) ? (
+          <ModalSkeleton />
+        ) : error ? (
+          <div className="flex flex-1 flex-col">
+            <div className="flex items-center justify-end gap-1.5 px-5 pt-5">
+              {onSwapViewMode && (
+                <ModalIconButton onClick={onSwapViewMode} aria-label={t('opgaveDetail.swapToSheet')} title={t('opgaveDetail.swapToSheet')}>
+                  <PanelRightOpen size={16} />
+                </ModalIconButton>
+              )}
+              <ModalIconButton onClick={() => onOpenChange(false)} aria-label={t('opgaveDetail.closeLabel')}>
+                <X size={16} />
+              </ModalIconButton>
+            </div>
+            <div className="flex flex-1 items-center justify-center px-8 py-12">
+              <div className="flex max-w-sm flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card px-6 py-10 text-center">
+                <AlertTriangle size={28} className="text-muted-foreground" />
+                <p className="text-sm text-foreground">{error}</p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground transition-[color,background-color] duration-150 hover:bg-accent cursor-pointer"
+                    onClick={() => entry && loadDetail(entry.url)}
+                  >
+                    {t('opgaveDetail.retry')}
+                  </button>
+                  {entry && (
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground no-underline"
+                    >
+                      <ExternalLink size={15} />
+                      {t('opgaveDetail.openInLectio')}
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : detail ? (
+          <>
+            {/* Header — at-a-glance overview */}
+            <header className="relative shrink-0 border-b border-border/70 px-8 pb-6 pt-8 max-[720px]:px-6 max-[720px]:pb-5 max-[720px]:pt-7 animate-[bl-rise_0.32s_cubic-bezier(0.23,1,0.32,1)]">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {derivedStatus && <StatusChip status={derivedStatus} t={t} />}
+                  {entry && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[0.7rem] font-semibold tracking-[0.06em] text-[oklch(0.4_0.14_var(--accent-hue))] bg-[oklch(0.95_0.06_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))] dark:bg-[oklch(0.26_0.06_var(--accent-hue))]">
+                      <Sparkles size={12} />
+                      {getHoldDisplayName(entry.hold)}
+                    </span>
+                  )}
+                  {hasFravaer && (
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-[oklch(0.72_0.14_25/0.5)] bg-[oklch(0.95_0.03_25)] px-2.5 py-1 text-sm font-semibold text-[oklch(0.42_0.16_25)] dark:border-[oklch(0.58_0.18_25/0.35)] dark:bg-[oklch(0.28_0.03_25/0.75)] dark:text-[oklch(0.79_0.12_25)]">
+                      <AlertTriangle size={14} />
+                      {fravaerLabel}
+                    </span>
+                  )}
+                  {entry?.status === 'mangler' && getExerciseIdFromUrl(entry.url) && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium transition-[color,background-color] duration-150 hover:bg-accent cursor-pointer dark:border-[oklch(0.38_0.004_285)] dark:bg-[oklch(0.2_0.003_285)] dark:text-[oklch(0.66_0.006_285)] dark:hover:border-[oklch(0.5_0.006_285)] dark:hover:bg-[oklch(0.24_0.003_285)] dark:hover:text-[oklch(0.86_0.003_90)]"
+                      onClick={toggleIgnoreMissing}
+                    >
+                      {ignoredMissing ? t('opgaveDetail.showAsMissing') : t('opgaveDetail.ignoreMissing')}
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {onSwapViewMode && (
+                    <ModalIconButton onClick={onSwapViewMode} aria-label={t('opgaveDetail.swapToSheet')} title={t('opgaveDetail.swapToSheet')}>
+                      <PanelRightOpen size={16} />
+                    </ModalIconButton>
+                  )}
+                  <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+                  <ModalIconButton onClick={() => onOpenChange(false)} aria-label={t('opgaveDetail.closeLabel')}>
+                    <X size={16} />
+                  </ModalIconButton>
+                </div>
+              </div>
+
+              <h2 className="m-0 text-3xl font-semibold leading-[1.1] tracking-tight text-balance text-foreground md:text-[2.2rem]">
+                {entry?.title || t('opgaveDetail.defaultTitle')}
+              </h2>
+
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-base text-muted-foreground">
+                {relativeDeadline && (
+                  <span className="inline-flex items-center gap-2">
+                    <Clock size={16} className="opacity-70" />
+                    <span className="font-medium text-foreground/85">{relativeDeadline}</span>
+                    {entry && (entry.status === 'mangler' || entry.deadline.getTime() >= nowTick) && (
+                      <span className="text-muted-foreground">· {entry.deadlineText}</span>
+                    )}
+                  </span>
+                )}
+                {detail.studentTime && (
+                  <span className="inline-flex items-center gap-2">
+                    <Hourglass size={15} className="opacity-70" />
+                    <span className="text-foreground/85">{t('opgaveDetail.meta.studentTime', { value: detail.studentTime })}</span>
+                  </span>
+                )}
+                {detail.responsible && (
+                  <span className="inline-flex items-center gap-2">
+                    <User size={16} className="opacity-70" />
+                    <span className="text-foreground/85">{t('opgaveDetail.meta.responsible', { name: detail.responsible })}</span>
+                  </span>
+                )}
+                {awaitingLabel && derivedStatus === 'afleveret' && (
+                  <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-sm font-medium text-foreground">
+                    {awaitingLabel}
+                  </span>
+                )}
+                {submittedAgoLabel && (
+                  <span className="inline-flex items-center text-sm text-muted-foreground">{submittedAgoLabel}</span>
+                )}
+              </div>
+            </header>
+
+            {/* Body */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-8 py-7 max-[720px]:px-6 max-[720px]:py-5">
+              {!hasLeftColumn && !hasRightColumn ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-muted-foreground">
+                  <FileText size={32} strokeWidth={1.2} />
+                  <h3 className="m-0 text-base font-semibold text-foreground">{t('opgaveDetail.empty.title')}</h3>
+                  <p className="m-0 max-w-sm text-sm text-pretty">{emptyCopy}</p>
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "grid gap-x-10 gap-y-8",
+                    hasLeftColumn && hasRightColumn
+                      ? "md:[grid-template-columns:minmax(0,1.55fr)_minmax(0,1fr)]"
+                      : "grid-cols-1",
+                  )}
+                >
+                  {/* LEFT — the task & feedback */}
+                  {hasLeftColumn && (
+                    <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.4s_cubic-bezier(0.23,1,0.32,1)_60ms_both]">
+                      {hasGradeHeroContent && (
+                        <GradeHero
+                          grade={displayGrade}
+                          gradeNote={gradeNote}
+                          studentNote={studentNote}
+                          latestReturn={latestReturn}
+                          t={t}
+                        />
+                      )}
+
+                      {detail.note && (
+                        <section className="relative overflow-hidden rounded-2xl border border-border bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] px-5 py-4">
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-0 left-0 w-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.55_0.13_var(--accent-hue))]"
+                          />
+                          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                            <MessageSquare size={13} className="opacity-80" />
+                            {t('opgaveDetail.primary.teacherNote')}
+                          </div>
+                          <div
+                            className="mt-2 text-base leading-[1.65] text-foreground text-pretty [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }}
+                          />
+                        </section>
+                      )}
+
+                      {detail.descriptionFiles.length > 0 && (
+                        <ModalSection icon={<FileText size={14} />} label={t('opgaveDetail.primary.taskFiles')} count={detail.descriptionFiles.length}>
+                          <div className="flex flex-col gap-2">
+                            {detail.descriptionFiles.map((file, i) => (
+                              <a
+                                key={i}
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex items-start gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 no-underline transition-[background-color,border-color] duration-150 hover:bg-muted"
+                              >
+                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                                  <FileDown size={15} />
+                                </span>
+                                <span className="line-clamp-2 min-w-0 flex-1 break-words pt-1 text-base font-medium text-foreground">{file.name}</span>
+                                <ExternalLink size={14} className="mt-2 shrink-0 text-muted-foreground" />
+                              </a>
+                            ))}
+                          </div>
+                        </ModalSection>
+                      )}
+                    </div>
+                  )}
+
+                  {/* RIGHT — your submission & activity */}
+                  {hasRightColumn && (
+                    <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.4s_cubic-bezier(0.23,1,0.32,1)_120ms_both]">
+                      {detail.hasSubmissionForm && !shouldCollapseSubmit && (
+                        <ModalSection icon={<Send size={14} />} label={t('opgaveDetail.submit.addCommentOrFile')} accent>
+                          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background/60 p-4">
+                            {renderSubmitFields()}
+                          </div>
+                        </ModalSection>
+                      )}
+
+                      {hasGroup && (
+                        <ModalSection icon={<Users size={14} />} label={t('opgaveDetail.groupSection.title')} count={detail.groupMembers.length}>
+                          <div className="space-y-2">
+                            {detail.groupMembers.map((member) => (
+                              <GroupMemberRow
+                                key={member.contextCardId}
+                                member={member}
+                                schoolId={schoolId}
+                                studentsMap={studentsMap}
+                                removing={groupRemoving === member.contextCardId}
+                                onRemove={member.removePostbackTarget
+                                  ? () => handleRemoveGroupMember(member.removePostbackTarget!, member.removePostbackArgument!, member.contextCardId)
+                                  : undefined}
+                              />
+                            ))}
+                            {detail.hasGroupForm && (
+                              <GroupStudentPicker
+                                students={detail.availableGroupStudents}
+                                schoolId={schoolId}
+                                studentsMap={studentsMap}
+                                adding={groupAdding}
+                                onAdd={handleAddGroupMember}
+                              />
+                            )}
+                          </div>
+                        </ModalSection>
+                      )}
+
+                      {timelineEntries.length > 0 && (
+                        <ModalSection
+                          icon={<FileText size={14} />}
+                          label={t('opgaveDetail.timeline.title')}
+                          count={timelineEntries.length}
+                          action={timelineEntries.length > 3 ? (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                              onClick={() => setShowAllEntries(v => !v)}
+                            >
+                              {showAllEntries
+                                ? t('opgaveDetail.timeline.showFewer')
+                                : t('opgaveDetail.timeline.showAll', { n: String(hiddenEntryCount) })}
+                            </button>
+                          ) : undefined}
+                        >
+                          <div className="space-y-3">
+                            {visibleEntries.map((historyEntry, i) => (
+                              <TimelineEntryCard
+                                key={`${historyEntry.timestamp}-${i}`}
+                                entry={historyEntry}
+                                studentsMap={studentsMap}
+                                t={t}
+                              />
+                            ))}
+                          </div>
+                        </ModalSection>
+                      )}
+
+                      {detail.hasSubmissionForm && shouldCollapseSubmit && (
+                        submitFormOpen ? (
+                          <ModalSection
+                            icon={<Send size={14} />}
+                            label={t('opgaveDetail.submit.addCommentOrFile')}
+                            action={(
+                              <button
+                                type="button"
+                                className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground cursor-pointer"
+                                onClick={() => { setSubmitFormOpen(false); setComment(''); setSelectedFile(null); }}
+                                aria-label={t('opgaveDetail.closeLabel')}
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          >
+                            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-background/60 p-4">
+                              {renderSubmitFields()}
+                            </div>
+                          </ModalSection>
+                        ) : (
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 px-4 py-3 text-sm font-medium text-muted-foreground transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground cursor-pointer"
+                            onClick={() => setSubmitFormOpen(true)}
+                          >
+                            <Plus size={14} />
+                            {t('opgaveDetail.submit.addCommentOrFile')}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-[color-mix(in_oklch,var(--muted)_30%,transparent)] px-8 py-3 max-[720px]:px-6">
+              <div className="min-w-0 truncate text-sm text-muted-foreground">
+                {[
+                  showCustomGradeScale ? detail.gradeScale : null,
+                  detail.responsible ? t('opgaveDetail.meta.responsible', { name: detail.responsible }) : null,
+                ].filter(Boolean).join('  ·  ')}
+              </div>
+              {entry && (
+                <a
+                  href={entry.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
+                >
+                  <ExternalLink size={15} />
+                  {t('opgaveDetail.openInLectio')}
+                </a>
+              )}
+            </footer>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+
   const portalTarget = document.getElementById('il-root') || document.body;
-  return createPortal(sheetContent, portalTarget);
+  return createPortal(isModal ? modalContent : sheetContent, portalTarget);
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────
@@ -974,10 +1378,10 @@ function GradeHero({
               href={latestReturn.documentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
+              className="mt-3 inline-flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
             >
-              <FileDown size={15} className="text-muted-foreground" />
-              <span className="truncate">{latestReturn.documentName}</span>
+              <FileDown size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <span className="line-clamp-2 min-w-0 break-words">{latestReturn.documentName}</span>
             </a>
           )}
         </div>
@@ -1029,14 +1433,14 @@ function TimelineEntryCard({
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
-            "mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-base font-medium no-underline transition-[color,background-color] duration-150",
+            "mt-3 inline-flex items-start gap-2 rounded-md border px-3 py-2 text-base font-medium no-underline transition-[color,background-color] duration-150",
             entry.isReturn
               ? "border-[oklch(0.72_0.14_145/0.5)] bg-background text-foreground hover:bg-[oklch(0.98_0.02_145)] dark:border-[oklch(0.58_0.14_145/0.4)] dark:hover:bg-[oklch(0.32_0.06_145/0.4)]"
               : "border-border bg-background text-foreground hover:bg-accent/40",
           )}
         >
-          <FileDown size={15} />
-          <span className="truncate">{entry.documentName}</span>
+          <FileDown size={15} className="mt-0.5 shrink-0" />
+          <span className="line-clamp-2 min-w-0 break-words">{entry.documentName}</span>
         </a>
       )}
     </div>
@@ -1314,6 +1718,101 @@ function LoadingSkeleton() {
       <Skeleton className="h-4 w-24" />
       <Skeleton className="h-20 w-full rounded-lg" />
       <Skeleton className="h-20 w-full rounded-lg" />
+    </div>
+  );
+}
+
+// ── Modal-layout helpers ───────────────────────────────────────────────
+
+function ModalIconButton({
+  children,
+  onClick,
+  disabled,
+  ...rest
+}: {
+  children: preact.ComponentChildren;
+  onClick?: () => void;
+  disabled?: boolean;
+  'aria-label'?: string;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100 cursor-pointer"
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ModalSection({
+  icon,
+  label,
+  count,
+  accent,
+  action,
+  children,
+}: {
+  icon: preact.ComponentChildren;
+  label: string;
+  count?: number;
+  accent?: boolean;
+  action?: preact.ComponentChildren;
+  children: preact.ComponentChildren;
+}) {
+  return (
+    <section>
+      <div className="mb-3.5 flex items-center justify-between gap-2">
+        <h3
+          className={cn(
+            "flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em]",
+            accent
+              ? "text-[oklch(0.4_0.14_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))]"
+              : "text-muted-foreground",
+          )}
+        >
+          <span className="opacity-80">{icon}</span>
+          {label}
+          {typeof count === "number" && (
+            <span
+              className={cn(
+                "inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full px-1.5 text-[0.7rem] font-semibold normal-case tracking-normal",
+                accent
+                  ? "bg-[oklch(0.62_0.14_var(--accent-hue)/0.15)] text-[oklch(0.4_0.14_var(--accent-hue))] dark:text-[oklch(0.82_0.12_var(--accent-hue))]"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {count}
+            </span>
+          )}
+        </h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ModalSkeleton() {
+  return (
+    <div className="flex flex-col gap-5 px-8 py-9 max-[720px]:px-6 max-[720px]:py-7">
+      <Skeleton className="h-3 w-28 rounded-full" />
+      <Skeleton className="h-9 w-[55%] rounded-xl" />
+      <Skeleton className="h-4 w-[40%] rounded-lg" />
+      <div className="mt-4 grid gap-8 md:[grid-template-columns:minmax(0,1.55fr)_minmax(0,1fr)]">
+        <div className="space-y-3">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      </div>
     </div>
   );
 }

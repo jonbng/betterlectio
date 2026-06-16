@@ -40,6 +40,32 @@ function formatFullDate(dateISO: string, fallback: string): string {
   return `${formatWeekdayCapitalized(date)} ${d}. ${formatMonth(date)}`;
 }
 
+// Lectio's period picker uses `dd/mm-yyyy`; <input type="date"> uses `yyyy-mm-dd`.
+function lectioToISO(lectio: string): string {
+  const m = lectio.match(/(\d{1,2})\/(\d{1,2})-(\d{4})/);
+  if (!m) return '';
+  const [, dd, mm, yyyy] = m;
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+}
+
+function isoToLectio(iso: string): string {
+  const m = iso.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  const [, yyyy, mm, dd] = m;
+  return `${dd}/${mm}-${yyyy}`;
+}
+
+// Danish school year runs August → June. Returns `dd/mm-yyyy` for 1 August of
+// the current school year relative to `todayISO`.
+function schoolYearStartLectio(todayISO: string): string {
+  const m = todayISO.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return '';
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const startYear = month >= 8 ? year : year - 1;
+  return `01/08-${startYear}`;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function parsePct(str: string): number {
@@ -201,6 +227,17 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     }
   }, [data.period]);
 
+  const handlePeriodChange = useCallback(async (start: string, end: string) => {
+    if (!start || !end) return;
+    setLoading(true);
+    try {
+      const result = await submitPeriodChange(start, end);
+      if (result) setData(result);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // ── Derived data ─────────────────────────────────────────────────────
 
   const almOpgjort = parsePct(data.totals?.almOpgjortPct || '');
@@ -262,12 +299,21 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     <div className={cn('mx-auto max-w-7xl px-10 pb-12 pt-8', loading && 'pointer-events-none opacity-60')}>
 
       {/* ── Header (matches Lektier/Opgaver) ── */}
-      <div className="border-b border-border pb-5 mb-7">
-        <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('fravaerPage.title')}</h1>
-        <p className="mt-1 text-base text-muted-foreground">
-          {data.studentName && <>{data.studentName} &middot; </>}
-          {t('fravaerPage.subjectCount', { n: String(data.holds.length) })} &middot; {t('fravaerPage.recordCount', { n: String(data.records.length + data.missingReasons.length) })}
-        </p>
+      <div className="border-b border-border pb-5 mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('fravaerPage.title')}</h1>
+          <p className="mt-1 text-base text-muted-foreground">
+            {data.studentName && <>{data.studentName} &middot; </>}
+            {t('fravaerPage.subjectCount', { n: String(data.holds.length) })} &middot; {t('fravaerPage.recordCount', { n: String(data.records.length + data.missingReasons.length) })}
+          </p>
+        </div>
+        {(data.period.start || data.period.end) && (
+          <PeriodSelector
+            period={data.period}
+            disabled={loading}
+            onApply={handlePeriodChange}
+          />
+        )}
       </div>
 
       {/* ── Missing reasons banner ────────────── */}
@@ -481,6 +527,82 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────
+
+function PeriodSelector({
+  period,
+  disabled,
+  onApply,
+}: {
+  period: { start: string; end: string };
+  disabled: boolean;
+  onApply: (startLectio: string, endLectio: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [start, setStart] = useState(lectioToISO(period.start));
+  const [end, setEnd] = useState(lectioToISO(period.end));
+
+  // Keep local inputs in sync when the parent swaps in fresh data.
+  useEffect(() => {
+    setStart(lectioToISO(period.start));
+    setEnd(lectioToISO(period.end));
+  }, [period.start, period.end]);
+
+  const currentStartLectio = isoToLectio(start);
+  const currentEndLectio = isoToLectio(end);
+  const dirty =
+    currentStartLectio !== period.start || currentEndLectio !== period.end;
+
+  const inputClass =
+    'h-9 rounded-lg border border-border bg-card px-2.5 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]';
+
+  const apply = (s: string, e: string) => {
+    if (!s || !e || disabled) return;
+    onApply(s, e);
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+        {t('fravaerPage.period')}
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <input
+          type="date"
+          aria-label={t('fravaerPage.periodFrom')}
+          className={inputClass}
+          value={start}
+          disabled={disabled}
+          max={end || undefined}
+          onInput={e => setStart((e.target as HTMLInputElement).value)}
+        />
+        <span className="text-sm text-muted-foreground">–</span>
+        <input
+          type="date"
+          aria-label={t('fravaerPage.periodTo')}
+          className={inputClass}
+          value={end}
+          disabled={disabled}
+          min={start || undefined}
+          onInput={e => setEnd((e.target as HTMLInputElement).value)}
+        />
+        <button
+          className="inline-flex h-9 items-center rounded-lg bg-primary px-3.5 text-sm font-semibold text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
+          disabled={disabled || !dirty || !start || !end}
+          onClick={() => apply(currentStartLectio, currentEndLectio)}
+        >
+          {t('fravaerPage.applyPeriod')}
+        </button>
+        <button
+          className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
+          disabled={disabled}
+          onClick={() => apply(schoolYearStartLectio(end || start), period.end)}
+        >
+          {t('fravaerPage.schoolYear')}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function AbsenceRing({ pct, size, strokeWidth }: { pct: number; size: number; strokeWidth: number }) {
   const radius = (size - strokeWidth) / 2;

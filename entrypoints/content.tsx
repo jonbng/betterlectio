@@ -28,6 +28,7 @@ import { ProfilPage } from "@/components/ProfilPage";
 import { MobileAppDrawer } from "@/components/MobileAppDrawer";
 import { MobileAppInvitePopup } from "@/components/MobileAppInvitePopup";
 import { parseProfilFromDOM } from "@/lib/profil-parser";
+import { enhanceProeveholdPage } from "@/lib/proevehold-enhance";
 import { parseForsideOpgaver } from "@/components/ForsideOpgaverCard";
 import { ForsideDashboard, parseAktuelInfo, parseLektier, parseBeskeder, parseGenericIslands } from "@/components/ForsideDashboard";
 import { ForsideSchedulePanel, fetchScheduleWeek } from "@/components/ForsideScheduleCard";
@@ -73,6 +74,11 @@ import {
   recordAuthenticatedActivity,
 } from "@/lib/logout-tracking";
 import "@/styles/globals.css";
+
+// Exam bricks (s2bgboxeksamen) always keep a warm yellow hue (matching Lectio's
+// native #fbe570), regardless of the subject-colors setting or cancelled/changed
+// states. Feeds the existing --brick-hue OKLCH brick styling.
+const EXAM_BRICK_HUE = 95;
 
 export default defineContentScript({
   matches: ["*://*.lectio.dk/*"],
@@ -1076,6 +1082,19 @@ function initLayout() {
           injectProfilPage(schoolId);
         }
 
+        // Enhance prøvehold (exam team) page — native DOM stays, light polish only
+        if (window.location.pathname.toLowerCase().includes("proevehold.aspx")) {
+          enhanceProeveholdPage();
+        }
+
+        // Studieplan (year calendar): the native year-table can be wider than the
+        // viewport. Lectio's own TableScroll bails on mobile and our content
+        // scroller clips horizontally, so the table got cut off. A page-scoping
+        // class lets globals.css make it fit-or-scroll sideways.
+        if (window.location.pathname.toLowerCase().includes("studieplan.aspx")) {
+          document.documentElement.classList.add("il-studieplan-page");
+        }
+
         // Inject "viewing schedule" header when looking at someone else's schedule
         if (!isViewingOwnPage()) {
           injectViewingScheduleHeader(schoolId);
@@ -1985,7 +2004,10 @@ function enhanceScheduleBricks() {
 
     // Apply hold color as CSS custom property
     let hue: number;
-    if (!subjectColorsEnabled) {
+    if (brick.classList.contains("s2bgboxeksamen")) {
+      // Exam bricks always render yellow, like Lectio's native exam color
+      hue = EXAM_BRICK_HUE;
+    } else if (!subjectColorsEnabled) {
       brick.classList.add('il-no-subject-colors');
       if (brick.classList.contains('s2cancelled')) {
         hue = 25;
@@ -2353,8 +2375,12 @@ function enhanceForsideSchedule(schoolId: string) {
           room = lastPart;
         }
 
-        // Apply hold color
-        const hue = holdCode ? getHoldHue(holdCode) : 265;
+        // Apply hold color (exam bricks always render yellow)
+        const hue = brick.classList.contains('s2bgboxeksamen')
+          ? EXAM_BRICK_HUE
+          : holdCode
+            ? getHoldHue(holdCode)
+            : 265;
         brick.style.setProperty('--brick-hue', String(hue));
 
         // Mark enhanced and rebuild content

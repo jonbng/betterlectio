@@ -14,6 +14,7 @@ import {
   MessageSquareText,
 } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
+import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { saveCachedOpgaver } from '@/lib/opgaver-deadlines-cache';
@@ -482,6 +483,14 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [opgaveViewMode, setOpgaveViewMode] = useState<'modal' | 'sheet'>(
+    () => getSettings().behavior?.opgaveViewMode ?? 'sheet',
+  );
+  const swapOpgaveViewMode = () => {
+    const next = opgaveViewMode === 'modal' ? 'sheet' : 'modal';
+    setOpgaveViewMode(next);
+    updateSetting('behavior', 'opgaveViewMode', next);
+  };
   const [ignoredMissingIds, setIgnoredMissingIds] = useState<Set<string>>(new Set());
   // Locally patched statuses (keyed by exerciseId) so successful submits flip
   // the row to "afleveret" without a page reload. Survives prop replacement
@@ -610,6 +619,15 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   };
   const weekGroups = groupAllByWeek(sorted, now, weekLabels);
   const currentWeekKey = getWeekKey(now);
+  // The week we scroll to on load: the current week if it has assignments,
+  // otherwise the nearest upcoming week, falling back to the most recent past
+  // week so we never just sit pinned at the top.
+  const scrollTargetKey = (() => {
+    if (weekGroups.some(g => g.key === currentWeekKey)) return currentWeekKey;
+    const upcoming = weekGroups.find(g => g.key >= currentWeekKey);
+    if (upcoming) return upcoming.key;
+    return weekGroups.length > 0 ? weekGroups[weekGroups.length - 1].key : null;
+  })();
 
   const holds = [...new Set(entries.map(e => e.hold))].sort((a, b) => {
     return getHoldDisplayName(a).localeCompare(getHoldDisplayName(b), 'da');
@@ -861,7 +879,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
                   return (
                     <div
                       key={group.key}
-                      ref={isCurrentWeek ? currentWeekRef : undefined}
+                      ref={group.key === scrollTargetKey ? currentWeekRef : undefined}
                     >
                       <WeekHeader
                         group={group}
@@ -893,6 +911,8 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
         onOpenChange={setSheetOpen}
         entry={selectedEntry}
         schoolId={schoolId}
+        viewMode={opgaveViewMode}
+        onSwapViewMode={swapOpgaveViewMode}
       />
     </div>
   );

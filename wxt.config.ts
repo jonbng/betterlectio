@@ -98,6 +98,8 @@ export default defineConfig({
       'admin/**',
       'supabase/**',
       'website/**',
+      // Flutter mobile app (separate project, not part of the extension)
+      'android/**',
     ],
   },
   vite: () => ({

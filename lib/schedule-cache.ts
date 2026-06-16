@@ -10,6 +10,7 @@ export interface ScheduleBlock {
   label: string; // hold/subject display name
   holdCode: string; // raw hold code for color
   cancelled?: boolean; // true if "Aflyst"
+  activityUrl?: string; // absolute aktivitetforside2.aspx / privat_aftale.aspx URL from the brick href
 }
 
 interface CachedSchedule {
@@ -106,7 +107,12 @@ function parseScheduleFromDoc(doc: Document): ScheduleBlock[] {
       ? getHoldDisplayName(holdCode)
       : extractTitleFromTooltip(tooltip) || holdCode || 'Lektion';
 
-    blocks.push({ start, end, label, holdCode, ...(isCancelled ? { cancelled: true } : {}) });
+    // Brick href points at the activity (aktivitetforside2.aspx) or, for
+    // private appointments, privat_aftale.aspx. Normalize to an absolute URL.
+    const href = brick.getAttribute('href') || '';
+    const activityUrl = href ? (href.startsWith('/') ? `${window.location.origin}${href}` : href) : undefined;
+
+    blocks.push({ start, end, label, holdCode, ...(activityUrl ? { activityUrl } : {}), ...(isCancelled ? { cancelled: true } : {}) });
   });
 
   blocks.sort((a, b) => a.start - b.start);

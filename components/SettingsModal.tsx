@@ -1213,6 +1213,37 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
                   })}
                 </div>
               </div>
+              <div className="flex items-center justify-between gap-4 py-3 px-4">
+                <div className="space-y-0.5 pr-4">
+                  <Label className="font-medium">{t('settings.advanced.opgaveViewModeLabel')}</Label>
+                  <p className="text-sm text-muted-foreground">{t('settings.advanced.opgaveViewModeDescription')}</p>
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label={t('settings.advanced.opgaveViewModeLabel')}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-muted/40 p-1"
+                >
+                  {(['modal', 'sheet'] as const).map((mode) => {
+                    const active = (settings.behavior?.opgaveViewMode ?? 'sheet') === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => handleSettingChange('behavior', 'opgaveViewMode', mode)}
+                        className={`cursor-pointer rounded-md px-3 py-1 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 active:scale-[0.97] ${
+                          active
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {t(`settings.advanced.opgaveViewMode.${mode}`)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <FeatureToggle
                 id="behavior-messages"
                 label={t('settings.advanced.messagesLabel')}
