@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next"
-import { Geist_Mono, Inter } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+// Geist is the extension's typeface — match it so the site and product read as one.
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
@@ -57,20 +58,14 @@ export const metadata: Metadata = {
     title: "BetterLectio — Lectio, bare bedre.",
     description: "En moderne brugerflade til Lectio. Hurtigere, pænere og uden alt det rod.",
     url: SITE_URL,
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1024,
-        height: 1024,
-        alt: "BetterLectio",
-      },
-    ],
+    // OG/Twitter images come from the file-based `opengraph-image.tsx` /
+    // `twitter-image.tsx` routes (dynamic 1200×630), which cascade to every
+    // page that doesn't define its own.
   },
   twitter: {
     card: "summary_large_image",
     title: "BetterLectio — Lectio, bare bedre.",
     description: "En moderne brugerflade til Lectio. Hurtigere, pænere og uden alt det rod.",
-    images: ["/og-image.png"],
   },
   alternates: {
     canonical: "/",
@@ -86,10 +81,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f0" },
-    { media: "(prefers-color-scheme: dark)", color: "#2d5bff" },
-  ],
+  themeColor: "#f7f7fa",
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,
@@ -104,7 +96,7 @@ export default function RootLayout({
     <html
       lang="da"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
+      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>

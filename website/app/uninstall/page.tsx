@@ -1,7 +1,16 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
+import { SiteFooter } from "@/components/site/site-footer"
+import { SiteNav } from "@/components/site/site-nav"
+import {
+  siteContainerClass,
+  siteEyebrow,
+  siteMainClass,
+  sitePageClass,
+} from "@/components/site/styles"
 import { getSupabaseAdmin } from "@/lib/supabase"
+import { cn } from "@/lib/utils"
 
 import { UninstallForm } from "./uninstall-form"
 
@@ -39,33 +48,37 @@ export default async function UninstallPage({
   }
 
   return (
-    <div className="brand-root brand-root--text">
-      <div className="bg-grid" />
+    <div className="site">
+      <SiteNav />
 
-      <div className="metadata meta-tl">
-        <Link href="/" className="back-link">
-          ← TILBAGE
-        </Link>
-      </div>
+      <main className={cn(siteMainClass, siteContainerClass, sitePageClass)}>
+        <article className="mx-auto max-w-[760px]">
+          <span className={siteEyebrow()}>Farvel for nu</span>
+          <h1 className="mt-3.5 mb-5 text-[clamp(40px,6vw,68px)] font-extrabold leading-[1.02] tracking-[-0.04em]">
+            Tak fordi du prøvede det.
+          </h1>
 
-      <main className="text-page uninstall-page">
-        <h1 className="text-page-title">
-          <span className="title-top">Farvel</span>
-          <span className="title-bottom">for nu</span>
-        </h1>
+          <p className="max-w-[60ch] text-xl font-medium leading-[1.5] text-ink-muted">
+            BetterLectio er afinstalleret. Hvis du har lyst, så fortæl os hvorfor —
+            det hjælper os med at gøre det bedre for de næste.
+          </p>
 
-        <p className="text-page-lead">
-          BetterLectio er afinstalleret. Hvis du har lyst, så fortæl os hvorfor — det hjælper os med
-          at gøre det bedre for de næste.
-        </p>
+          <UninstallForm studentId={validStudentId} />
 
-        <UninstallForm studentId={validStudentId} />
-
-        <p className="uninstall-fineprint">
-          Fortryder du? Du kan altid hente BetterLectio igen på{" "}
-          <Link href="/download">betterlectio.dk/download</Link>.
-        </p>
+          <p className="mt-10 text-sm text-ink-muted">
+            Fortryder du? Du kan altid hente BetterLectio igen på{" "}
+            <Link
+              href="/download"
+              className="text-brand underline underline-offset-[3px]"
+            >
+              betterlectio.dk/download
+            </Link>
+            .
+          </p>
+        </article>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }

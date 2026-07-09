@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react"
 
+import { siteButton } from "@/components/site/styles"
 import { capture } from "@/lib/posthog"
+import { cn } from "@/lib/utils"
 
 import { submitUninstallFeedback } from "./actions"
 
@@ -85,10 +87,18 @@ export function UninstallForm({ studentId }: { studentId: string }) {
 
   if (submitted) {
     return (
-      <div className="uninstall-thanks" role="status" aria-live="polite">
-        <div className="uninstall-thanks-eyebrow">TAK</div>
-        <p className="uninstall-thanks-title">Det betyder meget.</p>
-        <p className="uninstall-thanks-body">
+      <div
+        className="mt-3 rounded-[22px] border border-line bg-white p-7 shadow-[0_14px_34px_-20px_rgba(0,0,0,0.3)]"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-volt">
+          TAK
+        </div>
+        <p className="my-1.5 text-[26px] font-extrabold tracking-[-0.02em]">
+          Det betyder meget.
+        </p>
+        <p className="max-w-[50ch] text-ink-muted">
           Vi læser alt — og bruger det til at gøre BetterLectio bedre.
         </p>
       </div>
@@ -96,10 +106,12 @@ export function UninstallForm({ studentId }: { studentId: string }) {
   }
 
   return (
-    <form className="uninstall-form" onSubmit={handleSubmit}>
-      <div className="uninstall-section">
-        <div className="uninstall-label">Hvorfor afinstallerede du?</div>
-        <div className="uninstall-reasons" role="radiogroup" aria-label="Årsag">
+    <form className="mt-9 flex flex-col gap-[26px]" onSubmit={handleSubmit}>
+      <div className="flex flex-col gap-3">
+        <div className="text-[15px] font-bold text-ink">
+          Hvorfor afinstallerede du?
+        </div>
+        <div className="flex flex-wrap gap-2.5" role="radiogroup" aria-label="Årsag">
           {REASONS.map((r) => {
             const active = reason === r.key
             return (
@@ -108,7 +120,11 @@ export function UninstallForm({ studentId }: { studentId: string }) {
                 type="button"
                 role="radio"
                 aria-checked={active}
-                className={`uninstall-chip${active ? " uninstall-chip--active" : ""}`}
+                className={cn(
+                  "rounded-full border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition-[border-color,color,background] hover:border-brand hover:text-brand",
+                  active &&
+                    "border-brand bg-brand text-white hover:border-brand hover:text-white",
+                )}
                 onClick={() => {
                   setReason(r.key)
                   setError(null)
@@ -121,19 +137,20 @@ export function UninstallForm({ studentId }: { studentId: string }) {
         </div>
       </div>
 
-      <div className="uninstall-section">
-        <label htmlFor="uninstall-feedback" className="uninstall-label">
+      <div className="flex flex-col gap-3">
+        <label htmlFor="uninstall-feedback" className="text-[15px] font-bold text-ink">
           {isTooComplicated ? (
             <>Hvad var for kompliceret?</>
           ) : (
             <>
-              Noget mere på hjerte? <span className="uninstall-optional">(valgfrit)</span>
+              Noget mere på hjerte?{" "}
+              <span className="font-medium text-ink-muted">(valgfrit)</span>
             </>
           )}
         </label>
         <textarea
           id="uninstall-feedback"
-          className="uninstall-textarea"
+          className="min-h-[120px] w-full resize-y rounded-2xl border border-line bg-white px-4 py-3.5 text-[15px] leading-[1.5] text-ink transition-[border-color,box-shadow] focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklch,var(--blue)_22%,transparent)] focus:outline-none"
           rows={4}
           maxLength={2000}
           required={feedbackRequired}
@@ -147,11 +164,11 @@ export function UninstallForm({ studentId }: { studentId: string }) {
         />
       </div>
 
-      {error && <p className="uninstall-error">{error}</p>}
+      {error && <p className="text-[13px] font-medium text-[#d70015]">{error}</p>}
 
       <button
         type="submit"
-        className="uninstall-submit"
+        className={siteButton("primary", "self-start")}
         disabled={!canSubmit || isPending}
       >
         {isPending ? "Sender…" : "Send feedback"}

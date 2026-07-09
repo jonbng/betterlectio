@@ -2,6 +2,16 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { SiteFooter } from "@/components/site/site-footer"
+import { SiteNav } from "@/components/site/site-nav"
+import {
+  siteButton,
+  siteContainerClass,
+  siteEyebrow,
+  siteMainClass,
+  sitePageClass,
+} from "@/components/site/styles"
+import { JsonLd, schoolJsonLd } from "@/components/site/structured-data"
 import {
   benefits,
   closingVariants,
@@ -15,6 +25,7 @@ import {
   pickByKey,
   pickManyByKey,
 } from "@/lib/schools"
+import { cn } from "@/lib/utils"
 
 export const dynamic = "force-static"
 export const dynamicParams = false
@@ -76,73 +87,80 @@ export default async function SchoolPage({
   const faqHeading = pickByKey(headingPools.faq, id, "h2-faq")(displayName)
 
   return (
-    <div className="brand-root brand-root--text">
-      <div className="bg-grid" />
+    <div className="site">
+      <JsonLd
+        data={schoolJsonLd({
+          displayName,
+          slug: school.slug,
+          faqs: faqs.map((item) => ({ question: item.q, answer: item.a(displayName) })),
+        })}
+      />
+      <SiteNav />
 
-      <div className="metadata meta-tl">
-        <Link href="/download" className="back-link">
-          ← HENT BETTERLECTIO
-        </Link>
-      </div>
+      <main className={cn(siteMainClass, siteContainerClass, sitePageClass)}>
+        <article className="mx-auto max-w-[760px]">
+          <span className={siteEyebrow()}>{displayName}</span>
+          <h1 className="mt-3.5 mb-5 text-[clamp(40px,6vw,68px)] font-extrabold leading-[1.02] tracking-[-0.04em]">
+            {displayName} <mark className="bg-transparent text-ink-muted">Lectio</mark>
+          </h1>
 
-      <main className="text-page">
-        <h1 className="text-page-title">
-          <span className="title-top">{displayName}</span>
-          <span className="title-bottom">Lectio</span>
-        </h1>
+          <p className="max-w-[60ch] text-xl font-medium leading-[1.5] text-ink-muted">
+            {intro}
+          </p>
 
-        <p className="text-page-lead">{intro}</p>
+          <section className="mt-14">
+            <h2 className="mb-[22px] text-[28px] font-extrabold tracking-[-0.02em]">
+              {whyHeading}
+            </h2>
+            <ul className="grid grid-cols-1 gap-5 min-[720px]:grid-cols-2">
+              {orderedBenefits.map((b) => (
+                <li
+                  key={b.title}
+                  className="rounded-[20px] border border-line bg-grey p-6"
+                >
+                  <h3 className="mb-1.5 text-[17px] font-bold text-ink">{b.title}</h3>
+                  <p className="text-sm leading-[1.5] text-ink-muted">{b.body}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        <section className="mt-12 w-full max-w-[60ch]">
-          <h2 className="mb-4 text-2xl font-bold tracking-tight">
-            {whyHeading}
-          </h2>
-          <ul className="grid gap-5 sm:grid-cols-2">
-            {orderedBenefits.map((b) => (
-              <li key={b.title}>
-                <h3 className="text-base font-semibold">{b.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  {b.body}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <section className="mt-14">
+            <h2 className="mb-[22px] text-[28px] font-extrabold tracking-[-0.02em]">
+              {startHeading}
+            </h2>
+            <p className="mb-6 max-w-[60ch] text-base font-medium leading-[1.5] text-ink">
+              {closing}
+            </p>
+            <Link href="/download" className={siteButton("primary")}>
+              Hent BetterLectio gratis
+            </Link>
+          </section>
 
-        <section className="mt-12 w-full max-w-[60ch]">
-          <h2 className="mb-3 text-2xl font-bold tracking-tight">
-            {startHeading}
-          </h2>
-          <p className="mb-5 text-base leading-relaxed">{closing}</p>
-          <Link
-            href="/download"
-            className="inline-flex items-center justify-center rounded-md bg-foreground px-6 py-3 text-base font-semibold text-background transition-opacity hover:opacity-90"
-          >
-            Hent BetterLectio gratis →
-          </Link>
-        </section>
+          <section className="mt-14">
+            <h2 className="mb-[22px] text-[28px] font-extrabold tracking-[-0.02em]">
+              {faqHeading}
+            </h2>
+            <dl>
+              {faqs.map((item) => (
+                <div key={item.q}>
+                  <dt className="text-[17px] font-bold text-ink">{item.q}</dt>
+                  <dd className="mt-1.5 mb-5 text-[15px] leading-[1.6] text-ink-muted">
+                    {item.a(displayName)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
 
-        <section className="mt-12 w-full max-w-[60ch]">
-          <h2 className="mb-4 text-2xl font-bold tracking-tight">
-            {faqHeading}
-          </h2>
-          <dl className="space-y-5">
-            {faqs.map((item) => (
-              <div key={item.q}>
-                <dt className="text-base font-semibold">{item.q}</dt>
-                <dd className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  {item.a(displayName)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <p className="mt-16 text-xs text-muted-foreground">
-          BetterLectio er ikke tilknyttet eller godkendt af Lectio eller MaCom A/S.
-          Lectio er et registreret varemærke tilhørende MaCom A/S.
-        </p>
+          <p className="mt-[60px] text-[13px] text-ink-muted">
+            BetterLectio er ikke tilknyttet eller godkendt af Lectio eller MaCom A/S.
+            Lectio er et registreret varemærke tilhørende MaCom A/S.
+          </p>
+        </article>
       </main>
+
+      <SiteFooter />
     </div>
   )
 }
