@@ -453,7 +453,10 @@ export async function fetchAllOpgaver(): Promise<OpgaveEntry[] | null> {
 
     return parseOpgaverFromDOM(doc);
   } catch (err) {
-    console.error('[BetterLectio] Failed to fetch all opgaver:', err);
+    // Transient network failures here are expected and handled — we degrade to
+    // an empty list. Use console.warn so the global console.error capture in
+    // entrypoints/content.tsx doesn't report this as an error-tracking issue.
+    console.warn('[BetterLectio] Failed to fetch all opgaver:', err);
     return null;
   }
 }
