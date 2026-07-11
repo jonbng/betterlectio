@@ -595,8 +595,16 @@ function cardBackground(title, subtitle, owlSrc) {
   };
 }
 
-// ─── Small promo tile background (440x280) ───
-function smallPromoBackground(owlSrc) {
+// ─── Small promo tile background (centered logo + title + tagline) ───
+// size: "sm" = 440x280 (CWS small tile), "md" = 1024x500
+function smallPromoBackground(owlSrc, size = "sm") {
+  const isMd = size === "md";
+  const owlSize = isMd ? 160 : 96;
+  const owlRadius = isMd ? 32 : 20;
+  const titleSize = isMd ? 72 : 38;
+  const taglineSize = isMd ? 26 : 15;
+  const gap = isMd ? 22 : 14;
+
   return {
     type: "div",
     props: {
@@ -608,26 +616,37 @@ function smallPromoBackground(owlSrc) {
         position: "relative",
       },
       children: [
+        // Subtle top accent (matches marquee/cards)
         {
           type: "div",
           props: {
-            style: { display: "flex", flexDirection: "column", alignItems: "center", gap: "14px" },
+            style: {
+              position: "absolute", top: "0", left: "0",
+              width: "100%", height: isMd ? "4px" : "3px",
+              background: `linear-gradient(90deg, ${C.indigo} 0%, ${C.indigoLight} 50%, ${C.indigo} 100%)`,
+            },
+          },
+        },
+        {
+          type: "div",
+          props: {
+            style: { display: "flex", flexDirection: "column", alignItems: "center", gap: `${gap}px` },
             children: [
               owlSrc ? {
                 type: "img",
-                props: { src: owlSrc, width: 96, height: 96, style: { borderRadius: "20px" } },
+                props: { src: owlSrc, width: owlSize, height: owlSize, style: { borderRadius: `${owlRadius}px` } },
               } : null,
               {
                 type: "div",
                 props: {
-                  style: { fontSize: "38px", fontWeight: 700, color: C.text, letterSpacing: "-0.04em" },
+                  style: { fontSize: `${titleSize}px`, fontWeight: 700, color: C.text, letterSpacing: "-0.04em" },
                   children: "BetterLectio",
                 },
               },
               {
                 type: "div",
                 props: {
-                  style: { fontSize: "15px", color: C.textMuted, textAlign: "center" },
+                  style: { fontSize: `${taglineSize}px`, color: C.textMuted, textAlign: "center" },
                   children: "Et moderne design til Lectio",
                 },
               },
@@ -767,9 +786,15 @@ async function generatePromoImages() {
 
   // 2. Small promo tile (440x280)
   console.log("  Generating: promo-small.png (440x280)...");
-  const smallBg = await renderBackground(smallPromoBackground(owl), 440, 280, fonts);
+  const smallBg = await renderBackground(smallPromoBackground(owl, "sm"), 440, 280, fonts);
   await sharp(smallBg).flatten({ background: "#FFFFFF" }).png().toFile(`${OUT_DIR}/promo-small.png`);
   console.log("    -> promo-small.png");
+
+  // 2b. Medium promo tile (1024x500)
+  console.log("  Generating: promo-small-1024.png (1024x500)...");
+  const smallMdBg = await renderBackground(smallPromoBackground(owl, "md"), 1024, 500, fonts);
+  await sharp(smallMdBg).flatten({ background: "#FFFFFF" }).png().toFile(`${OUT_DIR}/promo-small-1024.png`);
+  console.log("    -> promo-small-1024.png");
 
   // 3. Screenshot cards (1280x800)
   const cards = [
