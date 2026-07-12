@@ -274,6 +274,23 @@ function isNonActionablePostgrestError(error: unknown): boolean {
   return code === 'PGRST116';
 }
 
+// Expired-JWT errors are a self-recovering auth-transition state, not a bug.
+// `ensureSessionReady()` refreshes the access token before each query, but its
+// catch block deliberately lets the request run anyway when the refresh fails
+// (revoked refresh_token, network) — PostgREST then rejects it with "JWT
+// expired" (code PGRST301). The next request re-auths via the QR flow, so this
+// recovers on its own; reporting it just burns PostHog free-tier quota. Mirrors
+// the PGRST116 / Unauthorized suppressions above.
+function isExpiredJwtError(error: unknown): boolean {
+  const code = typeof (error as { code?: unknown })?.code === 'string'
+    ? (error as { code: string }).code
+    : '';
+  if (code === 'PGRST301') return true;
+  const message = extractErrorMessage(error);
+  if (!message) return false;
+  return /\bjwt expired\b/i.test(message);
+}
+
 async function captureSupabaseError(
   error: unknown,
   context: {
@@ -291,6 +308,7 @@ async function captureSupabaseError(
   try {
     if (isTransientNetworkError(error)) return;
     if (isNonActionablePostgrestError(error)) return;
+    if (isExpiredJwtError(error)) return;
     if (context.action === 'rpc' && isAuthOwnershipError(error)) return;
 
     const identity = await getAnalyticsIdentity({
@@ -393,6 +411,7 @@ async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate'
 }
 
 async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): Promise<SupabaseResponse> {
+  await ensureSessionReady();
   const supabase = getSupabase();
   const { data, error } = await supabase.rpc(msg.fn as string, msg.args);
   if (error) {

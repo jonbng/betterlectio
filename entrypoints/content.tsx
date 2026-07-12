@@ -669,6 +669,27 @@ function initLayout() {
       }
     }).catch(() => {});
 
+    // Transient network failures (a dropped connection, offline, Lectio blip)
+    // surface as a bare `TypeError: Failed to fetch` (Chrome) or
+    // `NetworkError when attempting to fetch resource.` (Firefox). Our fetch
+    // callsites already handle these gracefully (degrade to null/empty), so
+    // forwarding them to error tracking is pure noise that buries real bugs and
+    // burns free-tier quota. Drop them from the catch-all capture paths only —
+    // explicit captureException() calls elsewhere are intentional.
+    const isIgnorableNetworkError = (value: unknown): boolean => {
+      const message =
+        value instanceof Error
+          ? `${value.name}: ${value.message}`
+          : typeof value === 'string'
+            ? value
+            : '';
+      return (
+        /(?:^|\b)TypeError:?\s*Failed to fetch\b/i.test(message) ||
+        /NetworkError when attempting to fetch resource/i.test(message) ||
+        /Load failed$/i.test(message)
+      );
+    };
+
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
       const err =
@@ -685,15 +706,21 @@ function initLayout() {
       });
     });
     window.addEventListener('unhandledrejection', (e) => {
+      if (isIgnorableNetworkError(e.reason)) return;
       captureException(e.reason, phDistinctId, { source: 'unhandledrejection' });
     });
     let _blConsoleErrorCaptures = 0;
     const _origConsoleError = console.error;
     const MAX_CONSOLE_ERROR_REPORTS = 12;
     console.error = (...args: unknown[]) => {
-      if (_blConsoleErrorCaptures < MAX_CONSOLE_ERROR_REPORTS) {
+      const joined = args.map(String).join(' ');
+      if (
+        _blConsoleErrorCaptures < MAX_CONSOLE_ERROR_REPORTS &&
+        !isIgnorableNetworkError(joined) &&
+        !args.some(isIgnorableNetworkError)
+      ) {
         _blConsoleErrorCaptures++;
-        captureException(new Error(args.map(String).join(' ')), phDistinctId, {
+        captureException(new Error(joined), phDistinctId, {
           source: 'console.error',
           console_error_index: _blConsoleErrorCaptures,
         });
