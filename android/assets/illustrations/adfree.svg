@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" viewBox="0 0 800 800" width="800" height="800"><defs><pattern id="mmmotif-pattern" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="translate(0 0) scale(1.3) rotate(60) skewX(0) skewY(0)">
-    <path d="M13.6359 11.713L9.39326 14.1623L15.7572 17.8362L9.39326 21.5101L13.6359 23.9594L19.9999 20.2855L26.3638 23.9594L30.6065 21.5101L24.2425 17.8362L30.6065 14.1623L26.3638 11.713L19.9999 15.3869L13.6359 11.713Z" fill="#00ff00"></path>
-    <path d="M9.38965 18.1608L9.38979 14.1609L15.7596 17.8408L12.2967 19.8196L9.38965 18.1608Z" fill="#70ff56"></path>
-    <path d="M9.38965 25.5108L9.38979 21.5107L13.6396 23.9608L13.64 27.9608L9.38965 25.5108Z" fill="#70ff56"></path>
-    <path d="M13.6401 27.9608V23.9608L20.0001 20.2808V24.2808L13.6401 27.9608Z" fill="#00ca00"></path>
-    <path d="M20 24.2808V20.2808L26.36 23.9608V27.9608L20 24.2808Z" fill="#70ff56"></path>
-    <path d="M26.3599 27.9608V23.9607L30.6099 21.5107L30.61 25.507L26.3599 27.9608Z" fill="#00ca00"></path>
-    <path d="M30.6102 18.1634V14.1609L24.2402 17.8408L27.6992 19.8391L30.6102 18.1634Z" fill="#00ca00"></path>
-</pattern></defs><rect width="800" height="800" fill="url(#mmmotif-pattern)"></rect></svg>
