@@ -56,7 +56,7 @@ import {
   subscribeToSettingsRealtime,
 } from "@/lib/settings-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
-import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
 import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
@@ -240,6 +240,7 @@ function injectFont() {
 }
 
 function DashboardLayout() {
+  const profile = getCachedProfile();
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -248,6 +249,12 @@ function DashboardLayout() {
       </SidebarInset>
       <MobileAppDrawer />
       <MobileAppInvitePopup />
+      <FeedbackWidget
+        schoolId={profile?.schoolId}
+        studentId={profile?.studentId}
+        browserInfo={getBrowserInfo()}
+        lectioVersion={getLectioVersion()}
+      />
       <Toaster position="bottom-right" />
     </SidebarProvider>
   );
@@ -255,10 +262,9 @@ function DashboardLayout() {
 
 function applyDarkMode(enabled: boolean) {
   document.documentElement.classList.toggle("dark", enabled);
-  setUserJotTheme(enabled ? "dark" : "light");
 }
 
-function getBrowserInfoForUserJot(): string {
+function getBrowserInfo(): string {
   const ua = navigator.userAgent;
   if (ua.includes("Firefox")) {
     const match = ua.match(/Firefox\/(\d+)/);
@@ -279,7 +285,7 @@ function getBrowserInfoForUserJot(): string {
   return "Ukendt browser";
 }
 
-function getLectioVersionForUserJot(): string {
+function getLectioVersion(): string {
   return (
     (document.getElementById("s_m_VersionInfoLink") ??
       document.getElementById("m_VersionInfoLink"))
@@ -653,7 +659,7 @@ function initLayout() {
       theme_id: currentTheme.themeId,
       language: getLocale(),
       extension_version: browser.runtime.getManifest().version,
-      lectio_version: getLectioVersionForUserJot(),
+      lectio_version: getLectioVersion(),
     });
     captureOncePerSession('extension loaded', phDistinctId, pageProps);
     void consumeLifecycleEvents().then((events) => {
@@ -879,29 +885,8 @@ function initLayout() {
     navigationObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
   if (cachedProfile) {
     (window as any).__IL_CACHED_PROFILE__ = cachedProfile;
-    if (cachedProfile.studentId) {
-      const version = browser.runtime.getManifest().version;
-      const lectioVersion = getLectioVersionForUserJot();
-      const browserInfo = getBrowserInfoForUserJot();
-      const profileFirstName = cachedProfile.fullName?.split(" ").filter(Boolean)[0];
-      const profileLastName = cachedProfile.fullName
-        ?.split(" ")
-        .filter(Boolean)
-        .slice(1)
-        .join(" ");
-      userJotIdentifyPayload = {
-        id: `${cachedProfile.schoolId ?? "lectio"}:${cachedProfile.studentId}`,
-        firstName: profileFirstName
-          ? `${profileFirstName} | BetterLectio ${version}`
-          : `BetterLectio ${version}`,
-        lastName: [profileLastName, `Lectio ${lectioVersion}`, browserInfo]
-          .filter(Boolean)
-          .join(" | "),
-      };
-    }
   }
 
   // Extract profile picture URL before modifying DOM (for immediate use)
@@ -1182,11 +1167,6 @@ function initLayout() {
 
       // Inject dark mode into CKEditor iframes (activity/elevfeedback pages)
       initCKEditorDarkMode();
-
-      // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
-      // Pass identify via dataset because the bootstrap runs in the page's main
-      // world and cannot read the isolated content-script's window globals.
-      initUserJotWidget(userJotIdentifyPayload ?? undefined);
 
       console.log("[BetterLectio] Dashboard layout injected");
     }

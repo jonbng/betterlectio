@@ -82,6 +82,17 @@ export interface AuthSignOutMessage {
   type: 'bl-sb:auth:signout';
 }
 
+/** Upload bytes to a private storage bucket (base64 payload from content scripts). */
+export interface StorageUploadMessage {
+  type: 'bl-sb:storage:upload';
+  bucket: string;
+  path: string;
+  /** Base64-encoded file body (no data: URL prefix). */
+  dataBase64: string;
+  contentType: string;
+  upsert?: boolean;
+}
+
 export type SupabaseMessage =
   | QueryMessage
   | MutateMessage
@@ -90,7 +101,8 @@ export type SupabaseMessage =
   | UnsubscribeMessage
   | AuthEnsureMessage
   | AuthGetSessionMessage
-  | AuthSignOutMessage;
+  | AuthSignOutMessage
+  | StorageUploadMessage;
 
 // ── Response ────────────────────────────────────────────────────────
 

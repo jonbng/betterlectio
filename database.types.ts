@@ -50,6 +50,266 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_attachments: {
+        Row: {
+          byte_size: number | null
+          created_at: string
+          feedback_id: string
+          height: number | null
+          id: string
+          kind: string
+          mime_type: string | null
+          storage_path: string
+          width: number | null
+        }
+        Insert: {
+          byte_size?: number | null
+          created_at?: string
+          feedback_id: string
+          height?: number | null
+          id?: string
+          kind: string
+          mime_type?: string | null
+          storage_path: string
+          width?: number | null
+        }
+        Update: {
+          byte_size?: number | null
+          created_at?: string
+          feedback_id?: string
+          height?: number | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          storage_path?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_attachments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_comments: {
+        Row: {
+          author_admin: string | null
+          author_kind: string
+          author_student_id: string | null
+          body: string
+          created_at: string
+          feedback_id: string
+          id: string
+          is_internal: boolean
+        }
+        Insert: {
+          author_admin?: string | null
+          author_kind: string
+          author_student_id?: string | null
+          body: string
+          created_at?: string
+          feedback_id: string
+          id?: string
+          is_internal?: boolean
+        }
+        Update: {
+          author_admin?: string | null
+          author_kind?: string
+          author_student_id?: string | null
+          body?: string
+          created_at?: string
+          feedback_id?: string
+          id?: string
+          is_internal?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_comments_author_student_id_fkey"
+            columns: ["author_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_comments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_items: {
+        Row: {
+          admin_notes: string | null
+          app_version: string | null
+          app_version_code: number | null
+          browser_info: string | null
+          build_type: string | null
+          category: string
+          created_at: string
+          device_manufacturer: string | null
+          device_model: string | null
+          duplicate_of: string | null
+          id: string
+          import_external_id: string | null
+          import_source: string | null
+          import_url: string | null
+          include_logs: boolean
+          last_status_changed_at: string | null
+          last_status_changed_by: string | null
+          lectio_version: string | null
+          locale: string | null
+          logs: string | null
+          message: string
+          os_version: string | null
+          platform: string
+          posthog_distinct_id: string | null
+          posthog_session_id: string | null
+          priority: number | null
+          school_id: number
+          status: string
+          student_id: string
+          supabase_uid: string
+          tags: string[]
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          app_version?: string | null
+          app_version_code?: number | null
+          browser_info?: string | null
+          build_type?: string | null
+          category: string
+          created_at?: string
+          device_manufacturer?: string | null
+          device_model?: string | null
+          duplicate_of?: string | null
+          id?: string
+          import_external_id?: string | null
+          import_source?: string | null
+          import_url?: string | null
+          include_logs?: boolean
+          last_status_changed_at?: string | null
+          last_status_changed_by?: string | null
+          lectio_version?: string | null
+          locale?: string | null
+          logs?: string | null
+          message: string
+          os_version?: string | null
+          platform: string
+          posthog_distinct_id?: string | null
+          posthog_session_id?: string | null
+          priority?: number | null
+          school_id: number
+          status?: string
+          student_id: string
+          supabase_uid: string
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          app_version?: string | null
+          app_version_code?: number | null
+          browser_info?: string | null
+          build_type?: string | null
+          category?: string
+          created_at?: string
+          device_manufacturer?: string | null
+          device_model?: string | null
+          duplicate_of?: string | null
+          id?: string
+          import_external_id?: string | null
+          import_source?: string | null
+          import_url?: string | null
+          include_logs?: boolean
+          last_status_changed_at?: string | null
+          last_status_changed_by?: string | null
+          lectio_version?: string | null
+          locale?: string | null
+          logs?: string | null
+          message?: string
+          os_version?: string | null
+          platform?: string
+          posthog_distinct_id?: string | null
+          posthog_session_id?: string | null
+          priority?: number | null
+          school_id?: number
+          status?: string
+          student_id?: string
+          supabase_uid?: string
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_items_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_items_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_items_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_status_events: {
+        Row: {
+          actor: string
+          created_at: string
+          feedback_id: string
+          from_status: string | null
+          id: string
+          note: string | null
+          to_status: string
+        }
+        Insert: {
+          actor: string
+          created_at?: string
+          feedback_id: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status: string
+        }
+        Update: {
+          actor?: string
+          created_at?: string
+          feedback_id?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_status_events_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       homework_entries: {
         Row: {
           display_date: string
@@ -812,6 +1072,18 @@ export type Database = {
           updated_at: string
         }[]
       }
+      register_feedback_attachment: {
+        Args: {
+          p_byte_size?: number
+          p_feedback_id: string
+          p_height?: number
+          p_kind: string
+          p_mime_type?: string
+          p_storage_path: string
+          p_width?: number
+        }
+        Returns: string
+      }
       reset_user_lesson_override_v2: {
         Args: {
           p_canonical_key: string
@@ -821,6 +1093,17 @@ export type Database = {
           p_student_id: string
         }
         Returns: undefined
+      }
+      submit_feedback: {
+        Args: {
+          p_category: string
+          p_context?: Json
+          p_message: string
+          p_platform: string
+          p_school_id: number
+          p_student_id: string
+        }
+        Returns: string
       }
       touch_student_last_seen: {
         Args: { p_school_id: number; p_student_id: string }

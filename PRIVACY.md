@@ -21,18 +21,18 @@ We only use limited data when it is necessary to provide BetterLectio features t
 
 - **Supabase**: We use Supabase to power optional BetterLectio features that require server-side storage, such as profile pages and private classroom chats. If you use those features, relevant data is stored in Supabase so the feature can work.
 - **PostHog**: We use PostHog only for error tracking and basic extension health monitoring for signed-in users. This helps us diagnose bugs and improve stability.
-- **UserJot**: We use UserJot for user feedback and bug reporting through `betterlectio.userjot.com`. It is only used if you explicitly open the widget and submit feedback, bug reports, or similar messages.
+- **Feedback (Supabase)**: Voluntary feedback and bug reports you submit in the extension or app are stored in our Supabase project. Screenshots and diagnostics you choose to attach are only visible to BetterLectio maintainers.
 
 ### What data may be sent to external services
 
 - **For Supabase-backed features**: Data you choose to create or update in BetterLectio features, such as profile information and private classroom chat content
 - **For authentication and account linking**: Limited information needed to connect your BetterLectio account to your Lectio identity, such as your student ID, school, and basic profile details
 - **For error tracking**: Technical information related to crashes and errors, plus limited account and school context needed to understand and fix the problem
-- **For feedback and bug reports**: Information you explicitly choose to submit through the UserJot widget
+- **For feedback and bug reports**: Information you explicitly choose to submit through the in-app feedback form
 
 We do not use this data for advertising, data brokerage, or cross-site tracking. We only use it to make BetterLectio features work and to keep the extension reliable.
 
-UserJot is not used for passive tracking. If you do not open the widget and submit something yourself, no feedback or bug report is sent.
+Feedback is not used for passive tracking. If you do not open the form and submit something yourself, no feedback or bug report is sent.
 
 ### What we do NOT do
 
@@ -54,7 +54,7 @@ BetterLectio uses the following service providers only to operate BetterLectio f
 
 - **Supabase** - data storage and authentication for optional BetterLectio features
 - **PostHog** - error tracking and reliability monitoring
-- **UserJot** - voluntary feedback and bug reporting
+- **Supabase** - voluntary feedback and bug reporting (when you submit)
 
 We do not sell personal data. We do not share personal data with third parties for advertising purposes.
 
@@ -74,4 +74,4 @@ https://github.com/jonbng/betterlectio/issues
 
 ---
 
-**Summary**: BetterLectio keeps data use minimal. We do not sell or share your data for advertising. We only use Supabase for optional BetterLectio features like profile pages and private classroom chats, PostHog for error tracking and stability, and UserJot if you explicitly submit feedback or bug reports.
+**Summary**: BetterLectio keeps data use minimal. We do not sell or share your data for advertising. We only use Supabase for optional BetterLectio features like profile pages, private classroom chats, and voluntary feedback you submit, and PostHog for error tracking and stability.

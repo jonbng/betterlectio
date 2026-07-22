@@ -65,7 +65,6 @@ import { getCachedSchoolDisplayName, cacheSchoolDisplayName } from '@/lib/school
 import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
-import { setUserJotTheme } from '@/lib/userjot';
 import { armBypass } from '@/lib/bypass-redesigns';
 import { captureBypassEngaged } from '@/lib/bypass-analytics';
 import { MOBILE_APP_INVITE_OPEN_EVENT } from '@/components/MobileAppInvitePopup';
@@ -736,7 +735,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               setIsDark(next);
               updateSetting('visual', 'darkMode', next);
               document.documentElement.classList.toggle('dark', next);
-              setUserJotTheme(next ? 'dark' : 'light');
             }}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
             title={isDark ? t('sidebar.lightModeTitle') : t('sidebar.darkModeTitle')}

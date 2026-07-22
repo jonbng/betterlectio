@@ -28,3 +28,9 @@ export type {
   UserSchoolThemeRow,
 } from './user-settings';
 export { maybeTouchLastSeen } from './student-activity';
+export { submitFeedback } from './feedback';
+export type {
+  FeedbackCategory,
+  FeedbackSubmitInput,
+  FeedbackSubmitResult,
+} from './feedback';

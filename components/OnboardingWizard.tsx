@@ -29,7 +29,6 @@ import {
   saveSettings,
   type FeatureSettings,
 } from '@/lib/settings-storage';
-import { setUserJotTheme } from '@/lib/userjot';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
 import {
@@ -249,7 +248,6 @@ export function OnboardingWizard({
     setSettings(newSettings as FeatureSettings);
     saveSettings(newSettings as FeatureSettings);
     document.documentElement.classList.toggle('dark', value);
-    setUserJotTheme(value ? 'dark' : 'light');
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {

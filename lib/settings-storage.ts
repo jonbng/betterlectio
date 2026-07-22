@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { syncOptOutToExtensionStorage } from '@/lib/posthog';
-import { setUserJotTheme } from '@/lib/userjot';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isSupportedLocale } from '@/lib/i18n/locales';
 import { setLocale } from '@/lib/i18n/state';
 
@@ -315,7 +314,6 @@ export function applySettingsSideEffects(
   if (prev.visual?.darkMode !== next.visual?.darkMode) {
     changed = true;
     document.documentElement.classList.toggle('dark', Boolean(next.visual?.darkMode));
-    setUserJotTheme(next.visual?.darkMode ? 'dark' : 'light');
   }
 
   if (prev.interface?.language !== next.interface?.language) {

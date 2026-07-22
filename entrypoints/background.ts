@@ -410,6 +410,36 @@ async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate'
   return { ok: true, data };
 }
 
+async function handleStorageUpload(
+  msg: Extract<SupabaseMessage, { type: 'bl-sb:storage:upload' }>,
+): Promise<SupabaseResponse> {
+  await ensureSessionReady();
+  const supabase = getSupabase();
+  try {
+    const binary = Uint8Array.from(atob(msg.dataBase64), (c) => c.charCodeAt(0));
+    const { error } = await supabase.storage.from(msg.bucket).upload(msg.path, binary, {
+      contentType: msg.contentType,
+      upsert: msg.upsert ?? false,
+    });
+    if (error) {
+      await captureSupabaseError(error, {
+        action: 'mutate',
+        method: 'storage_upload',
+        table: msg.bucket,
+      });
+      return { ok: false, error: error.message };
+    }
+    return { ok: true, data: { path: msg.path } };
+  } catch (err) {
+    await captureSupabaseError(err, {
+      action: 'mutate',
+      method: 'storage_upload',
+      table: msg.bucket,
+    });
+    return { ok: false, error: extractErrorMessage(err) || 'upload failed' };
+  }
+}
+
 async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): Promise<SupabaseResponse> {
   await ensureSessionReady();
   const supabase = getSupabase();
@@ -992,6 +1022,10 @@ export default defineBackground(() => {
 
       case 'bl-sb:rpc':
         handleRpc(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        return true;
+
+      case 'bl-sb:storage:upload':
+        handleStorageUpload(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
         return true;
 
       // ── Realtime ────────────────────────────────────────────────
