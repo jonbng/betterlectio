@@ -892,6 +892,40 @@ async function runEnsureSupabaseSession(
   }
 }
 
+async function mintWebsiteLoginOtp(): Promise<
+  SupabaseResponse & { token_hash?: string }
+> {
+  const supabase = getSupabase();
+  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (sessionErr || !accessToken) {
+    return { ok: false, error: 'not_signed_in' };
+  }
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/mint-website-login`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    const body = (await resp.json().catch(() => ({}))) as {
+      token_hash?: string;
+      error?: string;
+    };
+    if (!resp.ok || !body.token_hash) {
+      return { ok: false, error: body.error ?? `http_${resp.status}` };
+    }
+    return { ok: true, token_hash: body.token_hash };
+  } catch (err) {
+    console.error('[BetterLectio] mint-website-login failed', err);
+    return { ok: false, error: 'network_error' };
+  }
+}
+
 async function ensureSupabaseSession(
   qrData?: { qrId: string; userId: string },
   schoolId?: string,
@@ -1064,6 +1098,13 @@ export default defineBackground(() => {
       case 'bl-sb:auth:signout': {
         const supabase = getSupabase();
         supabase.auth.signOut().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+        return true;
+      }
+
+      case 'bl-sb:auth:mint-website-otp': {
+        mintWebsiteLoginOtp()
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false, error: 'mint_failed' }));
         return true;
       }
 

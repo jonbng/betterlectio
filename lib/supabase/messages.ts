@@ -82,6 +82,11 @@ export interface AuthSignOutMessage {
   type: 'bl-sb:auth:signout';
 }
 
+/** Mint a fresh magic-link token_hash for betterlectio.dk SSR login. */
+export interface AuthMintWebsiteOtpMessage {
+  type: 'bl-sb:auth:mint-website-otp';
+}
+
 /** Upload bytes to a private storage bucket (base64 payload from content scripts). */
 export interface StorageUploadMessage {
   type: 'bl-sb:storage:upload';
@@ -102,6 +107,7 @@ export type SupabaseMessage =
   | AuthEnsureMessage
   | AuthGetSessionMessage
   | AuthSignOutMessage
+  | AuthMintWebsiteOtpMessage
   | StorageUploadMessage;
 
 // ── Response ────────────────────────────────────────────────────────

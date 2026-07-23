@@ -14,6 +14,11 @@ export default defineContentScript({
   runAt: "document_end",
   main() {
     console.log("[BetterLectio] Login content script loaded");
+    // Capture website-login intent before any Lectio redirect strips ?bl_login=.
+    void import("@/lib/website-login").then(({ captureWebsiteLoginFromUrl, bootWebsiteLogin }) => {
+      captureWebsiteLoginFromUrl();
+      bootWebsiteLogin({ schoolId: null, studentId: null });
+    }).catch(() => {});
     initLoginPage();
   },
 });

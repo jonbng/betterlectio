@@ -10,6 +10,7 @@ type AuthSource =
   | 'hold-mapping-sync'
   | 'settings-sync'
   | 'rpc-unauthorized-retry'
+  | 'website-login'
   | 'unknown';
 
 // Dedupe is keyed by `schoolId:studentId` (or `schoolId:` when unknown) so

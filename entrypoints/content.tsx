@@ -83,7 +83,12 @@ const EXAM_BRICK_HUE = 95;
 export default defineContentScript({
   matches: ["*://*.lectio.dk/*"],
   main() {
-    // Content script loaded
+    // Capture website-login intent ASAP — Lectio redirects often strip ?bl_login=.
+    void import("@/lib/website-login")
+      .then(({ captureWebsiteLoginFromUrl }) => {
+        captureWebsiteLoginFromUrl();
+      })
+      .catch(() => {});
 
     // Listen for messages from background script (e.g., extension icon click)
     browser.runtime.onMessage.addListener((message) => {
@@ -613,11 +618,28 @@ function initLayout() {
     });
   }
 
+  // Website "Log ind med BetterLectio" broker — capture ?bl_login= and
+  // complete redirect once Lectio identity + Supabase session are ready.
+  void import('@/lib/website-login').then(({ bootWebsiteLogin }) => {
+    bootWebsiteLogin({
+      schoolId: schoolId ?? currentProfile?.schoolId ?? null,
+      studentId: currentProfile?.studentId ?? null,
+    });
+  }).catch(() => {});
+
   // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
   if (schoolId) {
     const bootstrapStudentId = currentProfile?.studentId ?? undefined;
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
-      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId);
+      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then(() => {
+        // Retry website login after session bootstrap in case we raced.
+        void import('@/lib/website-login').then(({ maybeCompleteWebsiteLogin }) => {
+          void maybeCompleteWebsiteLogin({
+            schoolId: schoolId ?? currentProfile?.schoolId ?? null,
+            studentId: currentProfile?.studentId ?? null,
+          });
+        }).catch(() => {});
+      });
     }).catch(() => {});
 
     // Stamp `students.last_seen_at` once per day so SQL consumers can answer
