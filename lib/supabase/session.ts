@@ -35,6 +35,16 @@ async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
   return resp;
 }
 
+/** Current background session metadata, or null if signed out. */
+export async function getSupabaseSessionMeta(): Promise<{
+  expires_at: number;
+  user_id?: string | null;
+} | null> {
+  const resp = await send({ type: 'bl-sb:auth:session' });
+  if (!resp.ok || !resp.session) return null;
+  return resp.session;
+}
+
 /**
  * Ensures a valid Supabase session exists. Runs silently — never throws.
  * Safe to call fire-and-forget from any content script.

@@ -82,13 +82,15 @@ const EXAM_BRICK_HUE = 95;
 
 export default defineContentScript({
   matches: ["*://*.lectio.dk/*"],
-  main() {
+  async main() {
     // Capture website-login intent ASAP — Lectio redirects often strip ?bl_login=.
-    void import("@/lib/website-login")
-      .then(({ captureWebsiteLoginFromUrl }) => {
-        captureWebsiteLoginFromUrl();
-      })
-      .catch(() => {});
+    // Await so early bounces below cannot race past persistPending.
+    try {
+      const { captureWebsiteLoginFromUrl } = await import("@/lib/website-login");
+      await captureWebsiteLoginFromUrl();
+    } catch {
+      // Non-critical.
+    }
 
     // Listen for messages from background script (e.g., extension icon click)
     browser.runtime.onMessage.addListener((message) => {

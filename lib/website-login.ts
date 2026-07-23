@@ -2,6 +2,8 @@
 // persist it (Lectio strips query params on redirect), then mint a
 // magic-link OTP via the background and redirect to betterlectio.dk.
 
+import { ensureSupabaseSession, getSupabaseSessionMeta } from '@/lib/supabase/session';
+
 const PENDING_KEY = 'bl-website-login-pending';
 const PENDING_TTL_MS = 5 * 60 * 1000;
 const WEBSITE_ORIGIN = 'https://betterlectio.dk';
@@ -14,12 +16,28 @@ type PendingLogin = {
 
 let completing = false;
 let toastEl: HTMLElement | null = null;
+let overlayEl: HTMLElement | null = null;
 
-export function captureWebsiteLoginFromUrl(): string | null {
+function mintErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case 'not_signed_in':
+      return 'Kunne ikke oprette session. Er du logget ind på Lectio?';
+    case 'network_error':
+      return 'Netværksfejl. Prøv igen.';
+    case 'No linked student':
+    case 'no_student':
+      return 'Ingen elevprofil fundet. Prøv at genindlæse Lectio.';
+    default:
+      return 'Kunne ikke logge ind. Prøv igen.';
+  }
+}
+
+/** Await storage write before returning so redirects cannot race past us. */
+export async function captureWebsiteLoginFromUrl(): Promise<string | null> {
   try {
     const state = new URLSearchParams(window.location.search).get('bl_login');
     if (!state || !STATE_RE.test(state)) return null;
-    void persistPending({ state, createdAt: Date.now() });
+    await persistPending({ state, createdAt: Date.now() });
     // Strip param so Lectio redirects don't look weird / re-trigger.
     const url = new URL(window.location.href);
     url.searchParams.delete('bl_login');
@@ -62,6 +80,7 @@ async function clearPending(): Promise<void> {
 }
 
 function showToast(message: string): void {
+  hideOverlay();
   if (toastEl) {
     toastEl.textContent = message;
     return;
@@ -97,6 +116,83 @@ function hideToast(): void {
   toastEl = null;
 }
 
+function showOverlay(message: string): void {
+  hideToast();
+  if (overlayEl) {
+    const label = overlayEl.querySelector('[data-bl-login-label]');
+    if (label) label.textContent = message;
+    return;
+  }
+
+  const root = document.createElement('div');
+  root.setAttribute('role', 'status');
+  root.setAttribute('aria-live', 'polite');
+  Object.assign(root.style, {
+    position: 'fixed',
+    inset: '0',
+    zIndex: '2147483647',
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    padding: '24px',
+    background: 'rgba(0,0,0,0.35)',
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+  });
+
+  const card = document.createElement('div');
+  Object.assign(card.style, {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    width: 'min(420px, 100%)',
+    padding: '16px 18px',
+    borderRadius: '16px',
+    background: '#111',
+    color: '#fff',
+    boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
+  });
+
+  const spinner = document.createElement('div');
+  Object.assign(spinner.style, {
+    width: '22px',
+    height: '22px',
+    borderRadius: '50%',
+    border: '2.5px solid rgba(255,255,255,0.25)',
+    borderTopColor: '#fff',
+    flexShrink: '0',
+    animation: 'bl-login-spin 0.7s linear infinite',
+  });
+
+  if (!document.getElementById('bl-login-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'bl-login-spin-style';
+    style.textContent =
+      '@keyframes bl-login-spin{to{transform:rotate(360deg)}}';
+    document.documentElement.appendChild(style);
+  }
+
+  const label = document.createElement('div');
+  label.setAttribute('data-bl-login-label', '');
+  label.textContent = message;
+  Object.assign(label.style, {
+    fontSize: '14px',
+    fontWeight: '600',
+    lineHeight: '1.4',
+  });
+
+  card.appendChild(spinner);
+  card.appendChild(label);
+  root.appendChild(card);
+  document.documentElement.appendChild(root);
+  overlayEl = root;
+}
+
+function hideOverlay(): void {
+  overlayEl?.remove();
+  overlayEl = null;
+}
+
 /**
  * If a pending website login exists and we have Lectio identity + a Supabase
  * session, mint an OTP and redirect this tab to the website callback.
@@ -118,40 +214,51 @@ export async function maybeCompleteWebsiteLogin(opts: {
   }
 
   completing = true;
-  showToast('Logger dig ind på BetterLectio…');
+  showOverlay('Logger dig ind på BetterLectio…');
 
   try {
-    const { ensureSupabaseSession } = await import('@/lib/supabase/session');
     await ensureSupabaseSession(schoolId, 'website-login', studentId);
+
+    const session = await getSupabaseSessionMeta();
+    if (!session) {
+      showToast(mintErrorMessage('not_signed_in'));
+      completing = false;
+      return false;
+    }
 
     const resp = (await browser.runtime.sendMessage({
       type: 'bl-sb:auth:mint-website-otp',
     })) as { ok: true; token_hash: string } | { ok: false; error?: string };
 
     if (!resp?.ok || !('token_hash' in resp) || !resp.token_hash) {
-      showToast(
-        resp && 'error' in resp && resp.error
-          ? `Kunne ikke logge ind: ${resp.error}`
-          : 'Kunne ikke logge ind. Prøv igen.',
-      );
+      showToast(mintErrorMessage(resp && 'error' in resp ? resp.error : undefined));
       completing = false;
       return false;
     }
 
-    await clearPending();
     const callback = new URL(`${WEBSITE_ORIGIN}/auth/callback`);
     callback.searchParams.set('token_hash', resp.token_hash);
     callback.searchParams.set('type', 'magiclink');
     callback.searchParams.set('state', pending.state);
+    // Navigate first so a failed assign doesn't burn the pending state.
     window.location.assign(callback.toString());
+    await clearPending();
     return true;
   } catch (err) {
     console.error('[website-login] complete failed', err);
-    showToast('Kunne ikke logge ind. Prøv igen.');
+    showToast(mintErrorMessage(undefined));
     completing = false;
-    hideToast();
     return false;
   }
+}
+
+/** Capture URL intent (awaited), then try to complete. */
+export async function captureAndBootWebsiteLogin(opts: {
+  schoolId: string | null | undefined;
+  studentId: string | null | undefined;
+}): Promise<void> {
+  await captureWebsiteLoginFromUrl();
+  await maybeCompleteWebsiteLogin(opts);
 }
 
 /** Capture URL intent (if any) and try to complete. Safe to call often. */
@@ -159,6 +266,5 @@ export function bootWebsiteLogin(opts: {
   schoolId: string | null | undefined;
   studentId: string | null | undefined;
 }): void {
-  captureWebsiteLoginFromUrl();
-  void maybeCompleteWebsiteLogin(opts);
+  void captureAndBootWebsiteLogin(opts);
 }

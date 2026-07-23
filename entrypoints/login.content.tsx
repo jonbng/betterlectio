@@ -3,6 +3,7 @@ import { LoginPage, type School } from "@/components/LoginPage";
 import { getCachedLoginState, clearLoginState } from "@/lib/profile-cache";
 import { getLastSchool } from "@/lib/school-storage";
 import { getSettings } from "@/lib/settings-storage";
+import { captureAndBootWebsiteLogin } from "@/lib/website-login";
 import "@/styles/globals.css";
 
 export default defineContentScript({
@@ -12,14 +13,11 @@ export default defineContentScript({
     "*://www.lectio.dk/lectio/login_list.aspx*",
   ],
   runAt: "document_end",
-  main() {
+  async main() {
     console.log("[BetterLectio] Login content script loaded");
-    // Capture website-login intent before any Lectio redirect strips ?bl_login=.
-    void import("@/lib/website-login").then(({ captureWebsiteLoginFromUrl, bootWebsiteLogin }) => {
-      captureWebsiteLoginFromUrl();
-      bootWebsiteLogin({ schoolId: null, studentId: null });
-    }).catch(() => {});
-    initLoginPage();
+    // Must finish persisting ?bl_login= before continueToLastSchool redirects.
+    await captureAndBootWebsiteLogin({ schoolId: null, studentId: null });
+    await initLoginPage();
   },
 });
 
