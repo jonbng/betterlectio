@@ -549,6 +549,10 @@ function initLayout() {
       trackPotentialLectioSessionLoss('login_aspx');
       updateLoginState(); // This will detect not logged in and clear the cache
     }
+    // Still broker website login (toast: log in on Lectio) — UI inject is skipped.
+    void import('@/lib/website-login').then(({ bootWebsiteLogin }) => {
+      bootWebsiteLogin({ schoolId: null, studentId: null });
+    }).catch(() => {});
     document.documentElement.classList.add("il-ready");
     return;
   }
@@ -564,6 +568,14 @@ function initLayout() {
     if (isSchoolPage && !hasMainHeader && !isPrintPage) {
       trackPotentialLectioSessionLoss('school_page_without_header');
       updateLoginState(); // This will detect not logged in and clear the cache
+    }
+
+    // Homepage / login_list have no master header — still run the website-login
+    // broker so a pending ?bl_login= can toast / complete after Lectio sign-in.
+    if (!isPrintPage) {
+      void import('@/lib/website-login').then(({ bootWebsiteLogin }) => {
+        bootWebsiteLogin({ schoolId: null, studentId: null });
+      }).catch(() => {});
     }
 
     // Still reveal the page

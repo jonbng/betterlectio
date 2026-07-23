@@ -1,23 +1,21 @@
 // Referral finalize endpoint.
 //
-// Called by the extension after a fresh QR-auth so we can attribute the
-// install back to whoever shared the referral link. The extension passes
-// `credentials: 'include'` plus an `Authorization: Bearer <jwt>` header;
-// the cookie (`bl_ref`) was set on this same `*.supabase.co` origin by the
-// `referral-click` function.
+// Called after a fresh install so we can attribute the invitee back to
+// whoever shared the referral link.
+//
+// Extension: credentialed fetch with `bl_ref` HttpOnly cookie on *.supabase.co.
+// Android: POST body `{ cookieId }` from Play Install Referrer (no cookie).
 //
 // Attribution is first-install-only and never overwrites:
 //   • Self-referral → rejected
 //   • Student already has `referred_by` → rejected
-//   • Student's `extension_installed_at` is older than 7d → returning user,
-//     rejected. Only fresh installs get attributed; otherwise the extension
-//     would re-attribute every time someone clears site data.
+//   • Fresh-install window (7d) based on platform:
+//       extension → extension_installed_at
+//       android   → app_installed_at
 //   • Click row older than 180d → expired
 //
-// On success we update both rows atomically (via two updates in a single
-// request — this is fine because each is keyed on a unique PK and gated by
-// idempotent `where … is null` clauses). The cookie is cleared regardless
-// of outcome so this is at-most-once per cookie.
+// On success we also stamp the referrer's `referral_reward_unlocked_at`
+// once they reach REFERRAL_UNLOCK_THRESHOLD attributed invites.
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.49.8';
 
@@ -33,6 +31,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ELEVID_RE = /^[0-9A-Za-z_-]{1,48}$/;
 const FRESH_INSTALL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const CLICK_EXPIRY_MS = 180 * 24 * 60 * 60 * 1000;
+const REFERRAL_UNLOCK_THRESHOLD = 3;
+
+type Platform = 'android' | 'extension';
 
 type RejectionReason =
   | 'no_cookie'
@@ -101,6 +102,7 @@ async function recordRejection(
   reason: RejectionReason,
   studentId: string | null,
   referrerStudentId: string | null,
+  platform: Platform,
 ): Promise<void> {
   if (clickId) {
     try {
@@ -118,8 +120,47 @@ async function recordRejection(
     await capturePostHog('referral attribution rejected', `lectio:${studentId}`, {
       reason,
       referrer_student_id: referrerStudentId,
+      platform,
     });
   }
+}
+
+async function maybeUnlockReferrer(
+  supabaseAdmin: SupabaseClient,
+  referrerStudentId: string,
+  nowIso: string,
+): Promise<boolean> {
+  const { count, error } = await supabaseAdmin
+    .from('students')
+    .select('id', { count: 'exact', head: true })
+    .eq('referred_by', referrerStudentId);
+
+  if (error) {
+    console.warn('[referral-finalize] unlock count failed', error);
+    return false;
+  }
+  if ((count ?? 0) < REFERRAL_UNLOCK_THRESHOLD) return false;
+
+  const { data: unlocked, error: unlockErr } = await supabaseAdmin
+    .from('students')
+    .update({ referral_reward_unlocked_at: nowIso })
+    .eq('id', referrerStudentId)
+    .is('referral_reward_unlocked_at', null)
+    .select('id');
+
+  if (unlockErr) {
+    console.warn('[referral-finalize] unlock stamp failed', unlockErr);
+    return false;
+  }
+
+  if (unlocked && unlocked.length > 0) {
+    await capturePostHog('referral unlock earned', `lectio:${referrerStudentId}`, {
+      threshold: REFERRAL_UNLOCK_THRESHOLD,
+      conversions: count,
+    });
+    return true;
+  }
+  return false;
 }
 
 Deno.serve(async (req: Request) => {
@@ -133,7 +174,13 @@ Deno.serve(async (req: Request) => {
 
   const clearCookie = { 'Set-Cookie': clearCookieHeader() };
 
-  let body: { studentId?: unknown; schoolId?: unknown; extensionVersion?: unknown; installReason?: unknown };
+  let body: {
+    studentId?: unknown;
+    schoolId?: unknown;
+    extensionVersion?: unknown;
+    cookieId?: unknown;
+    platform?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -143,6 +190,9 @@ Deno.serve(async (req: Request) => {
   const studentId = typeof body.studentId === 'string' ? body.studentId : '';
   const schoolId = typeof body.schoolId === 'number' ? body.schoolId : null;
   const extensionVersion = typeof body.extensionVersion === 'string' ? body.extensionVersion : null;
+  const platform: Platform = body.platform === 'android' ? 'android' : 'extension';
+  const cookieFromBody =
+    typeof body.cookieId === 'string' && UUID_RE.test(body.cookieId) ? body.cookieId : null;
 
   if (!studentId || !ELEVID_RE.test(studentId)) {
     return jsonResponse({ error: 'Invalid studentId' }, 400);
@@ -174,7 +224,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: student, error: studentErr } = await supabaseAdmin
     .from('students')
-    .select('id, supabase_id, referred_by, extension_installed_at, name, school_id')
+    .select('id, supabase_id, referred_by, extension_installed_at, app_installed_at, name, school_id')
     .eq('id', studentId)
     .maybeSingle();
 
@@ -182,19 +232,19 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 
-  // Now read the cookie.
-  const cookie = parseCookie(req, COOKIE_NAME);
+  // Resolve cookie_id: body (Android Install Referrer) wins, else HttpOnly cookie.
+  const cookieFromHeader = parseCookie(req, COOKIE_NAME);
+  const cookie = cookieFromBody ?? cookieFromHeader;
+  const responseExtra = cookieFromHeader ? clearCookie : undefined;
+
   if (!cookie) {
-    // No cookie at all → silent no-op, nothing to clear.
     return jsonResponse({ attributed: false, reason: 'no_cookie' satisfies RejectionReason });
   }
   if (!UUID_RE.test(cookie)) {
-    // Malformed cookie value (corrupted/manually set/version mismatch).
-    // Clear it so it doesn't poison every future finalize call.
     return jsonResponse(
       { attributed: false, reason: 'unknown_cookie' satisfies RejectionReason },
       200,
-      clearCookie,
+      responseExtra,
     );
   }
 
@@ -208,29 +258,36 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(
       { attributed: false, reason: 'unknown_cookie' satisfies RejectionReason },
       200,
-      clearCookie,
+      responseExtra,
     );
   }
 
   const reject = async (reason: RejectionReason) => {
-    await recordRejection(supabaseAdmin, click.id, reason, studentId, click.referrer_student_id);
-    return jsonResponse({ attributed: false, reason }, 200, clearCookie);
+    await recordRejection(
+      supabaseAdmin,
+      click.id,
+      reason,
+      studentId,
+      click.referrer_student_id,
+      platform,
+    );
+    return jsonResponse({ attributed: false, reason }, 200, responseExtra);
   };
 
   if (click.converted_at || click.expired_at) {
     return jsonResponse(
       { attributed: false, reason: 'unknown_cookie' satisfies RejectionReason },
       200,
-      clearCookie,
+      responseExtra,
     );
   }
 
   if (click.referrer_student_id === studentId) return reject('self_referral');
   if (student.referred_by) return reject('already_referred');
 
-  const installedAt = student.extension_installed_at
-    ? new Date(student.extension_installed_at).getTime()
-    : null;
+  const installedAtRaw =
+    platform === 'android' ? student.app_installed_at : student.extension_installed_at;
+  const installedAt = installedAtRaw ? new Date(installedAtRaw).getTime() : null;
   if (installedAt && Date.now() - installedAt > FRESH_INSTALL_WINDOW_MS) {
     return reject('returning_user');
   }
@@ -238,9 +295,6 @@ Deno.serve(async (req: Request) => {
   const clickAge = Date.now() - new Date(click.created_at).getTime();
   if (clickAge > CLICK_EXPIRY_MS) return reject('expired');
 
-  // Validate the referrer still exists (they could have been deleted; `on
-  // delete cascade` would have already removed the click in that case, but
-  // be defensive).
   const { data: referrer } = await supabaseAdmin
     .from('students')
     .select('id, name')
@@ -252,12 +306,6 @@ Deno.serve(async (req: Request) => {
   // ── Attribute ────────────────────────────────────────────────────────
   const nowIso = new Date().toISOString();
 
-  // `.is('referred_by', null)` is an idempotency guard against a
-  // concurrent finalize beating us to it. We need `.select()` to know
-  // whether our update actually landed — without it, `error: null` is
-  // returned even when 0 rows matched and we'd happily mark the click
-  // as "ours" while another finalize already attributed the student
-  // to a different referrer.
   const { data: updatedStudents, error: studentUpdateErr } = await supabaseAdmin
     .from('students')
     .update({
@@ -274,23 +322,21 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(
       { error: 'Could not attribute', stage: 'student-update' },
       500,
-      clearCookie,
+      responseExtra,
     );
   }
 
   if (!updatedStudents || updatedStudents.length === 0) {
-    // Lost a race — another finalize already set `referred_by` to a
-    // different referrer between our SELECT and UPDATE. Don't touch
-    // the click row; clear the cookie so we stop trying.
     console.warn('[referral-finalize] lost attribution race for', studentId);
     await capturePostHog('referral attribution rejected', `lectio:${studentId}`, {
       reason: 'race_lost',
       referrer_student_id: click.referrer_student_id,
+      platform,
     });
     return jsonResponse(
       { attributed: false, reason: 'already_referred' satisfies RejectionReason },
       200,
-      clearCookie,
+      responseExtra,
     );
   }
 
@@ -302,8 +348,13 @@ Deno.serve(async (req: Request) => {
 
   if (clickUpdateErr) {
     console.warn('[referral-finalize] click update failed', clickUpdateErr);
-    // Student already attributed — keep going, just return success.
   }
+
+  const unlocked = await maybeUnlockReferrer(
+    supabaseAdmin,
+    click.referrer_student_id,
+    nowIso,
+  );
 
   await capturePostHog('referral attributed', `lectio:${studentId}`, {
     referrer_student_id: click.referrer_student_id,
@@ -311,6 +362,8 @@ Deno.serve(async (req: Request) => {
     school_id: schoolId ?? student.school_id ?? null,
     extension_version: extensionVersion,
     country: click.country,
+    platform,
+    referrer_unlocked: unlocked,
   });
 
   return jsonResponse(
@@ -318,8 +371,9 @@ Deno.serve(async (req: Request) => {
       attributed: true,
       referrerStudentId: click.referrer_student_id,
       referrerName: referrer.name ?? null,
+      referrerUnlocked: unlocked,
     },
     200,
-    clearCookie,
+    responseExtra,
   );
 });

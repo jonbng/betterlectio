@@ -57,6 +57,14 @@ export interface ViewedPerson extends ViewedEntity {
 
 export function getCachedProfile(): UserProfile | null {
   const schoolId = getCurrentSchoolId();
+  return getCachedProfileForSchool(schoolId);
+}
+
+/**
+ * Read a profile for a known school while on a non-school page such as
+ * /lectio/login_list.aspx. getCachedProfile() cannot infer the school there.
+ */
+export function getCachedProfileForSchool(schoolId: string | null): UserProfile | null {
   try {
     const scoped = localStorage.getItem(getProfileCacheKey(schoolId));
     if (scoped) return JSON.parse(scoped);

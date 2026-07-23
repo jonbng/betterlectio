@@ -1,9 +1,13 @@
 // Referral click endpoint.
 //
-// Flow: betterlectio.dk/r/{elevid}  →  302  →  this function  →  302 /download
-// The website route hands off to this function so we can set a cookie on the
-// `*.supabase.co` domain — the extension can later read it via a credentialed
-// fetch back to `referral-finalize` on the same origin.
+// Flow: betterlectio.dk/r/{elevid}  →  302  →  this function  →  302
+//   • Android UA → Google Play with Install Referrer `bl_ref={cookie_id}`
+//   • Everyone else → /download?ref=1&bl_ref={cookie_id} (extension path)
+//
+// The website route hands off here so we can set a cookie on the
+// `*.supabase.co` domain — the extension reads it during finalize.
+// Android cannot use that cookie, so we also embed cookie_id in the
+// Play Install Referrer string.
 //
 // Side effects:
 //   • Insert one row in `referral_clicks` capturing UA / referer / hashed IP /
@@ -24,24 +28,12 @@ const corsHeaders: Record<string, string> = {
 };
 
 const ELEVID_RE = /^[0-9A-Za-z_-]{1,48}$/;
-const DOWNLOAD_URL = 'https://betterlectio.dk/download?ref=1';
+const DOWNLOAD_BASE = 'https://betterlectio.dk/download?ref=1';
+const PLAY_STORE_BASE =
+  'https://play.google.com/store/apps/details?id=dk.betterlectio.android';
 const COOKIE_NAME = 'bl_ref';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // 180d
 
-// Stable salt for IP hashing. The point of hashing here is twofold:
-//   (1) we never want to store raw IPs;
-//   (2) `count(distinct ip_hash)` should give us the number of unique
-//       people who clicked a link.
-//
-// (2) requires a STABLE salt — if the salt rotates per day, the same IP
-// on two days produces two hashes and `unique_clickers` overcounts. The
-// previous daily-rotated salt also leaked: the format was in source so
-// any past day's salt could be derived, providing no real privacy.
-//
-// Set `BL_IP_HASH_SALT` as a Supabase edge function secret to a long
-// random string. The fallback keeps the function operating in dev/
-// preview environments without requiring secret setup, but production
-// should always have the secret set.
 function ipSalt(): string {
   const v = Deno.env.get('BL_IP_HASH_SALT');
   return v && v.length > 0 ? v : 'bl-referral-static-fallback';
@@ -68,6 +60,21 @@ function refererHost(referer: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+function isAndroidUa(ua: string | null): boolean {
+  if (!ua) return false;
+  return /Android/i.test(ua) && !/Windows Phone/i.test(ua);
+}
+
+function downloadUrl(cookieId?: string): string {
+  if (!cookieId) return DOWNLOAD_BASE;
+  return `${DOWNLOAD_BASE}&bl_ref=${encodeURIComponent(cookieId)}`;
+}
+
+function playStoreUrl(cookieId: string): string {
+  const referrer = encodeURIComponent(`${COOKIE_NAME}=${cookieId}`);
+  return `${PLAY_STORE_BASE}&referrer=${referrer}`;
 }
 
 function redirectResponse(location: string, cookie?: string): Response {
@@ -111,11 +118,13 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const ref = (url.searchParams.get('ref') ?? '').trim();
+  const userAgent = req.headers.get('user-agent');
+  const android = isAndroidUa(userAgent);
 
-  // Always end on /download — a malformed link is worse than a slightly
+  // Always end somewhere useful — a malformed link is worse than a slightly
   // wrong-feeling redirect.
   if (!ref || !ELEVID_RE.test(ref)) {
-    return redirectResponse(DOWNLOAD_URL);
+    return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
   }
 
   try {
@@ -135,12 +144,12 @@ Deno.serve(async (req: Request) => {
     if (!referrer) {
       await capturePostHog('referral link clicked invalid', `lectio:${ref}`, {
         reason: 'unknown_referrer',
+        platform: android ? 'android' : 'web',
       });
-      return redirectResponse(DOWNLOAD_URL);
+      return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
     }
 
     const cookieId = crypto.randomUUID();
-    const userAgent = req.headers.get('user-agent');
     const referer = req.headers.get('referer');
     const country =
       req.headers.get('cf-ipcountry') ?? req.headers.get('x-vercel-ip-country');
@@ -172,8 +181,9 @@ Deno.serve(async (req: Request) => {
       console.error('[referral-click] insert failed', insertError);
       await capturePostHog('referral link clicked invalid', `lectio:${ref}`, {
         reason: 'insert_failed',
+        platform: android ? 'android' : 'web',
       });
-      return redirectResponse(DOWNLOAD_URL);
+      return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
     }
 
     const cookie = [
@@ -190,11 +200,14 @@ Deno.serve(async (req: Request) => {
       referer_host: refererHost(referer),
       has_referer: !!referer,
       school_id: referrer.school_id,
+      platform: android ? 'android' : 'web',
+      redirect: android ? 'play_store' : 'download',
     });
 
-    return redirectResponse(DOWNLOAD_URL, cookie);
+    const destination = android ? playStoreUrl(cookieId) : downloadUrl(cookieId);
+    return redirectResponse(destination, cookie);
   } catch (err) {
     console.error('[referral-click] unhandled', err);
-    return redirectResponse(DOWNLOAD_URL);
+    return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
   }
 });

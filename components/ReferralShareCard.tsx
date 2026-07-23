@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from "@/lib/posthog";
 import { getCachedProfile } from "@/lib/profile-cache";
-import { buildReferralUrl, getReferralStats, type ReferralStats } from "@/lib/supabase/resources/referrals";
+import { buildReferralUrl, getReferralStats, referralUnlockProgress, type ReferralStats } from "@/lib/supabase/resources/referrals";
 import {
   getPreferredStudentDisplayName,
   getPreferredStudentPictureUrl,
@@ -67,7 +67,7 @@ export function ReferralShareCard() {
     try {
       await navigator.share({
         title: "BetterLectio",
-        text: "Prøv BetterLectio — gør Lectio suverent bedre.",
+        text: "Prøv BetterLectio — Lectio der faktisk virker. Del med din klasse.",
         url: shareUrl,
       });
       if (studentId) {
@@ -91,11 +91,36 @@ export function ReferralShareCard() {
   const conversions = stats?.conversions ?? 0;
   const clicks = stats?.totalClicks ?? 0;
   const recents = stats?.recentReferrals ?? [];
+  const unlock = referralUnlockProgress(conversions);
   const canNativeShare =
     typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   return (
     <>
+      <div className="mx-4 mt-4 rounded-lg border border-border bg-muted/40 px-3 py-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="text-[0.65rem] font-mono font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {unlock.unlocked ? "Tilpasning låst op" : "Lås tilpasning op"}
+          </div>
+          <div className="text-sm font-semibold tabular-nums text-foreground">
+            {loadingStats ? "…" : `${Math.min(conversions, unlock.target)}/${unlock.target}`}
+          </div>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-300 ease-[var(--ease-out)]"
+            style={{
+              width: `${loadingStats ? 0 : (Math.min(conversions, unlock.target) / unlock.target) * 100}%`,
+            }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {unlock.unlocked
+            ? "Du har inviteret nok klassekammerater — tilpasning kommer snart."
+            : `Inviter ${unlock.remaining} klassekammerat${unlock.remaining === 1 ? "" : "er"} mere for at låse tilpasning op.`}
+        </p>
+      </div>
+
       <div className="flex flex-col gap-2 p-4 sm:flex-row">
         <div className="flex-1 min-w-0 rounded-md border border-border bg-background px-3 py-2">
           <div className="text-[0.65rem] font-mono font-semibold uppercase tracking-[0.14em] text-muted-foreground">

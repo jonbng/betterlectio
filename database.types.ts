@@ -789,6 +789,7 @@ export type Database = {
           name: string | null
           pfp_hash: string | null
           referral_click_id: string | null
+          referral_reward_unlocked_at: string | null
           referred_at: string | null
           referred_by: string | null
           school_id: number
@@ -820,6 +821,7 @@ export type Database = {
           name?: string | null
           pfp_hash?: string | null
           referral_click_id?: string | null
+          referral_reward_unlocked_at?: string | null
           referred_at?: string | null
           referred_by?: string | null
           school_id: number
@@ -851,6 +853,7 @@ export type Database = {
           name?: string | null
           pfp_hash?: string | null
           referral_click_id?: string | null
+          referral_reward_unlocked_at?: string | null
           referred_at?: string | null
           referred_by?: string | null
           school_id?: number
