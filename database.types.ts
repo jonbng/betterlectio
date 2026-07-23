@@ -159,17 +159,24 @@ export type Database = {
           import_source: string | null
           import_url: string | null
           include_logs: boolean
+          is_public: boolean
           last_status_changed_at: string | null
           last_status_changed_by: string | null
           lectio_version: string | null
           locale: string | null
           logs: string | null
+          made_public_at: string | null
           message: string
           os_version: string | null
           platform: string
           posthog_distinct_id: string | null
           posthog_session_id: string | null
           priority: number | null
+          public_description: string | null
+          public_title: string | null
+          roadmap_eta: string | null
+          roadmap_sort: number | null
+          roadmap_vote_count: number
           school_id: number
           status: string
           student_id: string
@@ -194,17 +201,24 @@ export type Database = {
           import_source?: string | null
           import_url?: string | null
           include_logs?: boolean
+          is_public?: boolean
           last_status_changed_at?: string | null
           last_status_changed_by?: string | null
           lectio_version?: string | null
           locale?: string | null
           logs?: string | null
+          made_public_at?: string | null
           message: string
           os_version?: string | null
           platform: string
           posthog_distinct_id?: string | null
           posthog_session_id?: string | null
           priority?: number | null
+          public_description?: string | null
+          public_title?: string | null
+          roadmap_eta?: string | null
+          roadmap_sort?: number | null
+          roadmap_vote_count?: number
           school_id: number
           status?: string
           student_id: string
@@ -229,17 +243,24 @@ export type Database = {
           import_source?: string | null
           import_url?: string | null
           include_logs?: boolean
+          is_public?: boolean
           last_status_changed_at?: string | null
           last_status_changed_by?: string | null
           lectio_version?: string | null
           locale?: string | null
           logs?: string | null
+          made_public_at?: string | null
           message?: string
           os_version?: string | null
           platform?: string
           posthog_distinct_id?: string | null
           posthog_session_id?: string | null
           priority?: number | null
+          public_description?: string | null
+          public_title?: string | null
+          roadmap_eta?: string | null
+          roadmap_sort?: number | null
+          roadmap_vote_count?: number
           school_id?: number
           status?: string
           student_id?: string
@@ -515,6 +536,35 @@ export type Database = {
             columns: ["referrer_student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmap_votes: {
+        Row: {
+          created_at: string
+          feedback_id: string
+          id: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_id: string
+          id?: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_id?: string
+          id?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_votes_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
             referencedColumns: ["id"]
           },
         ]
