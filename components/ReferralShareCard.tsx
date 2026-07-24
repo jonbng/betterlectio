@@ -67,7 +67,7 @@ export function ReferralShareCard() {
     try {
       await navigator.share({
         title: "BetterLectio",
-        text: "Prøv BetterLectio — Lectio der faktisk virker. Del med din klasse.",
+        text: "Prøv BetterLectio. Lectio der faktisk virker. Del med din klasse.",
         url: shareUrl,
       });
       if (studentId) {
@@ -116,7 +116,7 @@ export function ReferralShareCard() {
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {unlock.unlocked
-            ? "Du har inviteret nok klassekammerater — tilpasning kommer snart."
+            ? "Du har inviteret nok klassekammerater. Tilpasning kommer snart."
             : `Inviter ${unlock.remaining} klassekammerat${unlock.remaining === 1 ? "" : "er"} mere for at låse tilpasning op.`}
         </p>
       </div>

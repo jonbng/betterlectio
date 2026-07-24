@@ -123,8 +123,8 @@ export default defineContentScript({
       const name = payload.referrerName;
       toast.success(
         name
-          ? `Tak — du blev inviteret af ${name}!`
-          : "Tak — din invitation er registreret!",
+          ? `Tak, du blev inviteret af ${name}!`
+          : "Tak, din invitation er registreret!",
         { duration: 8000 },
       );
       // Clear the key so it doesn't re-fire on the next page load. The
