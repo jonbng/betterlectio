@@ -549,9 +549,10 @@ function initLayout() {
       trackPotentialLectioSessionLoss('login_aspx');
       updateLoginState(); // This will detect not logged in and clear the cache
     }
-    // Still broker website login (toast: log in on Lectio) — UI inject is skipped.
-    void import('@/lib/website-login').then(({ bootWebsiteLogin }) => {
-      bootWebsiteLogin({ schoolId: null, studentId: null });
+    // A real login form is relevant here. Keep the pending broker state, but
+    // don't cover the credentials UI; the next authenticated page completes it.
+    void import('@/lib/website-login').then(({ hideWebsiteLoginOverlay }) => {
+      hideWebsiteLoginOverlay();
     }).catch(() => {});
     document.documentElement.classList.add("il-ready");
     return;

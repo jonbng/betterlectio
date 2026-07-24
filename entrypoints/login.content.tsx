@@ -30,11 +30,13 @@ export default defineContentScript({
         broker.showWebsiteLoginOverlay("Logger dig ind på BetterLectio…");
 
         const loginState = getCachedLoginState();
+        const lastSchoolId =
+          getLastSchool()?.url.match(/\/lectio\/(\d+)\//)?.[1] ?? null;
         const schoolId =
-          loginState?.isLoggedIn ? loginState.schoolId : null;
+          (loginState?.isLoggedIn ? loginState.schoolId : null) ?? lastSchoolId;
         const profile = getCachedProfileForSchool(schoolId);
 
-        if (schoolId && profile?.studentId) {
+        if (loginState?.isLoggedIn && schoolId && profile?.studentId) {
           await broker.maybeCompleteWebsiteLogin({
             schoolId,
             studentId: profile.studentId,

@@ -81,8 +81,14 @@ export default defineContentScript({
     }
     if (!pendingState || !STATE_RE.test(pendingState)) return;
 
-    // Cover Lectio before its login/school-picker UI paints.
-    showLoginScreen();
+    // Cover irrelevant Lectio chrome before it paints. If Lectio genuinely
+    // needs credentials/UniLogin, that authentication UI must remain usable.
+    const isActualLoginPage =
+      /\/lectio\/\d+\/login\.aspx$/i.test(window.location.pathname) ||
+      /\/lectio\/integration\//i.test(window.location.pathname);
+    if (!isActualLoginPage) {
+      showLoginScreen();
+    }
 
     try {
       sessionStorage.setItem(
