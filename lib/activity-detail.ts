@@ -661,6 +661,10 @@ function ensureActivityDoc(doc: Document): void {
   }
 }
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException ? err.name === 'AbortError' : err instanceof Error && err.name === 'AbortError';
+}
+
 async function fetchActivityDoc(url: string, init?: RequestInit): Promise<{ doc: Document; url: string }> {
   const response = await fetch(url, {
     credentials: "include",
@@ -684,7 +688,13 @@ export async function fetchActivityDetail(url: string, signal?: AbortSignal): Pr
     return parseActivityDetail(doc, resolvedUrl);
   } catch (err) {
     if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
-    captureException(err, undefined, { source: 'activity-detail', url });
+    // Aborts are expected: the brick-tooltip cancels its in-flight fetch on
+    // every mouse-out (lib/brick-tooltip.ts), so normal hovering would
+    // otherwise report an `AbortError` on each mouse-out. Rethrow so callers
+    // still cancel cleanly, but don't report it as an error-tracking issue.
+    if (!isAbortError(err)) {
+      captureException(err, undefined, { source: 'activity-detail', url });
+    }
     throw err;
   }
 }
