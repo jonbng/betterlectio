@@ -10,6 +10,12 @@ import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/s
 import { capture, captureException, identify, getDistinctId, isLectioStudentDistinctId, loadOptOutFlag } from '@/lib/posthog';
 import { queueLifecycleEvent } from '@/lib/posthog-lifecycle';
 import { maybeFinalizeReferral } from '@/lib/referral';
+import {
+  extractSupabaseErrorMessage as extractErrorMessage,
+  isTransientNetworkError,
+  isAuthOwnershipError,
+  isExpiredJwtError,
+} from '@/lib/supabase-error-noise';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -223,40 +229,6 @@ async function getAnalyticsIdentity(context?: {
   }
 }
 
-function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  if (typeof (error as { message?: unknown })?.message === 'string') {
-    return (error as { message: string }).message;
-  }
-  return '';
-}
-
-// Transient network failures ("Failed to fetch", offline, service-worker
-// shutdown mid-request, blocker extensions, aborted requests, etc.) are not
-// actionable bugs — they're noise. Supabase's SDK surfaces these as error
-// objects with a `Failed to fetch` / `NetworkError` message, and posthog-node
-// wraps them with a synthetic stack that all points at its own internals.
-// Suppress them before they burn PostHog free-tier quota.
-function isTransientNetworkError(error: unknown): boolean {
-  const message = extractErrorMessage(error);
-  if (!message) return false;
-  return /failed to fetch|networkerror|network request failed|load failed|err_network|err_internet_disconnected|the user aborted|request aborted|signal is aborted/i.test(message);
-}
-
-// RPC ownership-check errors from our security-definer functions (lesson
-// mapping + homework status upserts). These raise `'Unauthorized'` when
-// `students.supabase_id != auth.uid()` for the targeted student/school —
-// i.e. the session is stale or never owned this student. The content-
-// script `sendRpc` now force-reauths and retries once on these, so every
-// such error is either about to be recovered or represents a user who is
-// logged out of Lectio (recovery impossible). Either way, not actionable.
-function isAuthOwnershipError(error: unknown): boolean {
-  const message = extractErrorMessage(error);
-  if (!message) return false;
-  return /\bunauthorized\b/i.test(message);
-}
-
 // Non-actionable PostgREST query-contract errors. The caller already receives
 // the error via the query response and handles it (null fallback, retry, etc.).
 // Reporting these as exceptions is noise — posthog-edge synthesizes an
@@ -272,23 +244,6 @@ function isNonActionablePostgrestError(error: unknown): boolean {
   // PGRST116 = "Cannot coerce the result to a single JSON object" — query
   // returned the wrong row count for a single-row accessor.
   return code === 'PGRST116';
-}
-
-// Expired-JWT errors are a self-recovering auth-transition state, not a bug.
-// `ensureSessionReady()` refreshes the access token before each query, but its
-// catch block deliberately lets the request run anyway when the refresh fails
-// (revoked refresh_token, network) — PostgREST then rejects it with "JWT
-// expired" (code PGRST301). The next request re-auths via the QR flow, so this
-// recovers on its own; reporting it just burns PostHog free-tier quota. Mirrors
-// the PGRST116 / Unauthorized suppressions above.
-function isExpiredJwtError(error: unknown): boolean {
-  const code = typeof (error as { code?: unknown })?.code === 'string'
-    ? (error as { code: string }).code
-    : '';
-  if (code === 'PGRST301') return true;
-  const message = extractErrorMessage(error);
-  if (!message) return false;
-  return /\bjwt expired\b/i.test(message);
 }
 
 async function captureSupabaseError(

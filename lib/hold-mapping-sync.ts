@@ -6,6 +6,7 @@ import {
 import { captureException, getDistinctId } from '@/lib/posthog';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { isAuthenticated } from '@/lib/supabase/client';
+import { isNonActionableSupabaseError } from '@/lib/supabase-error-noise';
 import {
   getStudentLessonMappingsV2,
   resetUserLessonOverrideV2,
@@ -15,21 +16,6 @@ import {
 function getCurrentSchoolId(): string | null {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
   return match?.[1] ?? null;
-}
-
-// `upsert_user_lesson_override_v2` / `reset_user_lesson_override_v2` raise
-// `'Unauthorized'` when the current Supabase session doesn't own the
-// targeted student. `sendRpc` already force-reauths and retries once on
-// these; anything that escapes up to here means recovery also failed
-// (typically the user is logged out of Lectio). Not an actionable bug —
-// don't spam PostHog with it.
-function isAuthOwnershipError(error: unknown): boolean {
-  const message = error instanceof Error
-    ? error.message
-    : typeof error === 'string'
-      ? error
-      : '';
-  return /\bunauthorized\b/i.test(message);
 }
 
 let hydratePromise: Promise<boolean> | null = null;
@@ -135,7 +121,7 @@ export async function hydrateHoldMappingsFromSupabase(force = false): Promise<bo
       stampHydrate(context.schoolId, context.studentId);
       return applySupabaseLessonMappings(rows);
     } catch (error) {
-      if (!isAuthOwnershipError(error)) {
+      if (!isNonActionableSupabaseError(error)) {
         captureException(error, getDistinctId(context.studentId), {
           source: 'hold-mapping-sync',
           action: 'hydrate',
@@ -183,7 +169,7 @@ export async function syncHoldMappingOverrideToSupabase(
     });
     stampHydrate(context.schoolId, context.studentId);
   } catch (error) {
-    if (!isAuthOwnershipError(error)) {
+    if (!isNonActionableSupabaseError(error)) {
       captureException(error, getDistinctId(context.studentId), {
         source: 'hold-mapping-sync',
         action: 'sync-override',
@@ -222,7 +208,7 @@ export async function seedKnownHoldMappingsToSupabase(): Promise<void> {
     stampSeed(context.schoolId, context.studentId);
   })().catch((error) => {
     const studentId = getLoggedInUserId();
-    if (studentId && !isAuthOwnershipError(error)) {
+    if (studentId && !isNonActionableSupabaseError(error)) {
       captureException(error, getDistinctId(studentId), {
         source: 'hold-mapping-sync',
         action: 'seed-known-mappings',

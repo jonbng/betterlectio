@@ -23,6 +23,7 @@ import {
 import { capture, captureException, getDistinctId } from '@/lib/posthog';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { t } from '@/lib/i18n';
+import { isNonActionableSupabaseError } from '@/lib/supabase-error-noise';
 import type { Json } from '@/database.types';
 
 const SYNCED_AT_KEY = 'bl-settings-synced-at';
@@ -44,12 +45,6 @@ let pageHideHooked = false;
 
 let hydratePromise: Promise<boolean> | null = null;
 let hydrateThemesPromise: Promise<boolean> | null = null;
-
-function isAuthOwnershipError(error: unknown): boolean {
-  const message =
-    error instanceof Error ? error.message : typeof error === 'string' ? error : '';
-  return /\bunauthorized\b/i.test(message);
-}
 
 interface SyncContext {
   schoolId: string;
@@ -218,7 +213,7 @@ export async function hydrateSettingsFromSupabase(force = false): Promise<boolea
       }
       return changed;
     } catch (error) {
-      if (!isAuthOwnershipError(error)) {
+      if (!isNonActionableSupabaseError(error)) {
         captureException(error, getDistinctId(ctx.studentId), {
           source: 'settings-sync',
           phase: 'hydrate',
@@ -255,7 +250,7 @@ async function pushSettingsNow(): Promise<void> {
     if (result?.updated_at) writeSyncedAt(SYNCED_AT_KEY, result.updated_at);
     stampHydrate(SETTINGS_HYDRATED_AT_KEY, ctx.supabaseId);
   } catch (error) {
-    if (!isAuthOwnershipError(error)) {
+    if (!isNonActionableSupabaseError(error)) {
       captureException(error, getDistinctId(ctx.studentId), {
         source: 'settings-sync',
         phase: 'push',
@@ -336,7 +331,7 @@ export async function hydrateSchoolThemesFromSupabase(force = false): Promise<bo
       }
       return activeChanged;
     } catch (error) {
-      if (!isAuthOwnershipError(error)) {
+      if (!isNonActionableSupabaseError(error)) {
         captureException(error, getDistinctId(ctx.studentId), {
           source: 'settings-sync',
           phase: 'hydrate-themes',
@@ -373,7 +368,7 @@ async function pushCurrentSchoolThemeNow(): Promise<void> {
     if (result?.updated_at) writeSyncedAt(THEME_SYNCED_AT_KEY, result.updated_at);
     stampHydrate(THEMES_HYDRATED_AT_KEY, ctx.supabaseId);
   } catch (error) {
-    if (!isAuthOwnershipError(error)) {
+    if (!isNonActionableSupabaseError(error)) {
       captureException(error, getDistinctId(ctx.studentId), {
         source: 'settings-sync',
         phase: 'push-theme',
