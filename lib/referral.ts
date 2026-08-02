@@ -77,14 +77,13 @@ export async function maybeFinalizeReferral(opts: {
     return null;
   }
 
-  // Server responded → outcome is deterministic. Mark attempted before
-  // parsing so a 500 response (which clears the cookie server-side) is
-  // recorded as a final attempt. This avoids re-banging the endpoint.
-  await markAttempted(studentId);
-
   if (!resp.ok) return null;
   try {
-    return (await resp.json()) as FinalizeResponse;
+    const result = (await resp.json()) as FinalizeResponse;
+    // Only a parsed 2xx attribution/rejection is definitive. 5xx, disabled
+    // feature responses, and malformed bodies remain retryable.
+    await markAttempted(studentId);
+    return result;
   } catch {
     return null;
   }

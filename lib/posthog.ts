@@ -61,9 +61,41 @@ export async function loadOptOutFlag(): Promise<void> {
 let _client: PostHog | null = null;
 let _flushHandlersRegistered = false;
 
+const ALLOWED_EVENTS = new Set([
+  'feedback_submitted',
+  'onboarding_started',
+  'onboarding_completed',
+  'extension installed',
+  'extension updated',
+  'betterlectio bypass engaged',
+  'mobile_app_invite_success_shown',
+  'referral share link copied',
+]);
+const FEATURE_SAMPLE_RATE = 0.1;
+
+function sampleFraction(key: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0x100000000;
+}
+
+function shouldCaptureEvent(event: string, distinctId: string): boolean {
+  if (ALLOWED_EVENTS.has(event)) return true;
+  if (event !== 'feature used' && event !== 'extension loaded') return false;
+
+  // A stable monthly cohort keeps comparisons internally consistent while
+  // using roughly one tenth of the former feature-event volume.
+  const month = new Date().toISOString().slice(0, 7);
+  return sampleFraction(`${month}:${distinctId}`) < FEATURE_SAMPLE_RATE;
+}
+
 function flushClient(): void {
   try {
-    const client = getClient() as any;
+    const client = _client as any;
+    if (!client) return;
     void client.flush?.();
   } catch {
     // Non-critical
@@ -77,7 +109,8 @@ function flushClient(): void {
  */
 export async function flushAnalytics(): Promise<void> {
   try {
-    const client = getClient() as any;
+    const client = _client as any;
+    if (!client) return;
     if (typeof client.flush === 'function') {
       await client.flush();
     }
@@ -231,6 +264,7 @@ export function capture(
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
     if (!id) return;
+    if (!shouldCaptureEvent(event, id)) return;
     getClient().capture({
       distinctId: id,
       event,
@@ -247,17 +281,11 @@ export function capture(
  * redundant identify calls on every navigation.
  */
 export function identify(
-  distinctId: string,
-  properties?: Record<string, unknown>,
+  _distinctId: string,
+  _properties?: Record<string, unknown>,
 ): void {
-  try {
-    if (isOptedOut()) return;
-    const id = requireLectioStudentDistinctId(distinctId);
-    if (!id) return;
-    getClient().identify({ distinctId: id, properties });
-  } catch {
-    // Non-critical
-  }
+  // Person profiles are not needed for the tiny explicit event set. Keeping
+  // this compatibility helper as a no-op avoids repeated $identify events.
 }
 
 export function setPersonProperties(
@@ -267,30 +295,16 @@ export function setPersonProperties(
   identify(distinctId, properties);
 }
 
-const SESSION_IDENTIFY_KEY = 'bl-posthog-identified';
-
 /**
  * Identify only when the user or their properties have changed this session.
  * Stores a hash of distinctId + properties in sessionStorage so we skip
  * redundant identify calls on every Lectio page navigation.
  */
 export function identifyIfNeeded(
-  distinctId: string,
-  properties?: Record<string, unknown>,
+  _distinctId: string,
+  _properties?: Record<string, unknown>,
 ): void {
-  try {
-    if (isOptedOut()) return;
-    const id = requireLectioStudentDistinctId(distinctId);
-    if (!id) return;
-    const fingerprint = JSON.stringify({ distinctId: id, ...properties });
-    const prev = sessionStorage.getItem(SESSION_IDENTIFY_KEY);
-    if (prev === fingerprint) return;
-
-    getClient().identify({ distinctId: id, properties });
-    sessionStorage.setItem(SESSION_IDENTIFY_KEY, fingerprint);
-  } catch {
-    // Non-critical
-  }
+  // Intentionally disabled; see identify().
 }
 
 /**
@@ -304,7 +318,7 @@ export function reset(): void {
       const key = sessionStorage.key(i);
       if (key?.startsWith('bl-posthog-')) sessionStorage.removeItem(key);
     }
-    (getClient() as any).reset?.();
+    (_client as any)?.reset?.();
   } catch {
     // Non-critical
   }
@@ -333,6 +347,7 @@ export function captureOncePerSessionByKey(
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
     if (!id) return;
+    if (!shouldCaptureEvent(event, id)) return;
     const key = `bl-posthog-once:${keySuffix}`;
     if (sessionStorage.getItem(key)) return;
 
@@ -362,8 +377,39 @@ export function captureFeatureUsedOncePerSession(
 
 // ── Rate limiting for error capture ─────────────────────────────────
 
-const MAX_ERRORS_PER_PAGE = 25;
+const AMBIENT_ERROR_SAMPLE_RATE = 0.1;
+const MAX_ERRORS_PER_CONTEXT = 5;
+const AMBIENT_ERROR_SOURCES = new Set([
+  'window.error',
+  'unhandledrejection',
+  'console.error',
+  'background',
+  'background-unhandledrejection',
+  'csp-violation',
+]);
 let _errorCount = 0;
+const _seenErrorSignatures = new Set<string>();
+
+function shouldCaptureException(
+  error: unknown,
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const source = String(properties?.source ?? 'unknown');
+  const signature = `${source}:${message}`.slice(0, 500);
+  if (_seenErrorSignatures.has(signature)) return false;
+
+  const day = new Date().toISOString().slice(0, 10);
+  const sampleKey = `${day}:${distinctId}:${signature}`;
+  if (
+    AMBIENT_ERROR_SOURCES.has(source)
+    && sampleFraction(sampleKey) >= AMBIENT_ERROR_SAMPLE_RATE
+  ) return false;
+
+  _seenErrorSignatures.add(signature);
+  return true;
+}
 
 /**
  * Auto props for `$exception` events: same dimensions as normal `capture()`
@@ -393,7 +439,9 @@ function getExceptionAutoProperties(): Record<string, unknown> {
  * Capture an exception/error.
  * Resolves `distinctId` from the cached Lectio profile in content scripts when
  * omitted so library-level catches still attribute correctly (no anonymous).
- * Rate-limited to MAX_ERRORS_PER_PAGE per page load to protect free tier quota.
+ * Explicit operational failures are retained; noisy global handlers are
+ * deterministically sampled to 10%. Everything is deduplicated and capped at
+ * five per extension context to protect the quota during error storms.
  */
 export function captureException(
   error: unknown,
@@ -404,7 +452,9 @@ export function captureException(
     if (isOptedOut()) return;
     const resolvedId = resolveDistinctIdForCapture(distinctId);
     if (!resolvedId) return;
-    if (++_errorCount > MAX_ERRORS_PER_PAGE) return;
+    if (_errorCount >= MAX_ERRORS_PER_CONTEXT) return;
+    if (!shouldCaptureException(error, resolvedId, additionalProperties)) return;
+    _errorCount += 1;
     getClient().captureException(error, resolvedId, {
       ...getExceptionAutoProperties(),
       ...(additionalProperties?.current_page ? {} : getErrorContext()),

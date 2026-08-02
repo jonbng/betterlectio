@@ -94,7 +94,7 @@ Content Scripts (inject into lectio.dk pages)
 3. Fetch `SkemaNy.aspx` to resolve `elevid`; retry briefly if Lectio hasn't propagated the new QR session yet
 4. `generateLink({ type: 'magiclink' })` → creates/finds auth user, returns `data.user.id`
 5. Download Lectio profile picture (authenticated) → upload to `profile-pictures` bucket at `{schoolId}/{userId}.{ext}`
-6. Upsert `students` record with `supabase_id`, `lectio_pfp_url`, `custom_pfp_url`
+6. Upsert `students` record with `supabase_id` and `lectio_pfp_url`
 
 **Background auth orchestration** (`entrypoints/background.ts` + `lib/supabase/session.ts`):
 - `entrypoints/content.tsx` is the primary auth bootstrapper on page load
@@ -103,8 +103,15 @@ Content Scripts (inject into lectio.dk pages)
 - Auth analytics include a `source` property so callsites can be traced in PostHog
 
 **Storage bucket** `profile-pictures`: public, allows jpeg/png/webp/gif, 5MB limit. Organized as `{schoolId}/{userId}.{ext}`.
+Public object URLs work through the bucket's public setting; `storage.objects` has no broad public CRUD/listing policy. Profile-picture writes are service-role-only.
 
-**Deploy:** `bunx supabase functions deploy verify-lectio-auth --no-verify-jwt`
+**Moderated custom pictures:** `referral_reward_unlocked_at` is stamped permanently when a student reaches 3 attributed referrals. Extension, Android, and iOS call `get_my_profile_picture_state` and submit JPEG/PNG/WebP (5MB, 25MP, 8000px/side maximum) to `profile-picture-submit`. The function validates JWT ownership, reward, cooldown, magic bytes, dimensions, and one-pending-at-a-time before writing to the private bucket/table. Admin downloads uploads server-side and uses Sharp with a 25MP decode limit to normalize orientation, strip metadata, resize to 1600px, and produce an sRGB JPEG for both preview and publication; browsers never render the original upload. Approval updates `custom_pfp_url` + `custom_pfp_approved_at` and starts a three-calendar-month cooldown; rejection permits immediate retry. `maintenance-cleanup` removes old failed objects/rows. Migrations: `20260803_add_moderated_profile_pictures.sql`, `20260805_allow_ios_profile_picture_submissions.sql`, and `20260807_atomic_referral_finalization.sql`.
+
+**Mobile auth edge function** (`supabase/functions/token-for-auth/index.ts`): canonical source for Android/iOS Lectio-cookie authentication. It serially follows Lectio cookie rotations, requires the `students` upsert to succeed before returning the magic-link token, and returns rotated cookies for immediate client persistence.
+
+**Rich student profile privacy boundary:** `get_student_profile(p_student_id)` is the only single-profile authenticated-client read path for `students.birthdate`. It is a security-definer RPC with an explicit same-school ownership check and masks `birthdate` to `null` unless `show_birthday` is enabled. iOS, Android, and the extension's viewed-student profile use it; iOS message avatars use the capped `get_student_profiles(p_student_ids)` batch equivalent. `supabase/migrations/20260806_enforce_student_birthday_privacy.sql` removes table-wide authenticated SELECT and grants column-level SELECT for all existing student fields except `birthdate`; the extension background bridge defaults generic student queries and mutation results to the matching safe projection. Schema contract starts in `20260804_add_public_student_profile_rpc.sql`. Native clients use short viewer-and-school-scoped caches and keep public profile-image requests separate from authenticated Lectio image traffic.
+
+**Deploy:** Function JWT policy is checked into `supabase/config.toml`. Apply migrations first, then deploy `referral-click`, `referral-finalize`, `profile-picture-submit`, and `maintenance-cleanup`. Set `BL_IP_HASH_SALT` (32+ random characters), `REFERRALS_ENABLED`, and `PROFILE_PICTURES_ENABLED`; invoke cleanup daily with the service-role JWT. See `ios/docs/REFERRAL_PROFILE_PICTURE_RELEASE.md`.
 
 **School coordinates:** `public.schools` includes nullable `lat` / `lon` columns for map-friendly metadata. They are backfilled by `tools/geocode-schools.mjs`, which calls Google Maps Geocoding API v4 using the exact query `${school.name}, Denmark`, biases with `languageCode=da` and `regionCode=DK`, persists only single-match results, and reports misses for manual handling. The live backfill runs through the public Supabase API under a temporary permissive `UPDATE` RLS policy that exists only for the maintenance window.
 
@@ -114,17 +121,17 @@ Content Scripts (inject into lectio.dk pages)
 
 **Referral system:** Classmates share `https://betterlectio.dk/r/{referrer_elevid}` links. Pipeline:
 
-1. `website/app/r/[elevid]/route.ts` validates the elevid shape and 302s to `https://<project>.supabase.co/functions/v1/referral-click?ref={elevid}`.
-2. `referral-click` validates the referrer exists, inserts a `referral_clicks` row with metadata (UA, Referer, hashed IP, country, landing URL), sets a 180-day `bl_ref` cookie (`SameSite=None; Secure; HttpOnly`) on the supabase domain, 302s to `https://betterlectio.dk/download?ref=1` (which triggers an "invited" banner).
+1. `website/app/r/[elevid]/route.ts` validates the elevid shape and 302s to the public `referral-click` function. Installed native apps handle the universal link directly; the App Clip creates a token from the original tokenless invocation.
+2. `referral-click` validates the referrer, enforces per-IP/per-referrer limits, inserts metadata (UA, Referer, daily-rotated IP hash, coarse location), sets a 180-day `bl_ref` cookie for extension attribution, and redirects to the appropriate destination. Pre-supplied native tokens are validated against an active click row before persistence.
 3. After install, `runEnsureSupabaseSession` checks `wasFirstInstall` from `verify-lectio-auth` (true exactly when it just stamped `extension_installed_at` for the first time). On true, calls `maybeFinalizeReferral`.
-4. `maybeFinalizeReferral` POSTs to `referral-finalize` with `credentials: 'include'` and `Authorization: Bearer <jwt>`. Per-student `bl-referral-finalize-attempted:{studentId}` flag written *before* the fetch — cookie is single-use, edge function is source of truth.
-5. `referral-finalize` validates JWT owns the studentId, reads cookie, looks up click row, runs eligibility gates (`self_referral`, `already_referred`, `returning_user` for installs >7d, `expired` for clicks >180d), stamps `students.referred_by` + `referred_at` + `referral_click_id` plus `referral_clicks.converted_at` + `converted_student_id`. Cookie cleared regardless. Returns `{ attributed, referrerName }`.
+4. `maybeFinalizeReferral` POSTs with credentials and the user JWT. It records its per-student completion flag only after a parsed 2xx outcome; network/5xx/kill-switch failures remain retryable.
+5. `referral-finalize` validates JWT ownership, then calls service-role-only `finalize_referral_attribution`. The RPC locks the click and invitee rows and commits eligibility, click conversion, student attribution, and reward unlock atomically. A click therefore cannot convert twice under races.
 6. Background broadcasts via `browser.storage.local['bl-referral-toast-pending']` (manifest doesn't have `tabs` permission); content-script listener shows Sonner toast.
-7. Stats exposed via `get_referral_stats(student_id)` RPC. Settings → Inviter mounts `ReferralShareCard.tsx` with link, copy/share, click+conversion counts, recently-attributed names.
+7. Stats exposed via `get_referral_stats(student_id)` RPC. Settings → Inviter mounts `ReferralShareCard.tsx` with link, copy/share, click+conversion counts, recently-attributed names. At 3 conversions `referral-finalize` stamps the stable profile-picture reward gate.
 
-PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `referral attributed`, `referral attribution rejected`, `referral share link copied`. Schema: `supabase/migrations/20260430_add_referral_tracking.sql` + `20260430_referral_tracking_constraints.sql`. Admin: `admin/app/(dashboard)/referrals/page.tsx`. Deploy: `bunx supabase functions deploy referral-click --no-verify-jwt` and `bunx supabase functions deploy referral-finalize`.
+PostHog telemetry is limited to successful attribution; operational reporting comes from Postgres/function logs. Schema includes `20260807_atomic_referral_finalization.sql`. JWT policy is in `supabase/config.toml`; `REFERRALS_ENABLED=false` is the rollback switch.
 
-**Edge function secrets:** `referral-click` reads `BL_IP_HASH_SALT` to compute `ip_hash = sha256(salt + ":" + ip)`. Salt must be stable across calls so `count(distinct ip_hash)` yields correct unique counts. Set via `bunx supabase secrets set BL_IP_HASH_SALT=<random>`. Both `referral-click` and `referral-finalize` also read `POSTHOG_API_KEY` (same as `VITE_POSTHOG_KEY`) and optionally `POSTHOG_HOST` (defaults `https://eu.i.posthog.com`).
+**Edge function secrets:** `BL_IP_HASH_SALT` must contain 32+ random characters. Hash input includes the UTC day, deliberately preventing long-lived IP correlation; “unique clickers” is therefore an approximate daily-identifier count. Set the feature switches and optional PostHog settings described in the release runbook.
 
 ---
 
@@ -265,8 +272,8 @@ PostHog telemetry: `referral link clicked`, `referral link clicked invalid`, `re
 | `lib/school-storage.ts` | Last school persistence for quick login |
 | `lib/page-titles.ts` | Clean page titles with unread message badge, MutationObserver |
 | `lib/preload.ts` | Speculation Rules API + hover-based prefetching |
-| `lib/posthog.ts` | PostHog analytics singleton (edge build). Distinct ID: `lectio:${studentId}`. All helpers validate `isLectioStudentDistinctId` before enqueueing — no anonymous or malformed ids. Identify sends name, school, class, year, dark mode, theme. Page-hide flushing. `captureException` enriches `$exception` events with auto props + tab `recent_urls` / profile ids when `distinctId` omitted (`getContentDistinctId()`). All calls silently caught. |
-| `lib/posthog-lifecycle.ts` | Queues deferred lifecycle events (`extension installed` / `extension updated`) until an identified user is available |
+| `lib/posthog.ts` | Efficient PostHog boundary (edge build). Distinct ID: `lectio:${studentId}`; no anonymous IDs. High-value outcomes are allowlisted; `extension loaded` and once-per-session `feature used` use a stable 10% monthly cohort, and identify helpers are no-ops. Explicit operational exceptions are retained; noisy globals are sampled at 10%, with all errors deduped/capped at five per context. Page-hide flushing occurs only after a client is created. |
+| `lib/posthog-lifecycle.ts` | Legacy lifecycle queue retained for callsite compatibility; its events are dropped by the minimal PostHog allowlist. |
 | `lib/logout-tracking.ts` | Passive Lectio logout/session-loss heuristics. Stores last authenticated activity and recent explicit logout intent |
 | `lib/lectio-error-popup.ts` | MutationObserver detector for Lectio's native error popup (`[data-title^="Fejl"]`). Extracts title + body, dedupes per element. Fires `lectio native error` PostHog event + paired `captureException` + `toast.info`. |
 | `lib/url-history.ts` | Per-tab (sessionStorage) URL breadcrumb trail (`pushUrlToHistory` / `getRecentUrls`) |

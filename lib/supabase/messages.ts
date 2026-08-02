@@ -98,6 +98,17 @@ export interface StorageUploadMessage {
   upsert?: boolean;
 }
 
+/** Submit a custom profile picture through the moderated Edge Function. */
+export interface ProfilePictureSubmitMessage {
+  type: 'bl-sb:profile-picture:submit';
+  studentId: string;
+  schoolId: number;
+  platform: 'extension';
+  dataBase64: string;
+  contentType: string;
+  fileName: string;
+}
+
 export type SupabaseMessage =
   | QueryMessage
   | MutateMessage
@@ -108,10 +119,11 @@ export type SupabaseMessage =
   | AuthGetSessionMessage
   | AuthSignOutMessage
   | AuthMintWebsiteOtpMessage
-  | StorageUploadMessage;
+  | StorageUploadMessage
+  | ProfilePictureSubmitMessage;
 
 // ── Response ────────────────────────────────────────────────────────
 
 export type SupabaseResponse =
   | { ok: true; data?: unknown; session?: { expires_at: number; user_id?: string | null } | null }
-  | { ok: false; error?: string };
+  | { ok: false; error?: string; data?: unknown };

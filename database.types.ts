@@ -474,6 +474,84 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_picture_submissions: {
+        Row: {
+          approved_url: string | null
+          byte_size: number
+          created_at: string
+          id: string
+          mime_type: string
+          platform: string
+          rejection_reason: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_id: number
+          source_deleted_at: string | null
+          status: string
+          storage_path: string
+          student_id: string
+          submitted_at: string | null
+          supabase_uid: string
+          updated_at: string
+        }
+        Insert: {
+          approved_url?: string | null
+          byte_size: number
+          created_at?: string
+          id?: string
+          mime_type: string
+          platform: string
+          rejection_reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id: number
+          source_deleted_at?: string | null
+          status?: string
+          storage_path: string
+          student_id: string
+          submitted_at?: string | null
+          supabase_uid: string
+          updated_at?: string
+        }
+        Update: {
+          approved_url?: string | null
+          byte_size?: number
+          created_at?: string
+          id?: string
+          mime_type?: string
+          platform?: string
+          rejection_reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id?: number
+          source_deleted_at?: string | null
+          status?: string
+          storage_path?: string
+          student_id?: string
+          submitted_at?: string | null
+          supabase_uid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_picture_submissions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_picture_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_clicks: {
         Row: {
           city: string | null
@@ -771,6 +849,7 @@ export type Database = {
           birthdate: string | null
           class_name: string | null
           created_at: string
+          custom_pfp_approved_at: string | null
           custom_pfp_url: string | null
           description: string | null
           dismissed_app_prompt_at: string | null
@@ -803,6 +882,7 @@ export type Database = {
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
+          custom_pfp_approved_at?: string | null
           custom_pfp_url?: string | null
           description?: string | null
           dismissed_app_prompt_at?: string | null
@@ -835,6 +915,7 @@ export type Database = {
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
+          custom_pfp_approved_at?: string | null
           custom_pfp_url?: string | null
           description?: string | null
           dismissed_app_prompt_at?: string | null
@@ -1059,6 +1140,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_student_profile: {
+        Args: { p_student_id: string }
+        Returns: {
+          app_installed_at: string | null
+          birthdate: string | null
+          class_name: string | null
+          custom_pfp_url: string | null
+          description: string | null
+          extension_installed_at: string | null
+          extension_uninstalled_at: string | null
+          id: string
+          instagram: string | null
+          last_seen_at: string | null
+          lectio_pfp_url: string | null
+          name: string | null
+          show_birthday: boolean
+        }[]
+      }
+      get_student_profiles: {
+        Args: { p_student_ids: string[] }
+        Returns: {
+          app_installed_at: string | null
+          birthdate: string | null
+          class_name: string | null
+          custom_pfp_url: string | null
+          description: string | null
+          extension_installed_at: string | null
+          extension_uninstalled_at: string | null
+          id: string
+          instagram: string | null
+          last_seen_at: string | null
+          lectio_pfp_url: string | null
+          name: string | null
+          show_birthday: boolean
+        }[]
+      }
+      get_my_profile_picture_state: {
+        Args: { p_student_id: string }
+        Returns: Json
+      }
       get_my_school_id: { Args: never; Returns: number }
       get_referral_stats: {
         Args: { p_student_id: string }
@@ -1068,6 +1189,16 @@ export type Database = {
           total_clicks: number
           unique_clickers: number
         }[]
+      }
+      review_profile_picture_submission: {
+        Args: {
+          p_decision: string
+          p_public_url?: string
+          p_rejection_reason?: string
+          p_review_note?: string
+          p_submission_id: string
+        }
+        Returns: Json
       }
       get_student_homework_statuses: {
         Args: { p_school_id: number; p_student_id: string }

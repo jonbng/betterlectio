@@ -82,6 +82,20 @@ export async function sendStorageUpload(opts: {
   });
 }
 
+export async function sendProfilePictureSubmission(opts: {
+  studentId: string;
+  schoolId: number;
+  dataBase64: string;
+  contentType: string;
+  fileName: string;
+}): Promise<SupabaseResponse> {
+  return send({
+    type: 'bl-sb:profile-picture:submit',
+    platform: 'extension',
+    ...opts,
+  });
+}
+
 export async function sendRpc(
   fn: FunctionName,
   args: Record<string, unknown>,

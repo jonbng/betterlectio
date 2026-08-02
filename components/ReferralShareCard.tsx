@@ -100,7 +100,7 @@ export function ReferralShareCard() {
       <div className="mx-4 mt-4 rounded-lg border border-border bg-muted/40 px-3 py-3">
         <div className="flex items-baseline justify-between gap-3">
           <div className="text-[0.65rem] font-mono font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {unlock.unlocked ? "Tilpasning låst op" : "Lås tilpasning op"}
+            {unlock.unlocked ? "Profilbillede låst op" : "Lås profilbillede op"}
           </div>
           <div className="text-sm font-semibold tabular-nums text-foreground">
             {loadingStats ? "…" : `${Math.min(conversions, unlock.target)}/${unlock.target}`}
@@ -116,8 +116,8 @@ export function ReferralShareCard() {
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {unlock.unlocked
-            ? "Du har inviteret nok klassekammerater. Tilpasning kommer snart."
-            : `Inviter ${unlock.remaining} klassekammerat${unlock.remaining === 1 ? "" : "er"} mere for at låse tilpasning op.`}
+            ? "Du kan nu vælge dit eget profilbillede under Profil. Det bliver vist, når det er godkendt."
+            : `Inviter ${unlock.remaining} klassekammerat${unlock.remaining === 1 ? "" : "er"} mere for at låse dit eget profilbillede op.`}
         </p>
       </div>
 

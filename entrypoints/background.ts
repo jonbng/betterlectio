@@ -284,6 +284,25 @@ async function captureSupabaseError(
 
 // ── Generic query builder ───────────────────────────────────────────
 
+// Authenticated clients intentionally have no SELECT privilege for
+// students.birthdate. Keep generic legacy queries and mutation return values
+// on the matching safe projection; rich profiles obtain a consent-masked
+// birthday through get_student_profile() instead.
+const STUDENT_SAFE_COLUMNS = [
+  'app_eligible', 'app_installed_at', 'app_qr_scanned_at', 'class_name',
+  'created_at', 'custom_pfp_approved_at', 'custom_pfp_url', 'description',
+  'dismissed_app_prompt_at', 'extension_installed_at', 'extension_reinstalled_at',
+  'extension_uninstall_feedback', 'extension_uninstall_reason',
+  'extension_uninstalled_at', 'id', 'instagram', 'last_seen_at',
+  'lectio_first_name', 'lectio_last_name', 'lectio_pfp_url', 'marked_android_at',
+  'name', 'pfp_hash', 'referral_click_id', 'referral_reward_unlocked_at',
+  'referred_at', 'referred_by', 'school_id', 'show_birthday', 'supabase_id',
+].join(',');
+
+function defaultSelectForTable(table: string): string {
+  return table === 'students' ? STUDENT_SAFE_COLUMNS : '*';
+}
+
 function applyFilters(
   query: any,
   filters?: Filter[],
@@ -310,7 +329,8 @@ function applyFilters(
 async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }>): Promise<SupabaseResponse> {
   await ensureSessionReady();
   const supabase = getSupabase();
-  let query: any = supabase.from(String(msg.table)).select(msg.select ?? '*');
+  const table = String(msg.table);
+  let query: any = supabase.from(table).select(msg.select ?? defaultSelectForTable(table));
   query = applyFilters(query, msg.filters);
   if (msg.order) {
     query = query.order(msg.order.column, { ascending: msg.order.ascending ?? true });
@@ -353,7 +373,8 @@ async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate'
       break;
   }
 
-  const { data, error } = await query.select();
+  const table = String(msg.table);
+  const { data, error } = await query.select(defaultSelectForTable(table));
   if (error) {
     await captureSupabaseError(error, {
       action: 'mutate',
@@ -392,6 +413,41 @@ async function handleStorageUpload(
       table: msg.bucket,
     });
     return { ok: false, error: extractErrorMessage(err) || 'upload failed' };
+  }
+}
+
+async function handleProfilePictureSubmit(
+  msg: Extract<SupabaseMessage, { type: 'bl-sb:profile-picture:submit' }>,
+): Promise<SupabaseResponse> {
+  await ensureSessionReady();
+  const supabase = getSupabase();
+  try {
+    const binary = Uint8Array.from(atob(msg.dataBase64), (c) => c.charCodeAt(0));
+    const form = new FormData();
+    form.set('studentId', msg.studentId);
+    form.set('schoolId', String(msg.schoolId));
+    form.set('platform', msg.platform);
+    form.set('file', new File([binary], msg.fileName, { type: msg.contentType }));
+    const { data, error } = await supabase.functions.invoke('profile-picture-submit', { body: form });
+    if (error) {
+      let detail: Record<string, unknown> | null = null;
+      const context = (error as { context?: Response }).context;
+      if (context) {
+        try {
+          detail = await context.clone().json() as Record<string, unknown>;
+        } catch {
+          // Keep the SDK error when the response body is not JSON.
+        }
+      }
+      return {
+        ok: false,
+        error: typeof detail?.error === 'string' ? detail.error : error.message,
+        data: detail ?? undefined,
+      };
+    }
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: extractErrorMessage(err) || 'Profile picture upload failed' };
   }
 }
 
@@ -1015,6 +1071,10 @@ export default defineBackground(() => {
 
       case 'bl-sb:storage:upload':
         handleStorageUpload(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        return true;
+
+      case 'bl-sb:profile-picture:submit':
+        handleProfilePictureSubmit(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
         return true;
 
       // ── Realtime ────────────────────────────────────────────────

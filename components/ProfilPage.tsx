@@ -12,6 +12,13 @@ import {
   Phone,
   Mail,
   MapPin,
+  Camera,
+  Clock3,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  XCircle,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { createPortal } from 'preact/compat';
@@ -30,6 +37,11 @@ import { getLoggedInUserId } from '@/lib/profile-cache';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
 import { useTranslation } from '@/lib/i18n';
+import {
+  getMyProfilePictureState,
+  submitProfilePicture,
+  type ProfilePictureState,
+} from '@/lib/supabase/resources/profile-pictures';
 
 type Student = Tables<'students'>;
 
@@ -216,6 +228,207 @@ function SavedIndicator({ visible }: { visible: boolean }) {
   );
 }
 
+// ── Referral-unlocked profile picture ────────────────────────────────
+
+function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; schoolId: string }) {
+  const { t } = useTranslation();
+  const [state, setState] = useState<ProfilePictureState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const next = await getMyProfilePictureState(studentId);
+    setState(next);
+    setLoading(false);
+  }, [studentId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  function selectFile(next: File | null) {
+    setError(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setFile(null);
+    if (!next) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(next.type)) {
+      setError(t('profilPage.profilePicture.invalidType'));
+      return;
+    }
+    if (next.size > 5 * 1024 * 1024) {
+      setError(t('profilPage.profilePicture.tooLarge'));
+      return;
+    }
+    setFile(next);
+    setPreviewUrl(URL.createObjectURL(next));
+  }
+
+  async function submit() {
+    if (!file || uploading) return;
+    setUploading(true);
+    setError(null);
+    const result = await submitProfilePicture(studentId, Number(schoolId), file);
+    setUploading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    selectFile(null);
+    await refresh();
+  }
+
+  function rejectionLabel(reason: string | null): string {
+    switch (reason) {
+      case 'inappropriate': return t('profilPage.profilePicture.reasonInappropriate');
+      case 'privacy_or_impersonation': return t('profilPage.profilePicture.reasonPrivacy');
+      case 'unsuitable': return t('profilPage.profilePicture.reasonUnsuitable');
+      default: return t('profilPage.profilePicture.reasonOther');
+    }
+  }
+
+  if (loading && !state) {
+    return <Skeleton className="h-36 w-full rounded-2xl" />;
+  }
+  if (!state) return null;
+
+  const active = state.submission?.status === 'pending' || state.submission?.status === 'uploading';
+  const rejected = state.submission?.status === 'rejected';
+  const nextDate = state.nextEligibleAt
+    ? new Date(state.nextEligibleAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+  const canChoose = state.unlocked && state.canSubmit && !active;
+  const imageUrl = previewUrl || state.currentUrl;
+
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card p-5 shadow-sm">
+      <div className="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full bg-primary/10 blur-3xl" />
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+        <div className="relative mx-auto shrink-0 sm:mx-0">
+          <div className="h-28 w-21 overflow-hidden rounded-2xl border-2 border-background bg-muted shadow-md ring-1 ring-border">
+            {imageUrl ? (
+              <img src={imageUrl} alt="" className="h-full w-full object-cover object-top" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                <Camera className="size-8" />
+              </div>
+            )}
+          </div>
+          {state.unlocked && (
+            <span className="absolute -bottom-2 -right-2 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-card">
+              <Sparkles className="size-4" />
+            </span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">{t('profilPage.profilePicture.title')}</h3>
+            {state.unlocked && (
+              <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                {t('profilPage.profilePicture.unlocked')}
+              </span>
+            )}
+          </div>
+
+          {!state.unlocked ? (
+            <div className="mt-2">
+              <p className="text-sm text-muted-foreground">
+                {t('profilPage.profilePicture.locked', {
+                  current: state.referralConversions,
+                  target: state.unlockThreshold,
+                })}
+              </p>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary/10">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-500"
+                  style={{ width: `${Math.min(100, (state.referralConversions / state.unlockThreshold) * 100)}%` }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('betterlectio:openSettings'))}
+                className="mt-3 text-sm font-semibold text-primary hover:underline"
+              >
+                {t('profilPage.profilePicture.openInvite')}
+              </button>
+            </div>
+          ) : active ? (
+            <div className="mt-2 flex items-start gap-2.5">
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-medium text-foreground">{t('profilPage.profilePicture.pendingTitle')}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{t('profilPage.profilePicture.pendingBody')}</p>
+                <button type="button" onClick={() => void refresh()} className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                  <RefreshCw className="size-3" /> {t('profilPage.profilePicture.refresh')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {rejected && (
+                <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 px-3.5 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                    <XCircle className="size-4" /> {t('profilPage.profilePicture.rejectedTitle')}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {rejectionLabel(state.submission?.rejectionReason ?? null)}
+                    {state.submission?.reviewNote ? ` — ${state.submission.reviewNote}` : ''}
+                  </p>
+                </div>
+              )}
+
+              {!state.canSubmit && nextDate ? (
+                <div className="mt-3 flex items-start gap-2.5">
+                  <Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('profilPage.profilePicture.cooldown', { date: nextDate })}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-semibold text-foreground shadow-xs transition-colors hover:bg-accent">
+                    <Camera className="size-4" />
+                    {file ? t('profilPage.profilePicture.chooseAnother') : t('profilPage.profilePicture.choose')}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={!canChoose}
+                      onChange={(event) => selectFile((event.currentTarget.files || [])[0] ?? null)}
+                    />
+                  </label>
+                  {file && (
+                    <button
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => void submit()}
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                      {uploading ? t('profilPage.profilePicture.uploading') : t('profilPage.profilePicture.submit')}
+                    </button>
+                  )}
+                </div>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">{t('profilPage.profilePicture.formatHint')}</p>
+            </>
+          )}
+          {error && <p className="mt-2 text-sm font-medium text-destructive">{error}</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Social Profile Section ──────────────────────────────────────────────
 
 function SocialProfileSection({ schoolId }: { schoolId: string }) {
@@ -316,6 +529,8 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
           {t('profilPage.visibleToOthers')}
         </p>
       </div>
+
+      <ProfilePictureEditor studentId={loggedInId} schoolId={schoolId} />
 
       {/* Name + Instagram — side by side */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
