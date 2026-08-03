@@ -1,6 +1,7 @@
 import { parseFormTokens, doPostBack } from './beskeder-parser';
 import { getCachedProfile } from './profile-cache';
 import { isFeatureEnabled } from './settings-storage';
+import { extractMessageEditAudit } from './message-edit-audit';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -16,8 +17,11 @@ export interface ThreadMessage {
   date: Date | null;
   title: string;
   content: string; // HTML content (BBCode already rendered by Lectio)
+  editedAt: Date | null;
   attachments: Array<{ name: string; url: string; sizeLabel?: string }>;
   isOwnMessage: boolean;
+  /** Row-scoped postback target used to edit an owned reaction carrier. */
+  editPostbackTarget: string;
 }
 
 export interface ThreadReplyForm {
@@ -31,6 +35,8 @@ export interface ThreadReplyForm {
   /** Postback target for the attachment chooser (e.g. "s$m$...AttachmentDocChooser") */
   attachPostbackTarget: string;
   notifyDropdownEl: HTMLSelectElement | null;
+  notifyFieldName: string;
+  notifyValue: string;
 }
 
 export interface BeskederThreadData {
@@ -213,7 +219,16 @@ function parseMessages(doc: Document = document): ThreadMessage[] {
         });
     }
 
-    const content = contentClone?.innerHTML?.trim() || contentEl?.innerHTML?.trim() || '';
+    const rawContent = contentClone?.innerHTML?.trim() || contentEl?.innerHTML?.trim() || '';
+    const editAudit = extractMessageEditAudit(rawContent);
+
+    const editLink = gridRowMessage.querySelector(
+      'a[id*="EditModeToggleBtn"]',
+    ) as HTMLAnchorElement | null;
+    const editScript = editLink?.getAttribute('onclick')
+      || editLink?.getAttribute('href')
+      || '';
+    const editMatch = editScript.match(/__doPostBack\('([^']+)'/);
 
     messages.push({
       senderName,
@@ -221,9 +236,11 @@ function parseMessages(doc: Document = document): ThreadMessage[] {
       timestamp: timestampRaw,
       date,
       title,
-      content,
+      content: editAudit.html,
+      editedAt: editAudit.editedAt,
       attachments,
       isOwnMessage: isOwnMessage(senderName),
+      editPostbackTarget: editMatch?.[1] || '',
     });
   }
 
@@ -303,6 +320,8 @@ function parseReplyForm(doc: Document = document): ThreadReplyForm | null {
       attachDocumentIdInput: attachDocIdInput,
       attachPostbackTarget,
       notifyDropdownEl: notifyDropdown,
+      notifyFieldName: notifyDropdown?.name || '',
+      notifyValue: notifyDropdown?.value || '',
     };
   }
 

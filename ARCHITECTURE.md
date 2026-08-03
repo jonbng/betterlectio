@@ -77,7 +77,7 @@ Content Scripts (inject into lectio.dk pages)
 
 1. User navigates to lectio.dk
 2. `hide-flash.content.ts` runs at `document_start` — hides page, wraps Lectio CSS in `@layer lectio`
-3. `content.tsx` runs after DOM ready: detects main app page, extracts user data, creates `#il-root`, renders `<DashboardLayout>` with `<AppSidebar>`, moves original DOM into `#il-lectio-content`, fades out skeleton, initializes preloading
+3. `content.tsx` runs after DOM ready: detects the page, snapshots Lectio's live navigation, extracts user data, creates `#il-root`, renders `<DashboardLayout>` with the selected sidebar or horizontal shell, moves original DOM into `#il-lectio-content`, fades out the skeleton, and initializes preloading
 4. User interaction: sidebar nav, activity modals, hover prefetch, original forms work normally
 
 ### Third-Party SDK Policy (MV3)
@@ -127,7 +127,7 @@ Public object URLs work through the bucket's public setting; `storage.objects` h
 4. `maybeFinalizeReferral` POSTs with credentials and the user JWT. It records its per-student completion flag only after a parsed 2xx outcome; network/5xx/kill-switch failures remain retryable.
 5. `referral-finalize` validates JWT ownership, then calls service-role-only `finalize_referral_attribution`. The RPC locks the click and invitee rows and commits eligibility, click conversion, student attribution, and reward unlock atomically. A click therefore cannot convert twice under races.
 6. Background broadcasts via `browser.storage.local['bl-referral-toast-pending']` (manifest doesn't have `tabs` permission); content-script listener shows Sonner toast.
-7. Stats exposed via `get_referral_stats(student_id)` RPC. Settings → Inviter mounts `ReferralShareCard.tsx` with link, copy/share, click+conversion counts, recently-attributed names. At 3 conversions `referral-finalize` stamps the stable profile-picture reward gate.
+7. Stats exposed via `get_referral_stats(student_id)` RPC. Settings → Inviter mounts `ReferralShareCard.tsx` with link, copy/share, click+conversion counts, recently-attributed names, and `ReferralInviteDialog`. The dialog opens a detached Lectio compose session from any page, ranks pinned students then classmates, searches all eligible student recipients, hides known active BetterLectio/app users, and sends the fixed Danish referral message without navigation. Confirmed recipients receive a 30-day browser-local cooldown; uncertain non-idempotent send responses require checking Beskeder and are not retried. At 3 conversions `referral-finalize` stamps the stable profile-picture reward gate.
 
 PostHog telemetry is limited to successful attribution; operational reporting comes from Postgres/function logs. Schema includes `20260807_atomic_referral_finalization.sql`. JWT policy is in `supabase/config.toml`; `REFERRALS_ENABLED=false` is the rollback switch.
 
@@ -150,11 +150,16 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 
 | Component | Purpose |
 |-----------|---------|
-| `AppSidebar.tsx` | Custom sidebar with collapsible sections, profile display, settings access, Supabase-first student name/avatar |
+| `AppSidebar.tsx` | Default custom sidebar with collapsible sections and Supabase-first profile identity |
+| `HorizontalNavbar.tsx` | Opt-in desktop global bar with setting-aware primary links, active More menu, adaptive quick-action overflow/tooltips, history-aware entity back links, simplified native context titles, compact countdown, and 110rem rails aligned with the wide Forside canvas |
+| `AppOverlays.tsx` | Navigation-independent Settings, onboarding, activity/private-appointment dialogs, and assignment sheet |
+| `OnboardingWizard.tsx` | First-run setup with a visual navigation-layout choice; sidebar is recommended/default, while the Lectio-like top menu remains opt-in and is applied on completion |
+| `lib/lectio-navigation.ts` | Captures native master/context rows before the original DOM is moved; preserves page/entity-specific link sets and active states |
 | `SettingsModal.tsx` | Settings: appearance, behavior, sidebar toggles, subject mappings, design playground, about |
+| `ReferralInviteDialog.tsx` | Compact searchable invite picker backed by a detached Lectio compose session; pinned/class defaults, active-user filtering, and safe one-click individual sends |
 | `DesignPlayground.tsx` | Full-screen overlay showcasing all design system tokens and components |
-| `MobileAppDrawer.tsx` | Bottom-right floating drawer pitching the iOS app. Gated on `students.app_eligible=true && app_installed_at is null && app_qr_scanned_at is null && marked_android_at is null && dismissed_app_prompt_at is null`. Expands to QR pointing at `/download/ios?u={studentId}` plus "Jeg er på Android" CTA. Helpers in `lib/mobile-app.ts`. |
-| `MobileAppInvitePopup.tsx` | Centered "early access" invite for same eligible students. Once on page load then 7 days later if untouched. Suppressed during quiet hours (02:00–09:00) and while in class. Snooze in `bl-mobile-app-invite-last-shown:{studentId}`. QR encodes per-student `?u=` URL. Soft close just snoozes; "Jeg er på Android" writes `marked_android_at`. |
+| `MobileAppDrawer.tsx` | Bottom-right floating drawer pitching the stable iOS/Android app to every extension user until `app_installed_at` or `dismissed_app_prompt_at` is set. Expands to a tracked QR pointing at `/download/app?u={studentId}`. Helpers in `lib/mobile-app.ts`. |
+| `MobileAppInvitePopup.tsx` | Centered cross-platform invite for the same automatic-promotion audience. Once on page load then 7 days later if untouched; suppressed during the first 24h, quiet hours (02:00–09:00), and while in class. A first QR scan stamps `app_qr_scanned_at`, triggers the Realtime thank-you transition, and redirects by platform; the scan no longer suppresses future promotion, while `app_installed_at` suppresses automatic promotion. The navigation action stays available and force-opens the QR after install or opt-out. |
 
 ### FindSkema System
 
@@ -189,7 +194,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 | `components/Lightbox.tsx` | Shared image/PDF overlay viewer. Used by `ActivityClassModal`/`ActivityClassFullModal` and `BeskederThreadView`. PDFs fetched as blobs (`credentials: 'include'`) so `Content-Disposition: attachment` doesn't force download. Exports `LightboxItem`, `extensionFromUrlOrName()`, `lightboxKindForExtension()`. |
 | `lib/privat-aftale.ts` | Fetch/parse `privat_aftale.aspx`, extract ASP.NET tokens, submit create/delete via hidden iframe POST |
 | `lib/brick-tooltip.ts` | Schedule brick hover tooltip with async-enriched content, fetched presentation previews |
-| `ScheduleCountdown.tsx` | Sidebar countdown: time remaining in current class / until next |
+| `ScheduleCountdown.tsx` | Sidebar/horizontal countdown: time remaining in current class / until next; opens the current or upcoming activity when its URL is available |
 | `lib/schedule-cache.ts` | School-scoped fetch + cache for today's schedule (45min TTL) |
 
 ### Homework & Assignments
@@ -203,7 +208,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 | `lib/opgaver-deadlines-cache.ts` | School-scoped cache (6h TTL) of parsed `OpgaveEntry[]`. Populated by `OpgaverPage`; refreshed by schedule page via `fetchAndCacheOpgaver` (handles `CurrentExerciseFilterCB`/`ShowThisTermOnlyCB` postback). Read by `injectDeadlineBricks()` to render deadline bricks on schedule. |
 | `lib/supabase/resources/homework.ts` | Homework table access + `upsert_student_homework_status(...)` RPC. Reads `homework_entries` by `school_id` + `entry_id`, writes per-student completion with optimistic invalidation |
 
-**Deadline bricks:** `injectDeadlineBricks()` reads from `getCachedOpgaver(schoolId)`, then for each `td[data-date]` cell appends `<a class="il-deadline-brick">` positioned at `topEm` from `calibrateTimeMapping()`. Bricks are 1.6em high, color-matched via `getHoldHue`, click dispatches `betterlectio:openOpgaveDetail` (caught by always-mounted `OpgaveDetailSheet` in `AppSidebar`). Gated on `isViewingOwnPage()`, schedule page (`skemany.aspx` / `skema1dag.aspx`, never `findskema.aspx`), and `schedule.opgaveDeadlines` setting. Submitted assignments filtered out; deadlines outside school hours clamped to column edge with muted dashed style. `betterlectio:opgaveDeadlinesToggled` event triggers live re-render.
+**Deadline bricks:** `injectDeadlineBricks()` reads from `getCachedOpgaver(schoolId)`, then for each `td[data-date]` cell appends `<a class="il-deadline-brick">` positioned at `topEm` from `calibrateTimeMapping()`. Bricks are 1.6em high, color-matched via `getHoldHue`, click dispatches `betterlectio:openOpgaveDetail` (caught by the always-mounted `OpgaveDetailSheet` in `AppOverlays`). Gated on `isViewingOwnPage()`, schedule page (`skemany.aspx` / `skema1dag.aspx`, never `findskema.aspx`), and `schedule.opgaveDeadlines` setting. Submitted assignments filtered out; deadlines outside school hours clamped to column edge with muted dashed style. `betterlectio:opgaveDeadlinesToggled` event triggers live re-render.
 
 **Homework sync contract:** Stored per student in `public.student_homework`, resolved against shared `public.homework_entries`. Client parses each lektie card's Lectio activity URL and extracts `absid` as the stable `entry_id`. Writes through `upsert_student_homework_status` security-definer RPC so legacy rows without `school_id` can be claimed safely on first write, client timestamps prevent stale overwrites, extension/mobile share the same patch-style contract.
 
@@ -240,25 +245,34 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 
 **No-reload architecture:** All message actions use hidden iframe POSTs instead of native `doPostBack()`. Serialized mutex prevents ASP.NET ViewState desync. Non-idempotent operations (send/reply/delete) avoid automatic native fallback on parse errors to prevent duplicate side effects.
 
+**Standalone compose sessions:** `beginStandaloneComposeViaIframe(schoolId)` credential-fetches the inbox, submits Lectio's new-message postback through the same mutex, and returns detached `ComposeFormData`, rotating form state, and the compose document. This lets global UI load the exact `bcstudent` recipient cache and send without navigating. A successful send consumes the session; subsequent sends bootstrap a fresh one.
+
+**Native reactions:** Reactions are Lectio replies carrying a versioned `blr1` payload in the fragment of a real `https://betterlectio.dk/download` link. BetterLectio resolves each carrier to an earlier message, aggregates the latest carrier per sender, and hides only strictly valid, resolved carriers. First reactions use the normal reply/notification flow; changes and clears edit the same carrier. Clear carriers say `Fjernede sin reaktion` and encode `emoji: null`, so the removed emoji is not retained. The shared mobile contract is documented in `docs/message-reactions-protocol.md`.
+
+**Edited messages:** `lib/message-edit-audit.ts` recognizes only Lectio's complete terminal `Redigeret af …` audit block, removes it from rendered message HTML, and exposes the Copenhagen timestamp as localized relative metadata under the sent time. Invalid or non-terminal lookalikes remain visible. The same terminal matcher keeps edited reaction carriers valid without weakening carrier parsing.
+
 **Lectio DOM quirk — recipient GridView links:** In `ThreadRecipientsGV`, delete links use `onclick="javascript:__doPostBack(...)"` with `href="#"`. Parsers must check `onclick` first, then `href` fallback. Same for `AttachmentsGV` — `parseAttachmentsFromDoc` in `lib/beskeder-submit.ts` must read `onclick` first, otherwise freshly-attached files never render.
 
 | File | Purpose |
 |------|---------|
 | `BeskederPage.tsx` | Thread list with folder pills, Supabase-first sender names/avatars, optimistic flag/read/delete, search, bulk actions |
-| `BeskederThreadView.tsx` | Thread reader with Supabase-first names/pictures, signature stripping, no-reload reply + file attachment |
+| `BeskederThreadView.tsx` | Thread reader with Supabase-first names/pictures, signature stripping, no-reload reply/file attachment, reaction picker/chips, and optimistic reaction state |
 | `BeskederCompose.tsx` | Card-based compose with custom recipient picker (Supabase-first names/avatars, keyboard nav), recipient pills, no-reload add/remove/send, Ctrl+Enter. Falls back to native form if parser fails. |
 | `WysiwygEditor.tsx` | contentEditable editor converting BBCode <-> rich HTML |
 | `BBCodeToolbar.tsx` | Formatting toolbar (bold, italic, underline, link) |
-| `lib/beskeder-thread-parser.ts` | Thread DOM parser, state detection, signature stripping |
+| `lib/beskeder-thread-parser.ts` | Thread DOM parser, state detection, signature stripping, per-message edit targets, and reply notification fields |
+| `docs/message-editing-protocol.md` | Canonical native Lectio sent-message edit postbacks, field scoping, limits, and platform behavior |
 | `lib/iframe-post.ts` | Hidden iframe POST utility, form token extraction, session expiry detection |
-| `lib/beskeder-submit.ts` | Mutex-serialized submission. Thread list: `toggleFlagViaIframe`, `toggleReadViaIframe`, `deleteThreadViaIframe`, `selectFolderViaIframe`, `executeSearchViaIframe`, `executeBulkActionViaIframe`, `markAllReadViaIframe`. Thread view: `sendReplyViaIframe`. Compose: `addRecipientViaIframe`, `removeRecipientViaIframe`, `sendMessageViaIframe`. Shared: `uploadFileToLectio`, `attachFileViaIframe`. |
+| `lib/beskeder-submit.ts` | Mutex-serialized submission. Thread list actions, thread reply/reaction edit postbacks, compose actions, and shared file upload/attachment operations. |
+| `lib/message-reactions.ts` | `blr1` encode/decode, strict carrier validation, portable sender/timestamp/occurrence locators, latest-per-actor aggregation, and safe carrier hiding |
+| `lib/message-edit-audit.ts` | Strict terminal Lectio edit-audit extraction, Copenhagen timestamp conversion, and localized relative/absolute edit-time formatting |
 
 ### Forside & Other
 
 | File | Purpose |
 |------|---------|
 | `ForsideGreeting.tsx` | Time-based greeting, live clock, Danish date formatting |
-| `ForsideDashboard.tsx` | Redesigned forside with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides original 4 cards, renders 2-col grid with priority indicators, hold colors, urgency bars, Supabase-first names/avatars. Other native dashboard islands (e.g. Registreringer) parsed via `parseGenericIslands()` and rendered through `GenericCard`. |
+| `ForsideDashboard.tsx` | Redesigned forside with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides original 4 cards, and renders a container-responsive 1/2-col grid with priority indicators, hold colors, urgency bars, and Supabase-first names/avatars. Other native dashboard islands (e.g. Registreringer) are parsed via `parseGenericIslands()` and rendered through `GenericCard`. `enhanceForsideSchedule()` creates a centered `#il-forside-layout` inside the shared content scroller: compact dashboard work area left and a sticky, primary day schedule right in both navigation modes. The canvas caps at 110rem; the schedule track grows from 30rem toward 42rem and near-viewport height, then page-container queries stack it when the actual content area becomes narrow. |
 | `ForsideOpgaverCard.tsx` | Forside opgaver parser (reused by ForsideDashboard) |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
 | `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |
@@ -340,11 +354,12 @@ Typography roles documented in `AGENTS.md` under **Typography / hierarchy**.
 DOM structure:
   body
   +-- #il-root (baseline: Geist font, --foreground color)
-       +-- AppSidebar          <- Tailwind base applies
+       +-- NavigationSurface   <- AppSidebar (default) or HorizontalNavbar
        +-- #il-lectio-content
             +-- injected pages  <- Tailwind base applies
             +-- #il-original-content
                  +-- Lectio DOM <- Tailwind base REVERTED, Lectio CSS applies
+       +-- AppOverlays         <- shared dialogs/sheets for either layout
 ```
 
 - `#il-original-content :where(*) { all: revert-layer }` in `@layer base` prevents Tailwind preflight from breaking Lectio's native DOM

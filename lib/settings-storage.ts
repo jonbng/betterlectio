@@ -16,6 +16,7 @@ const InterfaceSettingsSchema = z.object({
   language: z
     .enum(SUPPORTED_LOCALES as unknown as [string, ...string[]])
     .default(DEFAULT_LOCALE),
+  navigationLayout: z.enum(['sidebar', 'horizontal']).default('sidebar'),
 });
 
 const ScheduleSettingsSchema = z.object({
@@ -90,6 +91,7 @@ export type FeatureSettings = z.infer<typeof FeatureSettingsSchema>;
  * These are checked by content scripts that run at document_start.
  */
 export const SETTINGS_REQUIRING_RELOAD = [
+  'interface.navigationLayout',
   'schedule.todayHighlight',
   'schedule.currentTimeIndicator',
   'schedule.currentTimeLabel',

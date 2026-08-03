@@ -303,7 +303,7 @@ export function FeedbackWidget({
   const widget = (
     <div
       ref={rootRef}
-      className="fixed bottom-5 right-5 z-[2147483000] flex flex-col items-end gap-3"
+      className="pointer-events-none fixed bottom-5 right-5 z-[2147483000] flex flex-col items-end gap-3"
       onKeyDown={(e: any) => {
         if (
           open &&
@@ -579,7 +579,7 @@ export function FeedbackWidget({
         aria-label={open ? 'Luk feedback' : 'Giv feedback'}
         title="Feedback"
         className={cn(
-          'flex h-12 items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg',
+          'pointer-events-auto flex h-12 items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg',
           'pl-3.5 pr-4 ring-1 ring-foreground/10',
           'transition-[transform,box-shadow,background-color] duration-200',
           'hover:scale-[1.03] hover:shadow-xl active:scale-[0.97]',

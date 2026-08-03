@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import { Smartphone, X, Check } from 'lucide-react';
 import type { Tables } from '@/database.types';
-import { useQuery, useMutation } from '@/lib/supabase/hooks';
+import { useQuery } from '@/lib/supabase/hooks';
 import { subscribe, unsubscribe } from '@/lib/supabase/realtime';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
+import type { TFunction } from '@/lib/i18n/types';
 import {
-  renderAppStoreQrSvg,
+  renderMobileAppQrSvg,
+  shouldPromoteMobileApp,
   isInviteSnoozed,
   stampInviteShown,
   getInviteSnoozeAt,
@@ -23,7 +25,7 @@ type Student = Tables<'students'>;
 const QUIET_HOURS_START = 2; // 02:00 inclusive
 const QUIET_HOURS_END = 9;   // 09:00 exclusive
 const SUCCESS_DISPLAY_MS = 4000;
-/** Don't pitch the iOS app until the student has had the extension for at
+/** Don't pitch the mobile app until the student has had the extension for at
  *  least this long. Avoids competing with the onboarding popup on day 0.
  *  Cross-device because we read `students.extension_installed_at` (set on
  *  first-ever Supabase auth, not per-browser). */
@@ -105,9 +107,8 @@ export function MobileAppInvitePopup() {
     };
   }, [student, schoolId, studentId, isLoading, refetch]);
 
-  // Live updates for app_qr_scanned_at — when the student scans on phone, the
-  // background syncs Realtime → cache invalidation → useQuery refetch → we see
-  // the new value within ~1s.
+  // Live updates drive both the first-scan thank-you state and immediate
+  // suppression once either native app stamps app_installed_at.
   useEffect(() => {
     if (!schoolId || !studentId) return;
     const channel = `mobile-app-invite:${schoolId}:${studentId}`;
@@ -142,13 +143,13 @@ export function MobileAppInvitePopup() {
   if (!schoolId || !studentId) return null;
 
   const forced = forceNonce > 0;
+  // Installation suppresses automatic promotion, but the explicit navigation
+  // action can always reopen the QR for another device.
+  if (!forced && student?.app_installed_at) return null;
+
   if (!forced && !hasOpenedOnce) {
     if (!student) return null;
-    if (!student.app_eligible) return null;
-    if (student.app_installed_at) return null;
-    if (student.app_qr_scanned_at) return null;
-    if (student.marked_android_at) return null;
-    if (student.dismissed_app_prompt_at) return null;
+    if (!shouldPromoteMobileApp(student)) return null;
     if (isTooFresh(student)) return null;
   }
 
@@ -205,12 +206,6 @@ function PopupInner({
   const qrAtOpenRef = useRef<string | null | undefined>(undefined);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  const { mutate: updateStudent } = useMutation<Partial<Student>>({
-    table: 'students',
-    method: 'update',
-    schoolId,
-  });
-
   // Respect prefers-reduced-motion (skip movement, keep opacity transitions).
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -254,11 +249,11 @@ function PopupInner({
   }, [blocks, distinctId, schoolId, studentId, forceNonce, onOpened]);
 
   // Render QR once when we're going to show. Tagged with studentId so the
-  // /download/ios redirect can stamp app_qr_scanned_at server-side.
+  // /download/app selects the correct store and stamps app_qr_scanned_at.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    renderAppStoreQrSvg(studentId)
+    renderMobileAppQrSvg(studentId)
       .then((svg) => { if (!cancelled) setQrSvg(svg); })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -320,23 +315,6 @@ function PopupInner({
     if (view === 'invite') {
       capture('mobile_app_invite_dismissed', distinctId, { school_id: schoolId });
     }
-    setTimeout(() => {
-      setOpen(false);
-      setDismissed(true);
-    }, reduceMotion ? 0 : 180);
-  }
-
-  function markAndroid() {
-    if (view !== 'invite') return;
-    setExiting(true);
-    updateStudent(
-      { marked_android_at: new Date().toISOString() },
-      [{ column: 'id', op: 'eq', value: studentId }],
-    );
-    capture('mobile_app_marked_android', distinctId, {
-      school_id: schoolId,
-      source: 'invite_popup',
-    });
     setTimeout(() => {
       setOpen(false);
       setDismissed(true);
@@ -409,11 +387,7 @@ function PopupInner({
             }}
             aria-hidden={view !== 'invite'}
           >
-            <InviteContent
-              t={t}
-              qrSvg={qrSvg}
-              onAndroid={markAndroid}
-            />
+            <InviteContent t={t} qrSvg={qrSvg} />
           </div>
 
           {view === 'thanks' && (
@@ -429,12 +403,11 @@ function PopupInner({
 }
 
 interface InviteContentProps {
-  t: (key: string) => string;
+  t: TFunction;
   qrSvg: string | null;
-  onAndroid: () => void;
 }
 
-function InviteContent({ t, qrSvg, onAndroid }: InviteContentProps) {
+function InviteContent({ t, qrSvg }: InviteContentProps) {
   return (
     <div className="flex flex-col-reverse sm:flex-row sm:items-stretch gap-6 sm:gap-8">
       {/* Left: copy + actions. Stagger entrance via animation-delay. */}
@@ -464,18 +437,6 @@ function InviteContent({ t, qrSvg, onAndroid }: InviteContentProps) {
           {t('mobileApp.invite.body')}
         </p>
 
-        <div
-          className="mt-auto pt-6 flex justify-start opacity-0 animate-[bl-rise_360ms_cubic-bezier(0.23,1,0.32,1)_forwards]"
-          style={{ animationDelay: '170ms' }}
-        >
-          <button
-            type="button"
-            onClick={onAndroid}
-            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.97] transition-[color,background-color,transform] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {t('mobileApp.invite.androidCta')}
-          </button>
-        </div>
       </div>
 
       {/* Right: QR. Slight scale-up entrance. */}
@@ -507,7 +468,7 @@ function InviteContent({ t, qrSvg, onAndroid }: InviteContentProps) {
 }
 
 interface ThanksContentProps {
-  t: (key: string) => string;
+  t: TFunction;
   reduceMotion: boolean;
 }
 

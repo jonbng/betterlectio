@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'preact/hooks';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'preact/hooks';
 import {
   ArrowLeft, Paperclip, Send, Flag, Trash2,
   MoreHorizontal, Reply, Download, Users, X, Loader2, RefreshCw,
   File, FileText, FileImage, FileSpreadsheet, FileArchive, FileCode, FileAudio, FileVideo,
+  SmilePlus, Pencil, Check,
 } from 'lucide-react';
 import { WysiwygEditor } from '@/components/WysiwygEditor';
 import {
@@ -17,11 +18,25 @@ import {
   uploadFileToLectio,
   attachFileViaIframe,
   removeAttachmentViaIframe,
+  editReactionViaIframe,
+  beginMessageEditViaIframe,
+  saveMessageEditViaIframe,
+  type MessageEditSession,
   type FormState,
   type SubmitError,
   type AttachedFile,
   type ReplyFormTargets,
 } from '@/lib/beskeder-submit';
+import {
+  REACTION_EMOJIS,
+  buildReactionBody,
+  messageLocatorKey,
+  resolveThreadReactions,
+  type MessageLocator,
+  type ParsedReactionCarrier,
+  type ReactionEmoji,
+  type ReactionGroup,
+} from '@/lib/message-reactions';
 import {
   ensureNameIdCache,
   fetchPictureUrl,
@@ -30,6 +45,7 @@ import {
 } from '@/lib/findskema-storage';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
+import { formatEditedTime } from '@/lib/message-edit-audit';
 import { fetchUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 import { cn } from '@/lib/utils';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
@@ -348,10 +364,65 @@ interface MessageItemProps {
   index: number;
   onImageClick: (img: LightboxItem) => void;
   studentsMap: StudentsMap | null;
+  locator: MessageLocator | null;
+  reactionGroups: ReactionGroup[];
+  ownReaction: ReactionEmoji | null;
+  ownCarrier: ParsedReactionCarrier<ThreadMessage> | null;
+  canReact: boolean;
+  reactionPending: boolean;
+  pendingEmoji: ReactionEmoji | null | undefined;
+  now: Date;
+  editState: {
+    loading: boolean;
+    saving: boolean;
+    title: string;
+    body: string;
+    signature: string;
+    originalTitle: string;
+    originalBody: string;
+  } | null;
+  editingDisabled: boolean;
+  editError: string | null;
+  onBeginEdit: (message: ThreadMessage) => void;
+  onEditChange: (change: { title?: string; body?: string }) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onReact: (
+    locator: MessageLocator,
+    emoji: ReactionEmoji,
+    ownReaction: ReactionEmoji | null,
+    ownCarrier: ParsedReactionCarrier<ThreadMessage> | null,
+  ) => void;
 }
 
-function MessageItem({ message, schoolId, threadSubject, index, onImageClick, studentsMap }: MessageItemProps) {
-  const { t } = useTranslation();
+function MessageItem({
+  message,
+  schoolId,
+  threadSubject,
+  index,
+  onImageClick,
+  studentsMap,
+  locator,
+  reactionGroups,
+  ownReaction,
+  ownCarrier,
+  canReact,
+  reactionPending,
+  pendingEmoji,
+  now,
+  editState,
+  editingDisabled,
+  editError,
+  onBeginEdit,
+  onEditChange,
+  onSaveEdit,
+  onCancelEdit,
+  onReact,
+}: MessageItemProps) {
+  const { t, locale } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const displaySenderName = getDisplayNameFromLookupId(
     studentsMap,
     message.senderContextCardId,
@@ -371,11 +442,68 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
     message.title !== `Re: ${threadSubject}`;
 
   const dateStr = formatMessageDate(message.date, message.timestamp);
+  const editedTime = message.editedAt ? formatEditedTime(message.editedAt, now, locale) : null;
+  const editedLabel = editedTime?.kind === 'justNow'
+    ? t('beskeder.thread.editedJustNow')
+    : editedTime
+      ? t('beskeder.thread.editedAt', { time: editedTime.value })
+      : null;
+
+  useEffect(() => {
+    if (!pickerOpen && !menuOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) {
+        setPickerOpen(false);
+        setMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPickerOpen(false);
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [pickerOpen, menuOpen]);
+
+  useEffect(() => {
+    if (!canReact) setPickerOpen(false);
+  }, [canReact]);
+
+  const displayedReactionGroups = useMemo(() => {
+    if (pendingEmoji === undefined) return reactionGroups;
+    const byEmoji = new Map<ReactionEmoji, ReactionGroup>();
+    for (const group of reactionGroups) {
+      const reactors = group.reactors.filter((reactor) => !reactor.isOwn);
+      if (reactors.length) byEmoji.set(group.emoji, { ...group, reactors });
+    }
+    if (pendingEmoji !== null) {
+      const group = byEmoji.get(pendingEmoji) ?? { emoji: pendingEmoji, reactors: [] };
+      byEmoji.set(pendingEmoji, {
+        ...group,
+        reactors: [...group.reactors, { key: 'pending-own', name: t('beskeder.thread.you'), isOwn: true }],
+      });
+    }
+    return REACTION_EMOJIS
+      .filter((emoji) => byEmoji.has(emoji))
+      .map((emoji) => byEmoji.get(emoji)!);
+  }, [reactionGroups, pendingEmoji, t]);
+
+  const selectReaction = (emoji: ReactionEmoji) => {
+    if (!locator || !canReact) return;
+    setPickerOpen(false);
+    onReact(locator, emoji, ownReaction, ownCarrier);
+  };
 
   return (
     <div
       className={cn(
-        'animate-[thread-msg-in_0.3s_ease_both] flex gap-3.5 border-b border-border/50 py-4 last:border-b-0',
+        'group/message animate-[thread-msg-in_0.3s_ease_both] flex gap-3.5 border-b border-border/50 py-4 last:border-b-0',
         message.isOwnMessage && '-mx-4 rounded-lg border-b-transparent bg-primary/6 px-4',
       )}
       style={{ animationDelay: `${index * 40}ms` } as any}
@@ -390,7 +518,7 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-baseline justify-between gap-2">
+        <div className="mb-1 flex items-center justify-between gap-2">
           {personScheduleUrl ? (
             <button
               type="button"
@@ -407,17 +535,140 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
               {shortName(displaySenderName)}
             </span>
           )}
-          <span className="shrink-0 text-base text-muted-foreground">{dateStr}</span>
+          <div className="relative flex shrink-0 items-center gap-1.5" ref={pickerRef}>
+            {!!message.editPostbackTarget && !editState && (
+              <button
+                type="button"
+                className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-35"
+                onClick={() => setMenuOpen((open) => !open)}
+                disabled={editingDisabled}
+                aria-label={t('beskeder.thread.moreActions')}
+              >
+                <MoreHorizontal size={17} />
+              </button>
+            )}
+            {locator && (
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-[background-color,color,opacity,transform] duration-150 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-35',
+                  'hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring/60',
+                  pickerOpen || ownReaction
+                    ? 'opacity-100'
+                    : 'opacity-100 sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100',
+                )}
+                onClick={() => setPickerOpen((open) => !open)}
+                disabled={!canReact}
+                aria-label={t('beskeder.thread.addReaction')}
+                aria-expanded={pickerOpen}
+                title={canReact ? t('beskeder.thread.addReaction') : t('beskeder.thread.reactionUnavailable')}
+              >
+                {reactionPending ? <Loader2 size={15} className="animate-spin" /> : <SmilePlus size={16} />}
+              </button>
+            )}
+            <span className="flex flex-col items-end text-muted-foreground">
+              <span className="text-base">{dateStr}</span>
+              {editedLabel && <span className="text-sm leading-tight">{editedLabel}</span>}
+            </span>
+
+            {pickerOpen && locator && canReact && (
+              <div
+                className="absolute right-0 top-[calc(100%+0.45rem)] z-30 flex animate-[thread-msg-in_0.16s_var(--ease-out)_both] items-center gap-0.5 rounded-full border border-border/80 bg-popover p-1.5 text-popover-foreground shadow-[0_14px_34px_-14px_oklch(0_0_0/0.42)] motion-reduce:animate-none"
+                role="menu"
+                aria-label={t('beskeder.thread.reactionPicker')}
+              >
+                {REACTION_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    role="menuitem"
+                    className={cn(
+                      'inline-flex size-9 items-center justify-center rounded-full text-xl transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-ring/60',
+                      ownReaction === emoji && 'bg-primary/12 ring-1 ring-primary/30',
+                    )}
+                    onClick={() => selectReaction(emoji)}
+                    aria-label={t('beskeder.thread.reactWith', { emoji })}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+            {menuOpen && !!message.editPostbackTarget && (
+              <div className="absolute right-0 top-[calc(100%+0.4rem)] z-30 min-w-36 rounded-lg border border-border bg-popover p-1 shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-accent"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onBeginEdit(message);
+                  }}
+                >
+                  <Pencil size={14} />
+                  {t('beskeder.thread.edit')}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {showTitle && (
+        {editState ? (
+          <div className="mt-3 overflow-hidden rounded-xl border border-primary/25 bg-card shadow-[0_12px_36px_-26px_oklch(0.45_0.18_265)]">
+            <div className="border-b border-border/70 px-3 py-2">
+              <input
+                value={editState.title}
+                maxLength={100}
+                disabled={editState.loading || editState.saving}
+                onInput={(event) => onEditChange({ title: event.currentTarget.value })}
+                className="w-full bg-transparent text-base font-semibold outline-none placeholder:text-muted-foreground"
+                placeholder={t('beskeder.thread.titlePlaceholder')}
+              />
+            </div>
+            {editState.loading ? (
+              <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 size={16} className="animate-spin" /> {t('beskeder.thread.loadingEdit')}
+              </div>
+            ) : (
+              <WysiwygEditor
+                key={`${message.editPostbackTarget}-${editState.originalBody}`}
+                initialBBCode={editState.body}
+                onBBCodeChange={(body) => onEditChange({ body })}
+                onSubmit={onSaveEdit}
+                placeholder={t('beskeder.thread.bodyPlaceholder')}
+                className="rounded-none border-0 shadow-none focus-within:ring-0"
+              />
+            )}
+            {editError && (
+              <div className="mx-3 mb-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-sm text-destructive">
+                {editError}
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-border/70 px-3 py-2">
+              <span className="text-xs text-muted-foreground">{(editState.body.length + editState.signature.length).toLocaleString()} / 100.000</span>
+              <div className="flex gap-2">
+                <button type="button" className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent" disabled={editState.saving} onClick={onCancelEdit}>
+                  {t('beskeder.thread.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-45"
+                  disabled={editState.loading || editState.saving || editState.body.length + editState.signature.length > 100000 || (editState.title === editState.originalTitle && editState.body === editState.originalBody)}
+                  onClick={onSaveEdit}
+                >
+                  {editState.saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  {editState.saving ? t('beskeder.thread.saving') : t('beskeder.thread.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : showTitle && (
           <div className="mb-1 mt-1 text-xl font-medium text-muted-foreground">{message.title}</div>
         )}
 
-        <div
+        {!editState && <div
           className="mt-2 wrap-anywhere text-xl leading-relaxed text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:decoration-2"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(strippedContent) }}
-        />
+        />}
 
         {message.attachments.length > 0 && (
           <div className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
@@ -509,6 +760,39 @@ function MessageItem({ message, schoolId, threadSubject, index, onImageClick, st
             })}
           </div>
         )}
+
+        {displayedReactionGroups.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            {displayedReactionGroups.map((group) => {
+              const selected = group.reactors.some((reactor) => reactor.isOwn);
+              const names = group.reactors.map((reactor) => reactor.name).join(', ');
+              return (
+                <button
+                  key={group.emoji}
+                  type="button"
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-55',
+                    selected
+                      ? 'border-primary/35 bg-primary/10 text-primary'
+                      : 'border-border/80 bg-card text-foreground hover:border-primary/30 hover:bg-accent/70',
+                  )}
+                  onClick={() => selectReaction(group.emoji)}
+                  disabled={!canReact}
+                  title={names}
+                  aria-label={t('beskeder.thread.reactionSummary', {
+                    emoji: group.emoji,
+                    count: group.reactors.length,
+                    names,
+                  })}
+                >
+                  <span className="text-base leading-none">{group.emoji}</span>
+                  <span>{group.reactors.length}</span>
+                  {reactionPending && selected && <Loader2 size={11} className="animate-spin" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -527,6 +811,14 @@ function formatSubmitErrorForRetry(err: SubmitError, t: ReturnType<typeof useTra
   return t('beskeder.errors.replyFailed');
 }
 
+const TERMINAL_BETTERLECTIO_SIGNATURE = /(\n\n\[url=https:\/\/betterlectio\.dk\/download\]Sendt med BetterLectio\[\/url\])\s*$/i;
+
+function splitEditableSignature(body: string): { body: string; signature: string } {
+  const match = body.match(TERMINAL_BETTERLECTIO_SIGNATURE);
+  if (!match || match.index === undefined) return { body, signature: '' };
+  return { body: body.slice(0, match.index), signature: match[1] };
+}
+
 export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<ThreadMessage[]>(data.messages);
@@ -537,9 +829,25 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [uploadingFileName, setUploadingFileName] = useState<string | null>(null);
   const [removingIndex, setRemovingIndex] = useState<number | null>(null);
+  const [pendingReaction, setPendingReaction] = useState<{
+    targetKey: string;
+    emoji: ReactionEmoji | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [lightboxItem, setLightboxItem] = useState<LightboxItem | null>(null);
+  const [relativeTimeNow, setRelativeTimeNow] = useState(() => new Date());
+  const [editing, setEditing] = useState<{
+    target: string;
+    session: MessageEditSession | null;
+    title: string;
+    body: string;
+    signature: string;
+    originalTitle: string;
+    originalBody: string;
+    loading: boolean;
+    saving: boolean;
+  } | null>(null);
   const [formState, setFormState] = useState<FormState>({
     tokens: data.formTokens,
     action: data.formAction,
@@ -557,6 +865,8 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       attachPostbackTarget: rf.attachPostbackTarget,
       attachDocIdFieldName: rf.attachDocumentIdInput?.getAttribute('name') || '',
       currentTitle: rf.currentTitle,
+      notifyFieldName: rf.notifyFieldName,
+      notifyValue: rf.notifyValue,
     };
   });
   const [refreshing, setRefreshing] = useState(false);
@@ -565,6 +875,14 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const notifyRef = useRef<HTMLDivElement>(null);
   const pollTimeoutRef = useRef<number | null>(null);
   const refreshInFlightRef = useRef(false);
+  const resolvedThread = useMemo(() => resolveThreadReactions(messages), [messages]);
+
+  useEffect(() => {
+    if (!messages.some((message) => message.editedAt)) return;
+    setRelativeTimeNow(new Date());
+    const timer = window.setInterval(() => setRelativeTimeNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [messages]);
 
   // Scroll to bottom on mount
   useEffect(() => {
@@ -577,6 +895,11 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       notifyRef.current.appendChild(data.replyForm.notifyDropdownEl);
     }
   }, []);
+
+  useEffect(() => {
+    const select = notifyRef.current?.querySelector('select');
+    if (select && replyTargets?.notifyFieldName) select.name = replyTargets.notifyFieldName;
+  }, [replyTargets?.notifyFieldName]);
 
   useEffect(() => {
     void ensureNameIdCache(schoolId);
@@ -619,7 +942,11 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         setMessages(result.data.messages);
         setRecipients(result.data.recipients);
         if (result.data.replyFormTargets) {
-          setReplyTargets(result.data.replyFormTargets);
+          const notifyValue = notifyRef.current?.querySelector('select')?.value;
+          setReplyTargets({
+            ...result.data.replyFormTargets,
+            notifyValue: notifyValue || result.data.replyFormTargets.notifyValue,
+          });
           setReplyTitle((current) =>
             current.trim() ? current : result.data.replyFormTargets?.currentTitle || current,
           );
@@ -646,7 +973,13 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
     };
 
     const isBusyComposing = () =>
-      sending || !!uploadingFileName || removingIndex !== null || !!replyBody.trim() || attachedFiles.length > 0;
+      sending
+      || !!uploadingFileName
+      || removingIndex !== null
+      || !!pendingReaction
+      || !!editing
+      || !!replyBody.trim()
+      || attachedFiles.length > 0;
 
     const scheduleNextPoll = () => {
       if (cancelled) return;
@@ -680,7 +1013,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleVisibility);
     };
-  }, [performRefresh, sending, uploadingFileName, removingIndex, replyBody, attachedFiles.length]);
+  }, [performRefresh, sending, uploadingFileName, removingIndex, pendingReaction, editing, replyBody, attachedFiles.length]);
 
   // Close lightbox on Escape
   useEffect(() => {
@@ -695,7 +1028,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
   const handleFileSelect = useCallback((e: Event) => {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) return;
+    if (!file || pendingReaction) return;
     input.value = '';
 
     if (!replyTargets?.attachPostbackTarget || !replyTargets?.attachDocIdFieldName) return;
@@ -722,10 +1055,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         setUploadingFileName(null);
         setError(t('beskeder.errors.fileUpload'));
       });
-  }, [replyTargets, schoolId, formState, t]);
+  }, [replyTargets, schoolId, formState, pendingReaction, t]);
 
   const handleRemoveFile = useCallback((file: AttachedFile, index: number) => {
-    if (removingIndex !== null) return;
+    if (removingIndex !== null || pendingReaction) return;
     setRemovingIndex(index);
     setError(null);
 
@@ -739,14 +1072,17 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         }
         setRemovingIndex(null);
       });
-  }, [formState, removingIndex, t]);
+  }, [formState, removingIndex, pendingReaction, t]);
 
   const handleSend = useCallback(() => {
-    if (!replyTargets || !replyBody.trim() || sending) return;
+    if (!replyTargets || !replyBody.trim() || sending || pendingReaction) return;
     setSending(true);
     setError(null);
 
     const skipSig = shouldSkipSignature();
+    const notifySelect = notifyRef.current?.querySelector('select');
+    const notifyFieldName = notifySelect?.name || replyTargets.notifyFieldName;
+    const notifyValue = notifySelect?.value || replyTargets.notifyValue;
 
     sendReplyViaIframe(
       formState,
@@ -756,6 +1092,8 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       replyTitle,
       replyBody,
       skipSig,
+      notifyFieldName,
+      notifyValue,
     ).then((result) => {
       if (result.success) {
         setFormState(result.formState);
@@ -767,7 +1105,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
         // Update reply form targets — ASP.NET ctl indices shift after adding a row
         if (result.data.replyFormTargets) {
-          setReplyTargets(result.data.replyFormTargets);
+          setReplyTargets({
+            ...result.data.replyFormTargets,
+            notifyValue,
+          });
           setReplyTitle(result.data.replyFormTargets.currentTitle);
         }
 
@@ -780,7 +1121,150 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
         setError(formatSubmitErrorForRetry(result.error, t));
       }
     });
-  }, [replyTargets, replyBody, replyTitle, sending, formState, t]);
+  }, [replyTargets, replyBody, replyTitle, sending, pendingReaction, formState, t]);
+
+  const handleReaction = useCallback(async (
+    locator: MessageLocator,
+    emoji: ReactionEmoji,
+    ownReaction: ReactionEmoji | null,
+    ownCarrier: ParsedReactionCarrier<ThreadMessage> | null,
+  ) => {
+    if (!replyTargets || pendingReaction || sending || uploadingFileName || removingIndex !== null) return;
+    if (attachedFiles.length > 0) {
+      setError(t('beskeder.errors.reactionAttachments'));
+      return;
+    }
+
+    const nextEmoji = ownReaction === emoji ? null : emoji;
+    const envelope = nextEmoji === null
+      ? { v: 1 as const, op: 'clear' as const, emoji: null, target: locator }
+      : { v: 1 as const, op: 'set' as const, emoji: nextEmoji, target: locator };
+    const body = buildReactionBody(envelope, !shouldSkipSignature());
+    const targetKey = messageLocatorKey(locator);
+    const notifySelect = notifyRef.current?.querySelector('select');
+    const notifyFieldName = notifySelect?.name || replyTargets.notifyFieldName;
+    const notifyValue = notifySelect?.value || replyTargets.notifyValue;
+    setPendingReaction({ targetKey, emoji: nextEmoji });
+    setError(null);
+
+    if (ownCarrier && !ownCarrier.message.editPostbackTarget) {
+      setPendingReaction(null);
+      setError(t('beskeder.errors.reactionEditUnavailable'));
+      return;
+    }
+
+    const result = ownCarrier
+      ? await editReactionViaIframe(
+        formState,
+        ownCarrier.message.editPostbackTarget,
+        body,
+      )
+      : await sendReplyViaIframe(
+        formState,
+        replyTargets.sendPostbackTarget,
+        replyTargets.titleFieldName,
+        replyTargets.bodyFieldName,
+        replyTitle,
+        body,
+        true,
+        notifyFieldName,
+        notifyValue,
+      );
+
+    if (result.success) {
+      setFormState(result.formState);
+      setMessages(result.data.messages);
+      setRecipients(result.data.recipients);
+      if (result.data.replyFormTargets) {
+        setReplyTargets({
+          ...result.data.replyFormTargets,
+          notifyValue,
+        });
+      }
+      setPendingReaction(null);
+      return;
+    }
+
+    setPendingReaction(null);
+    setError(t('beskeder.errors.reactionFailed'));
+    // Never resubmit an ambiguous native write. Refresh first so a timed-out
+    // initial send can be discovered and later updates edit that carrier.
+    void performRefresh();
+  }, [
+    replyTargets,
+    pendingReaction,
+    sending,
+    uploadingFileName,
+    removingIndex,
+    attachedFiles.length,
+    formState,
+    replyTitle,
+    performRefresh,
+    t,
+  ]);
+
+  const handleBeginEdit = useCallback(async (message: ThreadMessage) => {
+    if (!message.editPostbackTarget || editing || sending || pendingReaction) return;
+    setError(null);
+    setEditing({
+      target: message.editPostbackTarget,
+      session: null,
+      title: message.title,
+      body: '',
+      signature: '',
+      originalTitle: message.title,
+      originalBody: '',
+      loading: true,
+      saving: false,
+    });
+    const result = await beginMessageEditViaIframe(formState, message.editPostbackTarget);
+    if (!result.success) {
+      setEditing(null);
+      setError(t('beskeder.errors.editOpenFailed'));
+      return;
+    }
+    const editable = splitEditableSignature(result.data.currentBody);
+    setEditing({
+      target: message.editPostbackTarget,
+      session: result.data,
+      title: result.data.currentTitle,
+      body: editable.body,
+      signature: editable.signature,
+      originalTitle: result.data.currentTitle,
+      originalBody: editable.body,
+      loading: false,
+      saving: false,
+    });
+  }, [editing, sending, pendingReaction, formState, t]);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editing?.session || editing.saving || editing.body.length + editing.signature.length > 100000 || editing.title.length > 100) return;
+    setEditing((current) => current ? { ...current, saving: true } : current);
+    setError(null);
+    const result = await saveMessageEditViaIframe(
+      editing.session,
+      editing.title,
+      `${editing.body}${editing.signature}`,
+    );
+    if (!result.success) {
+      setEditing((current) => current ? { ...current, saving: false } : current);
+      setError(t('beskeder.errors.editSaveFailed'));
+      return;
+    }
+    setFormState(result.formState);
+    setMessages(result.data.messages);
+    setRecipients(result.data.recipients);
+    if (result.data.replyFormTargets) setReplyTargets(result.data.replyFormTargets);
+    setEditing(null);
+  }, [editing, t]);
+
+  const handleCancelEdit = useCallback(() => {
+    if (!editing) return;
+    const dirty = editing.title !== editing.originalTitle || editing.body !== editing.originalBody;
+    if (dirty && !window.confirm(t('beskeder.thread.discardEdit'))) return;
+    setEditing(null);
+    void performRefresh();
+  }, [editing, performRefresh, t]);
 
   const handleBack = () => {
     // Navigate back to message list
@@ -848,13 +1332,13 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
         <div className="inline-flex items-center gap-3">
           <span className="text-sm text-muted-foreground">
-            {messages.length} {messages.length === 1 ? t('beskeder.thread.message') : t('beskeder.thread.messages')}
+            {resolvedThread.messages.length} {resolvedThread.messages.length === 1 ? t('beskeder.thread.message') : t('beskeder.thread.messages')}
           </span>
           <button
             type="button"
             className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.95] disabled:cursor-not-allowed disabled:opacity-60"
             onClick={() => { void performRefresh({ manual: true }); }}
-            disabled={refreshing}
+            disabled={refreshing || !!pendingReaction}
             title={t('beskeder.thread.refreshTitle')}
             aria-label={t('beskeder.thread.refreshTitle')}
           >
@@ -865,22 +1349,46 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
 
       {/* ── Messages ───────────────────────────── */}
       <div className="flex-1 space-y-2 py-3 pb-4">
-        {messages.map((msg, idx) => (
+        {resolvedThread.messages.map((entry, idx) => (
           <MessageItem
-            key={`${msg.timestamp}-${msg.senderContextCardId}-${idx}`}
-            message={msg}
+            key={`${entry.message.timestamp}-${entry.message.senderContextCardId}-${idx}`}
+            message={entry.message}
             schoolId={schoolId}
             threadSubject={data.threadSubject}
             index={idx}
             onImageClick={setLightboxItem}
             studentsMap={studentsMap}
+            locator={entry.locator}
+            reactionGroups={entry.reactions}
+            ownReaction={entry.ownEmoji}
+            ownCarrier={entry.ownCarrier}
+            canReact={!!replyTargets
+              && !!entry.locator
+              && !pendingReaction
+              && !sending
+              && !uploadingFileName
+              && removingIndex === null
+              && attachedFiles.length === 0}
+            reactionPending={pendingReaction?.targetKey === entry.locatorKey}
+            pendingEmoji={pendingReaction?.targetKey === entry.locatorKey
+              ? pendingReaction.emoji
+              : undefined}
+            now={relativeTimeNow}
+            editState={editing?.target === entry.message.editPostbackTarget ? editing : null}
+            editingDisabled={!!editing || !!pendingReaction || sending || !!uploadingFileName || removingIndex !== null}
+            editError={editing?.target === entry.message.editPostbackTarget ? error : null}
+            onBeginEdit={handleBeginEdit}
+            onEditChange={(change) => setEditing((current) => current ? { ...current, ...change } : current)}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={handleCancelEdit}
+            onReact={handleReaction}
           />
         ))}
         <div ref={messagesEndRef} />
       </div>
 
       {/* ── Reply Area ─────────────────────────── */}
-      {replyTargets && (
+      {replyTargets && !editing && (
         <div className="sticky bottom-0 z-10 pt-4 pb-6">
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_-4px_16px_oklch(0_0_0/0.06)]">
           <div className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -943,9 +1451,10 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                   ) : (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-[border-color,color] duration-150 hover:border-foreground hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm font-medium text-muted-foreground transition-[border-color,color,transform] duration-150 hover:border-foreground hover:text-foreground active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                       onClick={() => fileInputRef.current?.click()}
                       title={t('beskeder.thread.attachFile')}
+                      disabled={!!pendingReaction || sending || removingIndex !== null}
                     >
                       <Paperclip size={14} />
                       <span>{t('beskeder.thread.attachFile')}</span>
@@ -966,7 +1475,7 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
                 type="button"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={handleSend}
-                disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null}
+                disabled={!replyBody.trim() || sending || !!uploadingFileName || removingIndex !== null || !!pendingReaction}
               >
                 <Send size={15} />
                 <span>{sending ? t('beskeder.thread.sending') : t('beskeder.thread.send')}</span>

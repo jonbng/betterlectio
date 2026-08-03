@@ -1766,14 +1766,91 @@ html {
 
   /* ── Forside Schedule Side Panel — Native Lectio Element Overrides ── */
 
-  /* Make SidebarInset a row layout on forside so panel sits beside content */
-  body.il-forside [data-slot="sidebar-inset"] {
-    flex-direction: row !important;
-  }
-
   body.il-forside #il-lectio-content {
     flex: 1;
     min-width: 0;
+    container: forside-page / inline-size;
+  }
+
+  /* Forside owns its content/schedule composition so it behaves identically
+     in the sidebar and horizontal navigation shells. */
+  #il-forside-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(30rem, 38%, 42rem);
+    align-items: start;
+    gap: clamp(1.5rem, 2.25vw, 2.5rem);
+    width: 100%;
+    max-width: 110rem;
+    margin-inline: auto;
+    padding: 0 clamp(1.5rem, 2.5vw, 3rem) 3rem;
+    box-sizing: border-box;
+  }
+
+  #il-forside-main {
+    min-width: 0;
+    container: forside-main / inline-size;
+  }
+
+  #il-forside-schedule-panel {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    width: 100%;
+    height: min(64rem, calc(100dvh - 2rem));
+    padding-top: 1.5rem;
+    box-sizing: border-box;
+  }
+
+  body.il-horizontal-navigation #il-forside-schedule-panel {
+    height: min(60rem, calc(100dvh - 7.5rem));
+    min-height: 38rem;
+  }
+
+  .il-forside-schedule-card {
+    border-radius: 1.25rem;
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.04),
+      0 18px 48px -36px oklch(0 0 0 / 0.28);
+  }
+
+  .il-forside-hero-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  @container forside-main (max-width: 34rem) {
+    .il-forside-hero-heading {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.75rem;
+    }
+  }
+
+  @container forside-main (min-width: 40rem) {
+    .il-forside-dashboard-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @container forside-page (max-width: 86rem) {
+    #il-forside-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(28rem, 36rem);
+      gap: 1.5rem;
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @container forside-page (max-width: 72rem) {
+    #il-forside-layout {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 62rem;
+    }
+
+    #il-forside-schedule-panel,
+    body.il-horizontal-navigation #il-forside-schedule-panel {
+      position: static;
+      height: 50rem;
+      min-height: 0;
+      padding-top: 0;
+    }
   }
 
   /* Lectio brick styling inside the schedule panel (raw DOM, can't use Tailwind) */

@@ -975,9 +975,9 @@ export function ForsideDashboard({
   const rightExtras = extras.filter((_, i) => i % 2 === 1);
 
   return (
-    <div className="grid grid-cols-2 gap-4 px-8 pb-4">
+    <div className="il-forside-dashboard-grid grid grid-cols-1 gap-6 pb-10">
       {/* Left column */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '0ms' }}>
           <AktuelInfoCard entries={aktuelInfo} schoolId={schoolId} />
         </div>
@@ -995,7 +995,7 @@ export function ForsideDashboard({
         ))}
       </div>
       {/* Right column */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '30ms' }}>
           <OpgaverCard initialEntries={opgaver} schoolId={schoolId} />
         </div>

@@ -1,21 +1,34 @@
 import QRCode from 'qrcode';
 
-const APP_STORE_REDIRECT_BASE = 'https://betterlectio.dk/download/ios';
+const MOBILE_APP_DOWNLOAD_BASE = 'https://betterlectio.dk/download/app';
+
+type MobileAppPromotionState = {
+  app_installed_at?: string | null;
+  dismissed_app_prompt_at?: string | null;
+  app_eligible?: boolean;
+  app_qr_scanned_at?: string | null;
+  marked_android_at?: string | null;
+};
+
+/** The rollout is public; only installation or an explicit opt-out suppresses it. */
+export function shouldPromoteMobileApp(student: MobileAppPromotionState | null | undefined): boolean {
+  return Boolean(student && !student.app_installed_at && !student.dismissed_app_prompt_at);
+}
 
 /**
- * Returns the betterlectio.dk redirect URL for the App Store. When `studentId`
- * is provided it's tagged as `?u={studentId}` so the redirect handler can
- * stamp `students.app_qr_scanned_at` on first scan.
+ * Returns the betterlectio.dk platform-neutral app redirect. When `studentId`
+ * is provided it's tagged so the handler can stamp the first QR scan before
+ * selecting App Store or Google Play.
  */
-export function appStoreUrlFor(studentId?: string | null): string {
-  if (!studentId) return APP_STORE_REDIRECT_BASE;
-  const url = new URL(APP_STORE_REDIRECT_BASE);
+export function mobileAppDownloadUrlFor(studentId?: string | null): string {
+  if (!studentId) return MOBILE_APP_DOWNLOAD_BASE;
+  const url = new URL(MOBILE_APP_DOWNLOAD_BASE);
   url.searchParams.set('u', studentId);
   return url.toString();
 }
 
-export async function renderAppStoreQrSvg(studentId?: string | null): Promise<string> {
-  return QRCode.toString(appStoreUrlFor(studentId), {
+export async function renderMobileAppQrSvg(studentId?: string | null): Promise<string> {
+  return QRCode.toString(mobileAppDownloadUrlFor(studentId), {
     type: 'svg',
     errorCorrectionLevel: 'M',
     margin: 0,

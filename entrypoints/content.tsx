@@ -1,5 +1,7 @@
 import { render } from "@/lib/i18n/render";
 import { AppSidebar } from "@/components/AppSidebar";
+import { HorizontalNavbar } from "@/components/HorizontalNavbar";
+import { AppOverlays } from "@/components/AppOverlays";
 import { FindSkemaPage } from "@/components/FindSkemaPage";
 import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -45,6 +47,7 @@ import {
 } from "@/lib/profile-cache";
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
+import { parseLectioNavigation, type LectioNavigationSnapshot } from "@/lib/lectio-navigation";
 import { getLocale } from "@/lib/i18n";
 import { applyThemeForSchool, getThemePreferenceForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
@@ -247,14 +250,11 @@ function injectFont() {
   document.head.append(preconnect1, preconnect2, font);
 }
 
-function DashboardLayout() {
+function DashboardExtras() {
   const profile = getCachedProfile();
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <div id="il-lectio-content" />
-      </SidebarInset>
+    <>
+      <AppOverlays />
       <MobileAppDrawer />
       <MobileAppInvitePopup />
       <FeedbackWidget
@@ -263,7 +263,39 @@ function DashboardLayout() {
         browserInfo={getBrowserInfo()}
         lectioVersion={getLectioVersion()}
       />
-      <Toaster position="bottom-right" />
+      <Toaster
+        position="bottom-right"
+        offset={{ bottom: 80, right: 20 }}
+        mobileOffset={{ bottom: 80, right: 20 }}
+      />
+    </>
+  );
+}
+
+function DashboardLayout({
+  navigation,
+  layout,
+}: {
+  navigation: LectioNavigationSnapshot;
+  layout: 'sidebar' | 'horizontal';
+}) {
+  if (layout === 'horizontal') {
+    return (
+      <div className="il-horizontal-layout flex h-screen w-full min-w-0 flex-col bg-background">
+        <HorizontalNavbar snapshot={navigation} />
+        <main id="il-lectio-content" className="!h-auto !min-h-0" />
+        <DashboardExtras />
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <div id="il-lectio-content" />
+      </SidebarInset>
+      <DashboardExtras />
     </SidebarProvider>
   );
 }
@@ -949,6 +981,11 @@ function initLayout() {
   // Inject Geist font
   injectFont();
 
+  // Capture Lectio's role/page-specific navigation while it is still in the
+  // document. Horizontal mode renders these exact contextual rows.
+  const lectioNavigation = parseLectioNavigation(document);
+  const navigationLayout = getSettings().interface?.navigationLayout ?? 'sidebar';
+
   // Collect all original body children (as actual nodes, not innerHTML)
   // This preserves event handlers and form connections
   const originalNodes: Node[] = [];
@@ -958,6 +995,8 @@ function initLayout() {
 
   // Add our wrapper class
   document.body.classList.add("il-dashboard-active");
+  document.body.classList.toggle('il-horizontal-navigation', navigationLayout === 'horizontal');
+  document.body.classList.toggle('il-sidebar-navigation', navigationLayout === 'sidebar');
 
   // Create our root container
   const root = document.createElement("div");
@@ -972,7 +1011,7 @@ function initLayout() {
   }
 
   // Render the dashboard layout
-  render(<DashboardLayout />, root);
+  render(<DashboardLayout navigation={lectioNavigation} layout={navigationLayout} />, root);
 
   // Wait for the render and then move the original content into our content area
   requestAnimationFrame(() => {
@@ -2358,19 +2397,34 @@ function enhanceForsideSchedule(schoolId: string) {
     }
   }
 
-  // Create a side panel container next to the main content
+  // Own the forside's page-level layout inside the scroll container. Appending
+  // the panel beside #il-lectio-content only worked in sidebar mode because
+  // SidebarInset happens to be a row; the horizontal shell is a column and
+  // therefore placed the schedule below the dashboard.
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
+  const layoutShell = document.createElement("div");
+  layoutShell.id = "il-forside-layout";
+
+  const mainColumn = document.createElement("div");
+  mainColumn.id = "il-forside-main";
+
+  while (contentContainer.firstChild) {
+    mainColumn.appendChild(contentContainer.firstChild);
+  }
+
+  layoutShell.appendChild(mainColumn);
+  contentContainer.appendChild(layoutShell);
+
   const panel = document.createElement("div");
   panel.id = "il-forside-schedule-panel";
-  panel.className = "w-[30rem] shrink-0 flex flex-col overflow-hidden max-md:hidden pr-4 py-4";
+  panel.className = "flex min-w-0 flex-col overflow-hidden max-md:hidden";
   // Inner card with rounding and border
   const inner = document.createElement("div");
-  inner.className = "flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm";
+  inner.className = "il-forside-schedule-card flex flex-1 flex-col overflow-hidden border border-border bg-card";
   panel.appendChild(inner);
-  // Insert after il-lectio-content (as a sibling inside SidebarInset)
-  contentContainer.parentElement?.appendChild(panel);
+  layoutShell.appendChild(panel);
 
   // Fetch schedule from SkemaNy.aspx and render the panel
   fetchScheduleWeek(schoolId).then((weekData) => {

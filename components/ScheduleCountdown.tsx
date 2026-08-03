@@ -28,11 +28,11 @@ function endSoonIntensity(remaining: number): number {
 export type CountdownState =
   | { type: 'loading' }
   | { type: 'in-class'; label: string; holdCode: string; elapsed: number; total: number; remaining: number; activityUrl?: string }
-  | { type: 'break'; label: string; holdCode: string; remaining: number }
-  | { type: 'before-school'; label: string; holdCode: string; remaining: number }
+  | { type: 'break'; label: string; holdCode: string; remaining: number; activityUrl?: string }
+  | { type: 'before-school'; label: string; holdCode: string; remaining: number; activityUrl?: string }
   | { type: 'after-school' }
   | { type: 'no-classes' }
-  | { type: 'cancelled-class'; label: string; holdCode: string; remaining: number; nextLabel?: string; nextHoldCode?: string; nextStart?: number };
+  | { type: 'cancelled-class'; label: string; holdCode: string; remaining: number; nextLabel?: string; nextHoldCode?: string; nextStart?: number; nextActivityUrl?: string };
 
 export function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, nowSeconds: number): CountdownState {
   const active = blocks.filter(b => !b.cancelled);
@@ -44,7 +44,7 @@ export function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, n
     const next = active.find(b => b.start >= nowMinutes);
     return {
       type: 'cancelled-class', label: c.label, holdCode: c.holdCode, remaining: rem,
-      ...(next ? { nextLabel: next.label, nextHoldCode: next.holdCode, nextStart: next.start } : {}),
+      ...(next ? { nextLabel: next.label, nextHoldCode: next.holdCode, nextStart: next.start, nextActivityUrl: next.activityUrl } : {}),
     };
   }
 
@@ -68,7 +68,7 @@ export function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, n
     }
     const remainingSec = (firstBlock.start - nowMinutes) * 60 - nowSeconds;
     if (remainingSec > 0) {
-      return { type: 'before-school', label: firstBlock.label, holdCode: firstBlock.holdCode, remaining: remainingSec };
+      return { type: 'before-school', label: firstBlock.label, holdCode: firstBlock.holdCode, remaining: remainingSec, activityUrl: firstBlock.activityUrl };
     }
   }
 
@@ -102,6 +102,7 @@ export function getCountdownState(blocks: ScheduleBlock[], nowMinutes: number, n
       return {
         type: 'break', label: block.label, holdCode: block.holdCode,
         remaining: Math.max(0, (block.start - nowMinutes) * 60 - nowSeconds),
+        activityUrl: block.activityUrl,
       };
     }
   }
@@ -144,7 +145,13 @@ function fmtTime(minutes: number): string {
 
 // ── Component ───────────────────────────────────────────────────────────
 
-export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
+export function ScheduleCountdown({
+  schoolId,
+  variant = 'sidebar',
+}: {
+  schoolId: string;
+  variant?: 'sidebar' | 'horizontal';
+}) {
   const { t } = useTranslation();
   const [blocks, setBlocks] = useState<ScheduleBlock[]>(() => getCachedSchedule(schoolId) || []);
   const [state, setState] = useState<CountdownState>({ type: 'loading' });
@@ -267,17 +274,46 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'loading') return null;
 
-  const baseCd = "flex flex-col gap-1 rounded-lg border border-border px-2.5 py-1.5 font-sans bg-card";
-  const baseTop = "flex items-baseline justify-between gap-1.5";
-  const baseBar = "h-0.5 rounded-sm overflow-hidden bg-border";
+  const baseCd = cn(
+    "il-schedule-countdown flex flex-col gap-1 rounded-lg border border-border px-2.5 py-1.5 font-sans bg-card",
+    variant === 'horizontal' && 'il-cd-horizontal relative h-10 w-full min-w-0 justify-center gap-0 overflow-hidden border-sidebar-border bg-sidebar-accent px-2.5 py-1.5',
+  );
+  const baseTop = cn("flex items-baseline justify-between gap-1.5", variant === 'horizontal' && 'w-full min-w-0 gap-2');
+  const baseBar = cn("h-0.5 rounded-sm overflow-hidden bg-border", variant === 'horizontal' && 'absolute inset-x-0 bottom-0 w-full rounded-none');
   const baseFill = "h-full rounded-sm transition-[width] duration-1000 ease-linear";
+  const interactiveClass = (url?: string) => url
+    ? 'cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+    : undefined;
+  const openActivityUrl = (url?: string) => {
+    if (!url) return;
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (/\/lectio\/\d+\/privat_aftale\.aspx$/i.test(parsed.pathname)) {
+        window.dispatchEvent(new CustomEvent('betterlectio:openPrivatAftale', { detail: { url } }));
+        return;
+      }
+    } catch { /* fall through to activity modal */ }
+    window.dispatchEvent(new CustomEvent('betterlectio:openActivityModal', { detail: { url } }));
+  };
+  const activityProps = (url: string | undefined, label: string) => url ? {
+    role: 'button' as const,
+    tabIndex: 0,
+    title: label,
+    onClick: () => openActivityUrl(url),
+    onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openActivityUrl(url);
+      }
+    },
+  } : {};
 
   if (state.type === 'no-classes') {
     const msg = getNoClassesMessage();
     return (
       <div className={cn(baseCd, "il-cd-done")}>
         <div className={baseTop}>
-          <span className="il-cd-done-text text-base font-medium">{msg.text}</span>
+          <span className={cn("il-cd-done-text text-base font-medium", variant === 'horizontal' && 'truncate text-[0.8125rem]')}>{msg.text}</span>
           <span className="shrink-0 text-base">{msg.emoji}</span>
         </div>
         <div className={baseBar}><div className={cn(baseFill, "il-cd-done-fill")} style={{ width: '100%' }} /></div>
@@ -295,7 +331,7 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
     return (
       <div className={cn(baseCd, "il-cd-done")}>
         <div className={baseTop}>
-          <span className="il-cd-done-text text-base font-medium">{msg.text}</span>
+          <span className={cn("il-cd-done-text text-base font-medium", variant === 'horizontal' && 'truncate text-[0.8125rem]')}>{msg.text}</span>
           <span className="shrink-0 text-base">{msg.emoji}</span>
         </div>
         <div className={baseBar}><div className={cn(baseFill, "il-cd-done-fill")} style={{ width: '100%' }} /></div>
@@ -313,18 +349,19 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
       : 265;
     return (
       <div
-        className={cn(baseCd, "il-cd-cancelled")}
+        className={cn(baseCd, "il-cd-cancelled", interactiveClass(state.nextActivityUrl))}
         style={{ '--cd-hue': cancelledHue, opacity: subjectColorsEnabled ? 0.38 : undefined } as React.CSSProperties}
+        {...activityProps(state.nextActivityUrl, t('scheduleCountdown.openNextActivity'))}
       >
         <div className={baseTop}>
-          <span className="il-cd-cancelled-text text-base font-medium">{msg.text}</span>
+          <span className={cn("il-cd-cancelled-text text-base font-medium", variant === 'horizontal' && 'truncate text-[0.8125rem]')}>{msg.text}</span>
           <span className="shrink-0 text-base">{msg.emoji}</span>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className={cn("text-sm text-muted-foreground", variant === 'horizontal' && 'hidden')}>
           <s className="decoration-destructive">{state.label}</s> — {t('scheduleCountdown.freeFor', { time: fmt(state.remaining) })}
         </div>
         {state.nextLabel && state.nextStart != null && (
-          <div className="mt-1 flex items-center gap-1.5 border-t border-dashed border-border pt-1.5 text-sm">
+          <div className={cn("mt-1 flex items-center gap-1.5 border-t border-dashed border-border pt-1.5 text-sm", variant === 'horizontal' && 'hidden')}>
             <span className="size-1.5 shrink-0 rounded-full il-cd-dot" style={{ '--cd-hue': nextHue } as React.CSSProperties} />
             <span className="min-w-0 flex-1 truncate font-semibold il-cd-subject" style={{ '--cd-hue': nextHue } as React.CSSProperties}>{state.nextLabel}</span>
             <span className="shrink-0 tabular-nums text-muted-foreground">{t('scheduleCountdown.startingAt', { time: fmtTime(state.nextStart) })}</span>
@@ -336,12 +373,16 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
 
   if (state.type === 'before-school') {
     return (
-      <div className={cn(baseCd)} style={{ '--cd-hue': hue } as React.CSSProperties}>
+      <div
+        className={cn(baseCd, interactiveClass(state.activityUrl))}
+        style={{ '--cd-hue': hue } as React.CSSProperties}
+        {...activityProps(state.activityUrl, t('scheduleCountdown.openNextActivity'))}
+      >
         <div className={baseTop}>
-          <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject">{state.label}</span>
-          <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
+          <span className={cn("min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject", variant === 'horizontal' && 'text-[0.8125rem]')}>{state.label}</span>
+          <span className={cn("shrink-0 text-lg font-bold tabular-nums tracking-tight text-foreground", variant === 'horizontal' && 'text-[0.925rem]')}>{fmt(state.remaining)}</span>
         </div>
-        <div className="text-sm text-muted-foreground">{t('scheduleCountdown.startingAt', { time: fmtTime(activeBlocks[0]?.start ?? 0) })}</div>
+        <div className={cn("text-sm text-muted-foreground", variant === 'horizontal' && 'hidden')}>{t('scheduleCountdown.startingAt', { time: fmtTime(activeBlocks[0]?.start ?? 0) })}</div>
       </div>
     );
   }
@@ -349,12 +390,16 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   if (state.type === 'break') {
     const nextStart = activeBlocks.find(b => b.start > (new Date().getHours() * 60 + new Date().getMinutes()))?.start ?? 0;
     return (
-      <div className={cn(baseCd, "border-dashed")} style={{ '--cd-hue': hue } as React.CSSProperties}>
+      <div
+        className={cn(baseCd, "border-dashed", interactiveClass(state.activityUrl))}
+        style={{ '--cd-hue': hue } as React.CSSProperties}
+        {...activityProps(state.activityUrl, t('scheduleCountdown.openNextActivity'))}
+      >
         <div className={baseTop}>
-          <span className="text-base font-semibold text-muted-foreground">{t('scheduleCountdown.pause')}</span>
-          <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight text-foreground">{fmt(state.remaining)}</span>
+          <span className={cn("text-base font-semibold text-muted-foreground", variant === 'horizontal' && 'truncate text-[0.8125rem]')}>{t('scheduleCountdown.pause')}</span>
+          <span className={cn("shrink-0 text-lg font-bold tabular-nums tracking-tight text-foreground", variant === 'horizontal' && 'text-[0.925rem]')}>{fmt(state.remaining)}</span>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className={cn("text-sm text-muted-foreground", variant === 'horizontal' && 'hidden')}>
           <span className="il-cd-subject font-semibold">{state.label}</span>
           {' '}{t('scheduleCountdown.startingAt', { time: fmtTime(nextStart) })}
         </div>
@@ -375,18 +420,6 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
   const endSoon = stage !== 'none';
 
   const activityUrl = state.activityUrl;
-  const openActivity = () => {
-    if (!activityUrl) return;
-    try {
-      const parsed = new URL(activityUrl);
-      // Route private appointments to their own dialog, like brick clicks do.
-      if (/\/lectio\/\d+\/privat_aftale\.aspx$/i.test(parsed.pathname)) {
-        window.dispatchEvent(new CustomEvent('betterlectio:openPrivatAftale', { detail: { url: activityUrl } }));
-        return;
-      }
-    } catch { /* fall through to activity modal */ }
-    window.dispatchEvent(new CustomEvent('betterlectio:openActivityModal', { detail: { url: activityUrl } }));
-  };
 
   return (
     <div
@@ -394,28 +427,20 @@ export function ScheduleCountdown({ schoolId }: { schoolId: string }) {
       className={cn(
         baseCd,
         endSoon && "il-cd-endsoon",
-        activityUrl && "cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        interactiveClass(activityUrl),
       )}
       data-endsoon-stage={stage}
       style={{ '--cd-hue': hue, '--cd-intensity': intensity } as React.CSSProperties}
-      {...(activityUrl ? {
-        role: 'button',
-        tabIndex: 0,
-        title: t('scheduleCountdown.openActivity'),
-        onClick: openActivity,
-        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openActivity(); }
-        },
-      } : {})}
+      {...activityProps(activityUrl, t('scheduleCountdown.openActivity'))}
     >
       <div className={baseTop}>
-        <span className="min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject">{state.label}</span>
-        <span className="shrink-0 text-lg font-bold tabular-nums tracking-tight il-cd-time">{fmt(state.remaining)}</span>
+        <span className={cn("min-w-0 flex-1 truncate text-base font-semibold leading-tight il-cd-subject", variant === 'horizontal' && 'text-[0.8125rem]')}>{state.label}</span>
+        <span className={cn("shrink-0 text-lg font-bold tabular-nums tracking-tight il-cd-time", variant === 'horizontal' && 'text-[0.925rem]')}>{fmt(state.remaining)}</span>
       </div>
       <div className={baseBar}>
         <div className={cn(baseFill, "il-cd-bar")} style={{ width: `${(progress * 100).toFixed(1)}%` }} />
       </div>
-      <div className="text-sm text-muted-foreground">{t('scheduleCountdown.endsAt', { time: fmtTime(endTime) })}</div>
+      <div className={cn("text-sm text-muted-foreground", variant === 'horizontal' && 'hidden')}>{t('scheduleCountdown.endsAt', { time: fmtTime(endTime) })}</div>
     </div>
   );
 }

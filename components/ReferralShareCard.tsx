@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { Check, Copy, Loader2, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ReferralInviteDialog } from "@/components/ReferralInviteDialog";
 import { cn } from "@/lib/utils";
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from "@/lib/posthog";
 import { getCachedProfile } from "@/lib/profile-cache";
@@ -19,7 +20,7 @@ export function ReferralShareCard() {
   const schoolId = profile?.schoolId ?? null;
   const shareUrl = studentId ? buildReferralUrl(studentId) : null;
 
-  const { studentsMap } = useSchoolStudents(schoolId ?? "");
+  const { studentsMap, isLoading: studentsLoading } = useSchoolStudents(schoolId ?? "");
 
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
@@ -116,7 +117,7 @@ export function ReferralShareCard() {
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {unlock.unlocked
-            ? "Du kan nu vælge dit eget profilbillede under Profil. Det bliver vist, når det er godkendt."
+            ? "Du kan nu vælge dit eget profilbillede herunder. Det bliver vist, når det er godkendt."
             : `Inviter ${unlock.remaining} klassekammerat${unlock.remaining === 1 ? "" : "er"} mere for at låse dit eget profilbillede op.`}
         </p>
       </div>
@@ -131,6 +132,16 @@ export function ReferralShareCard() {
           </div>
         </div>
         <div className="flex gap-2">
+          {schoolId && (
+            <ReferralInviteDialog
+              schoolId={schoolId}
+              studentId={studentId}
+              className={profile?.className ?? ""}
+              shareUrl={shareUrl}
+              studentsMap={studentsMap}
+              studentsLoading={studentsLoading}
+            />
+          )}
           <Button
             type="button"
             onClick={handleCopy}

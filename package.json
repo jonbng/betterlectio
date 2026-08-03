@@ -26,6 +26,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "zip:safari": "wxt zip -b safari",
     "compile": "tsc --noEmit",
+    "test:navigation": "bun run ./tools/test-lectio-navigation.mjs",
     "postinstall": "wxt prepare",
     "lectio": "bun run ./tools/lectio-cli/src/index.ts"
   },
@@ -37,6 +38,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.2",
+    "linkedom": "^0.18.12",
     "playwright": "^1.61.1",
     "postcss": "^8.5.17",
     "satori": "^0.26.0",

@@ -275,96 +275,103 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   }, []);
 
   const greeting = getGreeting();
-  const hasMissing = urgentOpgaver.some(o => o.isMissing);
 
   return (
-    <div className="px-8 pt-10 pb-8 relative animate-[bl-fade-in_400ms_var(--ease-out)_both]">
-      {cloudConnected !== null && (
-        <div
-          className="absolute top-4 right-8 flex items-center gap-1.5 text-xs font-medium select-none"
-          style={{ color: cloudConnected ? 'oklch(0.55 0.08 145)' : 'oklch(0.55 0.03 285)' }}
-        >
-          <span
-            className="inline-block w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: cloudConnected ? 'oklch(0.6 0.15 145)' : 'oklch(0.5 0.03 285)' }}
-          />
-          {cloudConnected ? t('forside.synced') : t('forside.offline')}
-        </div>
-      )}
-      <div className="flex flex-col gap-3">
+    <div className="il-forside-hero pt-10 pb-8 animate-[bl-fade-in_400ms_var(--ease-out)_both]">
+      <div className="flex items-center justify-between gap-4">
         <p className="text-base font-medium text-muted-foreground uppercase tracking-[0.2em]">
           {formatDate(time)}
         </p>
-        <h1 className="text-4xl font-bold tracking-tight text-foreground">
-          {greeting}{firstName ? `, ${firstName}` : ''}
-        </h1>
-        <p className="text-2xl font-extralight text-muted-foreground tabular-nums mt-1">
-          {formatTime(time)}
-        </p>
-        {cancelledCount > 0 && (
-          <p className="text-sm font-medium mt-1" style={{ color: 'oklch(0.55 0.1 85)' }}>
-            {pickCancelledNudge()(cancelledCount)}
-          </p>
-        )}
-        {urgentOpgaver.length > 0 && (
-          <div className="flex flex-col gap-1.5 mt-2">
-            {urgentOpgaver.map((opgave, i) => {
-              const isOverdue = opgave.isMissing || opgave.deadline.getTime() < Date.now();
-              const label = formatUrgentLabel(opgave);
-              const holdName = opgave.hold ? getHoldDisplayName(opgave.hold) : '';
-              return (
-                <a
-                  key={opgave.url || `${opgave.title}-${opgave.hold}`}
-                  href={opgave.url || undefined}
-                  className="text-sm font-medium flex items-center gap-2 no-underline hover:underline"
-                  style={{ color: isOverdue ? 'oklch(0.55 0.15 25)' : 'oklch(0.55 0.15 55)' }}
-                  onClick={(e) => {
-                    if (!opgave.url) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    window.dispatchEvent(
-                      new CustomEvent('betterlectio:openOpgaveDetail', {
-                        detail: {
-                          entry: {
-                            title: opgave.title,
-                            url: opgave.url,
-                            hold: opgave.hold,
-                            deadline: opgave.deadline,
-                            deadlineText: '',
-                            studentTime: '',
-                            status: opgave.isMissing ? 'mangler' as const : 'venter' as const,
-                            absence: '',
-                            awaiting: '',
-                            note: '',
-                            grade: '',
-                            gradeExtra: '',
-                          },
-                        },
-                      }),
-                    );
-                  }}
-                >
-                  <span style={{
-                    display: 'inline-block',
-                    width: opgave.isMissing ? '7px' : '6px',
-                    height: opgave.isMissing ? '7px' : '6px',
-                    borderRadius: '50%',
-                    backgroundColor: isOverdue ? 'oklch(0.55 0.2 25)' : 'oklch(0.65 0.2 55)',
-                    flexShrink: 0,
-                    boxShadow: opgave.isMissing ? '0 0 0 2px oklch(0.55 0.2 25 / 0.3)' : 'none',
-                  }} />
-                  <span>
-                    {opgave.title}
-                    {holdName ? ` (${holdName})` : ''}
-                    {' — '}
-                    <span style={{ fontWeight: 600 }}>{label}</span>
-                  </span>
-                </a>
-              );
-            })}
+        {cloudConnected !== null && (
+          <div
+            className="flex shrink-0 items-center gap-1.5 text-xs font-medium select-none"
+            style={{ color: cloudConnected ? 'oklch(0.55 0.08 145)' : 'oklch(0.55 0.03 285)' }}
+          >
+            <span
+              className="inline-block size-1.5 rounded-full"
+              style={{ backgroundColor: cloudConnected ? 'oklch(0.6 0.15 145)' : 'oklch(0.5 0.03 285)' }}
+            />
+            {cloudConnected ? t('forside.synced') : t('forside.offline')}
           </div>
         )}
       </div>
+
+      <div className="il-forside-hero-heading mt-4 grid items-end gap-6">
+        <h1 className="text-[2.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-foreground">
+          {greeting}{firstName ? `, ${firstName}` : ''}
+        </h1>
+        <p className="pb-0.5 text-3xl font-light leading-none text-muted-foreground tabular-nums">
+          {formatTime(time)}
+        </p>
+      </div>
+
+      {(cancelledCount > 0 || urgentOpgaver.length > 0) && (
+        <div className="mt-6 flex flex-col gap-2 border-t border-border/70 pt-4">
+          {cancelledCount > 0 && (
+            <p className="text-sm font-medium" style={{ color: 'oklch(0.55 0.1 85)' }}>
+              {pickCancelledNudge()(cancelledCount)}
+            </p>
+          )}
+          {urgentOpgaver.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {urgentOpgaver.map((opgave) => {
+                const isOverdue = opgave.isMissing || opgave.deadline.getTime() < Date.now();
+                const label = formatUrgentLabel(opgave);
+                const holdName = opgave.hold ? getHoldDisplayName(opgave.hold) : '';
+                return (
+                  <a
+                    key={opgave.url || `${opgave.title}-${opgave.hold}`}
+                    href={opgave.url || undefined}
+                    className="flex items-center gap-2 text-sm font-medium no-underline hover:underline"
+                    style={{ color: isOverdue ? 'oklch(0.55 0.15 25)' : 'oklch(0.55 0.15 55)' }}
+                    onClick={(e) => {
+                      if (!opgave.url) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.dispatchEvent(
+                        new CustomEvent('betterlectio:openOpgaveDetail', {
+                          detail: {
+                            entry: {
+                              title: opgave.title,
+                              url: opgave.url,
+                              hold: opgave.hold,
+                              deadline: opgave.deadline,
+                              deadlineText: '',
+                              studentTime: '',
+                              status: opgave.isMissing ? 'mangler' as const : 'venter' as const,
+                              absence: '',
+                              awaiting: '',
+                              note: '',
+                              grade: '',
+                              gradeExtra: '',
+                            },
+                          },
+                        }),
+                      );
+                    }}
+                  >
+                    <span style={{
+                      display: 'inline-block',
+                      width: opgave.isMissing ? '7px' : '6px',
+                      height: opgave.isMissing ? '7px' : '6px',
+                      borderRadius: '50%',
+                      backgroundColor: isOverdue ? 'oklch(0.55 0.2 25)' : 'oklch(0.65 0.2 55)',
+                      flexShrink: 0,
+                      boxShadow: opgave.isMissing ? '0 0 0 2px oklch(0.55 0.2 25 / 0.3)' : 'none',
+                    }} />
+                    <span>
+                      {opgave.title}
+                      {holdName ? ` (${holdName})` : ''}
+                      {' — '}
+                      <span style={{ fontWeight: 600 }}>{label}</span>
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

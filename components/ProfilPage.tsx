@@ -16,9 +16,10 @@ import {
   Clock3,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   Upload,
   XCircle,
+  Copy,
+  Share2,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { createPortal } from 'preact/compat';
@@ -42,6 +43,7 @@ import {
   submitProfilePicture,
   type ProfilePictureState,
 } from '@/lib/supabase/resources/profile-pictures';
+import { buildReferralUrl } from '@/lib/supabase/resources/referrals';
 
 type Student = Tables<'students'>;
 
@@ -230,7 +232,17 @@ function SavedIndicator({ visible }: { visible: boolean }) {
 
 // ── Referral-unlocked profile picture ────────────────────────────────
 
-function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; schoolId: string }) {
+export function ProfilePictureEditor({
+  studentId,
+  schoolId,
+  onStateChange,
+  hideWhenLocked = false,
+}: {
+  studentId: string;
+  schoolId: string;
+  onStateChange?: (state: ProfilePictureState | null) => void;
+  hideWhenLocked?: boolean;
+}) {
   const { t } = useTranslation();
   const [state, setState] = useState<ProfilePictureState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -238,13 +250,15 @@ function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; scho
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     const next = await getMyProfilePictureState(studentId);
     setState(next);
+    onStateChange?.(next);
     setLoading(false);
-  }, [studentId]);
+  }, [studentId, onStateChange]);
 
   useEffect(() => {
     void refresh();
@@ -295,10 +309,57 @@ function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; scho
     }
   }
 
-  if (loading && !state) {
-    return <Skeleton className="h-36 w-full rounded-2xl" />;
+  async function copyReferralLink() {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(buildReferralUrl(studentId));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      capture('referral share link copied', getDistinctId(studentId), { method: 'copy' });
+    } catch {
+      setError(t('profilPage.profilePicture.copyFailed'));
+    }
   }
-  if (!state) return null;
+
+  async function shareReferralLink() {
+    if (typeof navigator.share !== 'function') {
+      await copyReferralLink();
+      return;
+    }
+    try {
+      await navigator.share({
+        title: 'BetterLectio',
+        text: t('profilPage.profilePicture.shareText'),
+        url: buildReferralUrl(studentId),
+      });
+      capture('referral share link copied', getDistinctId(studentId), { method: 'native_share' });
+    } catch {
+      // Closing the native share sheet is not an error.
+    }
+  }
+
+  if (loading && !state) {
+    if (hideWhenLocked) return null;
+    return (
+      <section id="bl-profile-picture-editor" className="scroll-mt-6" aria-label={t('profilPage.profilePicture.title')}>
+        <Skeleton className="h-24 w-full rounded-xl" />
+      </section>
+    );
+  }
+  if (!state) {
+    return (
+      <section id="bl-profile-picture-editor" className="flex scroll-mt-6 items-center justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">{t('profilPage.profilePicture.title')}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t('profilPage.profilePicture.loadFailed')}</p>
+        </div>
+        <button type="button" onClick={() => void refresh()} className="shrink-0 text-xs font-semibold text-primary hover:underline">
+          {t('profilPage.profilePicture.tryAgain')}
+        </button>
+      </section>
+    );
+  }
+  if (hideWhenLocked && !state.unlocked) return null;
 
   const active = state.submission?.status === 'pending' || state.submission?.status === 'uploading';
   const rejected = state.submission?.status === 'rejected';
@@ -306,68 +367,87 @@ function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; scho
     ? new Date(state.nextEligibleAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
   const canChoose = state.unlocked && state.canSubmit && !active;
+  const canNativeShare = typeof navigator.share === 'function';
   const imageUrl = previewUrl || state.currentUrl;
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-br from-primary/10 via-card to-card p-5 shadow-sm">
-      <div className="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full bg-primary/10 blur-3xl" />
-      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-        <div className="relative mx-auto shrink-0 sm:mx-0">
-          <div className="h-28 w-21 overflow-hidden rounded-2xl border-2 border-background bg-muted shadow-md ring-1 ring-border">
+    <section
+      id="bl-profile-picture-editor"
+      tabIndex={-1}
+      className="scroll-mt-6 rounded-xl border border-border bg-background px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+    >
+      <div className="flex items-start gap-3.5">
+        <div className="relative shrink-0">
+          <div className="h-16 w-12 overflow-hidden rounded-lg border border-border bg-muted">
             {imageUrl ? (
               <img src={imageUrl} alt="" className="h-full w-full object-cover object-top" />
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground">
-                <Camera className="size-8" />
+                {state.unlocked ? <Camera className="size-5" /> : <Lock className="size-4" />}
               </div>
             )}
           </div>
-          {state.unlocked && (
-            <span className="absolute -bottom-2 -right-2 grid size-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-card">
-              <Sparkles className="size-4" />
-            </span>
-          )}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-foreground">{t('profilPage.profilePicture.title')}</h3>
+            <h3 className="text-sm font-medium text-foreground">{t('profilPage.profilePicture.title')}</h3>
             {state.unlocked && (
-              <span className="rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 {t('profilPage.profilePicture.unlocked')}
               </span>
             )}
           </div>
 
           {!state.unlocked ? (
-            <div className="mt-2">
-              <p className="text-sm text-muted-foreground">
+            <div className="mt-1">
+              <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
                 {t('profilPage.profilePicture.locked', {
+                  current: state.referralConversions,
+                  target: state.unlockThreshold,
+                  remaining: Math.max(0, state.unlockThreshold - state.referralConversions),
+                })}
+              </p>
+              <div className="mt-2 h-1 max-w-48 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-foreground/45 transition-[width] duration-500"
+                  style={{ width: `${Math.min(100, (state.referralConversions / state.unlockThreshold) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
+                {t('profilPage.profilePicture.progress', {
                   current: state.referralConversions,
                   target: state.unlockThreshold,
                 })}
               </p>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-primary/10">
-                <div
-                  className="h-full rounded-full bg-primary transition-[width] duration-500"
-                  style={{ width: `${Math.min(100, (state.referralConversions / state.unlockThreshold) * 100)}%` }}
-                />
+              <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                {canNativeShare && (
+                  <button
+                    type="button"
+                    onClick={() => void shareReferralLink()}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <Share2 className="size-3.5" />
+                    {t('profilPage.profilePicture.shareInvite')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void copyReferralLink()}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                >
+                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  {copied ? t('profilPage.profilePicture.copied') : t('profilPage.profilePicture.copyInvite')}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent('betterlectio:openSettings'))}
-                className="mt-3 text-sm font-semibold text-primary hover:underline"
-              >
-                {t('profilPage.profilePicture.openInvite')}
-              </button>
             </div>
           ) : active ? (
-            <div className="mt-2 flex items-start gap-2.5">
-              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" />
+            <div className="mt-1.5 flex items-start gap-2">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium text-foreground">{t('profilPage.profilePicture.pendingTitle')}</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">{t('profilPage.profilePicture.pendingBody')}</p>
-                <button type="button" onClick={() => void refresh()} className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                <p className="text-xs font-medium text-foreground">{t('profilPage.profilePicture.pendingTitle')}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t('profilPage.profilePicture.pendingBody')}</p>
+                <button type="button" onClick={() => void refresh()} className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
                   <RefreshCw className="size-3" /> {t('profilPage.profilePicture.refresh')}
                 </button>
               </div>
@@ -375,11 +455,11 @@ function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; scho
           ) : (
             <>
               {rejected && (
-                <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/5 px-3.5 py-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                    <XCircle className="size-4" /> {t('profilPage.profilePicture.rejectedTitle')}
+                <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                    <XCircle className="size-3.5" /> {t('profilPage.profilePicture.rejectedTitle')}
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     {rejectionLabel(state.submission?.rejectionReason ?? null)}
                     {state.submission?.reviewNote ? ` — ${state.submission.reviewNote}` : ''}
                   </p>
@@ -387,42 +467,49 @@ function ProfilePictureEditor({ studentId, schoolId }: { studentId: string; scho
               )}
 
               {!state.canSubmit && nextDate ? (
-                <div className="mt-3 flex items-start gap-2.5">
-                  <Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
+                <div className="mt-1.5 flex items-start gap-2">
+                  <Clock3 className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">
                     {t('profilPage.profilePicture.cooldown', { date: nextDate })}
                   </p>
                 </div>
               ) : (
-                <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-semibold text-foreground shadow-xs transition-colors hover:bg-accent">
-                    <Camera className="size-4" />
-                    {file ? t('profilPage.profilePicture.chooseAnother') : t('profilPage.profilePicture.choose')}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="sr-only"
-                      disabled={!canChoose}
-                      onChange={(event) => selectFile((event.currentTarget.files || [])[0] ?? null)}
-                    />
-                  </label>
-                  {file && (
-                    <button
-                      type="button"
-                      disabled={uploading}
-                      onClick={() => void submit()}
-                      className="inline-flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
-                    >
-                      {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                      {uploading ? t('profilPage.profilePicture.uploading') : t('profilPage.profilePicture.submit')}
-                    </button>
+                <>
+                  {!file && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('profilPage.profilePicture.readyBody')}
+                    </p>
                   )}
-                </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-accent">
+                      <Camera className="size-3.5" />
+                      {file ? t('profilPage.profilePicture.chooseAnother') : t('profilPage.profilePicture.choose')}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        disabled={!canChoose}
+                        onChange={(event) => selectFile((event.currentTarget.files || [])[0] ?? null)}
+                      />
+                    </label>
+                    {file && (
+                      <button
+                        type="button"
+                        disabled={uploading}
+                        onClick={() => void submit()}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                      >
+                        {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                        {uploading ? t('profilPage.profilePicture.uploading') : t('profilPage.profilePicture.submit')}
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
-              <p className="mt-2 text-xs text-muted-foreground">{t('profilPage.profilePicture.formatHint')}</p>
+              <p className="mt-1.5 text-[11px] text-muted-foreground">{t('profilPage.profilePicture.formatHint')}</p>
             </>
           )}
-          {error && <p className="mt-2 text-sm font-medium text-destructive">{error}</p>}
+          {error && <p className="mt-1.5 text-xs font-medium text-destructive">{error}</p>}
         </div>
       </div>
     </section>
@@ -529,8 +616,6 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
           {t('profilPage.visibleToOthers')}
         </p>
       </div>
-
-      <ProfilePictureEditor studentId={loggedInId} schoolId={schoolId} />
 
       {/* Name + Instagram — side by side */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -823,13 +908,45 @@ export function ProfilPage({
 }) {
   const { t } = useTranslation();
   const profilePicUrl = (window as any).__IL_PROFILE_PIC__ || data.pictureUrl;
+  const loggedInId = getLoggedInUserId();
+  const [profilePictureState, setProfilePictureState] = useState<ProfilePictureState | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!loggedInId) return;
+    getMyProfilePictureState(loggedInId).then((state) => {
+      if (!cancelled) setProfilePictureState(state);
+    });
+    return () => { cancelled = true; };
+  }, [loggedInId]);
+  const referralsRemaining = profilePictureState
+    ? Math.max(0, profilePictureState.unlockThreshold - profilePictureState.referralConversions)
+    : null;
+  const pictureAction = profilePictureState?.unlocked
+    ? t('profilPage.profilePicture.editAction')
+    : referralsRemaining === 1
+      ? t('profilPage.profilePicture.unlockActionOne')
+      : referralsRemaining !== null
+        ? t('profilPage.profilePicture.unlockActionMany', { remaining: referralsRemaining })
+        : t('profilPage.profilePicture.viewOptions');
+
+  const openProfilePictureSettings = () => {
+    window.dispatchEvent(new CustomEvent('betterlectio:openSettings', {
+      detail: { section: 'invite' },
+    }));
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       {/* ── Hero ──────────────────────────────────────────────── */}
       <div className="flex items-start gap-6 mb-10">
         {/* Profile picture */}
-        <div className="relative w-28 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-border shrink-0 bg-muted group shadow-sm">
+        <button
+          type="button"
+          onClick={openProfilePictureSettings}
+          aria-label={pictureAction}
+          className="relative w-28 aspect-[3/4] rounded-2xl overflow-hidden border-2 border-border shrink-0 bg-muted group shadow-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
           {profilePicUrl ? (
             <img
               src={profilePicUrl}
@@ -841,14 +958,16 @@ export function ProfilPage({
               <User className="size-10 text-muted-foreground/60" />
             </div>
           )}
-          {/* Lock overlay — pfp change coming soon */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 group-focus-visible:bg-black/50 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
             <div className="flex flex-col items-center gap-1">
-              <Lock className="size-4 text-white" />
-              <span className="text-xs text-white/90 font-medium">{t('profilPage.comingSoon')}</span>
+              {profilePictureState?.unlocked ? <Camera className="size-4 text-white" /> : <Lock className="size-4 text-white" />}
+              <span className="max-w-24 text-center text-xs font-medium leading-tight text-white/90">{pictureAction}</span>
             </div>
           </div>
-        </div>
+          <span className="absolute bottom-1.5 right-1.5 grid size-7 place-items-center rounded-full bg-background/95 text-foreground shadow-sm ring-1 ring-border transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0">
+            {profilePictureState?.unlocked ? <Camera className="size-3.5" /> : <Lock className="size-3.5" />}
+          </span>
+        </button>
 
         <div className="flex-1 min-w-0 pt-1">
           <h1 className="text-4xl font-bold text-foreground tracking-tight leading-none">

@@ -63,12 +63,17 @@ async function fetchOne(url: string): Promise<DropdownItem[]> {
 
 export async function fetchBeskederRecipientItems(
   doc: Document = document,
+  kinds?: readonly BeskederRecipientKind[],
 ): Promise<DropdownItem[]> {
   const urls = collectCacheUrls(doc);
   if (urls.size === 0) return [];
 
+  const selectedUrls = kinds?.length
+    ? kinds.map((kind) => urls.get(kind)).filter((url): url is string => Boolean(url))
+    : Array.from(urls.values());
+
   const results = await Promise.all(
-    Array.from(urls.values()).map((url) =>
+    selectedUrls.map((url) =>
       fetchOne(url).catch(() => [] as DropdownItem[]),
     ),
   );
