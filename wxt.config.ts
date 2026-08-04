@@ -21,7 +21,7 @@ export default defineConfig({
     ],
     web_accessible_resources: [
       {
-        resources: ['assets/*', 'vendor/userjot/**', 'userjot-bootstrap.js'],
+        resources: ['assets/*'],
         matches: ['*://*.lectio.dk/*'],
       },
     ],

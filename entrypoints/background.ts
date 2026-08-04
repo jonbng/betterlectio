@@ -10,6 +10,12 @@ import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/s
 import { capture, captureException, identify, getDistinctId, isLectioStudentDistinctId, loadOptOutFlag } from '@/lib/posthog';
 import { queueLifecycleEvent } from '@/lib/posthog-lifecycle';
 import { maybeFinalizeReferral } from '@/lib/referral';
+import {
+  extractSupabaseErrorMessage as extractErrorMessage,
+  isTransientNetworkError,
+  isAuthOwnershipError,
+  isExpiredJwtError,
+} from '@/lib/supabase-error-noise';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -223,40 +229,6 @@ async function getAnalyticsIdentity(context?: {
   }
 }
 
-function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  if (typeof (error as { message?: unknown })?.message === 'string') {
-    return (error as { message: string }).message;
-  }
-  return '';
-}
-
-// Transient network failures ("Failed to fetch", offline, service-worker
-// shutdown mid-request, blocker extensions, aborted requests, etc.) are not
-// actionable bugs — they're noise. Supabase's SDK surfaces these as error
-// objects with a `Failed to fetch` / `NetworkError` message, and posthog-node
-// wraps them with a synthetic stack that all points at its own internals.
-// Suppress them before they burn PostHog free-tier quota.
-function isTransientNetworkError(error: unknown): boolean {
-  const message = extractErrorMessage(error);
-  if (!message) return false;
-  return /failed to fetch|networkerror|network request failed|load failed|err_network|err_internet_disconnected|the user aborted|request aborted|signal is aborted/i.test(message);
-}
-
-// RPC ownership-check errors from our security-definer functions (lesson
-// mapping + homework status upserts). These raise `'Unauthorized'` when
-// `students.supabase_id != auth.uid()` for the targeted student/school —
-// i.e. the session is stale or never owned this student. The content-
-// script `sendRpc` now force-reauths and retries once on these, so every
-// such error is either about to be recovered or represents a user who is
-// logged out of Lectio (recovery impossible). Either way, not actionable.
-function isAuthOwnershipError(error: unknown): boolean {
-  const message = extractErrorMessage(error);
-  if (!message) return false;
-  return /\bunauthorized\b/i.test(message);
-}
-
 // Non-actionable PostgREST query-contract errors. The caller already receives
 // the error via the query response and handles it (null fallback, retry, etc.).
 // Reporting these as exceptions is noise — posthog-edge synthesizes an
@@ -272,23 +244,6 @@ function isNonActionablePostgrestError(error: unknown): boolean {
   // PGRST116 = "Cannot coerce the result to a single JSON object" — query
   // returned the wrong row count for a single-row accessor.
   return code === 'PGRST116';
-}
-
-// Expired-JWT errors are a self-recovering auth-transition state, not a bug.
-// `ensureSessionReady()` refreshes the access token before each query, but its
-// catch block deliberately lets the request run anyway when the refresh fails
-// (revoked refresh_token, network) — PostgREST then rejects it with "JWT
-// expired" (code PGRST301). The next request re-auths via the QR flow, so this
-// recovers on its own; reporting it just burns PostHog free-tier quota. Mirrors
-// the PGRST116 / Unauthorized suppressions above.
-function isExpiredJwtError(error: unknown): boolean {
-  const code = typeof (error as { code?: unknown })?.code === 'string'
-    ? (error as { code: string }).code
-    : '';
-  if (code === 'PGRST301') return true;
-  const message = extractErrorMessage(error);
-  if (!message) return false;
-  return /\bjwt expired\b/i.test(message);
 }
 
 async function captureSupabaseError(
@@ -329,6 +284,25 @@ async function captureSupabaseError(
 
 // ── Generic query builder ───────────────────────────────────────────
 
+// Authenticated clients intentionally have no SELECT privilege for
+// students.birthdate. Keep generic legacy queries and mutation return values
+// on the matching safe projection; rich profiles obtain a consent-masked
+// birthday through get_student_profile() instead.
+const STUDENT_SAFE_COLUMNS = [
+  'app_eligible', 'app_installed_at', 'app_qr_scanned_at', 'class_name',
+  'created_at', 'custom_pfp_approved_at', 'custom_pfp_url', 'description',
+  'dismissed_app_prompt_at', 'extension_installed_at', 'extension_reinstalled_at',
+  'extension_uninstall_feedback', 'extension_uninstall_reason',
+  'extension_uninstalled_at', 'id', 'instagram', 'last_seen_at',
+  'lectio_first_name', 'lectio_last_name', 'lectio_pfp_url', 'marked_android_at',
+  'name', 'pfp_hash', 'referral_click_id', 'referral_reward_unlocked_at',
+  'referred_at', 'referred_by', 'school_id', 'show_birthday', 'supabase_id',
+].join(',');
+
+function defaultSelectForTable(table: string): string {
+  return table === 'students' ? STUDENT_SAFE_COLUMNS : '*';
+}
+
 function applyFilters(
   query: any,
   filters?: Filter[],
@@ -355,7 +329,8 @@ function applyFilters(
 async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }>): Promise<SupabaseResponse> {
   await ensureSessionReady();
   const supabase = getSupabase();
-  let query: any = supabase.from(String(msg.table)).select(msg.select ?? '*');
+  const table = String(msg.table);
+  let query: any = supabase.from(table).select(msg.select ?? defaultSelectForTable(table));
   query = applyFilters(query, msg.filters);
   if (msg.order) {
     query = query.order(msg.order.column, { ascending: msg.order.ascending ?? true });
@@ -398,7 +373,8 @@ async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate'
       break;
   }
 
-  const { data, error } = await query.select();
+  const table = String(msg.table);
+  const { data, error } = await query.select(defaultSelectForTable(table));
   if (error) {
     await captureSupabaseError(error, {
       action: 'mutate',
@@ -408,6 +384,71 @@ async function handleMutate(msg: Extract<SupabaseMessage, { type: 'bl-sb:mutate'
     return { ok: false, error: error.message };
   }
   return { ok: true, data };
+}
+
+async function handleStorageUpload(
+  msg: Extract<SupabaseMessage, { type: 'bl-sb:storage:upload' }>,
+): Promise<SupabaseResponse> {
+  await ensureSessionReady();
+  const supabase = getSupabase();
+  try {
+    const binary = Uint8Array.from(atob(msg.dataBase64), (c) => c.charCodeAt(0));
+    const { error } = await supabase.storage.from(msg.bucket).upload(msg.path, binary, {
+      contentType: msg.contentType,
+      upsert: msg.upsert ?? false,
+    });
+    if (error) {
+      await captureSupabaseError(error, {
+        action: 'mutate',
+        method: 'storage_upload',
+        table: msg.bucket,
+      });
+      return { ok: false, error: error.message };
+    }
+    return { ok: true, data: { path: msg.path } };
+  } catch (err) {
+    await captureSupabaseError(err, {
+      action: 'mutate',
+      method: 'storage_upload',
+      table: msg.bucket,
+    });
+    return { ok: false, error: extractErrorMessage(err) || 'upload failed' };
+  }
+}
+
+async function handleProfilePictureSubmit(
+  msg: Extract<SupabaseMessage, { type: 'bl-sb:profile-picture:submit' }>,
+): Promise<SupabaseResponse> {
+  await ensureSessionReady();
+  const supabase = getSupabase();
+  try {
+    const binary = Uint8Array.from(atob(msg.dataBase64), (c) => c.charCodeAt(0));
+    const form = new FormData();
+    form.set('studentId', msg.studentId);
+    form.set('schoolId', String(msg.schoolId));
+    form.set('platform', msg.platform);
+    form.set('file', new File([binary], msg.fileName, { type: msg.contentType }));
+    const { data, error } = await supabase.functions.invoke('profile-picture-submit', { body: form });
+    if (error) {
+      let detail: Record<string, unknown> | null = null;
+      const context = (error as { context?: Response }).context;
+      if (context) {
+        try {
+          detail = await context.clone().json() as Record<string, unknown>;
+        } catch {
+          // Keep the SDK error when the response body is not JSON.
+        }
+      }
+      return {
+        ok: false,
+        error: typeof detail?.error === 'string' ? detail.error : error.message,
+        data: detail ?? undefined,
+      };
+    }
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: extractErrorMessage(err) || 'Profile picture upload failed' };
+  }
 }
 
 async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): Promise<SupabaseResponse> {
@@ -862,6 +903,40 @@ async function runEnsureSupabaseSession(
   }
 }
 
+async function mintWebsiteLoginOtp(): Promise<
+  SupabaseResponse & { token_hash?: string }
+> {
+  const supabase = getSupabase();
+  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (sessionErr || !accessToken) {
+    return { ok: false, error: 'not_signed_in' };
+  }
+
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/mint-website-login`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    const body = (await resp.json().catch(() => ({}))) as {
+      token_hash?: string;
+      error?: string;
+    };
+    if (!resp.ok || !body.token_hash) {
+      return { ok: false, error: body.error ?? `http_${resp.status}` };
+    }
+    return { ok: true, token_hash: body.token_hash };
+  } catch (err) {
+    console.error('[BetterLectio] mint-website-login failed', err);
+    return { ok: false, error: 'network_error' };
+  }
+}
+
 async function ensureSupabaseSession(
   qrData?: { qrId: string; userId: string },
   schoolId?: string,
@@ -994,6 +1069,14 @@ export default defineBackground(() => {
         handleRpc(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
         return true;
 
+      case 'bl-sb:storage:upload':
+        handleStorageUpload(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        return true;
+
+      case 'bl-sb:profile-picture:submit':
+        handleProfilePictureSubmit(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        return true;
+
       // ── Realtime ────────────────────────────────────────────────
       case 'bl-sb:subscribe':
         handleSubscribe(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
@@ -1030,6 +1113,13 @@ export default defineBackground(() => {
       case 'bl-sb:auth:signout': {
         const supabase = getSupabase();
         supabase.auth.signOut().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+        return true;
+      }
+
+      case 'bl-sb:auth:mint-website-otp': {
+        mintWebsiteLoginOtp()
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false, error: 'mint_failed' }));
         return true;
       }
 

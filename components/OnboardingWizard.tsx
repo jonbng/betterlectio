@@ -29,7 +29,6 @@ import {
   saveSettings,
   type FeatureSettings,
 } from '@/lib/settings-storage';
-import { setUserJotTheme } from '@/lib/userjot';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { useQuery, useMutation } from '@/lib/supabase/hooks';
 import {
@@ -54,8 +53,9 @@ interface OnboardingWizardProps {
   onOpenSettings: () => void;
 }
 
-const ALL_STEPS = [0, 1, 2, 3, 4] as const;
-const PROFILE_STEP = 3;
+const ALL_STEPS = [0, 1, 2, 3, 4, 5] as const;
+const PROFILE_STEP = 4;
+type NavigationLayout = FeatureSettings['interface']['navigationLayout'];
 
 // ── Live schedule preview for fagfarver ───────────────────────────────
 const SCHEDULE_BLOCKS = [
@@ -115,6 +115,9 @@ export function OnboardingWizard({
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
   const [themeId, setThemeId] = useState<ThemePresetId>(() => getThemePreferenceForSchool(schoolId).themeId);
   const [isDark, setIsDark] = useState(() => settings.visual?.darkMode ?? false);
+  const [navigationLayout, setNavigationLayout] = useState<NavigationLayout>(
+    () => settings.interface?.navigationLayout ?? 'sidebar',
+  );
   const [subjectColors, setSubjectColors] = useState(() => settings.schedule?.subjectColors ?? false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -198,6 +201,7 @@ export function OnboardingWizard({
       setSettings(getSettings());
       setThemeId(getThemePreferenceForSchool(schoolId).themeId);
       setIsDark(getSettings().visual?.darkMode ?? false);
+      setNavigationLayout(getSettings().interface?.navigationLayout ?? 'sidebar');
       setSubjectColors(getSettings().schedule?.subjectColors ?? false);
       setProfileInitialized(false);
       setSkipProfileLocked(null);
@@ -249,7 +253,6 @@ export function OnboardingWizard({
     setSettings(newSettings as FeatureSettings);
     saveSettings(newSettings as FeatureSettings);
     document.documentElement.classList.toggle('dark', value);
-    setUserJotTheme(value ? 'dark' : 'light');
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
@@ -279,6 +282,18 @@ export function OnboardingWizard({
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
       capture('setting changed', distinctId, { category: 'schedule', key: 'subjectColors', value, school_id: schoolId });
+    }
+  };
+
+  const handleNavigationLayoutChange = (value: NavigationLayout) => {
+    setNavigationLayout(value);
+    const newSettings = { ...settings, interface: { ...settings.interface, navigationLayout: value } };
+    setSettings(newSettings as FeatureSettings);
+    saveSettings(newSettings as FeatureSettings);
+
+    const distinctId = getDistinctIdSafe();
+    if (distinctId) {
+      capture('setting changed', distinctId, { category: 'interface', key: 'navigationLayout', value, school_id: schoolId });
     }
   };
 
@@ -316,6 +331,10 @@ export function OnboardingWizard({
         });
       }
       onClose();
+      const horizontalShellIsMounted = document.body.classList.contains('il-horizontal-navigation');
+      if (horizontalShellIsMounted !== (navigationLayout === 'horizontal')) {
+        window.location.reload();
+      }
     }
   };
 
@@ -437,8 +456,99 @@ export function OnboardingWizard({
           </div>
         );
 
-      // ── Fagfarver ───────────────────────────────────────────────────
+      // ── Navigation layout ───────────────────────────────────────────
       case 2:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-1.5">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                {t('onboarding.navigation.title')}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {t('onboarding.navigation.subtitle')}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {(['sidebar', 'horizontal'] as const).map((layout) => {
+                const selected = navigationLayout === layout;
+                return (
+                  <button
+                    key={layout}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => handleNavigationLayoutChange(layout)}
+                    className={`group cursor-pointer overflow-hidden rounded-xl border-2 text-left transition-[border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      selected
+                        ? 'border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20 scale-[1.01]'
+                        : 'border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="h-32 border-b bg-muted/25 p-3">
+                      <div className="flex h-full overflow-hidden rounded-lg border bg-background shadow-sm">
+                        {layout === 'sidebar' ? (
+                          <>
+                            <div className="flex w-[34%] flex-col gap-2 border-r bg-sidebar p-2">
+                              <span className="h-2 w-3/4 rounded-full bg-primary" />
+                              <span className="mt-1 h-1.5 w-full rounded-full bg-sidebar-accent" />
+                              <span className="h-1.5 w-4/5 rounded-full bg-sidebar-accent" />
+                              <span className="h-1.5 w-2/3 rounded-full bg-sidebar-accent" />
+                              <span className="mt-auto size-5 rounded-full bg-primary/35" />
+                            </div>
+                            <div className="flex-1 p-3">
+                              <span className="block h-2 w-3/5 rounded-full bg-foreground/15" />
+                              <span className="mt-3 block h-12 rounded-md bg-muted" />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <div className="flex h-8 items-center gap-2 border-b bg-sidebar px-2">
+                              <span className="size-3 rounded-sm bg-primary" />
+                              <span className="h-1.5 w-8 rounded-full bg-sidebar-accent" />
+                              <span className="h-1.5 w-7 rounded-full bg-sidebar-accent" />
+                              <span className="h-1.5 w-9 rounded-full bg-sidebar-accent" />
+                              <span className="ml-auto size-4 rounded-full bg-primary/35" />
+                            </div>
+                            <div className="flex h-5 items-center gap-2 border-b px-2">
+                              <span className="h-1 w-9 rounded-full bg-primary/50" />
+                              <span className="h-1 w-7 rounded-full bg-muted-foreground/25" />
+                            </div>
+                            <div className="flex-1 p-3">
+                              <span className="block h-2 w-2/5 rounded-full bg-foreground/15" />
+                              <span className="mt-3 block h-9 rounded-md bg-muted" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${selected ? 'text-primary' : 'text-foreground'}`}>
+                          {t(`onboarding.navigation.${layout}.title`)}
+                        </span>
+                        {layout === 'sidebar' && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            {t('onboarding.navigation.recommended')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {t(`onboarding.navigation.${layout}.description`)}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground">
+              {t('onboarding.navigation.hint')}
+            </p>
+          </div>
+        );
+
+      // ── Fagfarver ───────────────────────────────────────────────────
+      case 3:
         return (
           <div className="space-y-6">
             <div className="space-y-1.5">
@@ -502,7 +612,7 @@ export function OnboardingWizard({
         );
 
       // ── Profile ─────────────────────────────────────────────────────
-      case 3:
+      case 4:
         return (
           <div className="space-y-5">
             <div className="space-y-1.5">
@@ -626,7 +736,7 @@ export function OnboardingWizard({
         );
 
       // ── Feedback & Share (merged) ───────────────────────────────────
-      case 4:
+      case 5:
         return (
           <div className="flex flex-col items-center text-center gap-6 py-4">
             <div className="flex items-center justify-center size-16 rounded-2xl bg-primary/10">

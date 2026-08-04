@@ -10,6 +10,7 @@ type AuthSource =
   | 'hold-mapping-sync'
   | 'settings-sync'
   | 'rpc-unauthorized-retry'
+  | 'website-login'
   | 'unknown';
 
 // Dedupe is keyed by `schoolId:studentId` (or `schoolId:` when unknown) so
@@ -32,6 +33,16 @@ async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
   const resp = await browser.runtime.sendMessage(msg);
   if (!resp) return { ok: false, error: 'Background not ready' };
   return resp;
+}
+
+/** Current background session metadata, or null if signed out. */
+export async function getSupabaseSessionMeta(): Promise<{
+  expires_at: number;
+  user_id?: string | null;
+} | null> {
+  const resp = await send({ type: 'bl-sb:auth:session' });
+  if (!resp.ok || !resp.session) return null;
+  return resp.session;
 }
 
 /**

@@ -90,11 +90,13 @@ import {
 import { cn } from "@/lib/utils";
 import { DesignPlayground } from "@/components/DesignPlayground";
 import { ReferralShareCard } from "@/components/ReferralShareCard";
+import { ProfilePictureEditor } from "@/components/ProfilPage";
 
 interface SettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onShowOnboarding?: () => void;
+  initialSection?: string;
 }
 
 
@@ -223,7 +225,7 @@ function getSchoolNameFromPage(): string | null {
   return el?.textContent?.trim() || null;
 }
 
-export function SettingsModal({ open, onOpenChange, onShowOnboarding }: SettingsModalProps) {
+export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSection }: SettingsModalProps) {
   const { t } = useTranslation();
   const navItems = [
     { id: "appearance", name: t('settings.nav.appearance'), icon: Palette },
@@ -243,6 +245,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [settings, setSettings] = useState<FeatureSettings>(() => getSettings());
   const schoolId = getSchoolIdFromUrl();
+  const studentId = getCachedProfile()?.studentId ?? null;
   const schoolTheme = getThemePreferenceForSchool(schoolId);
   const [themeId, setThemeId] = useState<ThemePresetId>(schoolTheme.themeId);
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
@@ -253,6 +256,12 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const sessionsFetchedRef = useRef(false);
   const [deletingSessionIndex, setDeletingSessionIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (open && initialSection && navItems.some((item) => item.id === initialSection)) {
+      setActiveSection(initialSection);
+    }
+  }, [open, initialSection]);
 
   const getPostHogDistinctId = () => {
     const profile = getCachedProfile();
@@ -939,6 +948,69 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
       case "sidebar":
         return (
           <div className="space-y-6">
+            <SettingsSection title={t('settings.sidebar.layoutTitle')} description={t('settings.sidebar.layoutDescription')}>
+              <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                {([
+                  {
+                    value: 'sidebar' as const,
+                    label: t('settings.sidebar.sidebarLayout'),
+                    description: t('settings.sidebar.sidebarLayoutDescription'),
+                  },
+                  {
+                    value: 'horizontal' as const,
+                    label: t('settings.sidebar.horizontalLayout'),
+                    description: t('settings.sidebar.horizontalLayoutDescription'),
+                  },
+                ]).map((option) => {
+                  const selected = (settings.interface?.navigationLayout ?? 'sidebar') === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => handleSettingChange('interface', 'navigationLayout', option.value)}
+                      className={cn(
+                        'group cursor-pointer overflow-hidden rounded-xl border-2 text-left transition-[border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        selected ? 'border-primary shadow-sm ring-2 ring-primary/15' : 'border-border hover:border-primary/40',
+                      )}
+                    >
+                      <div className="flex h-20 bg-background p-2">
+                        {option.value === 'sidebar' ? (
+                          <>
+                            <div className="flex w-[32%] flex-col gap-1.5 rounded-md border bg-sidebar p-1.5">
+                              <span className="h-1.5 w-3/4 rounded-full bg-primary" />
+                              <span className="h-1 w-full rounded-full bg-sidebar-accent" />
+                              <span className="h-1 w-4/5 rounded-full bg-sidebar-accent" />
+                              <span className="h-1 w-2/3 rounded-full bg-sidebar-accent" />
+                            </div>
+                            <div className="flex-1 p-2"><span className="block h-2 w-1/2 rounded-full bg-muted" /></div>
+                          </>
+                        ) : (
+                          <div className="flex flex-1 flex-col gap-2">
+                            <div className="flex h-7 items-center gap-1.5 rounded-md border bg-sidebar px-2">
+                              <span className="size-2 rounded-sm bg-primary" />
+                              <span className="h-1 w-8 rounded-full bg-sidebar-accent" />
+                              <span className="h-1 w-6 rounded-full bg-sidebar-accent" />
+                              <span className="ml-auto size-3 rounded-full bg-primary/50" />
+                            </div>
+                            <div className="flex h-4 items-center gap-1.5 border-b px-2">
+                              <span className="h-1 w-10 rounded-full bg-primary" />
+                              <span className="h-1 w-7 rounded-full bg-muted" />
+                              <span className="h-1 w-8 rounded-full bg-muted" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="border-t px-3 py-2.5">
+                        <div className="text-sm font-semibold">{option.label}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{option.description}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsSection>
+
             <SettingsSection title={t('settings.sidebar.mainMenuTitle')} description={t('settings.sidebar.mainMenuDescription')}>
               <FeatureToggle
                 id="sidebar-forside"
@@ -1066,6 +1138,15 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding }: Settings
               description="Del dit personlige link og få æren for at have inviteret dem."
             >
               <ReferralShareCard />
+              {studentId && schoolId && (
+                <div className="border-t border-border px-4 py-4">
+                  <ProfilePictureEditor
+                    studentId={studentId}
+                    schoolId={schoolId}
+                    hideWhenLocked
+                  />
+                </div>
+              )}
             </SettingsSection>
           </div>
         );

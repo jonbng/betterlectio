@@ -6,6 +6,9 @@
 
 import { sendRpc } from '../client';
 
+/** Successful attributed invites needed to unlock Tilpasning. */
+export const REFERRAL_UNLOCK_THRESHOLD = 3;
+
 export interface ReferralStats {
   totalClicks: number;
   uniqueClickers: number;
@@ -15,6 +18,27 @@ export interface ReferralStats {
     name: string | null;
     attributedAt: string | null;
   }>;
+}
+
+export function referralUnlockProgress(conversions: number): {
+  current: number;
+  target: number;
+  unlocked: boolean;
+  remaining: number;
+} {
+  const current = Math.max(0, conversions);
+  const target = REFERRAL_UNLOCK_THRESHOLD;
+  const unlocked = current >= target;
+  return {
+    current: Math.min(current, target),
+    target,
+    unlocked,
+    remaining: Math.max(0, target - current),
+  };
+}
+
+export function buildReferralUrl(studentId: string): string {
+  return `https://betterlectio.dk/r/${studentId}`;
 }
 
 interface RawStats {
@@ -89,8 +113,4 @@ export async function getReferralStats(studentId: string): Promise<ReferralStats
 
   writeStatsCache(studentId, stats);
   return stats;
-}
-
-export function buildReferralUrl(studentId: string): string {
-  return `https://betterlectio.dk/r/${studentId}`;
 }

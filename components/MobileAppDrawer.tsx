@@ -6,7 +6,7 @@ import { getCachedProfile } from '@/lib/profile-cache';
 import { getSession } from '@/lib/supabase/client';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
-import { renderAppStoreQrSvg } from '@/lib/mobile-app';
+import { renderMobileAppQrSvg, shouldPromoteMobileApp } from '@/lib/mobile-app';
 import { MOBILE_APP_INVITE_OPEN_EVENT } from '@/components/MobileAppInvitePopup';
 
 type Student = Tables<'students'>;
@@ -89,11 +89,7 @@ export function MobileAppDrawer() {
 
   if (!schoolId || !studentId) return null;
   if (!student) return null;
-  if (!student.app_eligible) return null;
-  if (student.app_installed_at) return null;
-  if (student.app_qr_scanned_at) return null;
-  if (student.marked_android_at) return null;
-  if (student.dismissed_app_prompt_at) return null;
+  if (!shouldPromoteMobileApp(student)) return null;
 
   return <DrawerInner schoolId={schoolId} studentId={studentId} />;
 }
@@ -122,7 +118,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
   // Generate QR once (carries studentId so we can record scans server-side).
   useEffect(() => {
     let cancelled = false;
-    renderAppStoreQrSvg(studentId).then((svg) => {
+    renderMobileAppQrSvg(studentId).then((svg) => {
       if (!cancelled) setQrSvg(svg);
     }).catch(() => {});
     return () => {
@@ -172,15 +168,6 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
         source: 'tab',
       });
     }
-  };
-
-  const markAndroid = () => {
-    setDismissed(true);
-    updateStudent(
-      { marked_android_at: new Date().toISOString() },
-      [{ column: 'id', op: 'eq', value: studentId }],
-    );
-    capture('mobile_app_marked_android', distinctId, { school_id: schoolId });
   };
 
   const markNotInterested = () => {
@@ -293,15 +280,6 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
             className="px-4 py-2.5 text-left text-[12px] font-semibold text-black transition-colors duration-150 ease-out hover:bg-zinc-100 active:bg-zinc-200"
           >
             {t('mobileApp.readMore')}
-          </button>
-          <div className="h-px bg-zinc-200" aria-hidden="true" />
-          <button
-            type="button"
-            onClick={markAndroid}
-            tabIndex={open ? 0 : -1}
-            className="px-4 py-2.5 text-left text-[12px] font-medium text-zinc-700 transition-colors duration-150 ease-out hover:bg-zinc-100 active:bg-zinc-200"
-          >
-            {t('mobileApp.androidCta')}
           </button>
           <div className="h-px bg-zinc-200" aria-hidden="true" />
           <button

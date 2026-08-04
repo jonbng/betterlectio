@@ -18,6 +18,7 @@ import type {
   ThreadMessage,
   ThreadRecipient,
   ComposeRecipient,
+  ComposeFormData,
 } from './beskeder-thread-parser';
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -367,6 +368,40 @@ export interface ReplyFormTargets {
   attachPostbackTarget: string;
   attachDocIdFieldName: string;
   currentTitle: string;
+  notifyFieldName: string;
+  notifyValue: string;
+}
+
+export interface ThreadMutationData {
+  messages: ThreadMessage[];
+  recipients: ThreadRecipient[];
+  replyFormTargets: ReplyFormTargets | null;
+}
+
+async function parseThreadMutationData(doc: Document): Promise<ThreadMutationData> {
+  const { parseThreadFromDOM } = await import('./beskeder-thread-parser');
+  const threadData = parseThreadFromDOM(doc);
+  let replyFormTargets: ReplyFormTargets | null = null;
+
+  if (threadData.replyForm) {
+    const rf = threadData.replyForm;
+    replyFormTargets = {
+      sendPostbackTarget: rf.sendPostbackTarget,
+      titleFieldName: rf.titleInputId?.replace(/_/g, '$') || '',
+      bodyFieldName: rf.bodyTextareaId?.replace(/_/g, '$') || '',
+      attachPostbackTarget: rf.attachPostbackTarget,
+      attachDocIdFieldName: rf.attachDocumentIdInput?.getAttribute('name') || '',
+      currentTitle: rf.currentTitle,
+      notifyFieldName: rf.notifyFieldName,
+      notifyValue: rf.notifyValue,
+    };
+  }
+
+  return {
+    messages: threadData.messages,
+    recipients: threadData.recipients,
+    replyFormTargets,
+  };
 }
 
 export function sendReplyViaIframe(
@@ -377,6 +412,8 @@ export function sendReplyViaIframe(
   title: string,
   body: string,
   skipSignature: boolean,
+  notifyFieldName = '',
+  notifyValue = '',
 ): Promise<SubmitResult<{
   messages: ThreadMessage[];
   recipients: ThreadRecipient[];
@@ -388,6 +425,7 @@ export function sendReplyViaIframe(
       const fields = buildFields(formState, {
         __EVENTTARGET: sendPostbackTarget,
         __EVENTARGUMENT: '',
+        ...(notifyFieldName ? { [notifyFieldName]: notifyValue } : {}),
         [titleInputName]: title,
         [bodyTextareaName]: body + sig,
       });
@@ -415,6 +453,8 @@ export function sendReplyViaIframe(
           attachPostbackTarget: rf.attachPostbackTarget,
           attachDocIdFieldName: attachDocName,
           currentTitle: rf.currentTitle,
+          notifyFieldName: rf.notifyFieldName,
+          notifyValue: rf.notifyValue,
         };
       }
 
@@ -430,6 +470,142 @@ export function sendReplyViaIframe(
     } catch (err) {
       return handleError(err);
     }
+  });
+}
+
+export interface MessageEditSession {
+  formState: FormState;
+  titleFieldName: string;
+  bodyFieldName: string;
+  savePostbackTarget: string;
+  cancelPostbackTarget: string;
+  currentTitle: string;
+  currentBody: string;
+}
+
+function postbackTargetFromElement(element: Element | null): string {
+  const script = element?.getAttribute('onclick') || element?.getAttribute('href') || '';
+  return script.match(/__doPostBack\('([^']+)'/)?.[1] || '';
+}
+
+export function parseMessageEditSession(
+  doc: Document,
+  editPostbackTarget: string,
+  formState: FormState,
+): MessageEditSession | null {
+  const rowPrefix = editPostbackTarget.replace(/\$EditModeToggleBtn$/, '');
+  if (!rowPrefix || rowPrefix === editPostbackTarget) return null;
+
+  const textareas = Array.from(doc.querySelectorAll<HTMLTextAreaElement>(
+    'textarea[name*="EditModeContentBBTB"]',
+  ));
+  const body = textareas.find((element) => element.name.startsWith(`${rowPrefix}$`));
+  if (!body) return null;
+
+  const row = body.closest('tr') || body.closest('#GridRowMessage') || body.parentElement;
+  const titleCandidates = Array.from((row || doc).querySelectorAll<HTMLInputElement>(
+    'input[name*="EditModeHeaderTitleTB"]',
+  ));
+  const title = titleCandidates.find((element) => element.name.startsWith(`${rowPrefix}$`));
+  if (!title) return null;
+
+  const saveCandidates = Array.from((row || doc).querySelectorAll(
+    'a[id*="SendMessageBtn"], a[id*="SaveMessageBtn"], a[id*="UpdateMessageBtn"], a[onclick*="__doPostBack"], a[href*="__doPostBack"]',
+  ));
+  const savePostbackTarget = saveCandidates
+    .map(postbackTargetFromElement)
+    .find((target) => target.startsWith(`${rowPrefix}$`)
+      && /\$(?:Send|Save|Update)MessageBtn$/i.test(target))
+    || '';
+  const cancelPostbackTarget = Array.from((row || doc).querySelectorAll(
+    'a[id*="BackMessageBtn"], a[onclick*="__doPostBack"]',
+  ))
+    .map(postbackTargetFromElement)
+    .find((target) => target.startsWith(`${rowPrefix}$`) && /\$BackMessageBtn$/i.test(target))
+    || '';
+
+  if (!savePostbackTarget) return null;
+  return {
+    formState,
+    titleFieldName: title.name,
+    bodyFieldName: body.name,
+    savePostbackTarget,
+    cancelPostbackTarget,
+    currentTitle: title.value,
+    currentBody: body.value,
+  };
+}
+
+export function beginMessageEditViaIframe(
+  formState: FormState,
+  editPostbackTarget: string,
+): Promise<SubmitResult<MessageEditSession>> {
+  return withMutex(async () => {
+    try {
+      const openDoc = await postFormViaHiddenIframe(formState.action, buildFields(formState, {
+        __EVENTTARGET: editPostbackTarget,
+        __EVENTARGUMENT: '',
+      }));
+      const openResult = checkSessionAndParse(openDoc);
+      if (openResult.expired) return { success: false, error: { kind: 'session_expired' } };
+      if (!openResult.formState) {
+        return { success: false, error: { kind: 'parse_failure', message: 'No tokens after opening message edit mode' } };
+      }
+      const session = parseMessageEditSession(openDoc, editPostbackTarget, openResult.formState);
+      if (!session) {
+        return { success: false, error: { kind: 'parse_failure', message: 'Could not resolve row-scoped message edit fields' } };
+      }
+      return { success: true, formState: session.formState, data: session };
+    } catch (err) {
+      return handleError(err);
+    }
+  });
+}
+
+export function saveMessageEditViaIframe(
+  session: MessageEditSession,
+  title: string,
+  body: string,
+): Promise<SubmitResult<ThreadMutationData>> {
+  return withMutex(async () => {
+    try {
+      const saveDoc = await postFormViaHiddenIframe(
+        session.formState.action,
+        buildFields(session.formState, {
+          __EVENTTARGET: session.savePostbackTarget,
+          __EVENTARGUMENT: '',
+          [session.titleFieldName]: title,
+          [session.bodyFieldName]: body,
+        }),
+      );
+      const saveResult = checkSessionAndParse(saveDoc);
+      if (saveResult.expired) return { success: false, error: { kind: 'session_expired' } };
+      if (!saveResult.formState) {
+        return { success: false, error: { kind: 'parse_failure', message: 'No tokens after saving message edit' } };
+      }
+      return {
+        success: true,
+        formState: saveResult.formState,
+        data: await parseThreadMutationData(saveDoc),
+      };
+    } catch (err) {
+      return handleError(err);
+    }
+  });
+}
+
+/**
+ * Replaces an existing reaction carrier in-place through Lectio's native
+ * per-message edit mode. The two postbacks must use separate ViewState values.
+ */
+export function editReactionViaIframe(
+  formState: FormState,
+  editPostbackTarget: string,
+  body: string,
+): Promise<SubmitResult<ThreadMutationData>> {
+  return beginMessageEditViaIframe(formState, editPostbackTarget).then((opened) => {
+    if (!opened.success) return opened;
+    return saveMessageEditViaIframe(opened.data, opened.data.currentTitle, body);
   });
 }
 
@@ -554,6 +730,8 @@ export function refreshThreadViaIframe(
           attachPostbackTarget: rf.attachPostbackTarget,
           attachDocIdFieldName: attachDocName,
           currentTitle: rf.currentTitle,
+          notifyFieldName: rf.notifyFieldName,
+          notifyValue: rf.notifyValue,
         };
       }
 
@@ -573,6 +751,96 @@ export function refreshThreadViaIframe(
 }
 
 // ── Compose Operations ─────────────────────────────────────────────────
+
+export interface StandaloneComposeSession {
+  formState: FormState;
+  compose: ComposeFormData;
+  document: Document;
+}
+
+/**
+ * Opens a fresh Lectio compose state without navigating the visible page.
+ * Settings and other global surfaces can use the returned detached document
+ * to load the exact recipient caches that Lectio registered for this session.
+ */
+export function beginStandaloneComposeViaIframe(
+  schoolId: string,
+): Promise<SubmitResult<StandaloneComposeSession>> {
+  return withMutex(async () => {
+    try {
+      const inboxUrl = new URL(
+        `/lectio/${schoolId}/beskeder2.aspx?mappeid=-70`,
+        window.location.origin,
+      ).href;
+      const response = await fetch(inboxUrl, { credentials: 'include' });
+      if (!response.ok) {
+        return {
+          success: false,
+          error: { kind: 'unknown', message: `Inbox request failed (${response.status})` },
+        };
+      }
+
+      const parser = new DOMParser();
+      const inboxDoc = parser.parseFromString(await response.text(), 'text/html');
+      if (isSessionExpired(inboxDoc)) {
+        return { success: false, error: { kind: 'session_expired' } };
+      }
+
+      const initialState = parseNewFormState(inboxDoc);
+      if (!initialState) {
+        return {
+          success: false,
+          error: { kind: 'parse_failure', message: 'No tokens on message list' },
+        };
+      }
+
+      const newMessageTarget = inboxDoc.getElementById('s_m_Content_Content_NewMessageLnk')
+        ? 's$m$Content$Content$NewMessageLnk'
+        : inboxDoc.getElementById('s_m_HeaderContent_NewMessageThreadBtn')
+          ? 's$m$HeaderContent$NewMessageThreadBtn'
+          : '';
+      if (!newMessageTarget) {
+        return {
+          success: false,
+          error: { kind: 'parse_failure', message: 'New-message postback not found' },
+        };
+      }
+
+      const composeDoc = await postFormViaHiddenIframe(
+        initialState.action,
+        buildFields(initialState, {
+          __EVENTTARGET: newMessageTarget,
+          __EVENTARGUMENT: '',
+        }),
+      );
+      const { expired, formState } = checkSessionAndParse(composeDoc);
+      if (expired) return { success: false, error: { kind: 'session_expired' } };
+      if (!formState) {
+        return {
+          success: false,
+          error: { kind: 'parse_failure', message: 'No tokens in compose response' },
+        };
+      }
+
+      const { parseComposeFromDOM } = await import('./beskeder-thread-parser');
+      const compose = parseComposeFromDOM(composeDoc);
+      if (!compose) {
+        return {
+          success: false,
+          error: { kind: 'parse_failure', message: 'Compose form not found' },
+        };
+      }
+
+      return {
+        success: true,
+        formState,
+        data: { formState, compose, document: composeDoc },
+      };
+    } catch (err) {
+      return handleError(err);
+    }
+  });
+}
 
 export function addRecipientViaIframe(
   formState: FormState,

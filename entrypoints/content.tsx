@@ -1,5 +1,7 @@
 import { render } from "@/lib/i18n/render";
 import { AppSidebar } from "@/components/AppSidebar";
+import { HorizontalNavbar } from "@/components/HorizontalNavbar";
+import { AppOverlays } from "@/components/AppOverlays";
 import { FindSkemaPage } from "@/components/FindSkemaPage";
 import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
 import { ProfilePage } from "@/components/ProfilePage";
@@ -45,6 +47,7 @@ import {
 } from "@/lib/profile-cache";
 import { updatePageTitle, observeTitleChanges } from "@/lib/page-titles";
 import { getSettings } from "@/lib/settings-storage";
+import { parseLectioNavigation, type LectioNavigationSnapshot } from "@/lib/lectio-navigation";
 import { getLocale } from "@/lib/i18n";
 import { applyThemeForSchool, getThemePreferenceForSchool } from "@/lib/theme-storage";
 import { loadTeacherNames, replaceTeacherInitialsInDOM, shortenTeacherDisplayName } from "@/lib/teacher-cache";
@@ -56,13 +59,14 @@ import {
   subscribeToSettingsRealtime,
 } from "@/lib/settings-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
-import { initUserJotWidget, identifyUserJot, setUserJotTheme } from "@/lib/userjot";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
 import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
+import { isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
 import { isBypassActive, disableBypass, getBypassRemainingMs } from "@/lib/bypass-redesigns";
 import { t as tLocale } from "@/lib/i18n/t";
 import { toast } from "sonner";
@@ -82,8 +86,15 @@ const EXAM_BRICK_HUE = 95;
 
 export default defineContentScript({
   matches: ["*://*.lectio.dk/*"],
-  main() {
-    // Content script loaded
+  async main() {
+    // Capture website-login intent ASAP — Lectio redirects often strip ?bl_login=.
+    // Await so early bounces below cannot race past persistPending.
+    try {
+      const { captureWebsiteLoginFromUrl } = await import("@/lib/website-login");
+      await captureWebsiteLoginFromUrl();
+    } catch {
+      // Non-critical.
+    }
 
     // Listen for messages from background script (e.g., extension icon click)
     browser.runtime.onMessage.addListener((message) => {
@@ -116,8 +127,8 @@ export default defineContentScript({
       const name = payload.referrerName;
       toast.success(
         name
-          ? `Tak — du blev inviteret af ${name}!`
-          : "Tak — din invitation er registreret!",
+          ? `Tak, du blev inviteret af ${name}!`
+          : "Tak, din invitation er registreret!",
         { duration: 8000 },
       );
       // Clear the key so it doesn't re-fire on the next page load. The
@@ -239,26 +250,61 @@ function injectFont() {
   document.head.append(preconnect1, preconnect2, font);
 }
 
-function DashboardLayout() {
+function DashboardExtras() {
+  const profile = getCachedProfile();
+  return (
+    <>
+      <AppOverlays />
+      <MobileAppDrawer />
+      <MobileAppInvitePopup />
+      <FeedbackWidget
+        schoolId={profile?.schoolId}
+        studentId={profile?.studentId}
+        browserInfo={getBrowserInfo()}
+        lectioVersion={getLectioVersion()}
+      />
+      <Toaster
+        position="bottom-right"
+        offset={{ bottom: 80, right: 20 }}
+        mobileOffset={{ bottom: 80, right: 20 }}
+      />
+    </>
+  );
+}
+
+function DashboardLayout({
+  navigation,
+  layout,
+}: {
+  navigation: LectioNavigationSnapshot;
+  layout: 'sidebar' | 'horizontal';
+}) {
+  if (layout === 'horizontal') {
+    return (
+      <div className="il-horizontal-layout flex h-screen w-full min-w-0 flex-col bg-background">
+        <HorizontalNavbar snapshot={navigation} />
+        <main id="il-lectio-content" className="!h-auto !min-h-0" />
+        <DashboardExtras />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <div id="il-lectio-content" />
       </SidebarInset>
-      <MobileAppDrawer />
-      <MobileAppInvitePopup />
-      <Toaster position="bottom-right" />
+      <DashboardExtras />
     </SidebarProvider>
   );
 }
 
 function applyDarkMode(enabled: boolean) {
   document.documentElement.classList.toggle("dark", enabled);
-  setUserJotTheme(enabled ? "dark" : "light");
 }
 
-function getBrowserInfoForUserJot(): string {
+function getBrowserInfo(): string {
   const ua = navigator.userAgent;
   if (ua.includes("Firefox")) {
     const match = ua.match(/Firefox\/(\d+)/);
@@ -279,7 +325,7 @@ function getBrowserInfoForUserJot(): string {
   return "Ukendt browser";
 }
 
-function getLectioVersionForUserJot(): string {
+function getLectioVersion(): string {
   return (
     (document.getElementById("s_m_VersionInfoLink") ??
       document.getElementById("m_VersionInfoLink"))
@@ -536,6 +582,11 @@ function initLayout() {
       trackPotentialLectioSessionLoss('login_aspx');
       updateLoginState(); // This will detect not logged in and clear the cache
     }
+    // A real login form is relevant here. Keep the pending broker state, but
+    // don't cover the credentials UI; the next authenticated page completes it.
+    void import('@/lib/website-login').then(({ hideWebsiteLoginOverlay }) => {
+      hideWebsiteLoginOverlay();
+    }).catch(() => {});
     document.documentElement.classList.add("il-ready");
     return;
   }
@@ -551,6 +602,14 @@ function initLayout() {
     if (isSchoolPage && !hasMainHeader && !isPrintPage) {
       trackPotentialLectioSessionLoss('school_page_without_header');
       updateLoginState(); // This will detect not logged in and clear the cache
+    }
+
+    // Homepage / login_list have no master header — still run the website-login
+    // broker so a pending ?bl_login= can toast / complete after Lectio sign-in.
+    if (!isPrintPage) {
+      void import('@/lib/website-login').then(({ bootWebsiteLogin }) => {
+        bootWebsiteLogin({ schoolId: null, studentId: null });
+      }).catch(() => {});
     }
 
     // Still reveal the page
@@ -607,11 +666,28 @@ function initLayout() {
     });
   }
 
+  // Website "Log ind med BetterLectio" broker — capture ?bl_login= and
+  // complete redirect once Lectio identity + Supabase session are ready.
+  void import('@/lib/website-login').then(({ bootWebsiteLogin }) => {
+    bootWebsiteLogin({
+      schoolId: schoolId ?? currentProfile?.schoolId ?? null,
+      studentId: currentProfile?.studentId ?? null,
+    });
+  }).catch(() => {});
+
   // Auto-authenticate with Supabase (fire-and-forget, never blocks UI)
   if (schoolId) {
     const bootstrapStudentId = currentProfile?.studentId ?? undefined;
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
-      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId);
+      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then(() => {
+        // Retry website login after session bootstrap in case we raced.
+        void import('@/lib/website-login').then(({ maybeCompleteWebsiteLogin }) => {
+          void maybeCompleteWebsiteLogin({
+            schoolId: schoolId ?? currentProfile?.schoolId ?? null,
+            studentId: currentProfile?.studentId ?? null,
+          });
+        }).catch(() => {});
+      });
     }).catch(() => {});
 
     // Stamp `students.last_seen_at` once per day so SQL consumers can answer
@@ -653,7 +729,7 @@ function initLayout() {
       theme_id: currentTheme.themeId,
       language: getLocale(),
       extension_version: browser.runtime.getManifest().version,
-      lectio_version: getLectioVersionForUserJot(),
+      lectio_version: getLectioVersion(),
     });
     captureOncePerSession('extension loaded', phDistinctId, pageProps);
     void consumeLifecycleEvents().then((events) => {
@@ -692,6 +768,7 @@ function initLayout() {
 
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
+      if (isIgnorableNetworkError(e.error) || isNonActionableSupabaseError(e.error)) return;
       const err =
         e.error instanceof Error
           ? e.error
@@ -706,7 +783,7 @@ function initLayout() {
       });
     });
     window.addEventListener('unhandledrejection', (e) => {
-      if (isIgnorableNetworkError(e.reason)) return;
+      if (isIgnorableNetworkError(e.reason) || isNonActionableSupabaseError(e.reason)) return;
       captureException(e.reason, phDistinctId, { source: 'unhandledrejection' });
     });
     let _blConsoleErrorCaptures = 0;
@@ -717,7 +794,9 @@ function initLayout() {
       if (
         _blConsoleErrorCaptures < MAX_CONSOLE_ERROR_REPORTS &&
         !isIgnorableNetworkError(joined) &&
-        !args.some(isIgnorableNetworkError)
+        !args.some(isIgnorableNetworkError) &&
+        !isNonActionableSupabaseError(joined) &&
+        !args.some(isNonActionableSupabaseError)
       ) {
         _blConsoleErrorCaptures++;
         captureException(new Error(joined), phDistinctId, {
@@ -879,29 +958,8 @@ function initLayout() {
     navigationObserver.observe(document.documentElement, { childList: true, subtree: true });
   }
 
-  let userJotIdentifyPayload: Parameters<typeof identifyUserJot>[0] | null = null;
   if (cachedProfile) {
     (window as any).__IL_CACHED_PROFILE__ = cachedProfile;
-    if (cachedProfile.studentId) {
-      const version = browser.runtime.getManifest().version;
-      const lectioVersion = getLectioVersionForUserJot();
-      const browserInfo = getBrowserInfoForUserJot();
-      const profileFirstName = cachedProfile.fullName?.split(" ").filter(Boolean)[0];
-      const profileLastName = cachedProfile.fullName
-        ?.split(" ")
-        .filter(Boolean)
-        .slice(1)
-        .join(" ");
-      userJotIdentifyPayload = {
-        id: `${cachedProfile.schoolId ?? "lectio"}:${cachedProfile.studentId}`,
-        firstName: profileFirstName
-          ? `${profileFirstName} | BetterLectio ${version}`
-          : `BetterLectio ${version}`,
-        lastName: [profileLastName, `Lectio ${lectioVersion}`, browserInfo]
-          .filter(Boolean)
-          .join(" | "),
-      };
-    }
   }
 
   // Extract profile picture URL before modifying DOM (for immediate use)
@@ -923,6 +981,11 @@ function initLayout() {
   // Inject Geist font
   injectFont();
 
+  // Capture Lectio's role/page-specific navigation while it is still in the
+  // document. Horizontal mode renders these exact contextual rows.
+  const lectioNavigation = parseLectioNavigation(document);
+  const navigationLayout = getSettings().interface?.navigationLayout ?? 'sidebar';
+
   // Collect all original body children (as actual nodes, not innerHTML)
   // This preserves event handlers and form connections
   const originalNodes: Node[] = [];
@@ -932,6 +995,8 @@ function initLayout() {
 
   // Add our wrapper class
   document.body.classList.add("il-dashboard-active");
+  document.body.classList.toggle('il-horizontal-navigation', navigationLayout === 'horizontal');
+  document.body.classList.toggle('il-sidebar-navigation', navigationLayout === 'sidebar');
 
   // Create our root container
   const root = document.createElement("div");
@@ -946,7 +1011,7 @@ function initLayout() {
   }
 
   // Render the dashboard layout
-  render(<DashboardLayout />, root);
+  render(<DashboardLayout navigation={lectioNavigation} layout={navigationLayout} />, root);
 
   // Wait for the render and then move the original content into our content area
   requestAnimationFrame(() => {
@@ -1182,11 +1247,6 @@ function initLayout() {
 
       // Inject dark mode into CKEditor iframes (activity/elevfeedback pages)
       initCKEditorDarkMode();
-
-      // Initialize UserJot after our DOM move/rewrite to avoid layout side effects.
-      // Pass identify via dataset because the bootstrap runs in the page's main
-      // world and cannot read the isolated content-script's window globals.
-      initUserJotWidget(userJotIdentifyPayload ?? undefined);
 
       console.log("[BetterLectio] Dashboard layout injected");
     }
@@ -2337,19 +2397,34 @@ function enhanceForsideSchedule(schoolId: string) {
     }
   }
 
-  // Create a side panel container next to the main content
+  // Own the forside's page-level layout inside the scroll container. Appending
+  // the panel beside #il-lectio-content only worked in sidebar mode because
+  // SidebarInset happens to be a row; the horizontal shell is a column and
+  // therefore placed the schedule below the dashboard.
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
+  const layoutShell = document.createElement("div");
+  layoutShell.id = "il-forside-layout";
+
+  const mainColumn = document.createElement("div");
+  mainColumn.id = "il-forside-main";
+
+  while (contentContainer.firstChild) {
+    mainColumn.appendChild(contentContainer.firstChild);
+  }
+
+  layoutShell.appendChild(mainColumn);
+  contentContainer.appendChild(layoutShell);
+
   const panel = document.createElement("div");
   panel.id = "il-forside-schedule-panel";
-  panel.className = "w-[30rem] shrink-0 flex flex-col overflow-hidden max-md:hidden pr-4 py-4";
+  panel.className = "flex min-w-0 flex-col overflow-hidden max-md:hidden";
   // Inner card with rounding and border
   const inner = document.createElement("div");
-  inner.className = "flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm";
+  inner.className = "il-forside-schedule-card flex flex-1 flex-col overflow-hidden border border-border bg-card";
   panel.appendChild(inner);
-  // Insert after il-lectio-content (as a sibling inside SidebarInset)
-  contentContainer.parentElement?.appendChild(panel);
+  layoutShell.appendChild(panel);
 
   // Fetch schedule from SkemaNy.aspx and render the panel
   fetchScheduleWeek(schoolId).then((weekData) => {

@@ -65,6 +65,37 @@ function extractRpcIdentity(args: Record<string, unknown>): {
   return { schoolId, studentId };
 }
 
+export async function sendStorageUpload(opts: {
+  bucket: string;
+  path: string;
+  dataBase64: string;
+  contentType: string;
+  upsert?: boolean;
+}): Promise<SupabaseResponse> {
+  return send({
+    type: 'bl-sb:storage:upload',
+    bucket: opts.bucket,
+    path: opts.path,
+    dataBase64: opts.dataBase64,
+    contentType: opts.contentType,
+    upsert: opts.upsert,
+  });
+}
+
+export async function sendProfilePictureSubmission(opts: {
+  studentId: string;
+  schoolId: number;
+  dataBase64: string;
+  contentType: string;
+  fileName: string;
+}): Promise<SupabaseResponse> {
+  return send({
+    type: 'bl-sb:profile-picture:submit',
+    platform: 'extension',
+    ...opts,
+  });
+}
+
 export async function sendRpc(
   fn: FunctionName,
   args: Record<string, unknown>,

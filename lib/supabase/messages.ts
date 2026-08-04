@@ -82,6 +82,33 @@ export interface AuthSignOutMessage {
   type: 'bl-sb:auth:signout';
 }
 
+/** Mint a fresh magic-link token_hash for betterlectio.dk SSR login. */
+export interface AuthMintWebsiteOtpMessage {
+  type: 'bl-sb:auth:mint-website-otp';
+}
+
+/** Upload bytes to a private storage bucket (base64 payload from content scripts). */
+export interface StorageUploadMessage {
+  type: 'bl-sb:storage:upload';
+  bucket: string;
+  path: string;
+  /** Base64-encoded file body (no data: URL prefix). */
+  dataBase64: string;
+  contentType: string;
+  upsert?: boolean;
+}
+
+/** Submit a custom profile picture through the moderated Edge Function. */
+export interface ProfilePictureSubmitMessage {
+  type: 'bl-sb:profile-picture:submit';
+  studentId: string;
+  schoolId: number;
+  platform: 'extension';
+  dataBase64: string;
+  contentType: string;
+  fileName: string;
+}
+
 export type SupabaseMessage =
   | QueryMessage
   | MutateMessage
@@ -90,10 +117,13 @@ export type SupabaseMessage =
   | UnsubscribeMessage
   | AuthEnsureMessage
   | AuthGetSessionMessage
-  | AuthSignOutMessage;
+  | AuthSignOutMessage
+  | AuthMintWebsiteOtpMessage
+  | StorageUploadMessage
+  | ProfilePictureSubmitMessage;
 
 // ── Response ────────────────────────────────────────────────────────
 
 export type SupabaseResponse =
   | { ok: true; data?: unknown; session?: { expires_at: number; user_id?: string | null } | null }
-  | { ok: false; error?: string };
+  | { ok: false; error?: string; data?: unknown };

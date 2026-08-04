@@ -52,6 +52,7 @@
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
         "autoprefixer": "^10.5.2",
+        "linkedom": "^0.18.12",
         "playwright": "^1.61.1",
         "postcss": "^8.5.17",
         "satori": "^0.26.0",

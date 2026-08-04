@@ -65,21 +65,13 @@ import { getCachedSchoolDisplayName, cacheSchoolDisplayName } from '@/lib/school
 import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getCachedPageHasData, getPageHasData } from '@/lib/page-data-cache';
 import { getUnreadCount, getCachedUnreadCount, hasNotificationDot } from '@/lib/unread-messages';
-import { setUserJotTheme } from '@/lib/userjot';
 import { armBypass } from '@/lib/bypass-redesigns';
 import { captureBypassEngaged } from '@/lib/bypass-analytics';
 import { MOBILE_APP_INVITE_OPEN_EVENT } from '@/components/MobileAppInvitePopup';
 import { toast } from 'sonner';
 import { useQuery } from '@/lib/supabase/hooks';
 import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
-import { SettingsModal } from './SettingsModal';
-import { ActivityClassModal } from './ActivityClassModal';
-import { ActivityClassFullModal } from './ActivityClassFullModal';
-import { PrivatAftaleDialog } from './PrivatAftaleDialog';
-import { OpgaveDetailSheet } from './OpgaveDetailSheet';
-import type { OpgaveEntry } from './OpgaverPage';
 import { ScheduleCountdown } from './ScheduleCountdown';
-import { OnboardingWizard } from './OnboardingWizard';
 
 function getSchoolIdFromUrl(): string {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
@@ -204,8 +196,6 @@ function getUserClass(): string {
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
-  const WELCOME_STORAGE_KEY = "bl-welcome-popup-seen-v1";
-  const LEGACY_WELCOME_STORAGE_KEY = "il-welcome-popup-seen-v1";
 
   const navMain = [
     { title: t('sidebar.nav.forside'), icon: Home, page: 'forside', settingKey: 'showForside' as const },
@@ -274,31 +264,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const [imageEnlarged, setImageEnlarged] = useState(false);
   const [findSkemaOpen, setFindSkemaOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => settings.visual?.darkMode ?? false);
-  const [welcomeOpen, setWelcomeOpen] = useState(false);
-  const [activityModalOpen, setActivityModalOpen] = useState(false);
-  const [activityModalUrl, setActivityModalUrl] = useState<string | null>(null);
-  const [activityViewMode, setActivityViewMode] = useState<'modal' | 'sheet'>(
-    () => settings.behavior?.activityViewMode ?? 'modal',
-  );
-  const swapActivityViewMode = () => {
-    const next = activityViewMode === 'modal' ? 'sheet' : 'modal';
-    setActivityViewMode(next);
-    updateSetting('behavior', 'activityViewMode', next);
-  };
-  const [opgaveViewMode, setOpgaveViewMode] = useState<'modal' | 'sheet'>(
-    () => settings.behavior?.opgaveViewMode ?? 'sheet',
-  );
-  const swapOpgaveViewMode = () => {
-    const next = opgaveViewMode === 'modal' ? 'sheet' : 'modal';
-    setOpgaveViewMode(next);
-    updateSetting('behavior', 'opgaveViewMode', next);
-  };
-  const [paDialogOpen, setPaDialogOpen] = useState(false);
-  const [paDialogUrl, setPaDialogUrl] = useState<string | null>(null);
-  const [opgaveSheetOpen, setOpgaveSheetOpen] = useState(false);
-  const [opgaveSheetEntry, setOpgaveSheetEntry] = useState<OpgaveEntry | null>(null);
   const schoolInfo = getSchoolInfo();
   const schoolId = schoolInfo.id;
   const [hasBooks, setHasBooks] = useState(() => getCachedPageHasData(schoolId, 'books') ?? true);
@@ -346,7 +312,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const currentPage = getCurrentPage();
 
   const baseUrl = `/lectio/${schoolId}`;
-  const portalTarget = document.getElementById("il-root") || document.body;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -373,118 +338,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
   }, [imageEnlarged]);
-
-  // Listen for custom event to open settings (triggered by extension icon click)
-  useEffect(() => {
-    function handleOpenSettings() {
-      setSettingsOpen(true);
-    }
-    window.addEventListener('betterlectio:openSettings', handleOpenSettings);
-    return () => window.removeEventListener('betterlectio:openSettings', handleOpenSettings);
-  }, []);
-
-  // Show a one-time welcome message after first install/use.
-  useEffect(() => {
-    try {
-      const hasSeenWelcome = (localStorage.getItem(WELCOME_STORAGE_KEY) ?? localStorage.getItem(LEGACY_WELCOME_STORAGE_KEY)) === "true";
-      if (!localStorage.getItem(WELCOME_STORAGE_KEY) && hasSeenWelcome) {
-        localStorage.setItem(WELCOME_STORAGE_KEY, "true");
-      }
-      if (!hasSeenWelcome) {
-        setWelcomeOpen(true);
-      }
-    } catch {
-      // If localStorage fails, fail open without blocking the app.
-      setWelcomeOpen(true);
-    }
-
-    // Listen for storage changes from other preloaded/prerendered pages so that
-    // completing onboarding on one page dismisses it on already-loaded pages too.
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === WELCOME_STORAGE_KEY && e.newValue === "true") {
-        setWelcomeOpen(false);
-      }
-    };
-    window.addEventListener('storage', onStorage);
-
-    // When a prerendered page becomes active, re-check localStorage in case
-    // onboarding was completed while this page was still in prerender state.
-    const onPageReveal = () => {
-      try {
-        if (localStorage.getItem(WELCOME_STORAGE_KEY) === "true") {
-          setWelcomeOpen(false);
-        }
-      } catch { /* ignore */ }
-    };
-    document.addEventListener('prerenderingchange', onPageReveal);
-
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      document.removeEventListener('prerenderingchange', onPageReveal);
-    };
-  }, [WELCOME_STORAGE_KEY, LEGACY_WELCOME_STORAGE_KEY]);
-
-  const closeWelcome = () => {
-    setWelcomeOpen(false);
-    try {
-      localStorage.setItem(WELCOME_STORAGE_KEY, "true");
-    } catch {
-      // Ignore storage errors.
-    }
-  };
-
-  useEffect(() => {
-    const handleOpenActivityModal = (event: Event) => {
-      const customEvent = event as CustomEvent<{ url?: string }>;
-      const nextUrl = customEvent.detail?.url;
-      if (!nextUrl) return;
-      setActivityModalUrl(nextUrl);
-      setActivityModalOpen(true);
-    };
-
-    window.addEventListener("betterlectio:openActivityModal", handleOpenActivityModal as EventListener);
-    return () =>
-      window.removeEventListener(
-        "betterlectio:openActivityModal",
-        handleOpenActivityModal as EventListener,
-      );
-  }, []);
-
-  // Listen for custom event to open privat aftale dialog (from schedule brick clicks)
-  useEffect(() => {
-    const handleOpenPA = (event: Event) => {
-      const customEvent = event as CustomEvent<{ url?: string }>;
-      const nextUrl = customEvent.detail?.url;
-      if (!nextUrl) return;
-      setPaDialogUrl(nextUrl);
-      setPaDialogOpen(true);
-    };
-
-    window.addEventListener("betterlectio:openPrivatAftale", handleOpenPA as EventListener);
-    return () =>
-      window.removeEventListener(
-        "betterlectio:openPrivatAftale",
-        handleOpenPA as EventListener,
-      );
-  }, []);
-
-  // Listen for custom event to open opgave detail sheet (from forside/other pages)
-  useEffect(() => {
-    const handleOpenOpgave = (event: Event) => {
-      const customEvent = event as CustomEvent<{ entry?: OpgaveEntry }>;
-      const entry = customEvent.detail?.entry;
-      if (!entry) return;
-      setOpgaveSheetEntry(entry);
-      setOpgaveSheetOpen(true);
-    };
-
-    window.addEventListener("betterlectio:openOpgaveDetail", handleOpenOpgave as EventListener);
-    return () =>
-      window.removeEventListener(
-        "betterlectio:openOpgaveDetail",
-        handleOpenOpgave as EventListener,
-      );
-  }, []);
 
   // Check if school has books/SPS data (async, cached 1 week)
   useEffect(() => {
@@ -723,7 +576,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           </a>
           <button
             type="button"
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => window.dispatchEvent(new CustomEvent('betterlectio:openSettings'))}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
             title={t('sidebar.settingsTitle')}
           >
@@ -736,7 +589,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               setIsDark(next);
               updateSetting('visual', 'darkMode', next);
               document.documentElement.classList.toggle('dark', next);
-              setUserJotTheme(next ? 'dark' : 'light');
             }}
             className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
             title={isDark ? t('sidebar.lightModeTitle') : t('sidebar.darkModeTitle')}
@@ -769,7 +621,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           >
             <EyeOff className="size-[1.1rem]" />
           </button>
-          {sidebarStudent?.app_eligible && (
+          {sidebarStudent && (
             <button
               type="button"
               onClick={() => {
@@ -840,7 +692,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   <button
                     type="button"
                     onClick={() => {
-                      setSettingsOpen(true);
+                      window.dispatchEvent(new CustomEvent('betterlectio:openSettings'));
                       setMenuOpen(false);
                     }}
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-sm rounded-lg hover:bg-accent/80 transition-[color,background-color] duration-150"
@@ -919,64 +771,6 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         </div>
       )}
 
-      {/* Settings modal */}
-      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} onShowOnboarding={() => setWelcomeOpen(true)} />
-
-      {/* First-run onboarding wizard */}
-      <OnboardingWizard
-        open={welcomeOpen}
-        onClose={closeWelcome}
-        schoolId={schoolId}
-        studentId={cachedProfile?.studentId ?? null}
-        portalTarget={portalTarget}
-        onOpenSettings={() => { closeWelcome(); setSettingsOpen(true); }}
-      />
-      {activityViewMode === 'modal' ? (
-        <ActivityClassFullModal
-          open={activityModalOpen}
-          url={activityModalUrl}
-          onOpenChange={(next) => {
-            setActivityModalOpen(next);
-            if (!next) {
-              setActivityModalUrl(null);
-            }
-          }}
-          onSwapViewMode={swapActivityViewMode}
-        />
-      ) : (
-        <ActivityClassModal
-          open={activityModalOpen}
-          url={activityModalUrl}
-          onOpenChange={(next) => {
-            setActivityModalOpen(next);
-            if (!next) {
-              setActivityModalUrl(null);
-            }
-          }}
-          onSwapViewMode={swapActivityViewMode}
-        />
-      )}
-      {paDialogUrl && (
-        <PrivatAftaleDialog
-          open={paDialogOpen}
-          onOpenChange={(next) => {
-            setPaDialogOpen(next);
-            if (!next) setPaDialogUrl(null);
-          }}
-          formUrl={paDialogUrl}
-        />
-      )}
-      <OpgaveDetailSheet
-        open={opgaveSheetOpen}
-        onOpenChange={(next) => {
-          setOpgaveSheetOpen(next);
-          if (!next) setOpgaveSheetEntry(null);
-        }}
-        entry={opgaveSheetEntry}
-        schoolId={schoolId}
-        viewMode={opgaveViewMode}
-        onSwapViewMode={swapOpgaveViewMode}
-      />
     </Sidebar>
   );
 }

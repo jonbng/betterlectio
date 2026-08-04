@@ -364,10 +364,10 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="shrink-0 px-6 pt-6 pb-4">
+      <div className="shrink-0 px-7 pt-7 pb-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">{t('forside.schedule.title')}</h2>
+            <h2 className="text-2xl font-bold tracking-[-0.025em] text-foreground">{t('forside.schedule.title')}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {isToday ? t('forside.schedule.today') : isCurrentWeek ? dayLabel : weekData.weekLabel.replace(/\s*\(.*/, '') + ' — ' + dayLabel}
             </p>
@@ -397,7 +397,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
       </div>
 
       {/* Day picker */}
-      <div className="mx-5 mb-5 flex items-center gap-1.5 rounded-xl bg-muted/60 p-1.5">
+      <div className="mx-6 mb-6 flex items-center gap-1.5 rounded-xl bg-muted/60 p-1.5">
         <button
           disabled={(dayIndex <= 0 && !weekData.prevWeekParam) || weekLoading}
           onClick={() => navigate(-1)}
@@ -448,7 +448,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
 
       {/* Day-level info notes (e.g. "Hele dagen" events) */}
       {currentDay.notes.length > 0 && (
-        <div className="mx-5 mb-3 flex shrink-0 flex-col gap-1">
+        <div className="mx-6 mb-4 flex shrink-0 flex-col gap-1">
           {currentDay.notes.map((note, i) => (
             <a
               key={i}
@@ -478,7 +478,7 @@ export function ForsideSchedulePanel({ initialWeekData, schoolId, onBricksInject
       )}
 
       {/* Schedule grid — uses 1rem (16px) font-size so Lectio em-based positioning works correctly */}
-      <div ref={scrollRef} className="relative flex-1 overflow-y-auto overflow-x-hidden px-3 pb-5">
+      <div ref={scrollRef} className="relative flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6">
         {weekLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/60">
             <Loader2 size={24} className="animate-spin text-muted-foreground" />

@@ -1,0 +1,11 @@
+[functions.referral-click]
+verify_jwt = false
+
+[functions.referral-finalize]
+verify_jwt = true
+
+[functions.profile-picture-submit]
+verify_jwt = true
+
+[functions.maintenance-cleanup]
+verify_jwt = true

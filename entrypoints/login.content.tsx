@@ -1,21 +1,70 @@
 import { render } from "@/lib/i18n/render";
 import { LoginPage, type School } from "@/components/LoginPage";
-import { getCachedLoginState, clearLoginState } from "@/lib/profile-cache";
+import {
+  getCachedLoginState,
+  clearLoginState,
+  getCachedProfileForSchool,
+} from "@/lib/profile-cache";
 import { getLastSchool } from "@/lib/school-storage";
 import { getSettings } from "@/lib/settings-storage";
-import { initUserJotWidget } from "@/lib/userjot";
 import "@/styles/globals.css";
 
 export default defineContentScript({
   matches: [
     "*://www.lectio.dk/",
-    "*://www.lectio.dk/index.html",
+    "*://www.lectio.dk/index.html*",
     "*://www.lectio.dk/lectio/login_list.aspx*",
   ],
   runAt: "document_end",
-  main() {
-    console.log("[BetterLectio] Login content script loaded");
-    initLoginPage();
+  async main() {
+    console.log("[BetterLectio] Login content script loaded", window.location.href);
+
+    // Website authentication is a dedicated flow, not the normal Lectio login
+    // screen. Keep Lectio fully covered and use the cached signed-in identity
+    // immediately instead of first claiming the user is logged out.
+    try {
+      const broker = await import("@/lib/website-login");
+      await broker.captureWebsiteLoginFromUrl();
+      const pending = await broker.readPending();
+      if (pending) {
+        broker.showWebsiteLoginOverlay("Logger dig ind på BetterLectio…");
+
+        const loginState = getCachedLoginState();
+        const lastSchoolId =
+          getLastSchool()?.url.match(/\/lectio\/(\d+)\//)?.[1] ?? null;
+        const schoolId =
+          (loginState?.isLoggedIn ? loginState.schoolId : null) ?? lastSchoolId;
+        const profile = getCachedProfileForSchool(schoolId);
+
+        if (loginState?.isLoggedIn && schoolId && profile?.studentId) {
+          await broker.maybeCompleteWebsiteLogin({
+            schoolId,
+            studentId: profile.studentId,
+          });
+          return;
+        }
+
+        // We know the last authenticated school but lack a complete profile
+        // cache. Go straight to its forside; content.tsx can extract identity
+        // and finish the pending broker without showing the school picker.
+        if (schoolId) {
+          broker.showWebsiteLoginOverlay("Kontrollerer din Lectio-login…");
+          window.location.replace(
+            new URL(`/lectio/${schoolId}/forside.aspx`, window.location.origin)
+              .href,
+          );
+          return;
+        }
+
+        // No known school means the picker is required. Reveal the normal
+        // BetterLectio picker only in this genuinely signed-out case.
+        broker.hideWebsiteLoginOverlay();
+      }
+    } catch (err) {
+      console.error("[BetterLectio] website-login boot failed", err);
+    }
+
+    await initLoginPage();
   },
 });
 
@@ -182,9 +231,6 @@ function replacePageWithLoginUI(schools: School[]) {
 
   // Render the login page
   render(<LoginPage schools={schools} />, root);
-
-  // Initialize UserJot after we've replaced the page DOM.
-  initUserJotWidget();
 
   // Mark page as ready (in case FOUC prevention is active)
   document.documentElement.classList.add("il-ready");

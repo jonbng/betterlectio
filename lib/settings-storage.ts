@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { syncOptOutToExtensionStorage } from '@/lib/posthog';
-import { setUserJotTheme } from '@/lib/userjot';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isSupportedLocale } from '@/lib/i18n/locales';
 import { setLocale } from '@/lib/i18n/state';
 
@@ -17,6 +16,7 @@ const InterfaceSettingsSchema = z.object({
   language: z
     .enum(SUPPORTED_LOCALES as unknown as [string, ...string[]])
     .default(DEFAULT_LOCALE),
+  navigationLayout: z.enum(['sidebar', 'horizontal']).default('sidebar'),
 });
 
 const ScheduleSettingsSchema = z.object({
@@ -91,6 +91,7 @@ export type FeatureSettings = z.infer<typeof FeatureSettingsSchema>;
  * These are checked by content scripts that run at document_start.
  */
 export const SETTINGS_REQUIRING_RELOAD = [
+  'interface.navigationLayout',
   'schedule.todayHighlight',
   'schedule.currentTimeIndicator',
   'schedule.currentTimeLabel',
@@ -315,7 +316,6 @@ export function applySettingsSideEffects(
   if (prev.visual?.darkMode !== next.visual?.darkMode) {
     changed = true;
     document.documentElement.classList.toggle('dark', Boolean(next.visual?.darkMode));
-    setUserJotTheme(next.visual?.darkMode ? 'dark' : 'light');
   }
 
   if (prev.interface?.language !== next.interface?.language) {

@@ -50,6 +50,287 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_attachments: {
+        Row: {
+          byte_size: number | null
+          created_at: string
+          feedback_id: string
+          height: number | null
+          id: string
+          kind: string
+          mime_type: string | null
+          storage_path: string
+          width: number | null
+        }
+        Insert: {
+          byte_size?: number | null
+          created_at?: string
+          feedback_id: string
+          height?: number | null
+          id?: string
+          kind: string
+          mime_type?: string | null
+          storage_path: string
+          width?: number | null
+        }
+        Update: {
+          byte_size?: number | null
+          created_at?: string
+          feedback_id?: string
+          height?: number | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          storage_path?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_attachments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_comments: {
+        Row: {
+          author_admin: string | null
+          author_kind: string
+          author_student_id: string | null
+          body: string
+          created_at: string
+          feedback_id: string
+          id: string
+          is_internal: boolean
+        }
+        Insert: {
+          author_admin?: string | null
+          author_kind: string
+          author_student_id?: string | null
+          body: string
+          created_at?: string
+          feedback_id: string
+          id?: string
+          is_internal?: boolean
+        }
+        Update: {
+          author_admin?: string | null
+          author_kind?: string
+          author_student_id?: string | null
+          body?: string
+          created_at?: string
+          feedback_id?: string
+          id?: string
+          is_internal?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_comments_author_student_id_fkey"
+            columns: ["author_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_comments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_items: {
+        Row: {
+          admin_notes: string | null
+          app_version: string | null
+          app_version_code: number | null
+          browser_info: string | null
+          build_type: string | null
+          category: string
+          created_at: string
+          device_manufacturer: string | null
+          device_model: string | null
+          duplicate_of: string | null
+          id: string
+          import_external_id: string | null
+          import_source: string | null
+          import_url: string | null
+          include_logs: boolean
+          is_public: boolean
+          last_status_changed_at: string | null
+          last_status_changed_by: string | null
+          lectio_version: string | null
+          locale: string | null
+          logs: string | null
+          made_public_at: string | null
+          message: string
+          os_version: string | null
+          platform: string
+          posthog_distinct_id: string | null
+          posthog_session_id: string | null
+          priority: number | null
+          public_description: string | null
+          public_title: string | null
+          roadmap_eta: string | null
+          roadmap_sort: number | null
+          roadmap_vote_count: number
+          school_id: number
+          status: string
+          student_id: string
+          supabase_uid: string
+          tags: string[]
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          app_version?: string | null
+          app_version_code?: number | null
+          browser_info?: string | null
+          build_type?: string | null
+          category: string
+          created_at?: string
+          device_manufacturer?: string | null
+          device_model?: string | null
+          duplicate_of?: string | null
+          id?: string
+          import_external_id?: string | null
+          import_source?: string | null
+          import_url?: string | null
+          include_logs?: boolean
+          is_public?: boolean
+          last_status_changed_at?: string | null
+          last_status_changed_by?: string | null
+          lectio_version?: string | null
+          locale?: string | null
+          logs?: string | null
+          made_public_at?: string | null
+          message: string
+          os_version?: string | null
+          platform: string
+          posthog_distinct_id?: string | null
+          posthog_session_id?: string | null
+          priority?: number | null
+          public_description?: string | null
+          public_title?: string | null
+          roadmap_eta?: string | null
+          roadmap_sort?: number | null
+          roadmap_vote_count?: number
+          school_id: number
+          status?: string
+          student_id: string
+          supabase_uid: string
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          app_version?: string | null
+          app_version_code?: number | null
+          browser_info?: string | null
+          build_type?: string | null
+          category?: string
+          created_at?: string
+          device_manufacturer?: string | null
+          device_model?: string | null
+          duplicate_of?: string | null
+          id?: string
+          import_external_id?: string | null
+          import_source?: string | null
+          import_url?: string | null
+          include_logs?: boolean
+          is_public?: boolean
+          last_status_changed_at?: string | null
+          last_status_changed_by?: string | null
+          lectio_version?: string | null
+          locale?: string | null
+          logs?: string | null
+          made_public_at?: string | null
+          message?: string
+          os_version?: string | null
+          platform?: string
+          posthog_distinct_id?: string | null
+          posthog_session_id?: string | null
+          priority?: number | null
+          public_description?: string | null
+          public_title?: string | null
+          roadmap_eta?: string | null
+          roadmap_sort?: number | null
+          roadmap_vote_count?: number
+          school_id?: number
+          status?: string
+          student_id?: string
+          supabase_uid?: string
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_items_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_items_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_items_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_status_events: {
+        Row: {
+          actor: string
+          created_at: string
+          feedback_id: string
+          from_status: string | null
+          id: string
+          note: string | null
+          to_status: string
+        }
+        Insert: {
+          actor: string
+          created_at?: string
+          feedback_id: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status: string
+        }
+        Update: {
+          actor?: string
+          created_at?: string
+          feedback_id?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_status_events_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       homework_entries: {
         Row: {
           display_date: string
@@ -193,6 +474,84 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_picture_submissions: {
+        Row: {
+          approved_url: string | null
+          byte_size: number
+          created_at: string
+          id: string
+          mime_type: string
+          platform: string
+          rejection_reason: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_id: number
+          source_deleted_at: string | null
+          status: string
+          storage_path: string
+          student_id: string
+          submitted_at: string | null
+          supabase_uid: string
+          updated_at: string
+        }
+        Insert: {
+          approved_url?: string | null
+          byte_size: number
+          created_at?: string
+          id?: string
+          mime_type: string
+          platform: string
+          rejection_reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id: number
+          source_deleted_at?: string | null
+          status?: string
+          storage_path: string
+          student_id: string
+          submitted_at?: string | null
+          supabase_uid: string
+          updated_at?: string
+        }
+        Update: {
+          approved_url?: string | null
+          byte_size?: number
+          created_at?: string
+          id?: string
+          mime_type?: string
+          platform?: string
+          rejection_reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id?: number
+          source_deleted_at?: string | null
+          status?: string
+          storage_path?: string
+          student_id?: string
+          submitted_at?: string | null
+          supabase_uid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_picture_submissions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_picture_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_clicks: {
         Row: {
           city: string | null
@@ -255,6 +614,35 @@ export type Database = {
             columns: ["referrer_student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmap_votes: {
+        Row: {
+          created_at: string
+          feedback_id: string
+          id: string
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_id: string
+          id?: string
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_id?: string
+          id?: string
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_votes_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_items"
             referencedColumns: ["id"]
           },
         ]
@@ -461,6 +849,7 @@ export type Database = {
           birthdate: string | null
           class_name: string | null
           created_at: string
+          custom_pfp_approved_at: string | null
           custom_pfp_url: string | null
           description: string | null
           dismissed_app_prompt_at: string | null
@@ -479,6 +868,7 @@ export type Database = {
           name: string | null
           pfp_hash: string | null
           referral_click_id: string | null
+          referral_reward_unlocked_at: string | null
           referred_at: string | null
           referred_by: string | null
           school_id: number
@@ -492,6 +882,7 @@ export type Database = {
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
+          custom_pfp_approved_at?: string | null
           custom_pfp_url?: string | null
           description?: string | null
           dismissed_app_prompt_at?: string | null
@@ -510,6 +901,7 @@ export type Database = {
           name?: string | null
           pfp_hash?: string | null
           referral_click_id?: string | null
+          referral_reward_unlocked_at?: string | null
           referred_at?: string | null
           referred_by?: string | null
           school_id: number
@@ -523,6 +915,7 @@ export type Database = {
           birthdate?: string | null
           class_name?: string | null
           created_at?: string
+          custom_pfp_approved_at?: string | null
           custom_pfp_url?: string | null
           description?: string | null
           dismissed_app_prompt_at?: string | null
@@ -541,6 +934,7 @@ export type Database = {
           name?: string | null
           pfp_hash?: string | null
           referral_click_id?: string | null
+          referral_reward_unlocked_at?: string | null
           referred_at?: string | null
           referred_by?: string | null
           school_id?: number
@@ -746,6 +1140,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_student_profile: {
+        Args: { p_student_id: string }
+        Returns: {
+          app_installed_at: string | null
+          birthdate: string | null
+          class_name: string | null
+          custom_pfp_url: string | null
+          description: string | null
+          extension_installed_at: string | null
+          extension_uninstalled_at: string | null
+          id: string
+          instagram: string | null
+          last_seen_at: string | null
+          lectio_pfp_url: string | null
+          name: string | null
+          show_birthday: boolean
+        }[]
+      }
+      get_student_profiles: {
+        Args: { p_student_ids: string[] }
+        Returns: {
+          app_installed_at: string | null
+          birthdate: string | null
+          class_name: string | null
+          custom_pfp_url: string | null
+          description: string | null
+          extension_installed_at: string | null
+          extension_uninstalled_at: string | null
+          id: string
+          instagram: string | null
+          last_seen_at: string | null
+          lectio_pfp_url: string | null
+          name: string | null
+          show_birthday: boolean
+        }[]
+      }
+      get_my_profile_picture_state: {
+        Args: { p_student_id: string }
+        Returns: Json
+      }
       get_my_school_id: { Args: never; Returns: number }
       get_referral_stats: {
         Args: { p_student_id: string }
@@ -755,6 +1189,16 @@ export type Database = {
           total_clicks: number
           unique_clickers: number
         }[]
+      }
+      review_profile_picture_submission: {
+        Args: {
+          p_decision: string
+          p_public_url?: string
+          p_rejection_reason?: string
+          p_review_note?: string
+          p_submission_id: string
+        }
+        Returns: Json
       }
       get_student_homework_statuses: {
         Args: { p_school_id: number; p_student_id: string }
@@ -812,6 +1256,18 @@ export type Database = {
           updated_at: string
         }[]
       }
+      register_feedback_attachment: {
+        Args: {
+          p_byte_size?: number
+          p_feedback_id: string
+          p_height?: number
+          p_kind: string
+          p_mime_type?: string
+          p_storage_path: string
+          p_width?: number
+        }
+        Returns: string
+      }
       reset_user_lesson_override_v2: {
         Args: {
           p_canonical_key: string
@@ -821,6 +1277,17 @@ export type Database = {
           p_student_id: string
         }
         Returns: undefined
+      }
+      submit_feedback: {
+        Args: {
+          p_category: string
+          p_context?: Json
+          p_message: string
+          p_platform: string
+          p_school_id: number
+          p_student_id: string
+        }
+        Returns: string
       }
       touch_student_last_seen: {
         Args: { p_school_id: number; p_student_id: string }

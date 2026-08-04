@@ -23,13 +23,12 @@ import { resolveClassId } from '@/lib/resolve-class-id';
 import { PersonCard } from './PersonCard';
 import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
-import type { Tables } from '@/database.types';
-import { useQuery } from '@/lib/supabase/hooks';
-import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate, getPreferredStudentDisplayName } from '@/lib/supabase/student-lookup';
+import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
 import { isActiveStudent } from '@/lib/active-user';
 import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
 import { getSettings } from '@/lib/settings-storage';
 import { formatInstagramHandle, getInstagramProfileUrl } from '@/lib/instagram';
+import { getStudentProfile, type PublicStudentProfile } from '@/lib/supabase/resources/student';
 
 interface ProfilePageProps {
   name: string;
@@ -53,8 +52,6 @@ interface HoldGroupItem {
   name: string;
   href: string;
 }
-
-type Student = Tables<'students'>;
 
 // ── Hold extraction helpers ─────────────────────────────────────────────
 
@@ -185,18 +182,28 @@ export function ProfilePage({
   const classIdRef = useRef<string | null>(null);
   const [holdGroups, setHoldGroups] = useState<HoldGroupItem[]>([]);
 
-  // Supabase student data
-  const { data: student } = useQuery<Student>({
-    schoolId,
-    table: 'students',
-    filters: [{ column: 'id', op: 'eq', value: entityId }],
-    single: true,
-  });
+  // Rich profile data comes through the privacy boundary RPC. In particular,
+  // birthdate is absent unless this student explicitly enabled show_birthday.
+  const [student, setStudent] = useState<PublicStudentProfile | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setStudent(null);
+    getStudentProfile(entityId)
+      .then(profile => {
+        if (!cancelled) setStudent(profile);
+      })
+      .catch(() => {
+        if (!cancelled) setStudent(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entityId]);
   const { studentsMap } = useSchoolStudents(schoolId, { refreshOnMount: true });
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
   const hasBetterLectio = !!(isActiveStudent(student) || student?.app_installed_at);
-  const displayName = getPreferredStudentDisplayName(student, name);
+  const displayName = student?.name?.trim() || name;
   const firstName = displayName.split(' ')[0];
   const effectivePictureUrl = student?.custom_pfp_url || pictureUrl;
   const canEnlargePicture = Boolean(effectivePictureUrl && hasBetterLectio);
