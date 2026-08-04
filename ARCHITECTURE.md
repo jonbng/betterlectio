@@ -374,8 +374,40 @@ Next.js 16 (App Router, Turbopack) at `betterlectio.dk`. Contains the landing pa
 | Chrome | V3 | Supported |
 | Firefox | V2 | Supported |
 | Edge | V3 | Should work (untested) |
+| Safari (macOS 15+) | V3 | Ships inside the BetterLectio Mac app |
 
 WXT handles manifest differences automatically.
+
+### Safari
+
+Safari is built with `bun run build:safari` (`wxt build -b safari --mv3`) into
+`.output/safari-mv3/`. The `--mv3` flag is required — WXT defaults Safari to MV2,
+and `manifestVersion` is a single top-level config scalar, so setting it in
+`wxt.config.ts` would break the Firefox build too.
+
+macOS only. There is no iOS Safari extension; the iOS product is the native app.
+Deployment target macOS 15 guarantees Safari 18, which supports both MV3 service
+workers (16.4+) and `world: "MAIN"` on content scripts (18+) — so the manifest needs
+no Safari workarounds beyond the two below.
+
+The `build:manifestGenerated` hook's Safari branch does exactly two things:
+
+1. Renames the extension to `BetterLectio` (no space).
+2. **Emits `background.scripts` alongside `background.service_worker`.** Safari does
+   not apply the `host_permissions` CORS bypass to a background *service worker* —
+   only to a background page/event page. Since every Supabase and PostHog request
+   originates in `entrypoints/background.ts`, a service-worker-only background would
+   fail CORS on every call. Safari prefers `scripts` unless `preferred_environment`
+   says otherwise; Chrome-shaped tooling still sees a valid `service_worker` key.
+   This is safe because `defineBackground()` is called with no options, so WXT emits
+   a classic (non-module) script that loads in either environment.
+
+Distribution is a Safari Web Extension appex bundled inside a macOS host app, which
+lives in the separate mobile repo (`Ell1ott/bettermobile-mobile`) alongside the iOS
+app. The Mac app shares the iOS bundle identifier `dk.echolabs.betterlectio.app` so
+both platforms ship as one App Store record under Universal Purchase. The mobile
+repo's `scripts/sync-safari-extension.sh` builds this repo and vendors
+`.output/safari-mv3/` into `SafariExtensionResources/`, keeping Xcode builds hermetic.
 
 ---
 
