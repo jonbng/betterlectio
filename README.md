@@ -87,7 +87,7 @@ bun run zip:firefox  # Firefox
 | Chrome | Supported (Manifest V3) |
 | Firefox | Supported (Manifest V2) |
 | Edge | Should work (untested) |
-| Safari | To be released soon |
+| Safari | macOS 15+ (Manifest V3, ships inside the BetterLectio Mac app) |
 
 ## Acknowledgements
 

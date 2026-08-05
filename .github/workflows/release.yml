@@ -87,11 +87,11 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
-          # Update wxt.config.ts (only the manifest version on line 10, not strict_min_version)
-          sed -i "10s/version: '[^']*'/version: '$NEW_VERSION'/" wxt.config.ts
+          # wxt.config.ts no longer carries a `version` — WXT falls back to
+          # package.json, so package.json is the single source of truth.
 
           # Commit version bump
-          git add package.json wxt.config.ts
+          git add package.json
           git commit -m "chore: bump version to $NEW_VERSION"
           git push
 

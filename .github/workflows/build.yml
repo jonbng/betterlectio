@@ -39,11 +39,49 @@ jobs:
           VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
 
+      # Safari ships as a macOS-only Safari Web Extension bundled inside the Mac
+      # app (see the mobile repo). Only the Xcode archive needs macOS — the WXT
+      # build itself is pure bun, so it runs here alongside Chrome and Firefox.
+      - name: Build Safari extension
+        run: bun run build:safari
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
+
+      - name: Assert Safari manifest invariants
+        env:
+          # Fork PRs get no secrets, so VITE_SUPABASE_URL is empty and the
+          # wildcard host_permission fallback legitimately fires there.
+          CHECK_HOSTS: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          test -f .output/safari-mv3/manifest.json \
+            || { echo "::error::.output/safari-mv3 missing — is --mv3 set on build:safari?"; exit 1; }
+          node -e '
+            const m = require("./.output/safari-mv3/manifest.json");
+            const fail = (s) => { console.error("::error::" + s); process.exitCode = 1; };
+            if (m.manifest_version !== 3) fail("manifest_version is " + m.manifest_version + ", expected 3");
+            if (m.name !== "BetterLectio") fail("name is " + JSON.stringify(m.name) + ", expected \"BetterLectio\"");
+            if (!m.background?.scripts?.length)
+              fail("background.scripts missing — Safari does not grant host_permissions CORS bypass to service workers");
+            if (m.background?.persistent !== undefined)
+              fail("background.persistent is an MV2-only key and should not be emitted");
+            if (process.env.CHECK_HOSTS === "true") {
+              for (const hp of m.host_permissions ?? [])
+                if (hp.split("://")[1]?.split("/")[0]?.includes("*"))
+                  fail("wildcard host_permission: " + hp + " (VITE_SUPABASE_URL unset?)");
+            }
+          '
+
       - name: Zip Chrome extension
         run: cd .output && zip -r chrome-extension.zip chrome-mv3
 
       - name: Zip Firefox extension
         run: cd .output && zip -r firefox-extension.zip firefox-mv2
+
+      - name: Zip Safari extension
+        run: cd .output && zip -r safari-extension.zip safari-mv3
 
       - name: Upload Chrome extension
         uses: actions/upload-artifact@v4
@@ -56,6 +94,12 @@ jobs:
         with:
           name: firefox-extension
           path: .output/firefox-mv2
+
+      - name: Upload Safari extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-extension
+          path: .output/safari-mv3
 
       - name: Create Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -70,4 +114,5 @@ jobs:
           files: |
             .output/chrome-extension.zip
             .output/firefox-extension.zip
+            .output/safari-extension.zip
           prerelease: true

@@ -7,7 +7,8 @@ export default defineConfig({
   manifest: {
     name: 'Better Lectio',
     description: 'Gør Lectio suverent bedre. Installér mobil appen også!',
-    version: '0.0.33',
+    // No `version` key — WXT falls back to package.json's version, which
+    // .github/workflows/release.yml bumps. Keeping it in one place only.
     author: 'Jonathan Bangert <betterlectio@jonathanb.dk>' as any,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
@@ -39,27 +40,37 @@ export default defineConfig({
         };
       }
       if (wxt.config.browser === 'safari') {
+        // Safari ships as a macOS-only Safari Web Extension (MV3) bundled inside
+        // the BetterLectio Mac app. Built via `bun run build:safari` (--mv3) and
+        // vendored into the mobile repo by scripts/sync-safari-extension.sh.
         manifest.name = 'BetterLectio';
         if (manifest.action && typeof manifest.action === 'object') {
           manifest.action.default_title = 'BetterLectio';
         }
-        if (manifest.browser_action && typeof manifest.browser_action === 'object') {
-          manifest.browser_action.default_title = 'BetterLectio';
-        }
-        // iOS/iPadOS don't support persistent background pages.
-        if (manifest.background && typeof manifest.background === 'object') {
-          (manifest.background as { persistent?: boolean }).persistent = false;
-        }
-        // Safari doesn't understand the `world` key on content scripts and
-        // warns about it at validation time. Our only MAIN-world script
-        // (session-renew) doesn't actually touch page globals — dispatched
-        // DOM events still reach jQuery handlers from the isolated world.
-        if (Array.isArray(manifest.content_scripts)) {
-          for (const cs of manifest.content_scripts) {
-            if (cs && typeof cs === 'object' && 'world' in cs) {
-              delete (cs as { world?: string }).world;
-            }
-          }
+
+        // `world: "MAIN"` on content_scripts requires Safari 18; MV3 service
+        // workers require 16.4. The Mac app targets macOS 15, which ships
+        // Safari 18 and can't be downgraded below it — so both are guaranteed
+        // and no manifest workarounds are needed.
+        manifest.browser_specific_settings = {
+          ...(manifest.browser_specific_settings ?? {}),
+          safari: { strict_min_version: '18.0' },
+        };
+
+        // Safari does NOT apply the host_permissions CORS bypass to a background
+        // *service worker* — only to a background page/event page. Every Supabase
+        // and PostHog request originates in entrypoints/background.ts, so emit
+        // `scripts` alongside `service_worker`; Safari prefers `scripts` unless
+        // `preferred_environment` says otherwise, while Chrome-shaped tooling
+        // still sees a valid SW key. Safe because defineBackground() is called
+        // with no options, so WXT emits a classic (non-module) script.
+        // https://github.com/JamiesWhiteShirt/safari-service-worker-background-bug
+        const background = manifest.background as
+          | { service_worker?: string; scripts?: string[]; persistent?: boolean }
+          | undefined;
+        if (background?.service_worker) {
+          background.scripts = [background.service_worker];
+          delete background.persistent; // MV2-only key, meaningless in MV3
         }
       }
     },
