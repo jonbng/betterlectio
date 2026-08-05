@@ -135,7 +135,7 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 
 ## Supabase Auth & Storage
 
-**Edge function:** `supabase/functions/verify-lectio-auth/index.ts` handles QR-code-based auth. Flow: QR login → extract session cookies → fetch student profile from `digitaltStudiekort.aspx` plus `SkemaNy.aspx` (with retries for `elevid` propagation) → generate magic link → upload profile picture to storage → upsert student record.
+**Edge function:** `supabase/functions/verify-lectio-auth/index.ts` handles QR-code-based auth. Flow: QR login → extract session cookies → sequential `SkemaNy.aspx` and `digitaltStudiekort.aspx` requests through the shared rotating jar → generate magic link → optionally upload profile picture → upsert student record. Schedule title is the fallback name source; missing profile enrichment must not block authentication.
 
 **Background auth dedupe:** `entrypoints/background.ts` is the single coordinator for Supabase auth. Startup auth originates from `entrypoints/content.tsx`; feature code only calls `ensureSupabaseSession(...)` as fallback. Background dedupes concurrent attempts per `schoolId:userId` so multiple callers don't burn the same one-time magic-link token.
 
@@ -146,6 +146,10 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 **Auth UID:** Edge function sets `supabase_id` on `students` from `data.user.id` returned by `generateLink()`.
 
 **Mobile auth source of truth:** `supabase/functions/token-for-auth/index.ts` is the canonical deployed function used by Android/iOS. Keep JWT verification enabled. A response is successful only after the `students` upsert succeeds, and rotated Lectio cookies must be persisted by clients before OTP verification.
+
+**Auth observability:** `auth_attempts` is the 30-day operational record for `token-for-auth` and `verify-lectio-auth`; edge telemetry is best-effort and must never alter an auth outcome. Responses preserve legacy fields and add `request_id`, `profile_status`, `profile_source`, and `profile_fields`. Authenticated clients call `confirm_auth_attempt` after a usable session exists. Admin reads only the service-role `get_auth_health` RPC; never expose `auth_user_id` in the UI. PostHog is secondary correlation, not the source of truth. Schema: `supabase/migrations/20260808_add_auth_attempt_observability.sql`.
+
+**Canonical Supabase source:** deploy functions and migrations only from this `extension/supabase` tree. The old iOS-local deployable copy was removed so it cannot overwrite production with stale auth behavior.
 
 **Profile picture storage:** Lectio pictures downloaded during auth are uploaded to the public `profile-pictures` bucket at `{schoolId}/{userId}.{ext}` and stored in `students.lectio_pfp_url`. Referral-unlocked students may submit JPEG/PNG/WebP images (5MB, 25MP, 8000px/side maximum) through `profile-picture-submit`; submissions live privately and never affect rendering until approval. Admin must decode through `normalizeProfilePicture`, which strips metadata and publishes only a bounded 1600px sRGB JPEG; never render or publish the original object. Rejections carry a required reason and allow immediate retry. Cleanup is performed by `maintenance-cleanup`. Schema/RPCs: `20260803_add_moderated_profile_pictures.sql`, `20260805_allow_ios_profile_picture_submissions.sql`; Admin queue: `admin/app/(dashboard)/moderation`.
 

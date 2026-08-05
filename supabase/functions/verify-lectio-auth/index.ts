@@ -1,290 +1,286 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
+import { createClient } from "npm:@supabase/supabase-js@2.49.8"
+import { AuthAttemptRecorder, clientMetadata } from "../_shared/auth-attempt.ts"
+import {
+  decodeUtf8,
+  fetchWithJar,
+  isLectioLoginHtml,
+  mergeCookies,
+  SessionExpiredError,
+} from "../_shared/lectio-http.ts"
+import { parseLectioProfile, type ParsedLectioProfile } from "../_shared/profile.ts"
 
 const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const NUMERIC_RE = /^\d+$/
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 BetterLectio/1.0"
+const PRIMARY_COOKIES = new Set(["autologinkeyV2", "ASP.NET_SessionId"])
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json', Connection: 'keep-alive' },
-  });
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  })
 }
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NUMERIC_RE = /^\d+$/;
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 BetterLectio/1.0';
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function errorResponse(error: string, status: number, stage: string, schoolId?: string | null): Response {
-  return jsonResponse({ error, stage, schoolId: schoolId ?? null }, status);
+function profileFields(profile: ParsedLectioProfile) {
+  return {
+    name: Boolean(profile.firstName),
+    class_name: Boolean(profile.className),
+    birthdate: Boolean(profile.birthdate),
+    picture: Boolean(profile.pictureUrl),
+  }
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+  const requestId = crypto.randomUUID()
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed", stage: "method", schoolId: null, request_id: requestId }, 405)
   }
 
-  if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  )
+  let recorder: AuthAttemptRecorder | null = null
+  let schoolId: string | null = null
+  let studentId: string | null = null
+  let authUserId: string | null = null
+  let scheduleOk = false
+  let studentCardStatus: number | null = null
+  let profile: ParsedLectioProfile | null = null
+
+  const finish = async (outcome: "success" | "degraded" | "failed", status: number, stage?: string) => {
+    await recorder?.finish({
+      outcome,
+      failureStage: stage ?? null,
+      httpStatus: status,
+      schoolId: schoolId ? Number(schoolId) : null,
+      studentId,
+      authUserId,
+      profileSource: profile?.profileSource ?? null,
+      scheduleOk,
+      studentCardStatus,
+      hasName: Boolean(profile?.firstName),
+      hasClass: Boolean(profile?.className),
+      hasBirthdate: Boolean(profile?.birthdate),
+      hasPicture: Boolean(profile?.pictureUrl),
+    })
+  }
+  const fail = async (error: string, status: number, stage: string) => {
+    console.warn("verify-lectio-auth request failed", { requestId, stage, status, schoolId })
+    await finish("failed", status, stage)
+    return jsonResponse({ error, stage, schoolId, request_id: requestId }, status)
   }
 
   try {
-    const body = await req.json();
-    const qrId = String(body.qrId ?? '');
-    // NOTE: userId here is the QR auth userId from LandingPageQrCode.aspx, NOT the Lectio elevid.
-    // The real elevid is resolved later from SkemaNy.aspx and returned in the response.
-    const userId = String(body.userId ?? '');
-    const clientSchoolId = body.schoolId ? String(body.schoolId) : null;
+    const raw = await req.json()
+    const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : {}
+    const qrId = String(body.qrId ?? "")
+    const qrUserId = String(body.userId ?? "")
+    const suppliedSchool = body.schoolId ? String(body.schoolId) : null
+    schoolId = suppliedSchool
+    recorder = new AuthAttemptRecorder(
+      admin,
+      requestId,
+      "verify-lectio-auth",
+      clientMetadata(req, body, "extension"),
+      suppliedSchool && NUMERIC_RE.test(suppliedSchool) ? Number(suppliedSchool) : null,
+    )
+    await recorder.start()
 
-    // Validate required fields
-    if (!qrId || !userId) {
-      return errorResponse('Missing required fields: qrId, userId', 400, 'validate-input', clientSchoolId);
+    if (!qrId || !qrUserId) return await fail("Missing required fields: qrId, userId", 400, "validate-input")
+    if (!UUID_RE.test(qrId)) return await fail("Invalid qrId format", 400, "validate-input")
+    if (!NUMERIC_RE.test(qrUserId)) return await fail("userId must be numeric", 400, "validate-input")
+    if (suppliedSchool && !NUMERIC_RE.test(suppliedSchool)) {
+      return await fail("schoolId must be numeric", 400, "validate-input")
     }
 
-    // Validate formats
-    if (!UUID_RE.test(qrId)) {
-      return errorResponse('Invalid qrId format', 400, 'validate-input', clientSchoolId);
-    }
-    if (!NUMERIC_RE.test(userId)) {
-      return errorResponse('userId must be numeric', 400, 'validate-input', clientSchoolId);
-    }
+    const qrSchool = suppliedSchool || "94"
+    const qrResponse = await fetch(
+      `https://www.lectio.dk/lectio/${qrSchool}/LandingPageQrCode.aspx?userId=${qrUserId}&QrId=${qrId}`,
+      { redirect: "manual", headers: { "User-Agent": USER_AGENT } },
+    )
+    const jar = new Map<string, string>()
+    mergeCookies(jar, qrResponse)
+    if (qrResponse.status !== 303) return await fail("QR code invalid or expired", 401, "qr-login")
 
-    // ── Step 1: Login via QR code URL ──────────────────────────────────
-    const qrSchool = clientSchoolId || '94';
-    const qrLoginUrl = `https://www.lectio.dk/lectio/${qrSchool}/LandingPageQrCode.aspx?userId=${userId}&QrId=${qrId}`;
-    const qrResp = await fetch(qrLoginUrl, { redirect: 'manual', headers: { 'User-Agent': USER_AGENT } });
+    const location = qrResponse.headers.get("location") || ""
+    const schoolMatch = location.match(/\/lectio\/(\d+)\//)
+    if (!schoolMatch) return await fail("Could not determine school from QR redirect", 500, "qr-redirect-school")
+    schoolId = schoolMatch[1]
+    if (!jar.size) return await fail("No session cookies received from QR login", 500, "qr-session-cookies")
+    await qrResponse.body?.cancel()
 
-    if (qrResp.status !== 303) {
-      return errorResponse('QR code invalid or expired', 401, 'qr-login', clientSchoolId);
-    }
-
-    // Extract schoolId from Location header: /lectio/{schoolId}/UserSetup.aspx
-    const location = qrResp.headers.get('Location') || '';
-    const schoolMatch = location.match(/\/lectio\/(\d+)\//);
-    if (!schoolMatch) {
-      return errorResponse('Could not determine school from QR redirect', 500, 'qr-redirect-school', clientSchoolId);
-    }
-    const schoolId = schoolMatch[1];
-
-    // Extract session cookies from Set-Cookie headers
-    const cookies: string[] = [];
-    for (const [key, value] of qrResp.headers.entries()) {
-      if (key.toLowerCase() === 'set-cookie') {
-        const cookiePart = value.split(';')[0];
-        if (cookiePart) cookies.push(cookiePart);
+    const scheduleUrl = `https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`
+    let scheduleHtml = ""
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt) await sleep(400 * attempt)
+        const result = await fetchWithJar(scheduleUrl, jar)
+        if (!result.response.ok) {
+          return await fail(`Lectio SkemaNy request failed (${result.response.status})`, 502, "fetch-skema")
+        }
+        scheduleHtml = decodeUtf8(result.body)
+        if (isLectioLoginHtml(scheduleHtml)) return await fail("Lectio session expired or invalid", 401, "session-expired")
+        if (parseLectioProfile(scheduleHtml, "").studentId) break
       }
-    }
-    // Also check getSetCookie() for multiple Set-Cookie headers
-    if (typeof (qrResp.headers as any).getSetCookie === 'function') {
-      for (const raw of (qrResp.headers as any).getSetCookie()) {
-        const cookiePart = raw.split(';')[0];
-        if (cookiePart && !cookies.includes(cookiePart)) cookies.push(cookiePart);
+    } catch (error) {
+      if (error instanceof SessionExpiredError) {
+        return await fail("Lectio session expired or invalid", 401, "session-expired")
       }
-    }
-    const cookieHeader = cookies.join('; ');
-
-    if (!cookieHeader) {
-      return errorResponse('No session cookies received from QR login', 500, 'qr-session-cookies', schoolId);
+      throw error
     }
 
-    // ── Step 2: Fetch skema (for elevid) + studiekort (for profile) in parallel
-    const lectioHeaders = { Cookie: cookieHeader, 'User-Agent': USER_AGENT };
-    const [skemaResp, studiekortResp] = await Promise.all([
-      fetch(`https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`, { headers: lectioHeaders, redirect: 'follow' }),
-      fetch(`https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`, { headers: lectioHeaders, redirect: 'follow' }),
-    ]);
+    scheduleOk = true
+    const scheduleIdentity = parseLectioProfile(scheduleHtml, "")
+    studentId = scheduleIdentity.studentId
+    if (!studentId) return await fail("Could not determine elevid from authenticated session", 500, "resolve-elevid")
 
-    let [skemaHtml, html] = await Promise.all([skemaResp.text(), studiekortResp.text()]);
-
-    // Extract elevid from data-lectioContextCard="S{elevid}" on the schedule page
-    let elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
-    for (let attempt = 0; !elevidMatch && attempt < 2; attempt++) {
-      await sleep(400 * (attempt + 1));
-      const retryResp = await fetch(`https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`, {
-        headers: lectioHeaders,
-        redirect: 'follow',
-      });
-      skemaHtml = await retryResp.text();
-      elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i);
+    let cardHtml = ""
+    try {
+      const result = await fetchWithJar(
+        `https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`,
+        jar,
+      )
+      studentCardStatus = result.response.status
+      if (result.response.ok) {
+        const candidate = decodeUtf8(result.body)
+        if (!isLectioLoginHtml(candidate)) cardHtml = candidate
+      }
+    } catch (error) {
+      studentCardStatus = error instanceof SessionExpiredError ? 401 : null
+      console.warn("Student card enrichment failed", { requestId, error })
     }
-    if (!elevidMatch) {
-      return errorResponse('Could not determine elevid from authenticated session', 500, 'resolve-elevid', schoolId);
-    }
-    const elevid = elevidMatch[1];
+    profile = parseLectioProfile(scheduleHtml, cardHtml)
 
-    // Parse class_name from schedule page title: "Eleven Name, 1x - Skema"
-    let className: string | null = null;
-    const classTitleMatch = skemaHtml.match(/<title>[^<]*Eleven\s+.+?,\s*(\S+)\s*-/);
-    if (classTitleMatch) {
-      className = classTitleMatch[1];
-    }
+    const email = `${schoolId}-${studentId}@betterlectio.dk`
+    const { data, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email })
+    if (linkError) return await fail("Failed to generate login link", 500, "generate-magic-link")
+    authUserId = data.user?.id ?? null
+    if (!authUserId) return await fail("Failed to resolve Supabase user", 500, "resolve-supabase-user")
+    const tokenHash = data.properties?.hashed_token ?? (data.properties?.action_link
+      ? new URL(data.properties.action_link).searchParams.get("token")
+      : null)
+    if (!tokenHash) return await fail("Failed to extract token_hash from magic link", 500, "extract-token")
 
-    // Parse name: strip "(k)" or similar suffix
-    const nameMatch = html.match(/id="s_m_Content_Content_StudentName"[^>]*>([^<]+)</);
-    let name: string | null = null;
-    let firstName: string | null = null;
-    let lastName: string | null = null;
-    if (nameMatch) {
-      name = nameMatch[1].replace(/\([^)]*\)\s*$/, '').trim();
-      const parts = name.split(/\s+/);
-      firstName = parts[0] || null;
-      lastName = parts.length > 1 ? parts.slice(1).join(' ') : null;
-    }
-
-    // Parse birthday: "Fødselsdag: D/M-YYYY (N år)" → "YYYY-MM-DD"
-    let birthdate: string | null = null;
-    const bdayMatch = html.match(/id="s_m_Content_Content_StudentBirthday"[^>]*>[^:]*:\s*(\d{1,2})\/(\d{1,2})-(\d{4})/);
-    if (bdayMatch) {
-      const day = bdayMatch[1].padStart(2, '0');
-      const month = bdayMatch[2].padStart(2, '0');
-      const year = bdayMatch[3];
-      birthdate = `${year}-${month}-${day}`;
-    }
-
-    // Parse picture URL (src appears before id in the HTML)
-    let pictureUrl: string | null = null;
-    const picMatch = html.match(/src="([^"]+)"[^>]*id="s_m_Content_Content_StudPic"/);
-    if (picMatch) {
-      pictureUrl = new URL(picMatch[1], 'https://www.lectio.dk').toString();
-    }
-
-    // ── Step 3: Generate magic link & upsert student ───────────────────
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    const email = `${schoolId}-${elevid}@betterlectio.dk`;
-
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-    });
-
-    if (error) {
-      console.error('Failed to generate magic link:', error);
-      return errorResponse('Failed to generate login link', 500, 'generate-magic-link', schoolId);
-    }
-
-    // Extract the auth user ID from the generated link
-    const supabaseAuthId = data.user?.id ?? null;
-
-    // ── Step 4: Upload profile picture to Supabase Storage (hash-based dedup) ──
-    let storedPfpPath: string | null = null;
-    let skipPfpUpload = false;
-    let newHash: string | null = null;
-
-    if (pictureUrl) {
+    let pictureBlob: { buffer: ArrayBuffer; contentType: string } | null = null
+    if (profile.pictureUrl) {
       try {
-        const picResp = await fetch(pictureUrl, {
-          headers: { Cookie: cookieHeader, 'User-Agent': USER_AGENT },
-        });
-        if (picResp.ok) {
-          const picBuffer = await picResp.arrayBuffer();
-          const contentType = picResp.headers.get('content-type') || 'image/jpeg';
-
-          // Compute SHA-256 hash of the image bytes
-          const hashBuffer = await crypto.subtle.digest('SHA-256', picBuffer);
-          newHash = Array.from(new Uint8Array(hashBuffer))
-            .map((b) => b.toString(16).padStart(2, '0'))
-            .join('');
-
-          // Compare with stored hash
-          try {
-            const { data: existingStudent } = await supabaseAdmin
-              .from('students')
-              .select('pfp_hash')
-              .eq('id', elevid)
-              .single();
-
-            if (existingStudent?.pfp_hash === newHash) {
-              skipPfpUpload = true;
-            }
-          } catch {
-            // Student doesn't exist yet — proceed with upload
-          }
-
-          if (!skipPfpUpload) {
-            const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-            const storagePath = `${schoolId}/${elevid}.${ext}`;
-
-            const { error: uploadError } = await supabaseAdmin.storage
-              .from('profile-pictures')
-              .upload(storagePath, new Uint8Array(picBuffer), {
-                contentType,
-                upsert: true,
-              });
-
-            if (uploadError) {
-              console.warn('Failed to upload profile picture:', uploadError);
-            } else {
-              storedPfpPath = storagePath;
-            }
+        const result = await fetchWithJar(profile.pictureUrl, jar)
+        if (result.response.ok) {
+          pictureBlob = {
+            buffer: result.body,
+            contentType: result.response.headers.get("content-type") || "image/jpeg",
           }
         }
-      } catch (e) {
-        console.warn('Failed to fetch/upload profile picture:', e);
+      } catch (error) {
+        console.warn("Profile picture enrichment failed", { requestId, error })
       }
     }
 
-    // ── Step 5: Upsert student record ────────────────────────────────
-    let wasFirstInstall = false;
+    let wasFirstInstall = false
     try {
-      // Preserve the existing first-install timestamp if the row already
-      // has one. Only set extension_installed_at when it's currently null
-      // (or the row doesn't exist yet).
-      const { data: existing } = await supabaseAdmin
-        .from('students')
-        .select('extension_installed_at, extension_uninstalled_at, extension_reinstalled_at')
-        .eq('id', elevid)
-        .maybeSingle();
-      const studentRecord: Record<string, unknown> = {
-        id: elevid,
-        school_id: parseInt(schoolId, 10),
-      };
-      if (!existing?.extension_installed_at) {
-        studentRecord.extension_installed_at = new Date().toISOString();
-        wasFirstInstall = true;
-      } else if (
-        existing.extension_uninstalled_at &&
-        !existing.extension_reinstalled_at
-      ) {
-        // Student previously uninstalled and is now back. Stamp once so the
-        // admin dashboard can surface the recovery without losing the
-        // original uninstall timestamp.
-        studentRecord.extension_reinstalled_at = new Date().toISOString();
-      }
-      if (supabaseAuthId) studentRecord.supabase_id = supabaseAuthId;
-      if (firstName) studentRecord.lectio_first_name = firstName;
-      if (lastName) studentRecord.lectio_last_name = lastName;
-      if (birthdate) studentRecord.birthdate = birthdate;
-      if (className) studentRecord.class_name = className;
-      if (storedPfpPath) {
-        const { data: urlData } = supabaseAdmin.storage
-          .from('profile-pictures')
-          .getPublicUrl(storedPfpPath);
-        studentRecord.lectio_pfp_url = urlData.publicUrl;
-        if (newHash) studentRecord.pfp_hash = newHash;
-      } else if (pictureUrl && !skipPfpUpload) {
-        // Fallback to original Lectio URL if storage upload failed
-        studentRecord.lectio_pfp_url = pictureUrl;
-      }
-
-      await supabaseAdmin
-        .from('students')
-        .upsert(studentRecord, { onConflict: 'id' });
-    } catch (e) {
-      console.warn('Failed to upsert student record:', e);
+      wasFirstInstall = await upsertExtensionStudent(admin, studentId, schoolId, authUserId, profile, pictureBlob)
+    } catch (error) {
+      console.error("Student upsert failed", { requestId, error })
+      return await fail("Failed to save student profile", 500, "upsert-student")
     }
 
-    return jsonResponse({ tokenHash: data.properties.hashed_token, schoolId, elevid, wasFirstInstall });
-  } catch (err) {
-    console.error('Edge function error:', err);
-    return errorResponse('Internal server error', 500, 'unhandled', null);
+    const status = profile.firstName
+      ? profile.profileSource === "student_card" ? "complete" : "fallback"
+      : "degraded"
+    await finish(status === "degraded" ? "degraded" : "success", 200)
+
+    const additional: Record<string, string> = {}
+    for (const [name, value] of jar.entries()) if (!PRIMARY_COOKIES.has(name)) additional[name] = value
+    return jsonResponse({
+      tokenHash,
+      schoolId,
+      elevid: studentId,
+      wasFirstInstall,
+      request_id: requestId,
+      profile_status: status,
+      profile_source: profile.profileSource,
+      profile_fields: profileFields(profile),
+      cookies: {
+        autologinkey: jar.get("autologinkeyV2") ?? "",
+        sessionId: jar.get("ASP.NET_SessionId") ?? "",
+        additional,
+      },
+    })
+  } catch (error) {
+    console.error("Edge function error", { requestId, error })
+    return await fail("Internal server error", 500, "unhandled")
   }
-});
+})
+
+async function upsertExtensionStudent(
+  admin: ReturnType<typeof createClient>,
+  studentId: string,
+  schoolId: string,
+  authUserId: string,
+  profile: ParsedLectioProfile,
+  pictureBlob: { buffer: ArrayBuffer; contentType: string } | null,
+): Promise<boolean> {
+  const { data: existing, error: readError } = await admin
+    .from("students")
+    .select("extension_installed_at, extension_uninstalled_at, extension_reinstalled_at, pfp_hash")
+    .eq("id", studentId)
+    .maybeSingle()
+  if (readError) throw readError
+
+  let storedPath: string | null = null
+  let pictureHash: string | null = null
+  let hashMatched = false
+  if (pictureBlob) {
+    pictureHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pictureBlob.buffer)))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("")
+    hashMatched = existing?.pfp_hash === pictureHash
+    if (!hashMatched) {
+      const extension = pictureBlob.contentType.includes("png")
+        ? "png"
+        : pictureBlob.contentType.includes("webp") ? "webp" : "jpg"
+      storedPath = `${schoolId}/${studentId}.${extension}`
+      const { error } = await admin.storage.from("profile-pictures").upload(
+        storedPath,
+        new Uint8Array(pictureBlob.buffer),
+        { contentType: pictureBlob.contentType, upsert: true },
+      )
+      if (error) storedPath = null
+    }
+  }
+
+  const wasFirstInstall = !existing?.extension_installed_at
+  const record: Record<string, unknown> = {
+    id: studentId,
+    school_id: Number(schoolId),
+    supabase_id: authUserId,
+  }
+  if (wasFirstInstall) record.extension_installed_at = new Date().toISOString()
+  else if (existing?.extension_uninstalled_at && !existing.extension_reinstalled_at) {
+    record.extension_reinstalled_at = new Date().toISOString()
+  }
+  if (profile.firstName) record.lectio_first_name = profile.firstName
+  if (profile.lastName) record.lectio_last_name = profile.lastName
+  if (profile.birthdate) record.birthdate = profile.birthdate
+  if (profile.className) record.class_name = profile.className
+  if (storedPath) {
+    record.lectio_pfp_url = admin.storage.from("profile-pictures").getPublicUrl(storedPath).data.publicUrl
+    if (pictureHash) record.pfp_hash = pictureHash
+  } else if (profile.pictureUrl && pictureBlob && !hashMatched) {
+    record.lectio_pfp_url = profile.pictureUrl
+  }
+
+  const { error } = await admin.from("students").upsert(record, { onConflict: "id" })
+  if (error) throw error
+  return wasFirstInstall
+}

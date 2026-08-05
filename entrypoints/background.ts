@@ -601,7 +601,16 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
       Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ qrId, userId, schoolId }),
+    body: JSON.stringify({
+      qrId,
+      userId,
+      schoolId,
+      client: {
+        platform: 'extension',
+        app_version: browser.runtime.getManifest().version,
+        app_build: browser.runtime.getManifest().version,
+      },
+    }),
   });
 
   if (!resp.ok) {
@@ -619,7 +628,7 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     }
   }
 
-  const { tokenHash, error, schoolId: serverSchoolId, elevid, wasFirstInstall } = await resp.json();
+  const { tokenHash, error, schoolId: serverSchoolId, elevid, wasFirstInstall, request_id: requestId } = await resp.json();
   if (error || !tokenHash) {
     return {
       success: false,
@@ -642,6 +651,20 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
       authServerSchoolId: typeof serverSchoolId === 'string' ? serverSchoolId : undefined,
       elevid: typeof elevid === 'string' ? elevid : undefined,
     };
+  }
+
+  if (typeof requestId === 'string') {
+    try {
+      const { error: confirmationError } = await supabase.rpc('confirm_auth_attempt', {
+        p_request_id: requestId,
+        p_completion_kind: 'session_ready',
+      });
+      if (confirmationError) {
+        console.warn('[BetterLectio] Auth-attempt confirmation failed:', confirmationError.message);
+      }
+    } catch (confirmationError) {
+      console.warn('[BetterLectio] Auth-attempt confirmation failed:', confirmationError);
+    }
   }
 
   return {

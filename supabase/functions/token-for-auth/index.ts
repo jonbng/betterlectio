@@ -1,24 +1,15 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.8"
+import { AuthAttemptRecorder, clientMetadata } from "../_shared/auth-attempt.ts"
+import { decodeUtf8, fetchWithJar, isLectioLoginHtml, SessionExpiredError } from "../_shared/lectio-http.ts"
+import { parseLectioProfile, type ParsedLectioProfile } from "../_shared/profile.ts"
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
-
-const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 BetterLectio/1.0"
-
 const NUMERIC_RE = /^\d+$/
 const COOKIE_TOKEN_RE = /^[A-Za-z0-9._\-+/=]{8,512}$/
-
-const PROTECTED_COOKIES = new Set(["autologinkeyV2", "ASP.NET_SessionId"])
-const MAX_REDIRECTS = 5
-
-class SessionExpiredError extends Error {
-  constructor() {
-    super("Lectio session expired")
-    this.name = "SessionExpiredError"
-  }
-}
+const PRIMARY_COOKIES = new Set(["autologinkeyV2", "ASP.NET_SessionId"])
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -27,424 +18,258 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   })
 }
 
-function errorResponse(
-  error: string,
-  status: number,
-  stage: string,
-  schoolId: string | null | undefined,
-  requestId: string,
-): Response {
-  console.warn("token-for-auth request failed", { requestId, stage, status, schoolId: schoolId ?? null })
-  return jsonResponse({ error, stage, schoolId: schoolId ?? null, request_id: requestId }, status)
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function parseSetCookies(headers: Headers): Array<[string, string]> {
-  const out: Array<[string, string]> = []
-  for (const cookieStr of headers.getSetCookie()) {
-    const semi = cookieStr.indexOf(";")
-    const head = semi < 0 ? cookieStr : cookieStr.slice(0, semi)
-    const eq = head.indexOf("=")
-    if (eq < 0) continue
-    const name = head.slice(0, eq).trim()
-    const value = head.slice(eq + 1).trim()
-    if (!name) continue
-    out.push([name, value])
+function profileFields(profile: ParsedLectioProfile) {
+  return {
+    name: Boolean(profile.firstName),
+    class_name: Boolean(profile.className),
+    birthdate: Boolean(profile.birthdate),
+    picture: Boolean(profile.pictureUrl),
   }
-  return out
-}
-
-// Lectio occasionally sends `Set-Cookie: autologinkeyV2=` (empty value) as part of
-// replay-detection. Treating that as "clear" would wipe a still-valid token from our
-// jar; mirror BetterLectio/CookieManager.swift:159-181 and ignore empty values for
-// the two primary cookies. Other cookies follow normal RFC behavior: empty = delete.
-function mergeCookies(jar: Map<string, string>, response: Response): void {
-  for (const [name, value] of parseSetCookies(response.headers)) {
-    if (value === "") {
-      if (PROTECTED_COOKIES.has(name)) continue
-      jar.delete(name)
-    } else {
-      jar.set(name, value)
-    }
-  }
-}
-
-function cookieHeaderFromJar(jar: Map<string, string>): string {
-  return Array.from(jar.entries())
-    .map(([n, v]) => `${n}=${v}`)
-    .join("; ")
-}
-
-function isUniloginAuth(url: URL): boolean {
-  const host = url.hostname.toLowerCase()
-  return host === "unilogin.dk" || host.endsWith(".unilogin.dk")
-}
-
-interface FetchResult {
-  response: Response
-  body: ArrayBuffer
-  finalUrl: URL
-}
-
-// Manual redirect loop (max 5 hops) so Set-Cookie from intermediate redirects can be
-// captured into the jar and replayed on the next hop. Each hop:
-//   1. Builds Cookie header from the current jar
-//   2. Sends with redirect: "manual"
-//   3. Merges any Set-Cookie into the jar
-//   4. On 30x: resolves Location, recurses; on terminal: returns
-// Throws SessionExpiredError if any hop targets the unilogin auth realm.
-async function fetchWithJar(
-  startUrl: string,
-  jar: Map<string, string>,
-): Promise<FetchResult> {
-  let currentUrl = new URL(startUrl)
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const response = await fetch(currentUrl.toString(), {
-      headers: {
-        Cookie: cookieHeaderFromJar(jar),
-        "User-Agent": USER_AGENT,
-        Referer: "https://www.lectio.dk",
-      },
-      redirect: "manual",
-    })
-    mergeCookies(jar, response)
-
-    const status = response.status
-    if (status >= 300 && status < 400) {
-      const location = response.headers.get("location")
-      if (!location) {
-        // Redirect without Location — treat as terminal.
-        const body = await response.arrayBuffer()
-        return { response, body, finalUrl: currentUrl }
-      }
-      const next = new URL(location, currentUrl)
-      if (isUniloginAuth(next)) {
-        await response.body?.cancel()
-        throw new SessionExpiredError()
-      }
-      await response.body?.cancel()
-      currentUrl = next
-      continue
-    }
-
-    const body = await response.arrayBuffer()
-    return { response, body, finalUrl: currentUrl }
-  }
-  throw new Error(`Exceeded ${MAX_REDIRECTS} redirects fetching ${startUrl}`)
-}
-
-function decodeUtf8(buffer: ArrayBuffer): string {
-  return new TextDecoder("utf-8").decode(buffer)
 }
 
 Deno.serve(async (req: Request) => {
   const requestId = crypto.randomUUID()
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders })
-  }
-
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
   if (req.method !== "POST") {
-    return errorResponse("Method not allowed", 405, "method", null, requestId)
+    return jsonResponse({ error: "Method not allowed", stage: "method", schoolId: null, request_id: requestId }, 405)
   }
 
-  let clientSchoolId: string | null = null
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  )
+  let recorder: AuthAttemptRecorder | null = null
+  let schoolId: string | null = null
+  let studentId: string | null = null
+  let authUserId: string | null = null
+  let scheduleOk = false
+  let studentCardStatus: number | null = null
+  let profile: ParsedLectioProfile | null = null
+
+  const finish = async (outcome: "success" | "degraded" | "failed", status: number, stage?: string) => {
+    await recorder?.finish({
+      outcome,
+      failureStage: stage ?? null,
+      httpStatus: status,
+      schoolId: schoolId ? Number(schoolId) : null,
+      studentId,
+      authUserId,
+      profileSource: profile?.profileSource ?? null,
+      scheduleOk,
+      studentCardStatus,
+      hasName: Boolean(profile?.firstName),
+      hasClass: Boolean(profile?.className),
+      hasBirthdate: Boolean(profile?.birthdate),
+      hasPicture: Boolean(profile?.pictureUrl),
+    })
+  }
+  const fail = async (error: string, status: number, stage: string) => {
+    console.warn("token-for-auth request failed", { requestId, stage, status, schoolId })
+    await finish("failed", status, stage)
+    return jsonResponse({ error, stage, schoolId, request_id: requestId }, status)
+  }
 
   try {
-    const body = await req.json()
+    const raw = await req.json()
+    const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : {}
     const autologinkey = String(body.autologinkey ?? "")
     const sessionId = String(body.sessionId ?? "")
     const gymId = String(body.gymId ?? "")
-    clientSchoolId = gymId || null
+    schoolId = gymId || null
+    recorder = new AuthAttemptRecorder(
+      admin,
+      requestId,
+      "token-for-auth",
+      clientMetadata(req, body, "unknown"),
+      NUMERIC_RE.test(gymId) ? Number(gymId) : null,
+    )
+    await recorder.start()
 
     if (!autologinkey || !sessionId || !gymId) {
-      return errorResponse("Missing required credentials (autologinkey, sessionId, gymId)", 400, "validate-input", clientSchoolId, requestId)
+      return await fail("Missing required credentials (autologinkey, sessionId, gymId)", 400, "validate-input")
     }
-    if (!NUMERIC_RE.test(gymId)) {
-      return errorResponse("gymId must be numeric", 400, "validate-input", clientSchoolId, requestId)
-    }
+    if (!NUMERIC_RE.test(gymId)) return await fail("gymId must be numeric", 400, "validate-input")
     if (!COOKIE_TOKEN_RE.test(autologinkey) || !COOKIE_TOKEN_RE.test(sessionId)) {
-      return errorResponse("Invalid credential format", 400, "validate-input", clientSchoolId, requestId)
+      return await fail("Invalid credential format", 400, "validate-input")
     }
 
-    // Cookie jar shared across every Lectio fetch in this invocation. Each fetch reads
-    // the latest values via cookieHeaderFromJar and writes Set-Cookie back via
-    // mergeCookies. Sequential — never run two Lectio fetches in parallel against the
-    // same jar; doing so trips Lectio's autologin reuse-detector and kills the session.
-    const jar = new Map<string, string>()
-    jar.set("ASP.NET_SessionId", sessionId)
-    jar.set("autologinkeyV2", autologinkey)
+    const jar = new Map<string, string>([
+      ["ASP.NET_SessionId", sessionId],
+      ["autologinkeyV2", autologinkey],
+    ])
+    const scheduleUrl = `https://www.lectio.dk/lectio/${gymId}/SkemaNy.aspx`
+    let scheduleHtml = ""
 
-    const skemaUrl = `https://www.lectio.dk/lectio/${gymId}/SkemaNy.aspx`
-    const studiekortUrl = `https://www.lectio.dk/lectio/${gymId}/digitaltStudiekort.aspx`
-
-    let skemaHtml: string
     try {
-      const skemaResult = await fetchWithJar(skemaUrl, jar)
-      if (!skemaResult.response.ok) {
-        return errorResponse(`Lectio SkemaNy request failed (${skemaResult.response.status})`, 502, "fetch-skema", gymId, requestId)
-      }
-      skemaHtml = decodeUtf8(skemaResult.body)
-    } catch (e) {
-      if (e instanceof SessionExpiredError) {
-        return errorResponse("Lectio session expired or invalid", 401, "session-expired", gymId, requestId)
-      }
-      throw e
-    }
-
-    // Resolve elevid from authenticated context card. Retries reuse the rotated jar so
-    // each attempt presents the latest ASP.NET_SessionId — replaying the original would
-    // look like reuse to Lectio.
-    let elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i)
-    for (let attempt = 0; !elevidMatch && attempt < 2; attempt++) {
-      await sleep(400 * (attempt + 1))
-      try {
-        const retry = await fetchWithJar(skemaUrl, jar)
-        skemaHtml = decodeUtf8(retry.body)
-      } catch (e) {
-        if (e instanceof SessionExpiredError) {
-          return errorResponse("Lectio session expired or invalid", 401, "session-expired", gymId, requestId)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt) await sleep(400 * attempt)
+        const result = await fetchWithJar(scheduleUrl, jar)
+        if (!result.response.ok) {
+          return await fail(`Lectio SkemaNy request failed (${result.response.status})`, 502, "fetch-skema")
         }
-        throw e
+        scheduleHtml = decodeUtf8(result.body)
+        if (isLectioLoginHtml(scheduleHtml)) {
+          return await fail("Lectio session expired or invalid", 401, "session-expired")
+        }
+        if (parseLectioProfile(scheduleHtml, "").studentId) break
       }
-      elevidMatch = skemaHtml.match(/data-lectioContextCard="S(\d+)"/i)
-    }
-    if (!elevidMatch) {
-      if (skemaHtml.includes("unilogin") || skemaHtml.includes("Loginvælger")) {
-        return errorResponse("Lectio session expired or invalid", 401, "session-expired", gymId, requestId)
+    } catch (error) {
+      if (error instanceof SessionExpiredError) {
+        return await fail("Lectio session expired or invalid", 401, "session-expired")
       }
-      return errorResponse("Could not determine elevid from authenticated session", 500, "resolve-elevid", gymId, requestId)
+      throw error
     }
 
-    const studentId = elevidMatch[1]
+    scheduleOk = true
+    const scheduleIdentity = parseLectioProfile(scheduleHtml, "")
+    studentId = scheduleIdentity.studentId
+    if (!studentId) return await fail("Could not determine elevid from authenticated session", 500, "resolve-elevid")
+
+    let studentCardHtml = ""
+    try {
+      const result = await fetchWithJar(
+        `https://www.lectio.dk/lectio/${gymId}/digitaltStudiekort.aspx`,
+        jar,
+      )
+      studentCardStatus = result.response.status
+      if (result.response.ok) {
+        const candidate = decodeUtf8(result.body)
+        if (!isLectioLoginHtml(candidate)) studentCardHtml = candidate
+      }
+    } catch (error) {
+      if (error instanceof SessionExpiredError) {
+        // The schedule has already authenticated the user. Profile enrichment is optional.
+        studentCardStatus = 401
+      } else {
+        console.warn("Student card enrichment failed", { requestId, error })
+      }
+    }
+
+    profile = parseLectioProfile(scheduleHtml, studentCardHtml)
     const email = `${gymId}-${studentId}@betterlectio.dk`
+    const { data, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email })
+    if (linkError) return await fail("Failed to generate login link", 500, "generate-magic-link")
 
-    let studiekortHtml = ""
-    try {
-      const studiekortResult = await fetchWithJar(studiekortUrl, jar)
-      if (studiekortResult.response.ok) {
-        studiekortHtml = decodeUtf8(studiekortResult.body)
-      }
-    } catch (e) {
-      if (e instanceof SessionExpiredError) {
-        return errorResponse("Lectio session expired or invalid", 401, "session-expired", gymId, requestId)
-      }
-      throw e
-    }
-
-    // Parse class from SkemaNy title; name/birthdate/picture from studiekort
-    let className: string | null = null
-    const classTitleMatch = skemaHtml.match(/<title>[^<]*Eleven\s+.+?,\s*(\S+)\s*-/)
-    if (classTitleMatch) className = classTitleMatch[1]
-
-    let firstName: string | null = null
-    let lastName: string | null = null
-    const nameMatch = studiekortHtml.match(/id="s_m_Content_Content_StudentName"[^>]*>([^<]+)</)
-    if (nameMatch) {
-      const fullName = nameMatch[1].replace(/\([^)]*\)\s*$/, "").trim()
-      const parts = fullName.split(/\s+/)
-      firstName = parts[0] || null
-      lastName = parts.length > 1 ? parts.slice(1).join(" ") : null
-    }
-
-    let birthdate: string | null = null
-    const bdayMatch = studiekortHtml.match(/id="s_m_Content_Content_StudentBirthday"[^>]*>[^:]*:\s*(\d{1,2})\/(\d{1,2})-(\d{4})/)
-    if (bdayMatch) {
-      birthdate = `${bdayMatch[3]}-${bdayMatch[2].padStart(2, "0")}-${bdayMatch[1].padStart(2, "0")}`
-    }
-
-    let pictureUrl: string | null = null
-    const picMatch = studiekortHtml.match(/src="([^"]+)"[^>]*id="s_m_Content_Content_StudPic"/)
-    if (picMatch) {
-      pictureUrl = new URL(picMatch[1], "https://www.lectio.dk").toString()
-    }
-
-    // Fetch the picture using the shared jar (still sequential after the studiekort fetch)
-    // so the bytes are downloaded with the latest rotated cookies, not the input snapshot.
-    let pictureBlob: { buffer: ArrayBuffer; contentType: string } | null = null
-    if (pictureUrl) {
-      try {
-        const picResult = await fetchWithJar(pictureUrl, jar)
-        if (picResult.response.ok) {
-          pictureBlob = {
-            buffer: picResult.body,
-            contentType: picResult.response.headers.get("content-type") || "image/jpeg",
-          }
-        }
-      } catch (e) {
-        if (e instanceof SessionExpiredError) {
-          return errorResponse("Lectio session expired or invalid", 401, "session-expired", gymId, requestId)
-        }
-        console.warn("Failed to fetch profile picture:", e)
-      }
-    }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    )
-
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-    })
-
-    if (error) {
-      console.error("Failed to generate magic link:", error)
-      return errorResponse("Failed to generate login link", 500, "generate-magic-link", gymId, requestId)
-    }
-
-    const supabaseAuthId = data.user?.id ?? null
-    if (!supabaseAuthId) {
-      return errorResponse("Failed to resolve Supabase user", 500, "resolve-supabase-user", gymId, requestId)
-    }
+    authUserId = data.user?.id ?? null
+    if (!authUserId) return await fail("Failed to resolve Supabase user", 500, "resolve-supabase-user")
     let tokenHash = data.properties?.hashed_token ?? null
     if (!tokenHash && data.properties?.action_link) {
-      const linkUrl = new URL(data.properties.action_link)
-      tokenHash = linkUrl.searchParams.get("token")
+      tokenHash = new URL(data.properties.action_link).searchParams.get("token")
     }
-    if (!tokenHash) {
-      return errorResponse("Failed to extract token_hash from magic link", 500, "extract-token", gymId, requestId)
+    if (!tokenHash) return await fail("Failed to extract token_hash from magic link", 500, "extract-token")
+
+    let pictureBlob: { buffer: ArrayBuffer; contentType: string } | null = null
+    if (profile.pictureUrl) {
+      try {
+        const result = await fetchWithJar(profile.pictureUrl, jar)
+        if (result.response.ok) {
+          pictureBlob = {
+            buffer: result.body,
+            contentType: result.response.headers.get("content-type") || "image/jpeg",
+          }
+        }
+      } catch (error) {
+        console.warn("Profile picture enrichment failed", { requestId, error })
+      }
     }
 
-    await upsertStudent(
-      supabaseAdmin,
-      studentId,
-      gymId,
-      supabaseAuthId,
-      firstName,
-      lastName,
-      birthdate,
-      className,
-      pictureUrl,
-      pictureBlob,
-    )
+    try {
+      await upsertStudent(admin, studentId, gymId, authUserId, profile, pictureBlob)
+    } catch (error) {
+      console.error("Student upsert failed", { requestId, error })
+      return await fail("Failed to save student profile", 500, "upsert-student")
+    }
+
+    const status = profile.firstName
+      ? profile.profileSource === "student_card" ? "complete" : "fallback"
+      : "degraded"
+    await finish(status === "degraded" ? "degraded" : "success", 200)
 
     const additional: Record<string, string> = {}
-    for (const [name, value] of jar.entries()) {
-      if (!PROTECTED_COOKIES.has(name)) additional[name] = value
-    }
-
+    for (const [name, value] of jar.entries()) if (!PRIMARY_COOKIES.has(name)) additional[name] = value
     return jsonResponse({
       token_hash: tokenHash,
       email,
       studentId,
       request_id: requestId,
+      profile_status: status,
+      profile_source: profile.profileSource,
+      profile_fields: profileFields(profile),
       cookies: {
         autologinkey: jar.get("autologinkeyV2") ?? "",
         sessionId: jar.get("ASP.NET_SessionId") ?? "",
         additional,
       },
     })
-  } catch (err) {
-    console.error("Edge function error", { requestId, error: err })
-    return errorResponse("Internal server error", 500, "unhandled", clientSchoolId, requestId)
+  } catch (error) {
+    console.error("Edge function error", { requestId, error })
+    return await fail("Internal server error", 500, "unhandled")
   }
 })
 
 async function upsertStudent(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  admin: ReturnType<typeof createClient>,
   studentId: string,
-  gymId: string,
-  supabaseAuthId: string | null,
-  firstName: string | null,
-  lastName: string | null,
-  birthdate: string | null,
-  className: string | null,
-  pictureUrl: string | null,
+  schoolId: string,
+  authUserId: string,
+  profile: ParsedLectioProfile,
   pictureBlob: { buffer: ArrayBuffer; contentType: string } | null,
 ): Promise<void> {
-  let storedPfpPath: string | null = null
-  let skipPfpUpload = false
-  let newHash: string | null = null
+  let storedPath: string | null = null
+  let pictureHash: string | null = null
+  let hashMatched = false
 
   if (pictureBlob) {
-    try {
-      const { buffer: picBuffer, contentType } = pictureBlob
-
-      const hashBuffer = await crypto.subtle.digest("SHA-256", picBuffer)
-      newHash = Array.from(new Uint8Array(hashBuffer))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
-
-      try {
-        const { data: existingStudent, error: existingStudentError } = await supabaseAdmin
-          .from("students")
-          .select("pfp_hash")
-          .eq("id", studentId)
-          .maybeSingle()
-        if (existingStudentError) {
-          console.warn("Failed to read existing profile-picture hash:", existingStudentError)
-        }
-        if (existingStudent?.pfp_hash === newHash) {
-          skipPfpUpload = true
-        }
-      } catch {
-        // Student doesn't exist yet — proceed with upload
+    pictureHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pictureBlob.buffer)))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("")
+    const { data: existing } = await admin.from("students").select("pfp_hash").eq("id", studentId).maybeSingle()
+    hashMatched = existing?.pfp_hash === pictureHash
+    if (!hashMatched) {
+      const extension = pictureBlob.contentType.includes("png")
+        ? "png"
+        : pictureBlob.contentType.includes("webp") ? "webp" : "jpg"
+      storedPath = `${schoolId}/${studentId}.${extension}`
+      const { error } = await admin.storage.from("profile-pictures").upload(
+        storedPath,
+        new Uint8Array(pictureBlob.buffer),
+        { contentType: pictureBlob.contentType, upsert: true },
+      )
+      if (error) {
+        console.warn("Failed to upload profile picture", { studentId, code: error.name })
+        storedPath = null
       }
-
-      if (!skipPfpUpload) {
-        const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg"
-        const storagePath = `${gymId}/${studentId}.${ext}`
-
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from("profile-pictures")
-          .upload(storagePath, new Uint8Array(picBuffer), { contentType, upsert: true })
-
-        if (uploadError) {
-          console.warn("Failed to upload profile picture:", uploadError)
-        } else {
-          storedPfpPath = storagePath
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to process profile picture:", e)
     }
   }
 
-  // Preserve the first-install timestamp if the row already has one.
-  // Note: extension_installed_at is owned by verify-lectio-auth (extension QR flow);
-  // this function is the mobile app path and only stamps app_installed_at.
-  const { data: existing, error: existingError } = await supabaseAdmin
+  const { data: existing, error: existingError } = await admin
     .from("students")
     .select("app_installed_at")
     .eq("id", studentId)
     .maybeSingle()
-  if (existingError) {
-    throw new Error(`Failed to read existing student: ${existingError.message}`)
-  }
+  if (existingError) throw existingError
 
-  const studentRecord: Record<string, unknown> = {
+  const record: Record<string, unknown> = {
     id: studentId,
-    school_id: parseInt(gymId, 10),
-    supabase_id: supabaseAuthId,
+    school_id: Number(schoolId),
+    supabase_id: authUserId,
   }
-  if (!existing?.app_installed_at) {
-    studentRecord.app_installed_at = new Date().toISOString()
-  }
-  if (firstName) studentRecord.lectio_first_name = firstName
-  if (lastName) studentRecord.lectio_last_name = lastName
-  if (birthdate) studentRecord.birthdate = birthdate
-  if (className) studentRecord.class_name = className
-
-  if (storedPfpPath) {
-    const { data: urlData } = supabaseAdmin.storage
-      .from("profile-pictures")
-      .getPublicUrl(storedPfpPath)
-    studentRecord.lectio_pfp_url = urlData.publicUrl
-    if (newHash) studentRecord.pfp_hash = newHash
-  } else if (pictureUrl && !skipPfpUpload) {
-    // Only fall back to raw Lectio URL when we actually attempted (and failed) an upload.
-    // On hash match the existing storage URL must be left alone.
-    studentRecord.lectio_pfp_url = pictureUrl
+  if (!existing?.app_installed_at) record.app_installed_at = new Date().toISOString()
+  if (profile.firstName) record.lectio_first_name = profile.firstName
+  if (profile.lastName) record.lectio_last_name = profile.lastName
+  if (profile.birthdate) record.birthdate = profile.birthdate
+  if (profile.className) record.class_name = profile.className
+  if (storedPath) {
+    record.lectio_pfp_url = admin.storage.from("profile-pictures").getPublicUrl(storedPath).data.publicUrl
+    if (pictureHash) record.pfp_hash = pictureHash
+  } else if (profile.pictureUrl && pictureBlob && !hashMatched) {
+    record.lectio_pfp_url = profile.pictureUrl
   }
 
-  const { error: upsertError } = await supabaseAdmin
-    .from("students")
-    .upsert(studentRecord, { onConflict: "id" })
-  if (upsertError) {
-    throw new Error(`Failed to upsert student record: ${upsertError.message}`)
-  }
+  const { error } = await admin.from("students").upsert(record, { onConflict: "id" })
+  if (error) throw error
 }

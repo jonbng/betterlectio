@@ -1140,6 +1140,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_auth_attempt: {
+        Args: { p_completion_kind?: string; p_request_id: string }
+        Returns: boolean
+      }
       get_student_profile: {
         Args: { p_student_id: string }
         Returns: {
