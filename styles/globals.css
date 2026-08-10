@@ -1071,6 +1071,12 @@ html {
     z-index: 9999 !important;
   }
 
+  /* Tooltips must not steal hover from their trigger (arrow/content overlap
+     caused labels in the horizontal nav to flash open then instantly close). */
+  [data-radix-popper-content-wrapper]:has([data-slot="tooltip-content"]) {
+    pointer-events: none !important;
+  }
+
   /* ========================================
      Messages Page (beskeder2.aspx) Styles
      — Horizontal navigation redesign

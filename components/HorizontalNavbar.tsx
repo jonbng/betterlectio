@@ -91,7 +91,7 @@ function QuickActionButton({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
   return (
-    <Tooltip>
+    <Tooltip disableHoverableContent>
       <TooltipTrigger asChild>
         <button type="button" className={cn(QUICK_ACTION_CLASS, className)} aria-label={label} {...props}>
           {children}
@@ -521,7 +521,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
               </QuickActionButton>
             )}
             <DropdownMenu>
-              <Tooltip>
+              <Tooltip disableHoverableContent>
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
                     <button type="button" className={cn(QUICK_ACTION_CLASS, 'min-[1180px]:hidden')} aria-label={t('horizontalNav.moreActions')}>
