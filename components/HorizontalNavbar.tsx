@@ -109,6 +109,16 @@ function hrefMatchesCurrentPage(href: string): boolean {
   return targetOverlay ? targetOverlay === new URLSearchParams(window.location.search).get('bl') : true;
 }
 
+
+/** True only for the Beskeder page itself — not links whose prevurl mentions beskeder2.aspx. */
+function isBeskederHref(href: string): boolean {
+  try {
+    return /\/beskeder2\.aspx$/i.test(new URL(href, window.location.origin).pathname);
+  } catch {
+    return /\/beskeder2\.aspx$/i.test(href.split(/[?#]/, 1)[0] ?? href);
+  }
+}
+
 function withoutActiveSection(title: string, activeLabel?: string): string {
   if (!activeLabel) return title;
   const escaped = activeLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -128,7 +138,7 @@ function NativeLink({
   className?: string;
   unreadCount?: number;
 }) {
-  const isMessages = /beskeder2\.aspx/i.test(item.href);
+  const isMessages = isBeskederHref(item.href);
   const onClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (item.nativeAction && activateNativeNavigationItem(item)) event.preventDefault();
   };
@@ -424,7 +434,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
                   <DropdownMenuItem key={item.href} asChild>
                     <a href={item.href} aria-current={item.active ? 'page' : undefined} className={cn(item.active && 'bg-accent font-semibold text-accent-foreground')}>
                       <item.icon />{item.label}
-                      {/beskeder2\.aspx/i.test(item.href) && unreadCount !== 0 && (
+                      {isBeskederHref(item.href) && unreadCount !== 0 && (
                         unreadCount > 0
                           ? <data className="il-horizontal-nav-badge ml-auto inline-flex h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-bold tabular-nums text-primary-foreground" value={unreadCount}>{unreadCount > 99 ? '99+' : unreadCount}</data>
                           : <span className="il-horizontal-nav-dot ml-auto size-1.5 rounded-full bg-primary" />
