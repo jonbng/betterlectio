@@ -1,3 +1,6 @@
+[functions.lectio-auth]
+verify_jwt = true
+
 [functions.token-for-auth]
 verify_jwt = true
 

@@ -88,13 +88,15 @@ Content Scripts (inject into lectio.dk pages)
 
 ### Supabase Auth & Storage
 
-**Edge function** (`supabase/functions/verify-lectio-auth/index.ts`):
-1. QR login via `LandingPageQrCode.aspx` → extract session cookies + school ID
-2. Fetch `SkemaNy.aspx`, then `digitaltStudiekort.aspx`, sequentially through one rotating cookie jar
+**Edge function** (`supabase/functions/lectio-auth/index.ts` — universal for extension/iOS/Android):
+1. QR login via `LandingPageQrCode.aspx` → ephemeral server cookie jar + school ID from redirect
+2. Fetch `SkemaNy.aspx`, then `digitaltStudiekort.aspx`, sequentially through that jar
 3. Resolve `elevid`, class, and fallback name from the schedule; enrich with student-card fields when available
 4. `generateLink({ type: 'magiclink' })` → creates/finds auth user, returns `data.user.id`
 5. Download Lectio profile picture (authenticated) → upload to `profile-pictures` bucket at `{schoolId}/{userId}.{ext}`
-6. Upsert `students` record with `supabase_id` and `lectio_pfp_url`
+6. Upsert `students` with platform install stamps from `client.platform`; return `token_hash` (no cookies)
+
+Legacy: `verify-lectio-auth` (extension QR, camelCase response) and `token-for-auth` (mobile cookie handoff) stay deployed for outdated clients.
 
 **Background auth orchestration** (`entrypoints/background.ts` + `lib/supabase/session.ts`):
 - `entrypoints/content.tsx` is the primary auth bootstrapper on page load
@@ -107,7 +109,7 @@ Public object URLs work through the bucket's public setting; `storage.objects` h
 
 **Moderated custom pictures:** `referral_reward_unlocked_at` is stamped permanently when a student reaches 3 attributed referrals. Extension, Android, and iOS call `get_my_profile_picture_state` and submit JPEG/PNG/WebP (5MB, 25MP, 8000px/side maximum) to `profile-picture-submit`. The function validates JWT ownership, reward, cooldown, magic bytes, dimensions, and one-pending-at-a-time before writing to the private bucket/table. Admin downloads uploads server-side and uses Sharp with a 25MP decode limit to normalize orientation, strip metadata, resize to 1600px, and produce an sRGB JPEG for both preview and publication; browsers never render the original upload. Approval updates `custom_pfp_url` + `custom_pfp_approved_at` and starts a three-calendar-month cooldown; rejection permits immediate retry. `maintenance-cleanup` removes old failed objects/rows. Migrations: `20260803_add_moderated_profile_pictures.sql`, `20260805_allow_ios_profile_picture_submissions.sql`, and `20260807_atomic_referral_finalization.sql`.
 
-**Mobile auth edge function** (`supabase/functions/token-for-auth/index.ts`): canonical source for Android/iOS Lectio-cookie authentication. It serially follows Lectio cookie rotations, requires the `students` upsert to succeed before returning the magic-link token, and returns rotated cookies for immediate client persistence. Both auth functions emit a `request_id`, profile status/source/field flags, and best-effort `auth_attempts` telemetry. Missing student-card enrichment does not reject an authenticated user: schedule-title identity is `fallback`, and a missing name is `degraded`. Clients confirm OTP completion through `confirm_auth_attempt`; the admin Auth health page treats Supabase session rows as the authoritative fallback signal. Attempts are retained for 30 days by `20260808_add_auth_attempt_observability.sql`.
+**Auth observability:** `lectio-auth` (and legacy auth functions) emit `request_id`, profile status/source/field flags, and best-effort `auth_attempts` telemetry. Missing student-card enrichment does not reject an authenticated user: schedule-title identity is `fallback`, and a missing name is `degraded`. Clients confirm OTP completion through `confirm_auth_attempt`; the admin Auth health page treats Supabase session rows as the authoritative fallback signal. Attempts are retained for 30 days by `20260808_add_auth_attempt_observability.sql` (+ `20260812_add_lectio_auth_function_name.sql`).
 
 **Rich student profile privacy boundary:** `get_student_profile(p_student_id)` is the only single-profile authenticated-client read path for `students.birthdate`. It is a security-definer RPC with an explicit same-school ownership check and masks `birthdate` to `null` unless `show_birthday` is enabled. iOS, Android, and the extension's viewed-student profile use it; iOS message avatars use the capped `get_student_profiles(p_student_ids)` batch equivalent. `supabase/migrations/20260806_enforce_student_birthday_privacy.sql` removes table-wide authenticated SELECT and grants column-level SELECT for all existing student fields except `birthdate`; the extension background bridge defaults generic student queries and mutation results to the matching safe projection. Schema contract starts in `20260804_add_public_student_profile_rpc.sql`. Native clients use short viewer-and-school-scoped caches and keep public profile-image requests separate from authenticated Lectio image traffic.
 

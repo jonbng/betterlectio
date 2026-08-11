@@ -289,11 +289,11 @@ async function captureSupabaseError(
 // on the matching safe projection; rich profiles obtain a consent-masked
 // birthday through get_student_profile() instead.
 const STUDENT_SAFE_COLUMNS = [
-  'app_eligible', 'app_installed_at', 'app_qr_scanned_at', 'class_name',
+  'android_installed_at', 'app_eligible', 'app_installed_at', 'app_qr_scanned_at', 'class_name',
   'created_at', 'custom_pfp_approved_at', 'custom_pfp_url', 'description',
   'dismissed_app_prompt_at', 'extension_installed_at', 'extension_reinstalled_at',
   'extension_uninstall_feedback', 'extension_uninstall_reason',
-  'extension_uninstalled_at', 'id', 'instagram', 'last_seen_at',
+  'extension_uninstalled_at', 'id', 'instagram', 'iphone_installed_at', 'last_seen_at',
   'lectio_first_name', 'lectio_last_name', 'lectio_pfp_url', 'marked_android_at',
   'name', 'pfp_hash', 'referral_click_id', 'referral_reward_unlocked_at',
   'referred_at', 'referred_by', 'school_id', 'show_birthday', 'supabase_id',
@@ -595,7 +595,10 @@ interface AuthAttemptResult {
 }
 
 async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<AuthAttemptResult> {
-  const resp = await fetch(`${SUPABASE_URL}/functions/v1/verify-lectio-auth`, {
+  if (!schoolId) {
+    return { success: false, error: 'schoolId er påkrævet.', authStage: 'validate-input' };
+  }
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/lectio-auth`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
@@ -628,7 +631,14 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
     }
   }
 
-  const { tokenHash, error, schoolId: serverSchoolId, elevid, wasFirstInstall, request_id: requestId } = await resp.json();
+  const {
+    token_hash: tokenHash,
+    error,
+    school_id: serverSchoolId,
+    student_id: elevid,
+    was_first_install: wasFirstInstall,
+    request_id: requestId,
+  } = await resp.json();
   if (error || !tokenHash) {
     return {
       success: false,

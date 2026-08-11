@@ -12,7 +12,8 @@
 //   • Student already has `referred_by` → rejected
 //   • Fresh-install window (7d) based on platform:
 //       extension → extension_installed_at
-//       android/iOS → app_installed_at
+//       android → android_installed_at (+ app_installed_at)
+//       iOS → iphone_installed_at (+ app_installed_at)
 //   • Click row older than 180d → expired
 //
 // On success we also stamp the referrer's `referral_reward_unlocked_at`

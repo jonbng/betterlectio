@@ -843,6 +843,7 @@ export type Database = {
       }
       students: {
         Row: {
+          android_installed_at: string | null
           app_eligible: boolean
           app_installed_at: string | null
           app_qr_scanned_at: string | null
@@ -860,6 +861,7 @@ export type Database = {
           extension_uninstalled_at: string | null
           id: string
           instagram: string | null
+          iphone_installed_at: string | null
           last_seen_at: string | null
           lectio_first_name: string | null
           lectio_last_name: string | null
@@ -876,6 +878,7 @@ export type Database = {
           supabase_id: string
         }
         Insert: {
+          android_installed_at?: string | null
           app_eligible?: boolean
           app_installed_at?: string | null
           app_qr_scanned_at?: string | null
@@ -893,6 +896,7 @@ export type Database = {
           extension_uninstalled_at?: string | null
           id: string
           instagram?: string | null
+          iphone_installed_at?: string | null
           last_seen_at?: string | null
           lectio_first_name?: string | null
           lectio_last_name?: string | null
@@ -909,6 +913,7 @@ export type Database = {
           supabase_id: string
         }
         Update: {
+          android_installed_at?: string | null
           app_eligible?: boolean
           app_installed_at?: string | null
           app_qr_scanned_at?: string | null
@@ -926,6 +931,7 @@ export type Database = {
           extension_uninstalled_at?: string | null
           id?: string
           instagram?: string | null
+          iphone_installed_at?: string | null
           last_seen_at?: string | null
           lectio_first_name?: string | null
           lectio_last_name?: string | null

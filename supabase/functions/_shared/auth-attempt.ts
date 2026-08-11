@@ -48,7 +48,7 @@ export class AuthAttemptRecorder {
   constructor(
     private admin: SupabaseClient,
     readonly requestId: string,
-    private functionName: "token-for-auth" | "verify-lectio-auth",
+    private functionName: "token-for-auth" | "verify-lectio-auth" | "lectio-auth",
     private metadata: ClientMetadata,
     private schoolId: number | null,
   ) {}

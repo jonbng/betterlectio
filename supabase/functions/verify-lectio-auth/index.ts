@@ -9,6 +9,9 @@ import {
 } from "../_shared/lectio-http.ts"
 import { parseLectioProfile, type ParsedLectioProfile } from "../_shared/profile.ts"
 
+// LEGACY — extension QR path with camelCase response.
+// New clients use `lectio-auth`. Keep deployed until soak, then delete.
+
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

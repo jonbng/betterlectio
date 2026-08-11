@@ -1,23 +1,28 @@
-import { createClient } from "npm:@supabase/supabase-js@2.49.8"
-import { AuthAttemptRecorder, clientMetadata, type AuthPlatform } from "../_shared/auth-attempt.ts"
-import { decodeUtf8, fetchWithJar, isLectioLoginHtml, SessionExpiredError } from "../_shared/lectio-http.ts"
-import { parseLectioProfile, type ParsedLectioProfile } from "../_shared/profile.ts"
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.8"
+import { AuthAttemptRecorder, clientMetadata, type AuthPlatform } from "./auth-attempt.ts"
+import {
+  decodeUtf8,
+  fetchWithJar,
+  isLectioLoginHtml,
+  mergeCookies,
+  SessionExpiredError,
+} from "./lectio-http.ts"
+import { parseLectioProfile, type ParsedLectioProfile } from "./profile.ts"
 
-// LEGACY — cookie handoff for outdated iOS/Android builds.
-// New clients use `lectio-auth` (QR only). Keep deployed until soak, then delete.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const NUMERIC_RE = /^\d+$/
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 BetterLectio/1.0"
 
-const corsHeaders: Record<string, string> = {
+export const lectioAuthCorsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
-const NUMERIC_RE = /^\d+$/
-const COOKIE_TOKEN_RE = /^[A-Za-z0-9._\-+/=]{8,512}$/
-const PRIMARY_COOKIES = new Set(["autologinkeyV2", "ASP.NET_SessionId"])
 
-function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+export function lectioAuthJsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...lectioAuthCorsHeaders, "Content-Type": "application/json" },
   })
 }
 
@@ -34,17 +39,37 @@ function profileFields(profile: ParsedLectioProfile) {
   }
 }
 
-Deno.serve(async (req: Request) => {
+export type LectioAuthSuccess = {
+  token_hash: string
+  email: string
+  student_id: string
+  school_id: string
+  was_first_install: boolean
+  request_id: string
+  profile_status: "complete" | "fallback" | "degraded"
+  profile_source: ParsedLectioProfile["profileSource"]
+  profile_fields: ReturnType<typeof profileFields>
+}
+
+/**
+ * Universal QR → Supabase mint. Never accepts Lectio cookies; never returns them.
+ * Clients keep their own Lectio jar for scraping.
+ */
+export async function handleLectioAuth(
+  req: Request,
+  admin: SupabaseClient,
+): Promise<Response> {
   const requestId = crypto.randomUUID()
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders })
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: lectioAuthCorsHeaders })
+  }
   if (req.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed", stage: "method", schoolId: null, request_id: requestId }, 405)
+    return lectioAuthJsonResponse(
+      { error: "Method not allowed", stage: "method", schoolId: null, request_id: requestId },
+      405,
+    )
   }
 
-  const admin = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-  )
   let recorder: AuthAttemptRecorder | null = null
   let schoolId: string | null = null
   let studentId: string | null = null
@@ -72,44 +97,68 @@ Deno.serve(async (req: Request) => {
     })
   }
   const fail = async (error: string, status: number, stage: string) => {
-    console.warn("token-for-auth request failed", { requestId, stage, status, schoolId })
+    console.warn("lectio-auth request failed", { requestId, stage, status, schoolId })
     await finish("failed", status, stage)
-    return jsonResponse({ error, stage, schoolId, request_id: requestId }, status)
+    return lectioAuthJsonResponse({ error, stage, schoolId, request_id: requestId }, status)
   }
 
   try {
     const raw = await req.json()
     const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : {}
-    const autologinkey = String(body.autologinkey ?? "")
-    const sessionId = String(body.sessionId ?? "")
-    const gymId = String(body.gymId ?? "")
-    schoolId = gymId || null
+
+    // Reject cookie-based payloads so outdated clients cannot accidentally hit this endpoint.
+    if (body.autologinkey != null || body.sessionId != null || body.gymId != null) {
+      return await fail(
+        "Cookie credentials are not accepted; use qrId, userId, and schoolId",
+        400,
+        "validate-input",
+      )
+    }
+
+    const qrId = String(body.qrId ?? "")
+    const qrUserId = String(body.userId ?? "")
+    const suppliedSchool = body.schoolId != null ? String(body.schoolId) : ""
+    schoolId = suppliedSchool || null
     const metadata = clientMetadata(req, body, "unknown")
     platform = metadata.platform
     recorder = new AuthAttemptRecorder(
       admin,
       requestId,
-      "token-for-auth",
+      "lectio-auth",
       metadata,
-      NUMERIC_RE.test(gymId) ? Number(gymId) : null,
+      NUMERIC_RE.test(suppliedSchool) ? Number(suppliedSchool) : null,
     )
     await recorder.start()
 
-    if (!autologinkey || !sessionId || !gymId) {
-      return await fail("Missing required credentials (autologinkey, sessionId, gymId)", 400, "validate-input")
+    if (!qrId || !qrUserId || !suppliedSchool) {
+      return await fail("Missing required fields: qrId, userId, schoolId", 400, "validate-input")
     }
-    if (!NUMERIC_RE.test(gymId)) return await fail("gymId must be numeric", 400, "validate-input")
-    if (!COOKIE_TOKEN_RE.test(autologinkey) || !COOKIE_TOKEN_RE.test(sessionId)) {
-      return await fail("Invalid credential format", 400, "validate-input")
+    if (!UUID_RE.test(qrId)) return await fail("Invalid qrId format", 400, "validate-input")
+    if (!NUMERIC_RE.test(qrUserId)) return await fail("userId must be numeric", 400, "validate-input")
+    if (!NUMERIC_RE.test(suppliedSchool)) {
+      return await fail("schoolId must be numeric", 400, "validate-input")
+    }
+    if (platform === "unknown") {
+      return await fail("client.platform must be ios, android, or extension", 400, "validate-input")
     }
 
-    const jar = new Map<string, string>([
-      ["ASP.NET_SessionId", sessionId],
-      ["autologinkeyV2", autologinkey],
-    ])
-    const scheduleUrl = `https://www.lectio.dk/lectio/${gymId}/SkemaNy.aspx`
+    const qrResponse = await fetch(
+      `https://www.lectio.dk/lectio/${suppliedSchool}/LandingPageQrCode.aspx?userId=${qrUserId}&QrId=${qrId}`,
+      { redirect: "manual", headers: { "User-Agent": USER_AGENT } },
+    )
+    const jar = new Map<string, string>()
+    mergeCookies(jar, qrResponse)
+    if (qrResponse.status !== 303) return await fail("QR code invalid or expired", 401, "qr-login")
+
+    const location = qrResponse.headers.get("location") || ""
+    const schoolMatch = location.match(/\/lectio\/(\d+)\//)
+    if (!schoolMatch) return await fail("Could not determine school from QR redirect", 500, "qr-redirect-school")
+    schoolId = schoolMatch[1]
+    if (!jar.size) return await fail("No session cookies received from QR login", 500, "qr-session-cookies")
+    await qrResponse.body?.cancel()
+
+    const scheduleUrl = `https://www.lectio.dk/lectio/${schoolId}/SkemaNy.aspx`
     let scheduleHtml = ""
-
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt) await sleep(400 * attempt)
@@ -138,7 +187,7 @@ Deno.serve(async (req: Request) => {
     let studentCardHtml = ""
     try {
       const result = await fetchWithJar(
-        `https://www.lectio.dk/lectio/${gymId}/digitaltStudiekort.aspx`,
+        `https://www.lectio.dk/lectio/${schoolId}/digitaltStudiekort.aspx`,
         jar,
       )
       studentCardStatus = result.response.status
@@ -148,7 +197,6 @@ Deno.serve(async (req: Request) => {
       }
     } catch (error) {
       if (error instanceof SessionExpiredError) {
-        // The schedule has already authenticated the user. Profile enrichment is optional.
         studentCardStatus = 401
       } else {
         console.warn("Student card enrichment failed", { requestId, error })
@@ -156,7 +204,7 @@ Deno.serve(async (req: Request) => {
     }
 
     profile = parseLectioProfile(scheduleHtml, studentCardHtml)
-    const email = `${gymId}-${studentId}@betterlectio.dk`
+    const email = `${schoolId}-${studentId}@betterlectio.dk`
     const { data, error: linkError } = await admin.auth.admin.generateLink({ type: "magiclink", email })
     if (linkError) return await fail("Failed to generate login link", 500, "generate-magic-link")
 
@@ -183,8 +231,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    let wasFirstInstall = false
     try {
-      await upsertStudent(admin, studentId, gymId, authUserId, profile, pictureBlob, platform)
+      wasFirstInstall = await upsertStudentForPlatform(
+        admin,
+        studentId,
+        schoolId,
+        authUserId,
+        profile,
+        pictureBlob,
+        platform,
+      )
     } catch (error) {
       console.error("Student upsert failed", { requestId, error })
       return await fail("Failed to save student profile", 500, "upsert-student")
@@ -195,51 +252,92 @@ Deno.serve(async (req: Request) => {
       : "degraded"
     await finish(status === "degraded" ? "degraded" : "success", 200)
 
-    const additional: Record<string, string> = {}
-    for (const [name, value] of jar.entries()) if (!PRIMARY_COOKIES.has(name)) additional[name] = value
-    return jsonResponse({
+    const success: LectioAuthSuccess = {
       token_hash: tokenHash,
       email,
-      studentId,
+      student_id: studentId,
+      school_id: schoolId,
+      was_first_install: wasFirstInstall,
       request_id: requestId,
       profile_status: status,
       profile_source: profile.profileSource,
       profile_fields: profileFields(profile),
-      cookies: {
-        autologinkey: jar.get("autologinkeyV2") ?? "",
-        sessionId: jar.get("ASP.NET_SessionId") ?? "",
-        additional,
-      },
-    })
+    }
+    return lectioAuthJsonResponse(success)
   } catch (error) {
     console.error("Edge function error", { requestId, error })
     return await fail("Internal server error", 500, "unhandled")
   }
-})
+}
 
-async function upsertStudent(
-  admin: ReturnType<typeof createClient>,
+/** Exported for unit tests of stamp branching. */
+export function computeInstallStamps(
+  platform: AuthPlatform,
+  existing: {
+    extension_installed_at?: string | null
+    extension_uninstalled_at?: string | null
+    extension_reinstalled_at?: string | null
+    app_installed_at?: string | null
+    android_installed_at?: string | null
+    iphone_installed_at?: string | null
+  } | null,
+  now: string,
+): { stamps: Record<string, string>; wasFirstInstall: boolean } {
+  const stamps: Record<string, string> = {}
+  let wasFirstInstall = false
+
+  if (platform === "extension") {
+    wasFirstInstall = !existing?.extension_installed_at
+    if (wasFirstInstall) stamps.extension_installed_at = now
+    else if (existing?.extension_uninstalled_at && !existing.extension_reinstalled_at) {
+      stamps.extension_reinstalled_at = now
+    }
+  } else if (platform === "android" || platform === "ios") {
+    if (!existing?.app_installed_at) stamps.app_installed_at = now
+    if (platform === "android") {
+      wasFirstInstall = !existing?.android_installed_at
+      if (wasFirstInstall) stamps.android_installed_at = now
+    } else {
+      wasFirstInstall = !existing?.iphone_installed_at
+      if (wasFirstInstall) stamps.iphone_installed_at = now
+    }
+  }
+
+  return { stamps, wasFirstInstall }
+}
+
+async function upsertStudentForPlatform(
+  admin: SupabaseClient,
   studentId: string,
   schoolId: string,
   authUserId: string,
   profile: ParsedLectioProfile,
   pictureBlob: { buffer: ArrayBuffer; contentType: string } | null,
   platform: AuthPlatform,
-): Promise<void> {
+): Promise<boolean> {
+  const { data: existing, error: readError } = await admin
+    .from("students")
+    .select(
+      "extension_installed_at, extension_uninstalled_at, extension_reinstalled_at, app_installed_at, android_installed_at, iphone_installed_at, pfp_hash",
+    )
+    .eq("id", studentId)
+    .maybeSingle()
+  if (readError) throw readError
+
   let storedPath: string | null = null
   let pictureHash: string | null = null
   let hashMatched = false
-
   if (pictureBlob) {
     pictureHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pictureBlob.buffer)))
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("")
-    const { data: existing } = await admin.from("students").select("pfp_hash").eq("id", studentId).maybeSingle()
     hashMatched = existing?.pfp_hash === pictureHash
     if (!hashMatched) {
       const extension = pictureBlob.contentType.includes("png")
         ? "png"
-        : pictureBlob.contentType.includes("webp") ? "webp" : "jpg"
+        : pictureBlob.contentType.includes("webp")
+        ? "webp"
+        : "jpg"
       storedPath = `${schoolId}/${studentId}.${extension}`
       const { error } = await admin.storage.from("profile-pictures").upload(
         storedPath,
@@ -253,23 +351,14 @@ async function upsertStudent(
     }
   }
 
-  const { data: existing, error: existingError } = await admin
-    .from("students")
-    .select("app_installed_at, android_installed_at, iphone_installed_at")
-    .eq("id", studentId)
-    .maybeSingle()
-  if (existingError) throw existingError
-
   const now = new Date().toISOString()
+  const { stamps, wasFirstInstall } = computeInstallStamps(platform, existing, now)
   const record: Record<string, unknown> = {
     id: studentId,
     school_id: Number(schoolId),
     supabase_id: authUserId,
+    ...stamps,
   }
-  // Keep app_installed_at as the union stamp for existing clients/promotion.
-  if (!existing?.app_installed_at) record.app_installed_at = now
-  if (platform === "android" && !existing?.android_installed_at) record.android_installed_at = now
-  if (platform === "ios" && !existing?.iphone_installed_at) record.iphone_installed_at = now
   if (profile.firstName) record.lectio_first_name = profile.firstName
   if (profile.lastName) record.lectio_last_name = profile.lastName
   if (profile.birthdate) record.birthdate = profile.birthdate
@@ -283,4 +372,5 @@ async function upsertStudent(
 
   const { error } = await admin.from("students").upsert(record, { onConflict: "id" })
   if (error) throw error
+  return wasFirstInstall
 }
