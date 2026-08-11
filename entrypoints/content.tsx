@@ -833,7 +833,7 @@ function initLayout() {
       );
       try {
         toast.info("Fejlen er rapporteret", {
-          description: "Tak for hjælpen — vi kigger på det.",
+          description: "Tak for hjælpen. Vi kigger på det.",
         });
       } catch { /* non-critical */ }
     });
@@ -1536,7 +1536,7 @@ function renderDeadlineBrick(entry: OpgaveEntry, topEm: number, atEdge: boolean)
   });
 
   // Tooltip text the native cluetip won't replace (we don't add a data-tooltip)
-  brick.title = `${entry.title}\nFrist: ${hh}:${mm}${subjectLabel ? ` — ${subjectLabel}` : ""}`;
+  brick.title = `${entry.title}\nFrist: ${hh}:${mm}${subjectLabel ? ` · ${subjectLabel}` : ""}`;
 
   return brick;
 }

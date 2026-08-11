@@ -357,8 +357,8 @@ export const da = {
       goodEvening: 'God aften',
     },
     cancelled: {
-      moduleSingular: '1 aflyst modul i dag — nice',
-      modulePlural: '{n} aflyste moduler i dag — nice',
+      moduleSingular: '1 aflyst modul i dag. Nice',
+      modulePlural: '{n} aflyste moduler i dag. Nice',
       hourSingular: '1 aflyst time i dag 🎉',
       hourPlural: '{n} aflyste timer i dag 🎉',
       psst1: 'Psst… 1 time aflyst i dag',
@@ -391,10 +391,10 @@ export const da = {
   onboarding: {
     welcome: {
       title: 'Velkommen til BetterLectio',
-      subtitle: 'Et nyt look til Lectio — pænere, hurtigere og nemmere at bruge.',
+      subtitle: 'Et nyt look til Lectio: pænere, hurtigere og nemmere at bruge.',
       subtitleLine2: 'Lad os sætte det op sammen.',
       note: 'Bemærk:',
-      noteBody: 'Første gang kan Lectio logge dig ud én gang. Log bare ind igen — så virker alt bagefter.',
+      noteBody: 'Første gang kan Lectio logge dig ud én gang. Log bare ind igen, så virker alt bagefter.',
     },
     theme: {
       title: 'Vælg dit tema',
@@ -435,15 +435,15 @@ export const da = {
       birthdayLabel: 'Vis fødselsdag',
       birthdayDescription: 'Andre kan se din fødselsdag',
       hint: 'Alt kan ændres senere i indstillinger.',
-      loading: 'Din profil opsættes automatisk — du kan redigere den snart.',
+      loading: 'Din profil opsættes automatisk. Du kan redigere den snart.',
     },
     feedback: {
       title: 'Én sidste ting',
       subtitle: 'BetterLectio er et hobbyprojekt, og din feedback gør en kæmpe forskel.',
       feedbackTitle: 'Giv feedback',
-      feedbackBody: 'Har du fundet en fejl eller har en idé? Brug "Give Feedback"-knappen nederst til højre — den er der altid.',
+      feedbackBody: 'Har du fundet en fejl eller har en idé? Brug "Give Feedback"-knappen nederst til højre. Den er der altid.',
       shareTitle: 'Fortæl dine venner',
-      shareBody: 'Kender du nogen som ikke bruger BetterLectio endnu? Fortæl dem om det — jo flere vi er, jo bedre bliver det.',
+      shareBody: 'Kender du nogen som ikke bruger BetterLectio endnu? Fortæl dem om det. Jo flere vi er, jo bedre bliver det.',
     },
     nav: {
       back: 'Tilbage',
@@ -1025,7 +1025,7 @@ export const da = {
       copyInvite: 'Kopiér link',
       copied: 'Link kopieret',
       copyFailed: 'Linket kunne ikke kopieres. Prøv igen.',
-      shareText: 'Prøv BetterLectio — Lectio, der faktisk virker.',
+      shareText: 'Prøv BetterLectio. Lectio, der faktisk virker.',
       loadFailed: 'Vi kunne ikke hente din status lige nu.',
       tryAgain: 'Prøv igen',
       readyBody: 'Vælg dit eget profilbillede her. Det bliver synligt, når det er godkendt.',
@@ -1057,7 +1057,7 @@ export const da = {
     weekend: {
       goodWeekend: 'God weekend',
       enjoyWeekend: 'Nyd weekenden',
-      relaxItsWeekend: 'Slap af — det er weekend',
+      relaxItsWeekend: 'Slap af, det er weekend',
     },
     afterSchool: {
       freeToday: 'Fri for i dag',
@@ -1079,7 +1079,7 @@ export const da = {
       freetimeUnlocked: 'Fritime unlocked',
       surpriseFreetime: 'Surprise fritime',
       bonusBreak: 'Bonus frikvarter',
-      cancelledEnjoyIt: 'Aflyst — nyd det',
+      cancelledEnjoyIt: 'Aflyst. Nyd det',
     },
   },
   dates: {
@@ -1111,7 +1111,7 @@ export const da = {
   proevehold: {
     disclaimerTitle: 'Lige en venlig påmindelse',
     disclaimerBody:
-      'Dobbelttjek altid dine eksamenstider i Lectio — vi tager forbehold for fejl.',
+      'Dobbelttjek altid dine eksamenstider i Lectio. Vi tager forbehold for fejl.',
   },
 } as const;
 

@@ -359,8 +359,8 @@ export const en = {
       goodEvening: 'Good evening',
     },
     cancelled: {
-      moduleSingular: '1 cancelled class today — nice',
-      modulePlural: '{n} cancelled classes today — nice',
+      moduleSingular: '1 cancelled class today. Nice',
+      modulePlural: '{n} cancelled classes today. Nice',
       hourSingular: '1 cancelled class today 🎉',
       hourPlural: '{n} cancelled classes today 🎉',
       psst1: 'Psst… 1 class cancelled today',
@@ -393,10 +393,10 @@ export const en = {
   onboarding: {
     welcome: {
       title: 'Welcome to BetterLectio',
-      subtitle: 'A fresh look for Lectio — cleaner, faster, and easier to use.',
+      subtitle: 'A fresh look for Lectio: cleaner, faster, and easier to use.',
       subtitleLine2: "Let's set it up together.",
       note: 'Note:',
-      noteBody: 'The first time you use BetterLectio, Lectio might log you out once. Just log back in — everything will work fine after that.',
+      noteBody: 'The first time you use BetterLectio, Lectio might log you out once. Just log back in, and everything will work fine after that.',
     },
     theme: {
       title: 'Choose your theme',
@@ -437,15 +437,15 @@ export const en = {
       birthdayLabel: 'Show birthday',
       birthdayDescription: 'Others can see your birthday',
       hint: 'Everything can be changed later in settings.',
-      loading: 'Your profile is being set up automatically — you can edit it soon.',
+      loading: 'Your profile is being set up automatically. You can edit it soon.',
     },
     feedback: {
       title: 'One last thing',
       subtitle: 'BetterLectio is a hobby project, and your feedback makes a huge difference.',
       feedbackTitle: 'Give feedback',
-      feedbackBody: 'Found a bug or have an idea? Use the "Give Feedback" button in the bottom right — it\'s always there.',
+      feedbackBody: 'Found a bug or have an idea? Use the "Give Feedback" button in the bottom right. It\'s always there.',
       shareTitle: 'Tell your friends',
-      shareBody: "Know someone not using BetterLectio yet? Tell them about it — the more of us there are, the better it gets.",
+      shareBody: "Know someone not using BetterLectio yet? Tell them about it. The more of us there are, the better it gets.",
     },
     nav: {
       back: 'Back',
@@ -1027,7 +1027,7 @@ export const en = {
       copyInvite: 'Copy link',
       copied: 'Link copied',
       copyFailed: 'The link could not be copied. Try again.',
-      shareText: 'Try BetterLectio — Lectio that actually works.',
+      shareText: 'Try BetterLectio. Lectio that actually works.',
       loadFailed: 'We could not load your status right now.',
       tryAgain: 'Try again',
       readyBody: 'Choose your own profile picture here. It becomes visible after approval.',
@@ -1059,7 +1059,7 @@ export const en = {
     weekend: {
       goodWeekend: 'Have a great weekend',
       enjoyWeekend: 'Enjoy the weekend',
-      relaxItsWeekend: 'Relax — it\'s the weekend',
+      relaxItsWeekend: 'Relax, it\'s the weekend',
     },
     afterSchool: {
       freeToday: 'Free for today',
@@ -1081,7 +1081,7 @@ export const en = {
       freetimeUnlocked: 'Free time unlocked',
       surpriseFreetime: 'Surprise free time',
       bonusBreak: 'Bonus break',
-      cancelledEnjoyIt: 'Cancelled — enjoy it',
+      cancelledEnjoyIt: 'Cancelled. Enjoy it',
     },
   },
   dates: {
@@ -1113,6 +1113,6 @@ export const en = {
   proevehold: {
     disclaimerTitle: 'Just a friendly heads-up',
     disclaimerBody:
-      "Always double-check your exam times in Lectio — we can't be held responsible for mistakes.",
+      "Always double-check your exam times in Lectio. We can't be held responsible for mistakes.",
   },
 } as const satisfies DaDictionary;
