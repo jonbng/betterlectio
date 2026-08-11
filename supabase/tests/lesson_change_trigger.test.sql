@@ -131,11 +131,16 @@ select is(pg_temp.outbox_count('L-prefs'), 1::bigint,
 
 -- Lectio sometimes writes a change in two steps. The same end state must
 -- collapse to one push, not two.
+-- Flapping back to normal and re-cancelling reaches the SAME end state, so the
+-- idempotency key must collapse it. Writing `set status='cancelled'` twice in a
+-- row would NOT test this: the second write is a no-op change and returns before
+-- reaching the insert, so ON CONFLICT never runs.
 select lives_ok($$
   select pg_temp.make_lesson('L-churn');
   update public.lessons set status = 'cancelled' where lesson_key = 'L-churn';
-  update public.lessons set status = 'cancelled', room = '24' where lesson_key = 'L-churn';
-$$, 'writing the same cancellation twice runs cleanly');
+  update public.lessons set status = 'normal'    where lesson_key = 'L-churn';
+  update public.lessons set status = 'cancelled' where lesson_key = 'L-churn';
+$$, 'cancelling, un-cancelling and re-cancelling runs cleanly');
 
 select is(pg_temp.outbox_count('L-churn'), 2::bigint,
   'the same resulting state written twice yields one row per student, not two');
