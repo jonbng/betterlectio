@@ -211,7 +211,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     title: string;
     icon: typeof GraduationCap;
     page: string;
-    settingKey: 'showKarakterer' | 'showDokumenter' | 'showModulregnskaber' | 'showStudieplan' | 'showSpoergeskema';
+    settingKey: 'showKarakterer' | 'showDokumenter' | 'showModulregnskaber' | 'showLokaler' | 'showStudieplan' | 'showSpoergeskema';
     href?: string;
     activeMatch?: () => boolean;
   }> = [
@@ -226,6 +226,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       activeMatch: () =>
         window.location.pathname.toLowerCase().includes('forside.aspx') &&
         new URLSearchParams(window.location.search).get('bl') === 'modulregnskaber',
+    },
+    {
+      title: t('sidebar.nav.lokaler'),
+      icon: DoorOpen,
+      page: 'lokaler',
+      settingKey: 'showLokaler',
+      href: `/lectio/${getSchoolIdFromUrl()}/forside.aspx?bl=lokaler`,
+      activeMatch: () =>
+        window.location.pathname.toLowerCase().includes('forside.aspx') &&
+        new URLSearchParams(window.location.search).get('bl') === 'lokaler',
     },
     { title: t('sidebar.nav.studieplan'), icon: ClipboardList, page: 'studieplan', settingKey: 'showStudieplan' },
     { title: t('sidebar.nav.spoergeskema'), icon: HelpCircle, page: 'spoergeskema/spoergeskema_rapport', settingKey: 'showSpoergeskema' },

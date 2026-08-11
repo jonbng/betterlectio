@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  DoorOpen,
   Ellipsis,
   EyeOff,
   FileSearch,
@@ -318,6 +319,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
     { show: navSettings.showStudieplan ?? true, label: t('sidebar.nav.studieplan'), href: `${baseUrl}/studieplan.aspx`, icon: ListChecks },
     { show: navSettings.showSpoergeskema ?? true, label: t('sidebar.nav.spoergeskema'), href: `${baseUrl}/spoergeskema/spoergeskema_rapport.aspx`, icon: HelpCircle },
     { show: navSettings.showModulregnskaber ?? true, label: t('sidebar.nav.modulregnskaber'), href: `${baseUrl}/forside.aspx?bl=modulregnskaber`, icon: CalendarDays },
+    { show: navSettings.showLokaler ?? true, label: t('sidebar.nav.lokaler'), href: `${baseUrl}/forside.aspx?bl=lokaler`, icon: DoorOpen },
   ]
     .filter((item) => item.show)
     .map((item) => ({
@@ -337,6 +339,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
   const activeContextLabel = contextItems.find((item) => item.active)?.label;
   const contextTitle = useMemo(() => {
     if (customRoute === 'modulregnskaber') return t('sidebar.nav.modulregnskaber');
+    if (customRoute === 'lokaler') return t('sidebar.nav.lokaler');
     if (!snapshot.contextTitle) return null;
     const preferredTitle = snapshot.contextId?.startsWith('S') && contextName !== contextFallbackName
       ? `${contextName}${snapshot.contextTitle.match(/^Eleven\s+.+?(,\s*.+)$/)?.[1] ?? ''}`

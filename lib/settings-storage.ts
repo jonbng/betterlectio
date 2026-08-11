@@ -56,6 +56,7 @@ const SidebarSettingsSchema = z.object({
   showStudieplan: z.boolean().default(true),
   showDokumenter: z.boolean().default(true),
   showModulregnskaber: z.boolean().default(true),
+  showLokaler: z.boolean().default(true),
   showSpoergeskema: z.boolean().default(true),
   showUVBeskrivelser: z.boolean().default(true),
   showFindSkema: z.boolean().default(true),

@@ -24,6 +24,7 @@ import { FravaerPage } from "@/components/FravaerPage";
 import { fetchCombinedFravaerData } from "@/lib/fravaer-parse";
 import { KaraktererPage, parseKaraktererFromDOM } from "@/components/KaraktererPage";
 import { ModulregnskaberPage } from "@/components/ModulregnskaberPage";
+import { LokalerPage } from "@/components/LokalerPage";
 import { DokumenterPage } from "@/components/DokumenterPage";
 import { parseDokumenterPage } from "@/lib/dokumenter-parser";
 import { ProfilPage } from "@/components/ProfilPage";
@@ -1118,13 +1119,15 @@ function initLayout() {
         }
 
         // Inject greeting on forside page — unless it's our custom
-        // Modulregnskaber overlay (forside.aspx?bl=modulregnskaber), which
-        // reuses forside as a safe container URL
+        // overlay (forside.aspx?bl=…), which reuses forside as a safe
+        // container URL
         const urlParams = new URLSearchParams(window.location.search);
         const blOverlay = urlParams.get("bl");
         if (window.location.pathname.toLowerCase().includes("forside.aspx")) {
           if (blOverlay === "modulregnskaber") {
             injectModulregnskaberPage(schoolId);
+          } else if (blOverlay === "lokaler") {
+            injectLokalerPage(schoolId);
           } else {
             injectForsideGreeting(schoolId);
           }
@@ -3039,6 +3042,21 @@ function injectModulregnskaberPage(schoolId: string) {
   document.body.classList.add("il-modulregnskaber-page-active");
 
   render(<ModulregnskaberPage schoolId={schoolId} />, container);
+}
+
+function injectLokalerPage(schoolId: string) {
+  trackFeatureUsed("lokaler_page", { school_id: schoolId });
+
+  const contentContainer = document.getElementById("il-lectio-content");
+  if (!contentContainer) return;
+
+  const container = document.createElement("div");
+  container.id = "il-lokaler-page";
+  contentContainer.insertBefore(container, contentContainer.firstChild);
+
+  document.body.classList.add("il-lokaler-page-active");
+
+  render(<LokalerPage schoolId={schoolId} />, container);
 }
 
 function injectKaraktererPage(_schoolId: string) {

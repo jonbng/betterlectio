@@ -11,6 +11,7 @@ Deno.test("parses the full profile from a student card", () => {
   assertEquals(profile.lastName, "Lovelace")
   assertEquals(profile.className, "3x")
   assertEquals(profile.birthdate, "2007-12-10")
+  assertEquals(profile.pictureUrl, "https://www.lectio.dk/lectio/1/GetImage.aspx?id=2")
   assertEquals(profile.profileSource, "student_card")
 })
 
@@ -23,6 +24,54 @@ Deno.test("falls back to the schedule title when the student card is unavailable
   assertEquals(profile.lastName, "Friedrich")
   assertEquals(profile.className, "1x")
   assertEquals(profile.profileSource, "schedule_title")
+})
+
+Deno.test("parses identity from Lectio MainTitle with nested ls-hidden-smallscreen span", () => {
+  // Real Lectio markup: identity lives in a span, page name ("Skema") follows outside it.
+  // A naive </[^>]+> match stops at </span> and previously made schedule_title never fire.
+  const schedule =
+    '<div id="s_m_HeaderContent_MainTitle" class="maintitle" role="heading" aria-level="1" data-lectioContextCard="S72721772841">' +
+    '<span class="ls-hidden-smallscreen">Eleven Jonathan Arthur Hojer Bangert(k), 1x - </span>Skema</div>'
+  const profile = parseLectioProfile(schedule, "")
+  assertEquals(profile.studentId, "72721772841")
+  assertEquals(profile.firstName, "Jonathan")
+  assertEquals(profile.lastName, "Arthur Hojer Bangert")
+  assertEquals(profile.className, "1x")
+  assertEquals(profile.profileSource, "schedule_title")
+})
+
+Deno.test("falls back to schedule header thumbnail when student card has no photo", () => {
+  const schedule =
+    '<div id="s_m_HeaderContent_MainTitle" data-lectioContextCard="S99">' +
+    '<span class="ls-hidden-smallscreen">Eleven Nora Test(k), 2b - </span>Skema</div>' +
+    '<img id="s_m_HeaderContent_picctrlthumbimage" class="ls-hidden-smallscreen" ' +
+    'src="/lectio/94/GetImage.aspx?pictureid=74096211802" alt="">'
+  const profile = parseLectioProfile(schedule, "")
+  assertEquals(profile.firstName, "Nora")
+  assertEquals(
+    profile.pictureUrl,
+    "https://www.lectio.dk/lectio/94/GetImage.aspx?pictureid=74096211802&fullsize=1",
+  )
+  assertEquals(profile.profileSource, "schedule_title")
+})
+
+Deno.test("accepts StudPic when id comes before src", () => {
+  const card = '<img id="s_m_Content_Content_StudPic" src="/lectio/1/GetImage.aspx?pictureid=42">' +
+    '<span id="s_m_Content_Content_StudentName">Ada Lovelace</span>'
+  const profile = parseLectioProfile('<div data-lectioContextCard="S1"></div>', card)
+  assertEquals(
+    profile.pictureUrl,
+    "https://www.lectio.dk/lectio/1/GetImage.aspx?pictureid=42&fullsize=1",
+  )
+})
+
+Deno.test("parses identity from MainTitle on non-Skema pages", () => {
+  const schedule =
+    '<div id="s_m_HeaderContent_MainTitle" data-lectioContextCard="S99">' +
+    '<span class="ls-hidden-smallscreen">Eleven Nora Test(k), 2b - </span>Beskeder</div>'
+  const parsed = parseScheduleIdentity(schedule)
+  assertEquals(parsed.fullName, "Nora Test")
+  assertEquals(parsed.className, "2b")
 })
 
 Deno.test("decodes HTML entities in schedule names", () => {

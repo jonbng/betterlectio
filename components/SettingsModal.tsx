@@ -1093,6 +1093,13 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
                 onChange={(v) => handleSettingChange('sidebar', 'showModulregnskaber', v)}
               />
               <FeatureToggle
+                id="sidebar-lokaler"
+                label={t('settings.sidebar.lokaler.label')}
+                description={t('settings.sidebar.lokaler.description')}
+                enabled={settings.sidebar?.showLokaler ?? true}
+                onChange={(v) => handleSettingChange('sidebar', 'showLokaler', v)}
+              />
+              <FeatureToggle
                 id="sidebar-spoergeskema"
                 label={t('settings.sidebar.spoergeskema.label')}
                 description={t('settings.sidebar.spoergeskema.description')}
@@ -1134,7 +1141,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
         return (
           <div className="space-y-6">
             <SettingsSection
-              title="Inviter klassekammerater"
+              title="Inviter venner"
               description="Del dit personlige link og få æren for at have inviteret dem."
             >
               <ReferralShareCard />

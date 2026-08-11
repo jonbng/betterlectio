@@ -118,7 +118,7 @@ export function ReferralShareCard() {
         <p className="mt-2 text-xs text-muted-foreground">
           {unlock.unlocked
             ? "Du kan nu vælge dit eget profilbillede herunder. Det bliver vist, når det er godkendt."
-            : `Inviter ${unlock.remaining} klassekammerat${unlock.remaining === 1 ? "" : "er"} mere for at låse dit eget profilbillede op.`}
+            : `Inviter ${unlock.remaining} ven${unlock.remaining === 1 ? "" : "ner"} mere for at låse dit eget profilbillede op.`}
         </p>
       </div>
 

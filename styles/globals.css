@@ -769,7 +769,8 @@ html {
       .il-karakterer-page-active,
       .il-profil-page-active,
       .il-dokumenter-page-active,
-      .il-modulregnskaber-page-active
+      .il-modulregnskaber-page-active,
+      .il-lokaler-page-active
     ) #il-original-content {
     flex: 0 0 auto;
     min-height: 0;
@@ -3245,6 +3246,31 @@ html {
   }
 
   #il-modulregnskaber-page {
+    padding: 0;
+  }
+
+  /* ========================================
+     Lokaler Page (forside.aspx?bl=lokaler) Styles
+     ======================================== */
+
+  body.il-lokaler-page-active #il-original-content #contenttable {
+    display: none !important;
+  }
+
+  body.il-lokaler-page-active #il-original-content,
+  body.il-lokaler-page-active #il-original-content #masterContent,
+  body.il-lokaler-page-active #il-original-content #aspnetForm,
+  body.il-lokaler-page-active #il-original-content .ls-master-container1,
+  body.il-lokaler-page-active #il-original-content .ls-master-container2,
+  body.il-lokaler-page-active #il-original-content #s_m_outerContentFrameDiv,
+  body.il-lokaler-page-active #il-original-content .outerContentFrame,
+  body.il-lokaler-page-active #il-original-content .ls-content-container,
+  body.il-lokaler-page-active #il-original-content .ls-content {
+    height: fit-content;
+    min-height: 0;
+  }
+
+  #il-lokaler-page {
     padding: 0;
   }
 
