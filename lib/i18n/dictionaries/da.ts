@@ -311,9 +311,9 @@ export const da = {
     settingsTitle: 'Indstillinger',
     lightModeTitle: 'Skift til lys tilstand',
     darkModeTitle: 'Skift til mørk tilstand',
-    bypassTitle: 'Vis original Lectio (slår BetterLectio fra i 5 minutter)',
+    bypassTitle: 'Vis original Lectio (slår BetterLectio fra i 1 time)',
     bypassToast: 'Viser original Lectio',
-    bypassToastDescription: 'BetterLectio er slået fra i 5 minutter. Tryk på knappen i hjørnet for at slå det til igen. Fejlen er rapporteret.',
+    bypassToastDescription: 'BetterLectio er slået fra i 1 time. Tryk på knappen i hjørnet for at slå det til igen. Fejlen er rapporteret.',
     bypassReenableLabel: 'Slå BetterLectio til',
     bypassReenableTitle: 'Slå BetterLectio til igen og genindlæs siden',
     menu: {

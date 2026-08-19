@@ -1,6 +1,6 @@
 // Escape hatch that renders Lectio without BetterLectio's redesigns when a
 // native flow is misbehaving under our wrapper. Activated from the sidebar
-// footer. Stays active for 5 minutes (auto-expiry) or until the user presses
+// footer. Stays active for 60 minutes (auto-expiry) or until the user presses
 // the floating re-enable button injected by `content.tsx`.
 //
 // Stored in localStorage so the bypass applies across all open Lectio tabs —
@@ -9,7 +9,11 @@
 
 const BYPASS_KEY = 'bl-bypass-redesigns';
 
-export const BYPASS_DURATION_MS = 5 * 60 * 1000;
+// A 5-minute window forced users to re-arm mid-session, so one broken session
+// counted as several presses (~2.65 per user) and made the escape hatch feel
+// unreliable. 60 minutes covers a normal continuous session while still
+// auto-recovering so the redesign returns after the user moves on.
+export const BYPASS_DURATION_MS = 60 * 60 * 1000;
 
 interface BypassState {
   activatedAt: number;

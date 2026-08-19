@@ -313,9 +313,9 @@ export const en = {
     settingsTitle: 'Settings',
     lightModeTitle: 'Switch to light mode',
     darkModeTitle: 'Switch to dark mode',
-    bypassTitle: 'Show original Lectio (turns BetterLectio off for 5 minutes)',
+    bypassTitle: 'Show original Lectio (turns BetterLectio off for 1 hour)',
     bypassToast: 'Showing original Lectio',
-    bypassToastDescription: 'BetterLectio is off for 5 minutes. Press the button in the corner to turn it back on. The error has been reported.',
+    bypassToastDescription: 'BetterLectio is off for 1 hour. Press the button in the corner to turn it back on. The error has been reported.',
     bypassReenableLabel: 'Turn BetterLectio on',
     bypassReenableTitle: 'Turn BetterLectio back on and reload the page',
     menu: {
