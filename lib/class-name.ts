@@ -1,7 +1,9 @@
 const CLASS_LETTER = String.raw`A-Za-zÆØÅæøå`;
-const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|\.[${CLASS_LETTER}0-9]+)`;
+const CLASS_SEPARATOR = String.raw`[._/\-]`;
+const CLASS_SUFFIX = String.raw`(?:[${CLASS_LETTER}0-9]{1,2}|${CLASS_SEPARATOR}[${CLASS_LETTER}0-9]+)`;
 const CLASS_CODE_BODY = String.raw`(?:[${CLASS_LETTER}]+\d+|\d+)`;
-const CLASS_CODE = String.raw`(?:[${CLASS_LETTER}]+\d+(?:${CLASS_SUFFIX})*|${CLASS_CODE_BODY}(?:${CLASS_SUFFIX})+)`;
+const NAMED_CLASS = String.raw`[${CLASS_LETTER}]+`;
+const CLASS_CODE = String.raw`(?:[${CLASS_LETTER}]+\d+(?:${CLASS_SUFFIX})*|${CLASS_CODE_BODY}(?:${CLASS_SUFFIX})+|${NAMED_CLASS})`;
 
 const YEAR_BASED_CLASS_RE = new RegExp(`^([${CLASS_LETTER}]*)(\\d{4})((?:${CLASS_SUFFIX})*)(?:\\s+(\\d+))?$`, 'i');
 const GRADE_BASED_CLASS_RE = new RegExp(`^(${CLASS_CODE})(?:\\s+(\\d+))?$`, 'i');
@@ -11,7 +13,11 @@ const GRADE_PREFIX_RE = new RegExp(`^[${CLASS_LETTER}]*(\\d+)`, 'i');
 /**
  * Some Lectio schedule titles surface a hold identifier like `t25htxvx_1vx`
  * instead of a stamklasse. When the segment after the last underscore is itself
- * a valid grade-based class code, treat that as the canonical class name.
+ * a valid class code, treat that as the canonical class name.
+ *
+ * Recognized class shapes: `1x`, `2hf`, `2zq`, `1.4`, `L2d`, `S2x`, `IB1`,
+ * `10.st.kl.2`, hyphenated `3hx-u`, and named classes with no grade digit
+ * (`BShannon`, `BHamilton`, `Epsilon`, `gf`).
  */
 export function normalizeClassCode(value: string): string {
   const trimmed = value.trim();

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { Tables } from '@/database.types';
 import { useQuery } from './hooks';
 import { invalidateTable } from './cache';
-import { isActiveStudent } from '@/lib/active-user';
+import { hasBetterLectio } from '@/lib/active-user';
 
 export type Student = Tables<'students'>;
 export type StudentsMap = Map<string, Student>;
@@ -95,8 +95,7 @@ export function useAdoptionCounts(
     let school = 0;
     let cls = 0;
     for (const s of schoolStudents) {
-      const isCurrentlyActive =
-        isActiveStudent(s) || Boolean(s.app_installed_at);
+      const isCurrentlyActive = hasBetterLectio(s);
       if (!isCurrentlyActive) continue;
       school++;
       if (className && s.class_name === className) cls++;

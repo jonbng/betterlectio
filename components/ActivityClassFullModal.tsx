@@ -39,6 +39,8 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { MembersPanel } from "@/components/ActivityMembersPanel";
+import { ElevfeedbackSection } from "@/components/ElevfeedbackSection";
+import { activityTabsExcludingElevfeedback } from "@/lib/elevfeedback";
 import {
   Lightbox,
   type LightboxItem,
@@ -221,15 +223,17 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
 
   const metaLine = [detail?.meta.dateText, detail?.meta.timeText].filter(Boolean).join(" · ");
 
+  const extraTabs = activityTabsExcludingElevfeedback(detail?.tabs ?? []).filter((t) => !t.active && t.url);
   const hasPrimary =
     !!detail?.note ||
     (detail?.homework.length ?? 0) > 0 ||
-    (detail?.related.length ?? 0) > 0;
+    (detail?.related.length ?? 0) > 0 ||
+    !!detail?.elevfeedback;
   const hasSecondary =
     (detail?.presentation?.length ?? 0) > 0 ||
     (detail?.otherContent?.length ?? 0) > 0 ||
     !!detail?.phase ||
-    (detail?.tabs.filter((t) => !t.active && t.url).length ?? 0) > 0;
+    extraTabs.length > 0;
   const hasContent = hasPrimary || hasSecondary;
 
   const accentStyle = { "--accent-hue": holdHue } as Record<string, string | number>;
@@ -478,6 +482,14 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                           </div>
                         </Section>
                       ) : null}
+
+                      {detail.elevfeedback ? (
+                        <ElevfeedbackSection
+                          refInfo={detail.elevfeedback}
+                          studentsMap={studentsMap}
+                          className="mb-0"
+                        />
+                      ) : null}
                     </div>
                   ) : null}
 
@@ -503,7 +515,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                         </Section>
                       ) : null}
 
-                      {detail.phase || detail.tabs.some((tab) => !tab.active && tab.url) ? (
+                      {detail.phase || extraTabs.length > 0 ? (
                         <Section icon={<Link2 size={14} />} label={t('activityModal.activityLinks')}>
                           <div className="flex flex-wrap gap-2">
                             {detail.phase ? (
@@ -516,9 +528,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                                 {detail.phase.title}
                               </a>
                             ) : null}
-                            {detail.tabs
-                              .filter((tab) => !tab.active && tab.url)
-                              .map((tab) => (
+                            {extraTabs.map((tab) => (
                                 <a
                                   key={tab.label}
                                   href={tab.url}

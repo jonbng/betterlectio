@@ -72,6 +72,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@/lib/supabase/hooks';
 import { getPreferredStudentDisplayName, getPreferredStudentPictureUrl, type Student } from '@/lib/supabase/student-lookup';
 import { ScheduleCountdown } from './ScheduleCountdown';
+import { SupabaseAuthDot } from './SupabaseAuthDot';
 
 function getSchoolIdFromUrl(): string {
   const match = window.location.pathname.match(/\/lectio\/(\d+)\//);
@@ -757,9 +758,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   {userName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left leading-snug">
+              <div className="grid min-w-0 flex-1 text-left leading-snug">
                 <span className="truncate text-base font-medium">{userName}</span>
-                <span className="truncate text-sm text-muted-foreground/80">{userClass}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-sm text-muted-foreground/80">{userClass}</span>
+                  <SupabaseAuthDot side="right" />
+                </span>
               </div>
               <ChevronUp className={`size-4 opacity-40 transition-transform duration-200 ${menuOpen ? '' : 'rotate-180'}`} />
             </button>

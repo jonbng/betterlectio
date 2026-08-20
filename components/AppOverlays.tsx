@@ -8,6 +8,7 @@ import { PrivatAftaleDialog } from './PrivatAftaleDialog';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
 import type { OpgaveEntry } from './OpgaverPage';
 import { OnboardingWizard } from './OnboardingWizard';
+import { ElevfeedbackEditorOverlay } from './ElevfeedbackEditorOverlay';
 
 const WELCOME_STORAGE_KEY = 'bl-welcome-popup-seen-v1';
 const LEGACY_WELCOME_STORAGE_KEY = 'il-welcome-popup-seen-v1';
@@ -34,6 +35,8 @@ export function AppOverlays() {
   const [assignmentViewMode, setAssignmentViewMode] = useState<'modal' | 'sheet'>(
     () => settings.behavior?.opgaveViewMode ?? 'sheet',
   );
+  const [elevfeedbackOpen, setElevfeedbackOpen] = useState(false);
+  const [elevfeedbackUrl, setElevfeedbackUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const openSettings = (event: Event) => {
@@ -59,16 +62,24 @@ export function AppOverlays() {
       setAssignment(entry);
       setAssignmentOpen(true);
     };
+    const openElevfeedback = (event: Event) => {
+      const nextUrl = (event as CustomEvent<{ url?: string }>).detail?.url;
+      if (!nextUrl) return;
+      setElevfeedbackUrl(nextUrl);
+      setElevfeedbackOpen(true);
+    };
 
     window.addEventListener('betterlectio:openSettings', openSettings);
     window.addEventListener('betterlectio:openActivityModal', openActivity as EventListener);
     window.addEventListener('betterlectio:openPrivatAftale', openPrivate as EventListener);
     window.addEventListener('betterlectio:openOpgaveDetail', openAssignment as EventListener);
+    window.addEventListener('betterlectio:openElevfeedbackEditor', openElevfeedback as EventListener);
     return () => {
       window.removeEventListener('betterlectio:openSettings', openSettings);
       window.removeEventListener('betterlectio:openActivityModal', openActivity as EventListener);
       window.removeEventListener('betterlectio:openPrivatAftale', openPrivate as EventListener);
       window.removeEventListener('betterlectio:openOpgaveDetail', openAssignment as EventListener);
+      window.removeEventListener('betterlectio:openElevfeedbackEditor', openElevfeedback as EventListener);
     };
   }, []);
 
@@ -161,6 +172,11 @@ export function AppOverlays() {
         schoolId={schoolId}
         viewMode={assignmentViewMode}
         onSwapViewMode={swapAssignmentView}
+      />
+      <ElevfeedbackEditorOverlay
+        open={elevfeedbackOpen}
+        url={elevfeedbackUrl}
+        onOpenChange={(open) => { setElevfeedbackOpen(open); if (!open) setElevfeedbackUrl(null); }}
       />
     </>
   );

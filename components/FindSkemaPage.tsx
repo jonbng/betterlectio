@@ -28,8 +28,8 @@ import { getFindSkemaTypeKeyFromId } from '../lib/findskema-types';
 import { getMyTeacherIds } from '../lib/my-teachers';
 import { getFullHoldDisplayName } from '../lib/hold-mapping';
 import { classGroupsMatch, transformYearBasedClassName, transformYearBasedHoldName } from '../lib/class-name';
-import { useSchoolStudents, getStudentIdFromPersonId, getNameAliasesFromLookupId } from '../lib/supabase/student-lookup';
-import { isActiveStudent } from '../lib/active-user';
+import { useSchoolStudents, getStudentIdFromPersonId, getStudentFromLookupId, getNameAliasesFromLookupId } from '../lib/supabase/student-lookup';
+import { hasBetterLectio } from '../lib/active-user';
 
 type SearchType = 'elev' | 'laerer' | 'stamklasse' | 'lokale' | 'ressource' | 'hold' | 'gruppe' | 'all';
 
@@ -374,15 +374,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const showClassmates = !showSearchResults && classmates.length > 0 && activeFilters.has('S');
   const showMyTeachers = !showSearchResults && myTeachers.length > 0 && activeFilters.has('T');
 
-  const hasBL = (personId: string) => {
-    const sid = getStudentIdFromPersonId(personId);
-    if (!sid || !studentsMap) return false;
-    const s = studentsMap.get(sid);
-    if (!s) return false;
-    if (isActiveStudent(s)) return true;
-    // Treat app users as active too — the iOS app doesn't write last_seen_at yet.
-    return !!s.app_installed_at;
-  };
+  const hasBL = (personId: string) =>
+    hasBetterLectio(getStudentFromLookupId(studentsMap, personId));
 
   // BetterLectio filter state
   const [blFilterActive, setBlFilterActive] = useState(false);
@@ -392,7 +385,7 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
     if (!studentsMap) return 0;
     let count = 0;
     for (const s of studentsMap.values()) {
-      if (isActiveStudent(s) || s.app_installed_at) count++;
+      if (hasBetterLectio(s)) count++;
     }
     return count;
   }, [studentsMap]);

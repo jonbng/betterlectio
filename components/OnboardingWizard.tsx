@@ -12,6 +12,7 @@ import {
   Heart,
   MessageSquareHeart,
   Users,
+  Smartphone,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ import {
 } from '@/lib/supabase/student-lookup';
 import { capture, getDistinctId, setPersonProperties } from '@/lib/posthog';
 import { formatInstagramHandle, normalizeInstagramHandle } from '@/lib/instagram';
+import { renderMobileAppQrSvg } from '@/lib/mobile-app';
 import { useTranslation } from '@/lib/i18n';
 import type { Tables } from '@/database.types';
 
@@ -53,8 +55,9 @@ interface OnboardingWizardProps {
   onOpenSettings: () => void;
 }
 
-const ALL_STEPS = [0, 1, 2, 3, 4, 5] as const;
+const ALL_STEPS = [0, 1, 2, 3, 4, 5, 6] as const;
 const PROFILE_STEP = 4;
+const MOBILE_APP_STEP = 5;
 type NavigationLayout = FeatureSettings['interface']['navigationLayout'];
 
 // ── Live schedule preview for fagfarver ───────────────────────────────
@@ -131,7 +134,7 @@ export function OnboardingWizard({
   const logoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
 
   // Load student data
-  const { data: student } = useQuery<Student>({
+  const { data: student, isLoading: studentLoading } = useQuery<Student>({
     schoolId,
     table: 'students',
     filters: studentId ? [{ column: 'id', op: 'eq', value: studentId }] : [],
@@ -151,6 +154,8 @@ export function OnboardingWizard({
 
   // Lock the decision once data arrives so the step structure doesn't change mid-wizard
   const [skipProfileLocked, setSkipProfileLocked] = useState<boolean | null>(null);
+  const [skipMobileLocked, setSkipMobileLocked] = useState<boolean | null>(null);
+  const [mobileQrSvg, setMobileQrSvg] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && skipProfileLocked === null && schoolCount !== null) {
@@ -162,14 +167,47 @@ export function OnboardingWizard({
   }, [open, skipProfileLocked, schoolCount, classCount]);
 
   useEffect(() => {
-    if (!open) setSkipProfileLocked(null);
+    if (!open || skipMobileLocked !== null) return;
+    if (!studentId) {
+      setSkipMobileLocked(false);
+      return;
+    }
+    if (studentLoading) return;
+    setSkipMobileLocked(Boolean(student?.app_installed_at));
+  }, [open, skipMobileLocked, studentId, studentLoading, student?.app_installed_at]);
+
+  useEffect(() => {
+    if (!open) {
+      setSkipProfileLocked(null);
+      setSkipMobileLocked(null);
+      setMobileQrSvg(null);
+    }
   }, [open]);
 
+  // Same tracked QR as drawer / invite popup (`/download/app?u={studentId}`).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    renderMobileAppQrSvg(studentId)
+      .then((svg) => {
+        if (!cancelled) setMobileQrSvg(svg);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, studentId]);
+
   const shouldSkipProfile = skipProfileLocked ?? false;
+  const shouldSkipMobile = skipMobileLocked ?? false;
 
   const activeSteps = useMemo(() => {
-    return shouldSkipProfile ? ALL_STEPS.filter((s) => s !== PROFILE_STEP) : [...ALL_STEPS];
-  }, [shouldSkipProfile]);
+    return ALL_STEPS.filter((s) => {
+      if (s === PROFILE_STEP && shouldSkipProfile) return false;
+      if (s === MOBILE_APP_STEP && shouldSkipMobile) return false;
+      return true;
+    });
+  }, [shouldSkipProfile, shouldSkipMobile]);
 
   const totalVisibleSteps = activeSteps.length;
   const currentStepId = activeSteps[step];
@@ -205,6 +243,8 @@ export function OnboardingWizard({
       setSubjectColors(getSettings().schedule?.subjectColors ?? false);
       setProfileInitialized(false);
       setSkipProfileLocked(null);
+      setSkipMobileLocked(null);
+      setMobileQrSvg(null);
     }
   }, [open, schoolId]);
 
@@ -328,6 +368,7 @@ export function OnboardingWizard({
           school_id: schoolId,
           steps_visited: totalVisibleSteps,
           profile_skipped: shouldSkipProfile,
+          mobile_app_skipped: shouldSkipMobile,
         });
       }
       onClose();
@@ -735,8 +776,48 @@ export function OnboardingWizard({
           </div>
         );
 
-      // ── Feedback & Share (merged) ───────────────────────────────────
+      // ── Mobile app ──────────────────────────────────────────────────
       case 5:
+        return (
+          <div className="flex flex-col items-center text-center gap-5 py-2">
+            <div className="flex items-center justify-center size-14 rounded-2xl bg-primary/10">
+              <Smartphone className="size-7 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                {t('onboarding.mobileApp.title')}
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto text-pretty">
+                {t('onboarding.mobileApp.subtitle')}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-3.5 border border-border shadow-sm">
+              <div className="grid h-[168px] w-[168px] place-items-center">
+                {mobileQrSvg ? (
+                  <div
+                    className="h-full w-full [&>svg]:h-full [&>svg]:w-full"
+                    dangerouslySetInnerHTML={{ __html: mobileQrSvg }}
+                  />
+                ) : (
+                  <div className="h-full w-full animate-pulse rounded bg-zinc-200" />
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {t('onboarding.mobileApp.scanHint')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('onboarding.mobileApp.hint')}
+              </p>
+            </div>
+          </div>
+        );
+
+      // ── Feedback & Share (merged) ───────────────────────────────────
+      case 6:
         return (
           <div className="flex flex-col items-center text-center gap-6 py-4">
             <div className="flex items-center justify-center size-16 rounded-2xl bg-primary/10">

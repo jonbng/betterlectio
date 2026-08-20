@@ -43,6 +43,9 @@ export const en = {
       endOfModuleEffectDescription: 'Highlight the sidebar countdown in the final 5 minutes of a lesson and trigger confetti when the module ends',
       opgaveDeadlinesLabel: 'Assignment deadlines on schedule',
       opgaveDeadlinesDescription: 'Show assignment deadlines as small bricks on the schedule at the time they are due. Click to see details.',
+      forsideTitle: 'Home',
+      aktuelInfoLabel: 'Current information',
+      aktuelInfoDescription: 'Show the current information card on the home page',
     },
     sidebar: {
       layoutTitle: 'Navigation layout',
@@ -439,6 +442,13 @@ export const en = {
       hint: 'Everything can be changed later in settings.',
       loading: 'Your profile is being set up automatically. You can edit it soon.',
     },
+    mobileApp: {
+      title: 'We also have an app',
+      subtitle:
+        'Basically free Lectio+: schedule, homework, and messages in your pocket. Scan the QR code with your phone to download it.',
+      hint: 'Optional. You can always grab it later.',
+      scanHint: 'Available on the App Store and Google Play',
+    },
     feedback: {
       title: 'One last thing',
       subtitle: 'BetterLectio is a hobby project, and your feedback makes a huge difference.',
@@ -486,6 +496,15 @@ export const en = {
     statusCancelled: 'Cancelled',
     statusChanged: 'Changed',
     statusMoved: 'Moved',
+    elevfeedback: 'Student notes',
+    elevfeedbackEmpty: 'Write notes or answer the teacher\'s questions for this module.',
+    elevfeedbackWrite: 'Write',
+    elevfeedbackEdit: 'Edit',
+    elevfeedbackTeacher: 'Teacher',
+    elevfeedbackEditorAria: 'Edit student notes',
+    elevfeedbackCloseEditor: 'Close editor',
+    elevfeedbackLoading: 'Loading student notes...',
+    elevfeedbackLoadError: 'Could not load student notes.',
   },
   privatAftale: {
     ariaLabel: 'Private appointment',

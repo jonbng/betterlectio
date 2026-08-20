@@ -1,4 +1,5 @@
 import { captureException } from './posthog';
+import { parseElevfeedbackRef, type ActivityElevfeedbackRef } from './elevfeedback';
 
 export interface ActivityTabLink {
   label: string;
@@ -91,6 +92,7 @@ export interface ActivityDetail {
   related: ActivityRelatedItem[];
   navigation: ActivityNavigation;
   formTokens: ActivityFormTokens;
+  elevfeedback: ActivityElevfeedbackRef | null;
 }
 
 function sanitizeActivityHtml(fragmentRoot: ParentNode): void {
@@ -268,7 +270,7 @@ function parseMeta(doc: Document): ActivityMeta {
 }
 
 function parseTabs(doc: Document): ActivityTabLink[] {
-  const anchors = doc.querySelectorAll<HTMLAnchorElement>(".lectioTabToolbar .button a");
+  const anchors = doc.querySelectorAll<HTMLAnchorElement>(".lectioTabToolbar a");
   const tabs: ActivityTabLink[] = [];
 
   anchors.forEach((a) => {
@@ -651,6 +653,7 @@ function parseActivityDetail(doc: Document, url: string): ActivityDetail {
     related: parseRelated(doc),
     navigation: parseNavigation(doc),
     formTokens: parseFormTokens(doc, absolute.href),
+    elevfeedback: parseElevfeedbackRef(doc, absolute.href),
   };
 }
 

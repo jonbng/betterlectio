@@ -38,6 +38,10 @@ const BehaviorSettingsSchema = z.object({
   opgaveViewMode: z.enum(['modal', 'sheet']).default('sheet'),
 });
 
+const ForsideSettingsSchema = z.object({
+  showAktuelInfo: z.boolean().default(true),
+});
+
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting
 const DataSettingsSchema = z.object({
   starredPeople: z.boolean().default(false),
@@ -68,6 +72,7 @@ const DEFAULT_VISUAL = VisualSettingsSchema.parse({});
 const DEFAULT_INTERFACE = InterfaceSettingsSchema.parse({});
 const DEFAULT_SCHEDULE = ScheduleSettingsSchema.parse({});
 const DEFAULT_BEHAVIOR = BehaviorSettingsSchema.parse({});
+const DEFAULT_FORSIDE = ForsideSettingsSchema.parse({});
 const DEFAULT_DATA = DataSettingsSchema.parse({});
 const DEFAULT_SIDEBAR = SidebarSettingsSchema.parse({});
 
@@ -81,6 +86,7 @@ export const FeatureSettingsSchema = z.object({
   interface: InterfaceSettingsSchema.default(DEFAULT_INTERFACE),
   schedule: ScheduleSettingsSchema.default(DEFAULT_SCHEDULE),
   behavior: BehaviorSettingsSchema.default(DEFAULT_BEHAVIOR),
+  forside: ForsideSettingsSchema.default(DEFAULT_FORSIDE),
   data: DataSettingsSchema.default(DEFAULT_DATA),
   sidebar: SidebarSettingsSchema.default(DEFAULT_SIDEBAR),
 });
@@ -190,7 +196,7 @@ export function isSyncSuppressed(): boolean {
 
 /**
  * Update a single setting value.
- * @param category - The settings category (visual, schedule, pages, behavior, data, sidebar)
+ * @param category - The settings category (visual, schedule, forside, pages, behavior, data, sidebar)
  * @param key - The setting key within the category
  * @param value - The new value
  */
@@ -331,6 +337,11 @@ export function applySettingsSideEffects(
     window.dispatchEvent(new CustomEvent('betterlectio:opgaveDeadlinesToggled'));
   }
 
+  if (prev.forside?.showAktuelInfo !== next.forside?.showAktuelInfo) {
+    changed = true;
+    window.dispatchEvent(new CustomEvent('betterlectio:forsideSettingsChanged'));
+  }
+
   if (prev.behavior?.analyticsOptOut !== next.behavior?.analyticsOptOut) {
     changed = true;
     syncOptOutToExtensionStorage(Boolean(next.behavior?.analyticsOptOut));
@@ -359,7 +370,8 @@ export function applySettingsSideEffects(
       JSON.stringify(prev.sidebar) !== JSON.stringify(next.sidebar) ||
       JSON.stringify(prev.data) !== JSON.stringify(next.data) ||
       JSON.stringify(prev.schedule) !== JSON.stringify(next.schedule) ||
-      JSON.stringify(prev.behavior) !== JSON.stringify(next.behavior)
+      JSON.stringify(prev.behavior) !== JSON.stringify(next.behavior) ||
+      JSON.stringify(prev.forside) !== JSON.stringify(next.forside)
     ) {
       changed = true;
     }

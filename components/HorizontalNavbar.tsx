@@ -47,6 +47,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ScheduleCountdown } from './ScheduleCountdown';
+import { SupabaseAuthDot } from './SupabaseAuthDot';
 import { useTranslation } from '@/lib/i18n';
 import { getCachedProfile, clearLoginState, getViewedEntityId } from '@/lib/profile-cache';
 import { getCachedSchoolDisplayName } from '@/lib/school-storage';
@@ -554,7 +555,10 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
                 </Avatar>
                 <span className="il-horizontal-profile-copy grid min-w-14 max-w-28 leading-none max-[1080px]:hidden">
                   <strong className="truncate text-sm font-semibold">{profileName.split(' ')[0]}</strong>
-                  <small className="mt-0.5 truncate text-xs text-sidebar-foreground/55">{profile?.className}</small>
+                  <small className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-sidebar-foreground/55">
+                    <span className="truncate">{profile?.className}</span>
+                    <SupabaseAuthDot side="bottom" />
+                  </small>
                 </span>
                 <ChevronDown className="size-3.5 opacity-55" />
               </button>

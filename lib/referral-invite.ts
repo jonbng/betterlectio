@@ -3,7 +3,7 @@ import type { StarredPerson } from './findskema-storage';
 import { parsePersonInfo } from './findskema-storage';
 import { classGroupsMatch } from './class-name';
 import { fuzzyMatch, multiWordMatch, normalizeString } from './fuzzy-search';
-import { isActiveStudent } from './active-user';
+import { hasBetterLectio } from './active-user';
 import {
   getPreferredStudentDisplayName,
   getPreferredStudentPictureUrl,
@@ -67,10 +67,7 @@ export function buildReferralInviteCandidates(
     if (studentId === options.userStudentId || candidates.has(id)) continue;
 
     const knownStudent = getStudentFromLookupId(options.studentsMap, id);
-    if (
-      knownStudent
-      && (isActiveStudent(knownStudent, now) || Boolean(knownStudent.app_installed_at))
-    ) {
+    if (knownStudent && hasBetterLectio(knownStudent, now)) {
       continue;
     }
 

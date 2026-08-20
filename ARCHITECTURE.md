@@ -37,6 +37,7 @@ betterlectio/
 │   ├── content.tsx           # Main content script
 │   ├── login.content.tsx     # Login page redesign
 │   ├── hide-flash.content.ts # FOUC prevention + CSS layer wrapping
+│   ├── elevfeedback-frame.content.ts # document_start chrome strip for Elevfeedback editor iframe
 │   ├── session-renew.content.ts # Blocks session timeout popup
 │   ├── redirect-forside.content.ts # Redirects default.aspx to forside.aspx
 │   └── background.ts         # Background service worker
@@ -69,6 +70,8 @@ Content Scripts (inject into lectio.dk pages)
 ├── hide-flash.content.ts  [document_start]
 │   ├── Hides page until custom UI is ready (FOUC)
 │   └── Wraps Lectio CSS in @layer lectio (cascade layers)
+├── elevfeedback-frame.content.ts  [document_start, all_frames]
+│   └── If `window.name === bl-elevfeedback-editor`, hide Lectio chrome before first paint
 └── content.tsx            [document_idle]
     └── Renders custom UI wrapper, moves original DOM
 ```
@@ -154,8 +157,8 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 |-----------|---------|
 | `AppSidebar.tsx` | Default custom sidebar with collapsible sections and Supabase-first profile identity |
 | `HorizontalNavbar.tsx` | Opt-in desktop global bar with setting-aware primary links, active More menu, adaptive quick-action overflow/tooltips, history-aware entity back links, simplified native context titles, compact countdown, and 110rem rails aligned with the wide Forside canvas |
-| `AppOverlays.tsx` | Navigation-independent Settings, onboarding, activity/private-appointment dialogs, and assignment sheet |
-| `OnboardingWizard.tsx` | First-run setup with a visual navigation-layout choice; sidebar is recommended/default, while the Lectio-like top menu remains opt-in and is applied on completion |
+| `AppOverlays.tsx` | Navigation-independent Settings, onboarding, activity/private-appointment dialogs, assignment sheet, and Elevfeedback editor overlay |
+| `OnboardingWizard.tsx` | First-run setup with a visual navigation-layout choice; sidebar is recommended/default, while the Lectio-like top menu remains opt-in and is applied on completion. Includes a short mobile-app QR step (same tracked `/download/app?u=` link as the drawer/invite) skipped when `app_installed_at` is set. |
 | `lib/lectio-navigation.ts` | Captures native master/context rows before the original DOM is moved; preserves page/entity-specific link sets and active states |
 | `SettingsModal.tsx` | Settings: appearance, behavior, sidebar toggles, subject mappings, design playground, about |
 | `ReferralInviteDialog.tsx` | Compact searchable invite picker backed by a detached Lectio compose session; pinned/class defaults, active-user filtering, and safe one-click individual sends |
@@ -173,7 +176,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 | `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context, optional BL badge, Supabase-first name/avatar |
 | `lib/supabase/student-lookup.ts` | `useSchoolStudents` hook (Map for O(1) lookups), `getStudentIdFromPersonId`, lookup-ID-based name/avatar resolution, search aliases, `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
-| `lib/class-name.ts` | Class-name transforms/matchers for grade codes with 1-2 alphanumeric suffixes, chained dotted, prefixed/suffixless variants. `normalizeClassCode` strips Lectio hold IDs like `t25htxvx_1vx` to the trailing class code |
+| `lib/class-name.ts` | Class-name transforms/matchers for grade codes, dotted/hyphenated variants, prefixed codes, and named classes (`BShannon`). `normalizeClassCode` strips Lectio hold IDs like `t25htxvx_1vx` to the trailing class code |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
 | `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache + shared in-flight/TTL-cached dropdown loader |
@@ -181,7 +184,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 
 **Data fetching:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). Dropdown loader is shared with in-flight dedupe.
 
-**Class codes:** Schools use single-letter (`1x`), two-character alphanumeric (`2hf`, `2zq`), numeric (`1.4`), chained dotted (`10.st.kl.2`), letter-prefixed (`L2d`, `S2x`), suffixless prefixed (`IB1`). Some schedules expose Lectio hold IDs like `t25htxvx_1vx`; `normalizeClassCode` peels to the trailing class. Always use `lib/class-name.ts` before comparing against year-based dropdown entries (`2025x`, `2025zq`, `2025.4`, `L2025d`, `IB2025`).
+**Class codes:** Schools use single-letter (`1x`), two-character alphanumeric (`2hf`, `2zq`), numeric (`1.4`), chained dotted (`10.st.kl.2`), letter-prefixed (`L2d`, `S2x`), suffixless prefixed (`IB1`), hyphenated (`3hx-u`), and named classes with no grade digit (`BShannon`, `BHamilton`, `Epsilon`). Some schedules expose Lectio hold IDs like `t25htxvx_1vx`; `normalizeClassCode` peels to the trailing class. Always use `lib/class-name.ts` before comparing against year-based dropdown entries (`2025x`, `2025zq`, `2025.4`, `L2025d`, `IB2025`).
 
 **Student identity resolution:** Prefer `students.name` for display, keep Lectio names as aliases/search terms. Pictures: `custom_pfp_url` → `lectio_pfp_url` → Lectio/context-card image fetch. Helpers in `lib/supabase/student-lookup.ts` accept both raw `elevid` and prefixed lookup IDs (`S727...`) so message names/avatars, FindSkema, member grids, group submissions, sidebar/profile stay consistent.
 
@@ -189,10 +192,16 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 
 | File | Purpose |
 |------|---------|
-| `ActivityClassModal.tsx` | In-place modal for activity details. Renders note, lektier, presentation, øvrigt indhold, related links, hold navigation |
+| `ActivityClassModal.tsx` | Activity detail sheet. Renders note, lektier, presentation, øvrigt indhold, Elevfeedback, related links, hold navigation |
+| `ActivityClassFullModal.tsx` | Wider activity modal variant; same Elevfeedback section as the sheet |
+| `ElevfeedbackSection.tsx` | Read-only Elevfeedback cards (teacher then student). Write/edit opens the iframe overlay. Supabase-first student names |
+| `ElevfeedbackEditorOverlay.tsx` | Chrome-stripped same-origin iframe of Lectio's LC/CKEditor Elevfeedback editor (`name=bl-elevfeedback-editor`). Hides master menu/subnav/entity nav before first paint via `elevfeedback-frame.content.ts`. Auto-Rediger, dirty close, refetch on save. Do not reimplement `LCDocumentEditor` or load via srcdoc. |
 | `PrivatAftaleDialog.tsx` | Inline create/edit private appointments. Triggered from toolbar (create) or brick click (edit). ASP.NET form tokens, hidden iframe POST. Edit mode adds delete |
 | `ScheduleToolbar.tsx` | Custom toolbar: week nav, view mode toggle, calendar link, private appointment trigger, print menu |
-| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content, presentation blocks (`ACP*`), øvrigt indhold, school-scoped cache. Special homework shapes: heading wrapping single `<a>` becomes `primaryLink`; body with single `<img>` becomes `image` (constrained click-to-enlarge). |
+| `lib/activity-detail.ts` | Fetch/parse `aktivitetforside2.aspx` with rich lektie content, presentation blocks (`ACP*`), øvrigt indhold, Elevfeedback tab/TOC ref, school-scoped fetch. Special homework shapes: heading wrapping single `<a>` becomes `primaryLink`; body with single `<img>` becomes `image` (constrained click-to-enlarge). |
+| `lib/elevfeedback.ts` | Fetch/parse `lectab=elevindhold` view HTML (do not use `ensureActivityDoc`). Events: `betterlectio:openElevfeedbackEditor`, `betterlectio:elevfeedback-updated` |
+| `lib/elevfeedback-frame.ts` | Iframe chrome-strip CSS/DOM: hide master menu, page header/subnav, entity nav, TOC; relocate **Nyt**; hide siblings of `.ls-texteditor-container`. `window.name` survives Gem/Nyt postbacks. |
+| `lib/ckeditor-dark.ts` | Dark-mode CSS injection into CKEditor wysiwyg iframes |
 | `components/Lightbox.tsx` | Shared image/PDF overlay viewer. Used by `ActivityClassModal`/`ActivityClassFullModal` and `BeskederThreadView`. PDFs fetched as blobs (`credentials: 'include'`) so `Content-Disposition: attachment` doesn't force download. Exports `LightboxItem`, `extensionFromUrlOrName()`, `lightboxKindForExtension()`. |
 | `lib/privat-aftale.ts` | Fetch/parse `privat_aftale.aspx`, extract ASP.NET tokens, submit create/delete via hidden iframe POST |
 | `lib/brick-tooltip.ts` | Schedule brick hover tooltip with async-enriched content, fetched presentation previews |
@@ -274,7 +283,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 | File | Purpose |
 |------|---------|
 | `ForsideGreeting.tsx` | Time-based greeting, live clock, Danish date formatting |
-| `ForsideDashboard.tsx` | Redesigned forside with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides original 4 cards, and renders a container-responsive 1/2-col grid with priority indicators, hold colors, urgency bars, and Supabase-first names/avatars. Other native dashboard islands (e.g. Registreringer) are parsed via `parseGenericIslands()` and rendered through `GenericCard`. `enhanceForsideSchedule()` creates a centered `#il-forside-layout` inside the shared content scroller: compact dashboard work area left and a sticky, primary day schedule right in both navigation modes. The canvas caps at 110rem; the schedule track grows from 30rem toward 42rem and near-viewport height, then page-container queries stack it when the actual content area becomes narrow. |
+| `ForsideDashboard.tsx` | Redesigned forside with 4 cards (aktuel info, lektier, opgaver, beskeder). Parses native DOM, hides original 4 cards, and renders a container-responsive 1/2-col grid with priority indicators, hold colors, urgency bars, and Supabase-first names/avatars. Aktuel information is optional via `forside.showAktuelInfo` (Settings → Appearance → Home, default on) and updates live through `betterlectio:forsideSettingsChanged`. Other native dashboard islands (e.g. Registreringer) are parsed via `parseGenericIslands()` and rendered through `GenericCard`. `enhanceForsideSchedule()` creates a centered `#il-forside-layout` inside the shared content scroller: compact dashboard work area left and a sticky, primary day schedule right in both navigation modes. The canvas caps at 110rem; the schedule track grows from 30rem toward 42rem and near-viewport height, then page-container queries stack it when the actual content area becomes narrow. |
 | `ForsideOpgaverCard.tsx` | Forside opgaver parser (reused by ForsideDashboard) |
 | `MembersPage.tsx` | Card grid for hold/klasse members (teachers sorted first) |
 | `lib/members-fetch.ts` | Fetch/parse `members.aspx` (explicit credentialed requests) |

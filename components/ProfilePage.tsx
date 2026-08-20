@@ -23,8 +23,8 @@ import { resolveClassId } from '@/lib/resolve-class-id';
 import { PersonCard } from './PersonCard';
 import { getHoldHue, getFullHoldDisplayName } from '@/lib/hold-mapping';
 import { cn } from '@/lib/utils';
-import { useSchoolStudents, getStudentIdFromPersonId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
-import { isActiveStudent } from '@/lib/active-user';
+import { useSchoolStudents, getStudentFromLookupId, formatDanishBirthdate } from '@/lib/supabase/student-lookup';
+import { hasBetterLectio as studentHasBetterLectio } from '@/lib/active-user';
 import { buildViewedEntityTitle, setCustomPageTitle } from '@/lib/page-titles';
 import { getSettings } from '@/lib/settings-storage';
 import { formatInstagramHandle, getInstagramProfileUrl } from '@/lib/instagram';
@@ -185,24 +185,35 @@ export function ProfilePage({
   // Rich profile data comes through the privacy boundary RPC. In particular,
   // birthdate is absent unless this student explicitly enabled show_birthday.
   const [student, setStudent] = useState<PublicStudentProfile | null>(null);
+  const [profileStatus, setProfileStatus] = useState<'loading' | 'ready'>('loading');
   useEffect(() => {
     let cancelled = false;
     setStudent(null);
+    setProfileStatus('loading');
     getStudentProfile(entityId)
       .then(profile => {
-        if (!cancelled) setStudent(profile);
+        if (!cancelled) {
+          setStudent(profile);
+          setProfileStatus('ready');
+        }
       })
       .catch(() => {
-        if (!cancelled) setStudent(null);
+        if (!cancelled) {
+          setStudent(null);
+          setProfileStatus('ready');
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [entityId]);
-  const { studentsMap } = useSchoolStudents(schoolId, { refreshOnMount: true });
+  const { studentsMap, isLoading: studentsLoading } = useSchoolStudents(schoolId, { refreshOnMount: true });
+  const schoolmate = getStudentFromLookupId(studentsMap, entityId);
 
   const config = ENTITY_CONFIG[type] || ENTITY_CONFIG.student;
-  const hasBetterLectio = !!(isActiveStudent(student) || student?.app_installed_at);
+  const hasBetterLectio = studentHasBetterLectio(student) || studentHasBetterLectio(schoolmate);
+  const presenceSettled = profileStatus === 'ready' && !studentsLoading;
+  const showMissingBetterLectio = presenceSettled && !hasBetterLectio;
   const displayName = student?.name?.trim() || name;
   const firstName = displayName.split(' ')[0];
   const effectivePictureUrl = student?.custom_pfp_url || pictureUrl;
@@ -623,14 +634,14 @@ export function ProfilePage({
                     )}
                   </div>
                 </>
-            ) : (
+            ) : showMissingBetterLectio ? (
               <div className="flex items-start gap-3 mt-1 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
                 <UserPlus className="size-5 text-muted-foreground/70 shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground leading-relaxed">
                   Denne elev har ikke BetterLectio endnu.
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -767,13 +778,9 @@ export function ProfilePage({
                     onClick={() => handleMemberClick(member)}
                     schoolId={schoolId}
                     studentsMap={studentsMap}
-                    hasBetterLectio={(() => {
-                      const sid = getStudentIdFromPersonId(member.id);
-                      if (!sid || !studentsMap) return false;
-                      const s = studentsMap.get(sid);
-                      if (!s) return false;
-                      return isActiveStudent(s) || !!s.app_installed_at;
-                    })()}
+                    hasBetterLectio={studentHasBetterLectio(
+                      getStudentFromLookupId(studentsMap, member.id),
+                    )}
                   />
                 );
               })}

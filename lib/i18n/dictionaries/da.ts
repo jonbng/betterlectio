@@ -41,6 +41,9 @@ export const da = {
       endOfModuleEffectDescription: 'Fremhæv nedtællingen i sidebaren de sidste 5 minutter af en lektion og udløs konfetti når modulet slutter',
       opgaveDeadlinesLabel: 'Opgavefrister i skemaet',
       opgaveDeadlinesDescription: 'Vis afleveringsfrister som små bricks i skemaet på det tidspunkt opgaven skal afleveres. Klik for at se detaljer.',
+      forsideTitle: 'Forside',
+      aktuelInfoLabel: 'Aktuel information',
+      aktuelInfoDescription: 'Vis kortet med aktuel information på forsiden',
     },
     sidebar: {
       layoutTitle: 'Navigationslayout',
@@ -437,6 +440,13 @@ export const da = {
       hint: 'Alt kan ændres senere i indstillinger.',
       loading: 'Din profil opsættes automatisk. Du kan redigere den snart.',
     },
+    mobileApp: {
+      title: 'Vi har også en app',
+      subtitle:
+        'Basically gratis Lectio+: skema, lektier og beskeder i lommen. Scan QR-koden med din telefon for at hente den.',
+      hint: 'Valgfrit. Du kan altid hente den senere.',
+      scanHint: 'Tilgængelig i App Store og Google Play',
+    },
     feedback: {
       title: 'Én sidste ting',
       subtitle: 'BetterLectio er et hobbyprojekt, og din feedback gør en kæmpe forskel.',
@@ -484,6 +494,15 @@ export const da = {
     statusCancelled: 'Aflyst',
     statusChanged: 'Ændret',
     statusMoved: 'Flyttet',
+    elevfeedback: 'Elevfeedback',
+    elevfeedbackEmpty: 'Skriv noter eller svar på arbejdsspørgsmål fra læreren.',
+    elevfeedbackWrite: 'Skriv',
+    elevfeedbackEdit: 'Rediger',
+    elevfeedbackTeacher: 'Lærer',
+    elevfeedbackEditorAria: 'Rediger elevfeedback',
+    elevfeedbackCloseEditor: 'Luk editor',
+    elevfeedbackLoading: 'Henter elevfeedback...',
+    elevfeedbackLoadError: 'Kunne ikke hente elevfeedback.',
   },
   privatAftale: {
     ariaLabel: 'Privat aftale',

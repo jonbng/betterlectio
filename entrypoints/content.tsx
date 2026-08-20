@@ -69,6 +69,7 @@ import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
 import { isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
 import { isBypassActive, disableBypass, getBypassRemainingMs } from "@/lib/bypass-redesigns";
+import { watchCKEditorDarkMode } from "@/lib/ckeditor-dark";
 import { t as tLocale } from "@/lib/i18n/t";
 import { toast } from "sonner";
 import {
@@ -1275,45 +1276,7 @@ function removeActivityTitleTooltip() {
 /** Inject dark mode styles into CKEditor iframe bodies */
 function initCKEditorDarkMode() {
   if (!document.documentElement.classList.contains("dark")) return;
-
-  const darkCSS = `
-    body {
-      background: oklch(0.16 0.004 285) !important;
-      color: oklch(0.93 0.003 90) !important;
-      caret-color: oklch(0.93 0.003 90) !important;
-    }
-    body a { color: oklch(0.65 0.16 265) !important; }
-  `;
-
-  function injectIntoEditor(iframe: HTMLIFrameElement) {
-    try {
-      const doc = iframe.contentDocument;
-      if (!doc || doc.getElementById("bl-cke-dark")) return;
-      const style = doc.createElement("style");
-      style.id = "bl-cke-dark";
-      style.textContent = darkCSS;
-      doc.head.appendChild(style);
-    } catch {
-      /* cross-origin — ignore */
-    }
-  }
-
-  // Watch for CKEditor iframes appearing (they're injected after page load)
-  const observer = new MutationObserver(() => {
-    document.querySelectorAll<HTMLIFrameElement>(".cke_wysiwyg_frame").forEach((iframe) => {
-      if (iframe.contentDocument?.getElementById("bl-cke-dark")) return;
-      iframe.addEventListener("load", () => injectIntoEditor(iframe), { once: true });
-      // Also try immediately (iframe may already be loaded)
-      injectIntoEditor(iframe);
-    });
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  // Also handle already-existing editors
-  document.querySelectorAll<HTMLIFrameElement>(".cke_wysiwyg_frame").forEach((iframe) => {
-    iframe.addEventListener("load", () => injectIntoEditor(iframe), { once: true });
-    injectIntoEditor(iframe);
-  });
+  watchCKEditorDarkMode(document);
 }
 
 function highlightTodayInSchedule() {

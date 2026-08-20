@@ -5,6 +5,7 @@ export type ActivityFields = {
   last_seen_at?: string | null;
   extension_installed_at?: string | null;
   extension_uninstalled_at?: string | null;
+  app_installed_at?: string | null;
 };
 
 /**
@@ -21,4 +22,15 @@ export function isActiveStudent(s: ActivityFields | null | undefined, now = Date
   const t = Date.parse(ts);
   if (Number.isNaN(t)) return false;
   return now - t <= ACTIVE_WINDOW_MS;
+}
+
+/**
+ * Whether this student currently has BetterLectio: an active extension
+ * heartbeat, or the native app (which does not yet write last_seen_at).
+ */
+export function hasBetterLectio(
+  s: ActivityFields | null | undefined,
+  now = Date.now(),
+): boolean {
+  return isActiveStudent(s, now) || Boolean(s?.app_installed_at);
 }

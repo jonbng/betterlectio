@@ -874,6 +874,16 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
               </div>
             </SettingsSection>
 
+            <SettingsSection title={t('settings.appearance.forsideTitle')}>
+              <FeatureToggle
+                id="forside-aktuel-info"
+                label={t('settings.appearance.aktuelInfoLabel')}
+                description={t('settings.appearance.aktuelInfoDescription')}
+                enabled={settings.forside?.showAktuelInfo ?? true}
+                onChange={(v) => handleSettingChange('forside', 'showAktuelInfo', v)}
+              />
+            </SettingsSection>
+
             <SettingsSection title={t('settings.appearance.scheduleTitle')}>
               <FeatureToggle
                 id="schedule-today"

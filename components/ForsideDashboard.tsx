@@ -10,6 +10,7 @@ import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensure
 import { nameToHue } from '@/lib/beskeder-helpers';
 import type { ForsideOpgave } from '@/components/ForsideOpgaverCard';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
+import { getSettings } from '@/lib/settings-storage';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -970,6 +971,19 @@ export function ForsideDashboard({
   schoolId,
   extras = [],
 }: DashboardProps) {
+  const [, setSettingsTick] = useState(0);
+  useEffect(() => {
+    const onChange = () => setSettingsTick((n) => n + 1);
+    window.addEventListener('betterlectio:forsideSettingsChanged', onChange);
+    window.addEventListener('betterlectio:settings-hydrated', onChange);
+    return () => {
+      window.removeEventListener('betterlectio:forsideSettingsChanged', onChange);
+      window.removeEventListener('betterlectio:settings-hydrated', onChange);
+    };
+  }, []);
+
+  const showAktuelInfo = getSettings().forside?.showAktuelInfo ?? true;
+
   // Alternate extras between left and right columns so they fill in masonry-style
   const leftExtras = extras.filter((_, i) => i % 2 === 0);
   const rightExtras = extras.filter((_, i) => i % 2 === 1);
@@ -978,9 +992,11 @@ export function ForsideDashboard({
     <div className="il-forside-dashboard-grid grid grid-cols-1 gap-6 pb-10">
       {/* Left column */}
       <div className="flex flex-col gap-6">
-        <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '0ms' }}>
-          <AktuelInfoCard entries={aktuelInfo} schoolId={schoolId} />
-        </div>
+        {showAktuelInfo && (
+          <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '0ms' }}>
+            <AktuelInfoCard entries={aktuelInfo} schoolId={schoolId} />
+          </div>
+        )}
         <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '60ms' }}>
           <LektierCard entries={lektier} schoolId={schoolId} />
         </div>

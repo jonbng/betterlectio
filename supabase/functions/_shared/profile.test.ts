@@ -65,6 +65,15 @@ Deno.test("accepts StudPic when id comes before src", () => {
   )
 })
 
+Deno.test("parses named class codes without a grade digit", () => {
+  const schedule =
+    '<div id="s_m_HeaderContent_MainTitle">Eleven Thor Sakuragi Frigaard(k), BShannon - Skema</div>' +
+    '<div data-lectioContextCard="S81180842864"></div>'
+  const parsed = parseScheduleIdentity(schedule)
+  assertEquals(parsed.fullName, "Thor Sakuragi Frigaard")
+  assertEquals(parsed.className, "BShannon")
+})
+
 Deno.test("parses identity from MainTitle on non-Skema pages", () => {
   const schedule =
     '<div id="s_m_HeaderContent_MainTitle" data-lectioContextCard="S99">' +

@@ -30,6 +30,8 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import { MembersPanel } from "@/components/ActivityMembersPanel";
+import { ElevfeedbackSection } from "@/components/ElevfeedbackSection";
+import { activityTabsExcludingElevfeedback } from "@/lib/elevfeedback";
 import {
   Lightbox,
   type LightboxItem,
@@ -239,7 +241,8 @@ export function ActivityClassModal({ open, url, onOpenChange, onSwapViewMode }: 
     (detail?.homework.length ?? 0) > 0 ||
     (detail?.presentation?.length ?? 0) > 0 ||
     (detail?.otherContent?.length ?? 0) > 0 ||
-    (detail?.related.length ?? 0) > 0;
+    (detail?.related.length ?? 0) > 0 ||
+    !!detail?.elevfeedback;
   const metaLine = [detail?.meta.dateText, detail?.meta.timeText, detail?.meta.moduleText]
     .filter(Boolean)
     .join(" \u00b7 ");
@@ -356,7 +359,7 @@ export function ActivityClassModal({ open, url, onOpenChange, onSwapViewMode }: 
                     {detail.phase.title}
                   </a>
                 ) : null}
-                {detail.tabs
+                {activityTabsExcludingElevfeedback(detail.tabs)
                   .filter((tab) => !tab.active && tab.url)
                   .map((tab) => (
                     <a
@@ -498,6 +501,10 @@ export function ActivityClassModal({ open, url, onOpenChange, onSwapViewMode }: 
                     ))}
                   </div>
                 </section>
+              ) : null}
+
+              {detail.elevfeedback ? (
+                <ElevfeedbackSection refInfo={detail.elevfeedback} studentsMap={studentsMap} />
               ) : null}
 
               {detail.related.length > 0 ? (
