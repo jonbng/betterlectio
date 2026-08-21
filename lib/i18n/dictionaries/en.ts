@@ -452,8 +452,9 @@ export const en = {
     feedback: {
       title: 'One last thing',
       subtitle: 'BetterLectio is a hobby project, and your feedback makes a huge difference.',
-      feedbackTitle: 'Give feedback',
-      feedbackBody: 'Found a bug or have an idea? Use the "Give Feedback" button in the bottom right. It\'s always there.',
+      feedbackTitle: 'Write to BetterLectio',
+      feedbackBody:
+        'Found a bug or have an idea? Use the "Feedback" button in the bottom right. It goes to us — not Elevfeedback.',
       shareTitle: 'Tell your friends',
       shareBody: "Know someone not using BetterLectio yet? Tell them about it. The more of us there are, the better it gets.",
     },
@@ -1133,5 +1134,17 @@ export const en = {
     disclaimerTitle: 'Just a friendly heads-up',
     disclaimerBody:
       "Always double-check your exam times in Lectio. We can't be held responsible for mistakes.",
+  },
+  feedbackWidget: {
+    fab: 'Feedback',
+    fabClose: 'Close',
+    openAria: 'Write to BetterLectio',
+    closeAria: 'Close',
+    tooltip: 'Write to the BetterLectio team',
+    title: 'Write to BetterLectio',
+    subtitle: 'Not Elevfeedback — only we can see this.',
+    doneTitle: 'Thanks for the note',
+    doneBody: 'We got it.',
+    close: 'Close',
   },
 } as const satisfies DaDictionary;

@@ -176,7 +176,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 | `PersonCard.tsx` | Reusable card with lazy-loaded pictures, star toggle, type badges, navigation context, optional BL badge, Supabase-first name/avatar |
 | `lib/supabase/student-lookup.ts` | `useSchoolStudents` hook (Map for O(1) lookups), `getStudentIdFromPersonId`, lookup-ID-based name/avatar resolution, search aliases, `formatDanishBirthdate` |
 | `ViewingScheduleHeader.tsx` | Shows viewed entity with star, type badge, back link, teacher name lookup, expandable members panel |
-| `lib/class-name.ts` | Class-name transforms/matchers for grade codes, dotted/hyphenated variants, prefixed codes, and named classes (`BShannon`). `normalizeClassCode` strips Lectio hold IDs like `t25htxvx_1vx` to the trailing class code |
+| `lib/class-name.ts` | Class-name transforms/matchers for grade codes, dotted/hyphenated/slash-suffixed variants (`3hx-u`, `buEUX2601/b`), prefixed codes, and named classes (`BShannon`). `normalizeClassCode` strips Lectio hold IDs like `t25htxvx_1vx` to the trailing class code |
 | `lib/findskema-storage.ts` | Starred people, recents, picture cache, canonical schedule URL generation |
 | `lib/fuzzy-search.ts` | Danish text normalization (ae/o/a), multi-word matching, scoring |
 | `lib/findskema-cache.ts` | Resolves AvanceretSkema afdeling/subcache + shared in-flight/TTL-cached dropdown loader |
@@ -184,7 +184,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 
 **Data fetching:** `subcache` must come from Lectio's `AvanceretSkema_<afdeling>_<subcache>` dataset key, not `new Date().getFullYear()`. Type mapping uses real prefixes (`SC*`=stamklasser, `RO*`=lokaler, `RE*`=ressourcer, `HE*`=hold, `GE*`=grupper). Dropdown loader is shared with in-flight dedupe.
 
-**Class codes:** Schools use single-letter (`1x`), two-character alphanumeric (`2hf`, `2zq`), numeric (`1.4`), chained dotted (`10.st.kl.2`), letter-prefixed (`L2d`, `S2x`), suffixless prefixed (`IB1`), hyphenated (`3hx-u`), and named classes with no grade digit (`BShannon`, `BHamilton`, `Epsilon`). Some schedules expose Lectio hold IDs like `t25htxvx_1vx`; `normalizeClassCode` peels to the trailing class. Always use `lib/class-name.ts` before comparing against year-based dropdown entries (`2025x`, `2025zq`, `2025.4`, `L2025d`, `IB2025`).
+**Class codes:** Schools use single-letter (`1x`), two-character alphanumeric (`2hf`, `2zq`), numeric (`1.4`), chained dotted (`10.st.kl.2`), letter-prefixed (`L2d`, `S2x`), suffixless prefixed (`IB1`), hyphenated (`3hx-u`), slash-suffixed vocational classes (`buEUX2601/b`), and named classes with no grade digit (`BShannon`, `BHamilton`, `Epsilon`). Some schedules expose Lectio hold IDs like `t25htxvx_1vx`; `normalizeClassCode` peels to the trailing class. Always use `lib/class-name.ts` before comparing against year-based dropdown entries (`2025x`, `2025zq`, `2025.4`, `L2025d`, `IB2025`).
 
 **Student identity resolution:** Prefer `students.name` for display, keep Lectio names as aliases/search terms. Pictures: `custom_pfp_url` → `lectio_pfp_url` → Lectio/context-card image fetch. Helpers in `lib/supabase/student-lookup.ts` accept both raw `elevid` and prefixed lookup IDs (`S727...`) so message names/avatars, FindSkema, member grids, group submissions, sidebar/profile stay consistent.
 

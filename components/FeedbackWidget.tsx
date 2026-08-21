@@ -24,6 +24,7 @@ import {
   captureScreenSnapshot,
 } from '@/lib/screen-capture';
 import { capture, getDistinctId } from '@/lib/posthog';
+import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -108,6 +109,7 @@ export function FeedbackWidget({
   browserInfo,
   lectioVersion,
 }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<FeedbackCategory>('bug');
   const [message, setMessage] = useState('');
@@ -345,10 +347,10 @@ export function FeedbackWidget({
                 id="bl-feedback-title"
                 className="text-sm font-semibold text-foreground m-0"
               >
-                Tak for din feedback
+                {t('feedbackWidget.doneTitle')}
               </h2>
               <p className="text-xs text-muted-foreground m-0">
-                Vi har modtaget din besked.
+                {t('feedbackWidget.doneBody')}
               </p>
               {error ? (
                 <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 m-0 max-w-[280px]">
@@ -361,7 +363,7 @@ export function FeedbackWidget({
               onClick={() => setOpen(false)}
               className="mt-1 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Luk
+              {t('feedbackWidget.close')}
             </button>
           </div>
         ) : (
@@ -373,10 +375,10 @@ export function FeedbackWidget({
                   id="bl-feedback-title"
                   className="text-sm font-semibold text-foreground m-0"
                 >
-                  Giv feedback
+                  {t('feedbackWidget.title')}
                 </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground m-0">
-                  Kun vi kan se det.
+                  {t('feedbackWidget.subtitle')}
                 </p>
               </div>
               <button
@@ -385,7 +387,7 @@ export function FeedbackWidget({
                   if (!busy) setOpen(false);
                 }}
                 className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/70 transition-[color,background-color] duration-150 hover:bg-muted hover:text-foreground"
-                aria-label="Luk"
+                aria-label={t('feedbackWidget.closeAria')}
               >
                 <X className="size-3.5" />
               </button>
@@ -576,8 +578,8 @@ export function FeedbackWidget({
         }}
         aria-expanded={open}
         aria-controls="bl-feedback-panel"
-        aria-label={open ? 'Luk feedback' : 'Giv feedback'}
-        title="Feedback"
+        aria-label={open ? t('feedbackWidget.closeAria') : t('feedbackWidget.openAria')}
+        title={t('feedbackWidget.tooltip')}
         className={cn(
           'pointer-events-auto flex h-12 items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg',
           'pl-3.5 pr-4 ring-1 ring-foreground/10',
@@ -594,8 +596,8 @@ export function FeedbackWidget({
         ) : (
           <MessageCircle className="size-5 shrink-0" />
         )}
-        <span className="text-sm font-medium tracking-tight">
-          {open ? 'Luk' : 'Feedback'}
+        <span className="whitespace-nowrap text-sm font-medium tracking-tight">
+          {open ? t('feedbackWidget.fabClose') : t('feedbackWidget.fab')}
         </span>
       </button>
     </div>

@@ -12,7 +12,20 @@ import { getCanonicalHoldKey } from './hold-mapping';
 
 describe('looksLikeAcademicClassPrefix', () => {
   test('accepts grade-based and prefixed class codes', () => {
-    for (const code of ['1x', '2ba', '2hf', '2zq', '1.4', 'L2d', 'S2x', 'IB1', '10.st.kl.2', '3hx-u']) {
+    for (const code of [
+      '1x',
+      '2ba',
+      '2hf',
+      '2zq',
+      '1.4',
+      'L2d',
+      'S2x',
+      'IB1',
+      '10.st.kl.2',
+      '3hx-u',
+      'buEUX2601/b',
+      'toEUD2502/a',
+    ]) {
       assert.equal(looksLikeAcademicClassPrefix(code), true, code);
     }
   });
@@ -55,6 +68,10 @@ describe('getCanonicalHoldKey', () => {
     assert.equal(getCanonicalHoldKey('BHamilton MA'), 'ma');
     assert.equal(getCanonicalHoldKey('1x MA'), 'ma');
     assert.equal(getCanonicalHoldKey('3hx-u DA'), 'da');
+    assert.equal(getCanonicalHoldKey('buEUX2601/b DA'), 'da');
+    assert.equal(getCanonicalHoldKey('buEUX2601/b MA'), 'ma');
+    assert.equal(getCanonicalHoldKey('buEUX2601/b da/b'), 'da');
+    assert.equal(getCanonicalHoldKey('toEUD2502/a MA'), 'ma');
     assert.equal(getCanonicalHoldKey('1x IF'), 'it');
     assert.equal(getCanonicalHoldKey('IF'), 'it');
     assert.equal(getCanonicalHoldKey('1x IT'), 'it');
@@ -62,5 +79,7 @@ describe('getCanonicalHoldKey', () => {
     assert.equal(getCanonicalHoldKey('INF'), 'it');
     assert.equal(getCanonicalHoldKey('1x IH'), 'ih');
     assert.equal(getCanonicalHoldKey('Idéhistorie'), 'ih');
+    assert.equal(getCanonicalHoldKey('Kommunikation/IT'), 'kit');
+    assert.equal(getCanonicalHoldKey('KIT'), 'kit');
   });
 });

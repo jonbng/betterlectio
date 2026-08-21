@@ -2657,6 +2657,10 @@ html {
 
   /* ── Opgave deadline bricks ───────────────────────────────── */
 
+  /* Do NOT set font-size on the brick itself. Lectio positions the
+     schedule with em-based inline `top`/`height`; changing font-size
+     on the positioned element would scale those offsets and place
+     deadlines at the wrong time. Put type size on inner text instead. */
   #il-original-content .il-deadline-brick {
     position: absolute;
     left: 0.55em;
@@ -2671,7 +2675,6 @@ html {
     background: oklch(0.97 0.02 var(--brick-hue, 265));
     border-left: 3px solid oklch(0.55 0.18 var(--brick-hue, 265));
     color: oklch(0.32 0.06 var(--brick-hue, 265));
-    font-size: 0.72rem;
     line-height: 1;
     text-decoration: none;
     cursor: pointer;
@@ -2704,7 +2707,7 @@ html {
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
   }
 
   #il-original-content .il-deadline-brick__time::before {
@@ -2720,6 +2723,7 @@ html {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-weight: 500;
+    font-size: 0.72rem;
   }
 
   /* Missing assignments — red accent */

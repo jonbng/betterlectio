@@ -1533,7 +1533,6 @@ function injectDeadlineBricks() {
   };
 
   const brickHeightEm = 1.6;
-  const endEm = cal.startEm + (cal.endMinutes - cal.startMinutes) * cal.emPerMin;
 
   // Group entries by ISO date (local) for fast lookup.
   const byDate = new Map<string, OpgaveEntry[]>();
@@ -1564,14 +1563,22 @@ function injectDeadlineBricks() {
 
     bucket.forEach((entry) => {
       const minutes = entry.deadline.getHours() * 60 + entry.deadline.getMinutes();
+      // Keep using the module-derived em/min rate past the last class —
+      // the day column continues until ~20:00, and most deadlines are 21:00.
       let topEm = cal.startEm + (minutes - cal.startMinutes) * cal.emPerMin;
-      let atEdge = false;
+      let atEdge = minutes < cal.startMinutes || minutes > cal.endMinutes;
 
-      if (minutes < cal.startMinutes) {
-        topEm = cal.startEm;
+      const containerHeightEm = parseFloat(container.style.height) || 0;
+      const minTop = 0;
+      const maxTop = containerHeightEm > brickHeightEm
+        ? containerHeightEm - brickHeightEm
+        : topEm;
+
+      if (topEm < minTop) {
+        topEm = minTop;
         atEdge = true;
-      } else if (minutes > cal.endMinutes) {
-        topEm = endEm - brickHeightEm;
+      } else if (containerHeightEm > brickHeightEm && topEm > maxTop) {
+        topEm = maxTop;
         atEdge = true;
       }
 

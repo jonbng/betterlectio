@@ -450,8 +450,9 @@ export const da = {
     feedback: {
       title: 'Én sidste ting',
       subtitle: 'BetterLectio er et hobbyprojekt, og din feedback gør en kæmpe forskel.',
-      feedbackTitle: 'Giv feedback',
-      feedbackBody: 'Har du fundet en fejl eller har en idé? Brug "Give Feedback"-knappen nederst til højre. Den er der altid.',
+      feedbackTitle: 'Skriv til BetterLectio',
+      feedbackBody:
+        'Har du fundet en fejl eller har en idé? Brug "Feedback"-knappen nederst til højre. Den går til os — ikke Elevfeedback.',
       shareTitle: 'Fortæl dine venner',
       shareBody: 'Kender du nogen som ikke bruger BetterLectio endnu? Fortæl dem om det. Jo flere vi er, jo bedre bliver det.',
     },
@@ -1131,6 +1132,18 @@ export const da = {
     disclaimerTitle: 'Lige en venlig påmindelse',
     disclaimerBody:
       'Dobbelttjek altid dine eksamenstider i Lectio. Vi tager forbehold for fejl.',
+  },
+  feedbackWidget: {
+    fab: 'Feedback',
+    fabClose: 'Luk',
+    openAria: 'Skriv til BetterLectio',
+    closeAria: 'Luk',
+    tooltip: 'Skriv til BetterLectio-holdet',
+    title: 'Skriv til BetterLectio',
+    subtitle: 'Ikke Elevfeedback — kun vi kan se det.',
+    doneTitle: 'Tak for beskeden',
+    doneBody: 'Vi har modtaget den.',
+    close: 'Luk',
   },
 } as const;
 

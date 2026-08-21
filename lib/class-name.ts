@@ -16,8 +16,9 @@ const GRADE_PREFIX_RE = new RegExp(`^[${CLASS_LETTER}]*(\\d+)`, 'i');
  * a valid class code, treat that as the canonical class name.
  *
  * Recognized class shapes: `1x`, `2hf`, `2zq`, `1.4`, `L2d`, `S2x`, `IB1`,
- * `10.st.kl.2`, hyphenated `3hx-u`, and named classes with no grade digit
- * (`BShannon`, `BHamilton`, `Epsilon`, `gf`).
+ * `10.st.kl.2`, hyphenated `3hx-u`, slash-suffixed vocational classes
+ * (`buEUX2601/b`), and named classes with no grade digit (`BShannon`,
+ * `BHamilton`, `Epsilon`, `gf`).
  */
 export function normalizeClassCode(value: string): string {
   const trimmed = value.trim();

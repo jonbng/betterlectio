@@ -470,7 +470,7 @@ function isIgnoredHold(holdCode: string): boolean {
 }
 
 function stripSubjectLevelSuffix(token: string): string {
-  return token.replace(/-[a-zæøå]+$/i, '');
+  return token.replace(/(?:-[a-zæøå]+|\/[a-zæøå0-9])$/i, '');
 }
 
 function getDefaultHue(canonicalKey: string): number {
