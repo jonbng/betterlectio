@@ -1,13 +1,15 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import type {
-  SupabaseMessage,
-  SupabaseResponse,
-  Filter,
-  TableName,
-} from '@/lib/supabase/messages';
+import type { SupabaseMessage, SupabaseResponse, Filter, TableName } from '@/lib/supabase/messages';
 import { invalidateTable, writeCache, cacheKey, queryFingerprint } from '@/lib/supabase/cache';
-import { capture, captureException, identify, getDistinctId, isLectioStudentDistinctId, loadOptOutFlag } from '@/lib/posthog';
+import {
+  capture,
+  captureException,
+  identify,
+  getDistinctId,
+  isLectioStudentDistinctId,
+  loadOptOutFlag,
+} from '@/lib/posthog';
 import { queueLifecycleEvent } from '@/lib/posthog-lifecycle';
 import { maybeFinalizeReferral } from '@/lib/referral';
 import {
@@ -16,6 +18,7 @@ import {
   isAuthOwnershipError,
   isExpiredJwtError,
 } from '@/lib/supabase-error-noise';
+import { waitForRealtimeChannelReady } from '@/lib/supabase/realtime-channel-ready';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -37,17 +40,15 @@ const extensionStorage = {
 
 let client: SupabaseClient | null = null;
 let cachedDistinctId: string | null = null;
-let cachedAnalyticsIdentity:
-  | {
-      distinctId: string;
-      properties: {
-        name: string;
-        school_id: number;
-        class_name: string | null;
-        extension_version: string;
-      };
-    }
-  | null = null;
+let cachedAnalyticsIdentity: {
+  distinctId: string;
+  properties: {
+    name: string;
+    school_id: number;
+    class_name: string | null;
+    extension_version: string;
+  };
+} | null = null;
 const UNINSTALL_URL_BASE = 'https://betterlectio.dk/uninstall';
 let lastUninstallStudentId: string | null = null;
 
@@ -161,30 +162,28 @@ async function ensureSessionReady(): Promise<void> {
   }
 }
 
-async function getAnalyticsIdentity(context?: {
-  studentId?: string;
-  schoolId?: string;
-}): Promise<{
-  distinctId: string;
-  properties: {
-    name: string;
-    school_id: number;
-    class_name: string | null;
-    extension_version: string;
-  };
-} | undefined> {
+async function getAnalyticsIdentity(context?: { studentId?: string; schoolId?: string }): Promise<
+  | {
+      distinctId: string;
+      properties: {
+        name: string;
+        school_id: number;
+        class_name: string | null;
+        extension_version: string;
+      };
+    }
+  | undefined
+> {
   if (
-    cachedAnalyticsIdentity
-    && (!context?.studentId || cachedAnalyticsIdentity.distinctId === getDistinctId(context.studentId))
+    cachedAnalyticsIdentity &&
+    (!context?.studentId || cachedAnalyticsIdentity.distinctId === getDistinctId(context.studentId))
   ) {
     return cachedAnalyticsIdentity;
   }
 
   try {
     const supabase = getSupabase();
-    let studentQuery = supabase
-      .from('students')
-      .select('id, name, class_name, school_id');
+    let studentQuery = supabase.from('students').select('id, name, class_name, school_id');
 
     if (context?.studentId) {
       studentQuery = studentQuery.eq('id', context.studentId);
@@ -238,9 +237,7 @@ async function getAnalyticsIdentity(context?: {
 // can swamp the error tracker and fingerprint-collide with genuinely
 // actionable errors.
 function isNonActionablePostgrestError(error: unknown): boolean {
-  const code = typeof (error as { code?: unknown })?.code === 'string'
-    ? (error as { code: string }).code
-    : '';
+  const code = typeof (error as { code?: unknown })?.code === 'string' ? (error as { code: string }).code : '';
   // PGRST116 = "Cannot coerce the result to a single JSON object" — query
   // returned the wrong row count for a single-row accessor.
   return code === 'PGRST116';
@@ -289,38 +286,81 @@ async function captureSupabaseError(
 // on the matching safe projection; rich profiles obtain a consent-masked
 // birthday through get_student_profile() instead.
 const STUDENT_SAFE_COLUMNS = [
-  'android_installed_at', 'app_eligible', 'app_installed_at', 'app_qr_scanned_at', 'class_name',
-  'created_at', 'custom_pfp_approved_at', 'custom_pfp_url', 'description',
-  'dismissed_app_prompt_at', 'extension_installed_at', 'extension_reinstalled_at',
-  'extension_uninstall_feedback', 'extension_uninstall_reason',
-  'extension_uninstalled_at', 'id', 'instagram', 'iphone_installed_at', 'last_seen_at',
-  'lectio_first_name', 'lectio_last_name', 'lectio_pfp_url', 'marked_android_at',
-  'name', 'pfp_hash', 'referral_click_id', 'referral_reward_unlocked_at',
-  'referred_at', 'referred_by', 'school_id', 'show_birthday', 'supabase_id',
+  'android_installed_at',
+  'app_eligible',
+  'app_installed_at',
+  'app_qr_scanned_at',
+  'class_name',
+  'created_at',
+  'custom_pfp_approved_at',
+  'custom_pfp_url',
+  'description',
+  'dismissed_app_prompt_at',
+  'extension_installed_at',
+  'extension_reinstalled_at',
+  'extension_uninstall_feedback',
+  'extension_uninstall_reason',
+  'extension_uninstalled_at',
+  'id',
+  'instagram',
+  'iphone_installed_at',
+  'last_seen_at',
+  'lectio_first_name',
+  'lectio_last_name',
+  'lectio_pfp_url',
+  'marked_android_at',
+  'name',
+  'pfp_hash',
+  'referral_click_id',
+  'referral_reward_unlocked_at',
+  'referred_at',
+  'referred_by',
+  'school_id',
+  'show_birthday',
+  'supabase_id',
 ].join(',');
 
 function defaultSelectForTable(table: string): string {
   return table === 'students' ? STUDENT_SAFE_COLUMNS : '*';
 }
 
-function applyFilters(
-  query: any,
-  filters?: Filter[],
-): any {
+function applyFilters(query: any, filters?: Filter[]): any {
   if (!filters) return query;
   for (const f of filters) {
     switch (f.op) {
-      case 'eq': query = query.eq(f.column, f.value); break;
-      case 'neq': query = query.neq(f.column, f.value); break;
-      case 'gt': query = query.gt(f.column, f.value); break;
-      case 'gte': query = query.gte(f.column, f.value); break;
-      case 'lt': query = query.lt(f.column, f.value); break;
-      case 'lte': query = query.lte(f.column, f.value); break;
-      case 'in': query = query.in(f.column, f.value as unknown[]); break;
-      case 'is': query = query.is(f.column, f.value); break;
-      case 'not.is': query = query.not(f.column, 'is', f.value); break;
-      case 'like': query = query.like(f.column, f.value as string); break;
-      case 'ilike': query = query.ilike(f.column, f.value as string); break;
+      case 'eq':
+        query = query.eq(f.column, f.value);
+        break;
+      case 'neq':
+        query = query.neq(f.column, f.value);
+        break;
+      case 'gt':
+        query = query.gt(f.column, f.value);
+        break;
+      case 'gte':
+        query = query.gte(f.column, f.value);
+        break;
+      case 'lt':
+        query = query.lt(f.column, f.value);
+        break;
+      case 'lte':
+        query = query.lte(f.column, f.value);
+        break;
+      case 'in':
+        query = query.in(f.column, f.value as unknown[]);
+        break;
+      case 'is':
+        query = query.is(f.column, f.value);
+        break;
+      case 'not.is':
+        query = query.not(f.column, 'is', f.value);
+        break;
+      case 'like':
+        query = query.like(f.column, f.value as string);
+        break;
+      case 'ilike':
+        query = query.ilike(f.column, f.value as string);
+        break;
     }
   }
   return query;
@@ -330,19 +370,42 @@ async function handleQuery(msg: Extract<SupabaseMessage, { type: 'bl-sb:query' }
   await ensureSessionReady();
   const supabase = getSupabase();
   const table = String(msg.table);
-  let query: any = supabase.from(table).select(msg.select ?? defaultSelectForTable(table));
-  query = applyFilters(query, msg.filters);
-  if (msg.order) {
-    query = query.order(msg.order.column, { ascending: msg.order.ascending ?? true });
-  }
-  if (msg.limit) {
-    query = query.limit(msg.limit);
-  }
-  if (msg.single) {
-    query = query.maybeSingle();
+  const buildQuery = () => {
+    let query: any = supabase.from(table).select(msg.select ?? defaultSelectForTable(table));
+    query = applyFilters(query, msg.filters);
+    if (msg.order) {
+      query = query.order(msg.order.column, {
+        ascending: msg.order.ascending ?? true,
+      });
+    }
+    if (msg.limit) query = query.limit(msg.limit);
+    return query;
+  };
+
+  let data: unknown;
+  let error: { message: string } | null = null;
+  if (msg.allPages && !msg.single) {
+    const pageSize = 500;
+    const rows: unknown[] = [];
+    while (true) {
+      const result = await buildQuery().range(rows.length, rows.length + pageSize - 1);
+      if (result.error) {
+        error = result.error;
+        break;
+      }
+      const page = result.data ?? [];
+      rows.push(...page);
+      if (page.length < pageSize) break;
+    }
+    data = rows;
+  } else {
+    let query = buildQuery();
+    if (msg.single) query = query.maybeSingle();
+    const result = await query;
+    data = result.data;
+    error = result.error;
   }
 
-  const { data, error } = await query;
   if (error) {
     await captureSupabaseError(error, {
       action: 'query',
@@ -428,13 +491,15 @@ async function handleProfilePictureSubmit(
     form.set('schoolId', String(msg.schoolId));
     form.set('platform', msg.platform);
     form.set('file', new File([binary], msg.fileName, { type: msg.contentType }));
-    const { data, error } = await supabase.functions.invoke('profile-picture-submit', { body: form });
+    const { data, error } = await supabase.functions.invoke('profile-picture-submit', {
+      body: form,
+    });
     if (error) {
       let detail: Record<string, unknown> | null = null;
       const context = (error as { context?: Response }).context;
       if (context) {
         try {
-          detail = await context.clone().json() as Record<string, unknown>;
+          detail = (await context.clone().json()) as Record<string, unknown>;
         } catch {
           // Keep the SDK error when the response body is not JSON.
         }
@@ -447,7 +512,10 @@ async function handleProfilePictureSubmit(
     }
     return { ok: true, data };
   } catch (err) {
-    return { ok: false, error: extractErrorMessage(err) || 'Profile picture upload failed' };
+    return {
+      ok: false,
+      error: extractErrorMessage(err) || 'Profile picture upload failed',
+    };
   }
 }
 
@@ -457,11 +525,12 @@ async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): 
   const { data, error } = await supabase.rpc(msg.fn as string, msg.args);
   if (error) {
     const studentId = typeof msg.args?.p_student_id === 'string' ? msg.args.p_student_id : undefined;
-    const schoolId = typeof msg.args?.p_school_id === 'number'
-      ? String(msg.args.p_school_id)
-      : typeof msg.args?.schoolId === 'string'
-        ? msg.args.schoolId
-        : undefined;
+    const schoolId =
+      typeof msg.args?.p_school_id === 'number'
+        ? String(msg.args.p_school_id)
+        : typeof msg.args?.schoolId === 'string'
+          ? msg.args.schoolId
+          : undefined;
     await captureSupabaseError(error, {
       action: 'rpc',
       fn: String(msg.fn),
@@ -476,12 +545,28 @@ async function handleRpc(msg: Extract<SupabaseMessage, { type: 'bl-sb:rpc' }>): 
 // ── Realtime subscriptions ──────────────────────────────────────────
 
 const activeChannels = new Map<string, ReturnType<SupabaseClient['channel']>>();
+const pendingChannels = new Map<string, Promise<SupabaseResponse>>();
 
 async function handleSubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:subscribe' }>): Promise<SupabaseResponse> {
   if (activeChannels.has(msg.channel)) {
     return { ok: true };
   }
 
+  const pending = pendingChannels.get(msg.channel);
+  if (pending) return pending;
+
+  const subscription = startSubscribe(msg);
+  pendingChannels.set(msg.channel, subscription);
+  try {
+    return await subscription;
+  } finally {
+    if (pendingChannels.get(msg.channel) === subscription) {
+      pendingChannels.delete(msg.channel);
+    }
+  }
+}
+
+async function startSubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:subscribe' }>): Promise<SupabaseResponse> {
   // Realtime postgres_changes is RLS-gated — without a user JWT the websocket
   // connects anon and our row-scoped events get filtered out server-side. In
   // MV3 the service worker can spin up after createClient with a stale auth
@@ -497,25 +582,38 @@ async function handleSubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:subs
     // Fall through — channel will subscribe with whatever auth it has.
   }
 
-  const channel = supabase
-    .channel(msg.channel)
-    .on(
-      'postgres_changes' as any,
-      {
-        event: msg.event ?? '*',
-        schema: 'public',
-        table: String(msg.table),
-        filter: msg.filter,
-      },
-      (_payload: any) => {
-        // Invalidate cache for this table — storage.onChanged will notify content scripts
-        invalidateTable(msg.schoolId, msg.table).catch(() => {});
-      },
-    )
-    .subscribe();
+  const channel = supabase.channel(msg.channel).on(
+    'postgres_changes' as any,
+    {
+      event: msg.event ?? '*',
+      schema: 'public',
+      table: String(msg.table),
+      filter: msg.filter,
+    },
+    (_payload: any) => {
+      // Invalidate cache for this table — storage.onChanged will notify content scripts
+      invalidateTable(msg.schoolId, msg.table).catch(() => {});
+    },
+  );
 
-  activeChannels.set(msg.channel, channel);
-  return { ok: true };
+  const cleanup = () => {
+    if (activeChannels.get(msg.channel) === channel) {
+      activeChannels.delete(msg.channel);
+    }
+    void supabase.removeChannel(channel).catch(() => {});
+  };
+
+  try {
+    await waitForRealtimeChannelReady(channel);
+    activeChannels.set(msg.channel, channel);
+    return { ok: true };
+  } catch (err) {
+    cleanup();
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Supabase Realtime subscription failed',
+    };
+  }
 }
 
 function handleUnsubscribe(msg: Extract<SupabaseMessage, { type: 'bl-sb:unsubscribe' }>): SupabaseResponse {
@@ -535,23 +633,24 @@ const FAILURES_KEY = 'bl-supabase-auth-failures';
 const REAUTH_KEY = 'bl-supabase-needs-reauth';
 const LOCK_TTL_MS = 30_000; // 30s — edge function should finish well within this
 
-interface FailureState { count: number; lastAttempt: number }
+interface FailureState {
+  count: number;
+  lastAttempt: number;
+}
 
-let inFlightAuth:
-  | {
-      key: string;
-      promise: Promise<SupabaseResponse>;
-      source: string;
-      startedAt: number;
-    }
-  | null = null;
+let inFlightAuth: {
+  key: string;
+  promise: Promise<SupabaseResponse>;
+  source: string;
+  startedAt: number;
+} | null = null;
 
 function getBackoffMs(failures: number): number {
   if (failures <= 0) return 0;
-  if (failures === 1) return 15_000;      // 15s
-  if (failures === 2) return 60_000;      // 1 min
-  if (failures === 3) return 5 * 60_000;  // 5 min
-  return 15 * 60_000;                     // 15 min cap
+  if (failures === 1) return 15_000; // 15s
+  if (failures === 2) return 60_000; // 1 min
+  if (failures === 3) return 5 * 60_000; // 5 min
+  return 15 * 60_000; // 15 min cap
 }
 
 async function getFailures(): Promise<FailureState> {
@@ -596,7 +695,11 @@ interface AuthAttemptResult {
 
 async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<AuthAttemptResult> {
   if (!schoolId) {
-    return { success: false, error: 'schoolId er påkrævet.', authStage: 'validate-input' };
+    return {
+      success: false,
+      error: 'schoolId er påkrævet.',
+      authStage: 'validate-input',
+    };
   }
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/lectio-auth`, {
     method: 'POST',
@@ -619,7 +722,11 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
   if (!resp.ok) {
     const rawBody = await resp.text();
     try {
-      const parsed = JSON.parse(rawBody) as { error?: string; stage?: string; schoolId?: string };
+      const parsed = JSON.parse(rawBody) as {
+        error?: string;
+        stage?: string;
+        schoolId?: string;
+      };
       return {
         success: false,
         error: `Serverfejl: ${rawBody}`,
@@ -627,7 +734,11 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
         authServerSchoolId: parsed.schoolId,
       };
     } catch {
-      return { success: false, error: `Serverfejl: ${rawBody}`, authStage: 'edge-error' };
+      return {
+        success: false,
+        error: `Serverfejl: ${rawBody}`,
+        authStage: 'edge-error',
+      };
     }
   }
 
@@ -723,11 +834,7 @@ async function isSessionOwnedByExpected(
     if (expectedStudentId) {
       // Strong check: the student with this elevid must be linked to the
       // current Supabase auth user (and optionally to the expected school).
-      let query = supabase
-        .from('students')
-        .select('id')
-        .eq('id', expectedStudentId)
-        .eq('supabase_id', sessionUserId);
+      let query = supabase.from('students').select('id').eq('id', expectedStudentId).eq('supabase_id', sessionUserId);
 
       if (expectedSchoolId) {
         const schoolIdNum = Number(expectedSchoolId);
@@ -781,11 +888,7 @@ async function runEnsureSupabaseSession(
     const supabase = getSupabase();
     const existingSessionExpiry = await getUsableSessionExpiry();
     if (existingSessionExpiry) {
-      const ownershipOk = await isSessionOwnedByExpected(
-        expectedStudentId,
-        schoolId,
-        !!qrData?.userId,
-      );
+      const ownershipOk = await isSessionOwnedByExpected(expectedStudentId, schoolId, !!qrData?.userId);
       if (ownershipOk) {
         await browser.storage.local.remove(REAUTH_KEY);
         return { ok: true, session: { expires_at: existingSessionExpiry } };
@@ -827,7 +930,7 @@ async function runEnsureSupabaseSession(
     // instead of immediately giving up (handles page reload during auth)
     if (await isLocked()) {
       for (let i = 0; i < 15; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, 2000));
         // Check if the other attempt succeeded
         const inFlightSessionExpiry = await getUsableSessionExpiry();
         if (inFlightSessionExpiry) {
@@ -871,7 +974,10 @@ async function runEnsureSupabaseSession(
             distinctId: identity?.distinctId,
           });
         }
-        return { ok: true, session: newData.session ? { expires_at: newData.session.expires_at! } : null };
+        return {
+          ok: true,
+          session: newData.session ? { expires_at: newData.session.expires_at! } : null,
+        };
       }
 
       const recoveredSessionExpiry = await getUsableSessionExpiry();
@@ -896,7 +1002,10 @@ async function runEnsureSupabaseSession(
       const isTransient = result.error?.includes('QR code') || result.error?.includes('elevid');
       if (!isTransient) {
         const failures = await getFailures();
-        await setFailures({ count: failures.count + 1, lastAttempt: Date.now() });
+        await setFailures({
+          count: failures.count + 1,
+          lastAttempt: Date.now(),
+        });
         const identity = await getAnalyticsIdentity({ studentId, schoolId });
         await captureSupabaseError(new Error(result.error ?? 'Unknown auth failure'), {
           action: 'auth',
@@ -936,9 +1045,7 @@ async function runEnsureSupabaseSession(
   }
 }
 
-async function mintWebsiteLoginOtp(): Promise<
-  SupabaseResponse & { token_hash?: string }
-> {
+async function mintWebsiteLoginOtp(): Promise<SupabaseResponse & { token_hash?: string }> {
   const supabase = getSupabase();
   const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
@@ -981,12 +1088,7 @@ async function ensureSupabaseSession(
     return inFlightAuth.promise;
   }
 
-  const promise = runEnsureSupabaseSession(
-    qrData,
-    schoolId,
-    source,
-    expectedStudentId,
-  ).finally(() => {
+  const promise = runEnsureSupabaseSession(qrData, schoolId, source, expectedStudentId).finally(() => {
     if (inFlightAuth?.promise === promise) {
       inFlightAuth = null;
     }
@@ -1023,14 +1125,11 @@ function initAuthStateListener(): void {
 function initLifecycleTracking(): void {
   try {
     browser.runtime.onInstalled.addListener((details) => {
-      void queueLifecycleEvent(
-        details.reason === 'update' ? 'extension updated' : 'extension installed',
-        {
-          extension_version: browser.runtime.getManifest().version,
-          previous_version: details.previousVersion,
-          install_reason: details.reason,
-        },
-      );
+      void queueLifecycleEvent(details.reason === 'update' ? 'extension updated' : 'extension installed', {
+        extension_version: browser.runtime.getManifest().version,
+        previous_version: details.previousVersion,
+        install_reason: details.reason,
+      });
     });
   } catch {
     // Non-critical
@@ -1091,28 +1190,40 @@ export default defineBackground(() => {
     switch (msg.type) {
       // ── Data operations ─────────────────────────────────────────
       case 'bl-sb:query':
-        handleQuery(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        handleQuery(msg)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:mutate':
-        handleMutate(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        handleMutate(msg)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:rpc':
-        handleRpc(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        handleRpc(msg)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:storage:upload':
-        handleStorageUpload(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        handleStorageUpload(msg)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:profile-picture:submit':
-        handleProfilePictureSubmit(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        handleProfilePictureSubmit(msg)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       // ── Realtime ────────────────────────────────────────────────
       case 'bl-sb:subscribe':
-        handleSubscribe(msg).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        handleSubscribe(msg)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:unsubscribe':
@@ -1121,31 +1232,36 @@ export default defineBackground(() => {
 
       // ── Auth ────────────────────────────────────────────────────
       case 'bl-sb:auth:ensure':
-        ensureSupabaseSession(
-          msg.qrData,
-          msg.schoolId,
-          msg.source,
-          msg.expectedStudentId,
-        ).then(sendResponse).catch(() => sendResponse({ ok: false }));
+        ensureSupabaseSession(msg.qrData, msg.schoolId, msg.source, msg.expectedStudentId)
+          .then(sendResponse)
+          .catch(() => sendResponse({ ok: false }));
         return true;
 
       case 'bl-sb:auth:session': {
         const supabase = getSupabase();
-        supabase.auth.getSession().then(({ data }) => {
-          sendResponse({
-            ok: true,
-            session: data.session ? {
-              expires_at: data.session.expires_at!,
-              user_id: data.session.user?.id ?? null,
-            } : null,
-          } satisfies SupabaseResponse);
-        }).catch(() => sendResponse({ ok: false } satisfies SupabaseResponse));
+        supabase.auth
+          .getSession()
+          .then(({ data }) => {
+            sendResponse({
+              ok: true,
+              session: data.session
+                ? {
+                    expires_at: data.session.expires_at!,
+                    user_id: data.session.user?.id ?? null,
+                  }
+                : null,
+            } satisfies SupabaseResponse);
+          })
+          .catch(() => sendResponse({ ok: false } satisfies SupabaseResponse));
         return true;
       }
 
       case 'bl-sb:auth:signout': {
         const supabase = getSupabase();
-        supabase.auth.signOut().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+        supabase.auth
+          .signOut()
+          .then(() => sendResponse({ ok: true }))
+          .catch(() => sendResponse({ ok: false }));
         return true;
       }
 

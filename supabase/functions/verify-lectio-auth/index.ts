@@ -174,24 +174,9 @@ Deno.serve(async (req: Request) => {
       : null)
     if (!tokenHash) return await fail("Failed to extract token_hash from magic link", 500, "extract-token")
 
-    let pictureBlob: { buffer: ArrayBuffer; contentType: string } | null = null
-    if (profile.pictureUrl) {
-      try {
-        const result = await fetchWithJar(profile.pictureUrl, jar)
-        if (result.response.ok) {
-          pictureBlob = {
-            buffer: result.body,
-            contentType: result.response.headers.get("content-type") || "image/jpeg",
-          }
-        }
-      } catch (error) {
-        console.warn("Profile picture enrichment failed", { requestId, error })
-      }
-    }
-
     let wasFirstInstall = false
     try {
-      wasFirstInstall = await upsertExtensionStudent(admin, studentId, schoolId, authUserId, profile, pictureBlob)
+      wasFirstInstall = await upsertExtensionStudent(admin, studentId, schoolId, authUserId, profile)
     } catch (error) {
       console.error("Student upsert failed", { requestId, error })
       return await fail("Failed to save student profile", 500, "upsert-student")
@@ -231,36 +216,13 @@ async function upsertExtensionStudent(
   schoolId: string,
   authUserId: string,
   profile: ParsedLectioProfile,
-  pictureBlob: { buffer: ArrayBuffer; contentType: string } | null,
 ): Promise<boolean> {
   const { data: existing, error: readError } = await admin
     .from("students")
-    .select("extension_installed_at, extension_uninstalled_at, extension_reinstalled_at, pfp_hash")
+    .select("extension_installed_at, extension_uninstalled_at, extension_reinstalled_at")
     .eq("id", studentId)
     .maybeSingle()
   if (readError) throw readError
-
-  let storedPath: string | null = null
-  let pictureHash: string | null = null
-  let hashMatched = false
-  if (pictureBlob) {
-    pictureHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pictureBlob.buffer)))
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("")
-    hashMatched = existing?.pfp_hash === pictureHash
-    if (!hashMatched) {
-      const extension = pictureBlob.contentType.includes("png")
-        ? "png"
-        : pictureBlob.contentType.includes("webp") ? "webp" : "jpg"
-      storedPath = `${schoolId}/${studentId}.${extension}`
-      const { error } = await admin.storage.from("profile-pictures").upload(
-        storedPath,
-        new Uint8Array(pictureBlob.buffer),
-        { contentType: pictureBlob.contentType, upsert: true },
-      )
-      if (error) storedPath = null
-    }
-  }
 
   const wasFirstInstall = !existing?.extension_installed_at
   const record: Record<string, unknown> = {
@@ -276,13 +238,6 @@ async function upsertExtensionStudent(
   if (profile.lastName) record.lectio_last_name = profile.lastName
   if (profile.birthdate) record.birthdate = profile.birthdate
   if (profile.className) record.class_name = profile.className
-  if (storedPath) {
-    record.lectio_pfp_url = admin.storage.from("profile-pictures").getPublicUrl(storedPath).data.publicUrl
-    if (pictureHash) record.pfp_hash = pictureHash
-  } else if (profile.pictureUrl && pictureBlob && !hashMatched) {
-    record.lectio_pfp_url = profile.pictureUrl
-  }
-
   const { error } = await admin.from("students").upsert(record, { onConflict: "id" })
   if (error) throw error
   return wasFirstInstall

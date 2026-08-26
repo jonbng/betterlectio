@@ -9,6 +9,7 @@ import { keepaliveCommand } from "./commands/keepalive.js";
 import { schoolsCommand } from "./commands/schools.js";
 import { configCommand } from "./commands/config.js";
 import { statusCommand } from "./commands/status.js";
+import { sessionCommand } from "./commands/session.js";
 
 const program = new Command();
 
@@ -26,6 +27,7 @@ program.addCommand(keepaliveCommand);
 program.addCommand(schoolsCommand);
 program.addCommand(configCommand);
 program.addCommand(statusCommand);
+program.addCommand(sessionCommand);
 
 // Default action - show help
 program.action(() => {

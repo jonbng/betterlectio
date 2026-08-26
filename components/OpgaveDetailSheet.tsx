@@ -34,7 +34,7 @@ import {
   uploadFileAndSubmit,
 } from '@/lib/opgave-detail';
 import type { OpgaveDetail, AvailableGroupStudent } from '@/lib/opgave-detail';
-import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
+import { fetchPictureUrl, getCachedPictureUrl, isPictureCacheStale } from '@/lib/findskema-storage';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { sanitizeHtml } from '@/lib/sanitize-html';
@@ -1466,10 +1466,10 @@ function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32, studentsM
       return;
     }
     if (!contextCardId) return;
-    const cached = getCachedPictureUrl(contextCardId);
+    const cached = getCachedPictureUrl(contextCardId, { allowStale: true });
     if (cached !== undefined) {
       setPictureUrl(cached);
-      return;
+      if (!isPictureCacheStale(contextCardId)) return;
     }
     fetchPictureUrl(contextCardId, schoolId).then(setPictureUrl);
   }, [contextCardId, preferredPictureUrl, schoolId]);

@@ -32,6 +32,40 @@ function AvatarImage({
   )
 }
 
+type FallbackAvatarImageProps = React.ComponentProps<typeof AvatarPrimitive.Image> & {
+  fallbackSrc?: string | null
+}
+
+/** Tries an authenticated Lectio portrait if a custom image cannot be loaded. */
+function FallbackAvatarImage({
+  src,
+  fallbackSrc,
+  onError,
+  ...props
+}: FallbackAvatarImageProps) {
+  const [currentSrc, setCurrentSrc] = React.useState(src)
+
+  React.useEffect(() => {
+    setCurrentSrc(src)
+  }, [src, fallbackSrc])
+
+  if (!currentSrc) return null
+
+  return (
+    <AvatarImage
+      {...props}
+      src={currentSrc}
+      onError={(event) => {
+        if (fallbackSrc && currentSrc !== fallbackSrc) {
+          setCurrentSrc(fallbackSrc)
+          return
+        }
+        onError?.(event)
+      }}
+    />
+  )
+}
+
 function AvatarFallback({
   className,
   ...props
@@ -48,4 +82,4 @@ function AvatarFallback({
   )
 }
 
-export { Avatar, AvatarImage, AvatarFallback }
+export { Avatar, AvatarImage, FallbackAvatarImage, AvatarFallback }

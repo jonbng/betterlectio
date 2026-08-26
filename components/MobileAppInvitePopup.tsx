@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
 import { Smartphone, X, Check } from 'lucide-react';
 import type { Tables } from '@/database.types';
 import { useQuery } from '@/lib/supabase/hooks';
 import { subscribe, unsubscribe } from '@/lib/supabase/realtime';
+import { installMobileAppInviteRefreshLifecycle } from '@/lib/mobile-app-invite-refresh';
+import {
+  createMobileAppInviteChannel,
+  createMobileAppInviteDialogSubscription,
+} from '@/lib/mobile-app-dialog-subscription';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
@@ -85,7 +90,28 @@ export function MobileAppInvitePopup() {
     filters: [{ column: 'id', op: 'eq', value: studentId ?? '' }],
     single: true,
     enabled: !!schoolId && !!studentId,
+    // The foreground lifecycle below owns the first request so it can force
+    // an exact bypass-cache read instead of accepting the 24h students TTL.
+    skipInitialFetch: true,
   });
+
+  const reconcileDialogSubscription = useCallback(
+    () => refetch({ bypassCache: true }),
+    [refetch],
+  );
+
+  // Students normally have a 24-hour cache TTL. Installation eligibility is
+  // the exception: this exact own-row query is foreground-refreshed at most
+  // once per persisted five-minute window, so a native install can suppress
+  // promotion without keeping a background Realtime subscription alive.
+  useEffect(() => {
+    if (!schoolId || !studentId) return;
+    return installMobileAppInviteRefreshLifecycle({
+      schoolId,
+      studentId,
+      refresh: () => refetch({ bypassCache: true }),
+    });
+  }, [schoolId, studentId, refetch]);
 
   // Same RLS auth-race retry the drawer uses.
   useEffect(() => {
@@ -106,20 +132,6 @@ export function MobileAppInvitePopup() {
       if (timer) clearTimeout(timer);
     };
   }, [student, schoolId, studentId, isLoading, refetch]);
-
-  // Live updates drive both the first-scan thank-you state and immediate
-  // suppression once either native app stamps app_installed_at.
-  useEffect(() => {
-    if (!schoolId || !studentId) return;
-    const channel = `mobile-app-invite:${schoolId}:${studentId}`;
-    void subscribe({
-      channel,
-      table: 'students',
-      schoolId,
-      filter: `id=eq.${studentId}`,
-    });
-    return () => { void unsubscribe(channel); };
-  }, [schoolId, studentId]);
 
   // Schedule blocks for the in-class gate. Start with cache; fetch if missing.
   const [blocks, setBlocks] = useState<ScheduleBlock[] | null>(() =>
@@ -145,7 +157,10 @@ export function MobileAppInvitePopup() {
   const forced = forceNonce > 0;
   // Installation suppresses automatic promotion, but the explicit navigation
   // action can always reopen the QR for another device.
-  if (!forced && student?.app_installed_at) return null;
+  // Let an already-visible dialog finish its scan / thank-you flow when an
+  // app installation update arrives. Future automatic prompts remain
+  // suppressed, while an explicit navigation action may always force-open.
+  if (!forced && student?.app_installed_at && !hasOpenedOnce) return null;
 
   if (!forced && !hasOpenedOnce) {
     if (!student) return null;
@@ -162,6 +177,7 @@ export function MobileAppInvitePopup() {
       forceNonce={forceNonce}
       qrScannedAt={student?.app_qr_scanned_at ?? null}
       onOpened={() => setHasOpenedOnce(true)}
+      onSubscriptionReady={reconcileDialogSubscription}
     />
   );
 }
@@ -176,6 +192,8 @@ interface PopupInnerProps {
   qrScannedAt: string | null;
   /** Called the first time the popup actually opens; locks the parent gate. */
   onOpened: () => void;
+  /** Re-fetches the exact own row after the Realtime socket has joined. */
+  onSubscriptionReady: () => Promise<void>;
 }
 
 type ViewState = 'invite' | 'thanks';
@@ -187,6 +205,7 @@ function PopupInner({
   forceNonce,
   qrScannedAt,
   onOpened,
+  onSubscriptionReady,
 }: PopupInnerProps) {
   const { t } = useTranslation();
   const distinctId = getDistinctId(studentId);
@@ -258,6 +277,28 @@ function PopupInner({
       .catch(() => {});
     return () => { cancelled = true; };
   }, [open, studentId]);
+
+  // Realtime is deliberately scoped to the visible QR dialog rather than the
+  // mounted popup component. A fresh channel per open prevents one tab's
+  // cleanup from removing another tab/dialog's subscription. `exiting` is
+  // excluded so closing unsubscribes immediately, before the CSS exit ends.
+  useEffect(() => {
+    if (!open || exiting) return;
+    const channel = createMobileAppInviteChannel(schoolId, studentId);
+    const lifecycle = createMobileAppInviteDialogSubscription({
+      channel,
+      subscribe: () => subscribe({
+        channel,
+        table: 'students',
+        schoolId,
+        filter: `id=eq.${studentId}`,
+      }),
+      unsubscribe: () => unsubscribe(channel),
+      onReady: onSubscriptionReady,
+    });
+    lifecycle.open();
+    return () => lifecycle.close();
+  }, [open, exiting, schoolId, studentId, onSubscriptionReady]);
 
   // Realtime success transition: when app_qr_scanned_at flips while the popup
   // is open, swap to the thanks view and auto-close after SUCCESS_DISPLAY_MS.

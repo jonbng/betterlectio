@@ -6,7 +6,7 @@ import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds, addIgnoredMissingId } from '@/lib/opgaver-ignored';
 import { cn } from '@/lib/utils';
 import { loadTeacherNames, getTeacherName, getTeacherContextCardId, type TeacherCache } from '@/lib/teacher-cache';
-import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache } from '@/lib/findskema-storage';
+import { fetchPictureUrl, getCachedPictureUrl, lookupContextCardIdByName, ensureNameIdCache, isPictureCacheStale } from '@/lib/findskema-storage';
 import { nameToHue } from '@/lib/beskeder-helpers';
 import type { ForsideOpgave } from '@/components/ForsideOpgaverCard';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
@@ -751,10 +751,10 @@ function BeskedSenderAvatar({
     setImgError(false);
     setPictureUrl(null);
 
-    const cached = getCachedPictureUrl(contextCardId);
+    const cached = getCachedPictureUrl(contextCardId, { allowStale: true });
     if (cached !== undefined) {
       if (cached) setPictureUrl(cached);
-      return;
+      if (!isPictureCacheStale(contextCardId)) return;
     }
 
     fetchPictureUrl(contextCardId, schoolId).then((url) => {

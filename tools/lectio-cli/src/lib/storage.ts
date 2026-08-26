@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Config, CookieStore, SchoolCache } from "../types.js";
@@ -10,8 +10,9 @@ const SCHOOLS_CACHE_FILE = join(CONFIG_DIR, "schools-cache.json");
 
 function ensureConfigDir(): void {
   if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
+  chmodSync(CONFIG_DIR, 0o700);
 }
 
 function readJsonFile<T>(path: string): T | null {
@@ -28,7 +29,8 @@ function readJsonFile<T>(path: string): T | null {
 
 function writeJsonFile<T>(path: string, data: T): void {
   ensureConfigDir();
-  writeFileSync(path, JSON.stringify(data, null, 2), "utf-8");
+  writeFileSync(path, JSON.stringify(data, null, 2), { encoding: "utf-8", mode: 0o600 });
+  chmodSync(path, 0o600);
 }
 
 // Config
@@ -64,7 +66,8 @@ export function setCookies(cookies: CookieStore): void {
 
 export function clearCookies(): void {
   if (existsSync(COOKIES_FILE)) {
-    writeFileSync(COOKIES_FILE, "{}", "utf-8");
+    writeFileSync(COOKIES_FILE, "{}", { encoding: "utf-8", mode: 0o600 });
+    chmodSync(COOKIES_FILE, 0o600);
   }
 }
 
@@ -88,6 +91,7 @@ export function setSchoolsCache(cache: SchoolCache): void {
 
 export function clearSchoolsCache(): void {
   if (existsSync(SCHOOLS_CACHE_FILE)) {
-    writeFileSync(SCHOOLS_CACHE_FILE, "{}", "utf-8");
+    writeFileSync(SCHOOLS_CACHE_FILE, "{}", { encoding: "utf-8", mode: 0o600 });
+    chmodSync(SCHOOLS_CACHE_FILE, 0o600);
   }
 }

@@ -14,6 +14,7 @@ A command-line tool for authenticated access to Lectio, the Danish school manage
 - **JSON output mode** - All commands support `--json` for scripting and AI agents
 - **Cross-platform** - Works on macOS, Linux, and Windows
 - **Secure storage** - Cookies stored in `~/.lectio-cli/`, outside the repo
+- **Consented session import** - Imports an encrypted, allowlisted donor session from Supabase
 
 ## Installation
 
@@ -231,6 +232,22 @@ Session: Valid
 Expires in: 52m 30s
 Last activity: 2 minutes ago
 ```
+
+### `lectio session import` - Import a consented test session
+
+This administrative command uses credentials from environment variables only;
+secrets are never accepted as command-line arguments or printed.
+
+```bash
+export SUPABASE_URL="https://<project-ref>.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="..."
+export LECTIO_SESSION_MASTER_KEY_V1="..." # base64-encoded 32-byte key
+lectio session import --student <student-id> --school <school-id>
+```
+
+The imported jar replaces `~/.lectio-cli/cookies.json`, whose permissions are
+restricted to the current OS user (`0600`). Only an active database grant can be
+exported, and each successful export creates a metadata-only audit record.
 
 ### `lectio config` - Configuration management
 

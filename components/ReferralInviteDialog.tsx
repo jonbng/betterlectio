@@ -33,7 +33,7 @@ import {
   type SubmitError,
 } from '@/lib/beskeder-submit';
 import { fetchBeskederRecipientItems } from '@/lib/beskeder-recipients-cache';
-import { fetchPictureUrl, getCachedPictureUrl, getStarredPeople } from '@/lib/findskema-storage';
+import { fetchPictureUrl, getCachedPictureUrl, getStarredPeople, isPictureCacheStale } from '@/lib/findskema-storage';
 import {
   buildReferralInviteCandidates,
   getReferralInviteHistory,
@@ -167,10 +167,10 @@ export function ReferralInviteDialog({
       if (Object.prototype.hasOwnProperty.call(pictureById, candidate.id)) continue;
       if (pictureInflight.current.has(candidate.id)) continue;
 
-      const cached = getCachedPictureUrl(candidate.id);
+      const cached = getCachedPictureUrl(candidate.id, { allowStale: true });
       if (cached !== undefined) {
         setPictureById((current) => ({ ...current, [candidate.id]: cached }));
-        continue;
+        if (!isPictureCacheStale(candidate.id)) continue;
       }
 
       pictureInflight.current.add(candidate.id);

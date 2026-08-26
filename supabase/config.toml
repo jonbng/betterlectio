@@ -18,3 +18,6 @@ verify_jwt = true
 
 [functions.maintenance-cleanup]
 verify_jwt = true
+
+[functions.lectio-session-keepalive]
+verify_jwt = false

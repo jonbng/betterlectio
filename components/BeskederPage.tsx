@@ -40,6 +40,7 @@ import {
   ensureNameIdCache,
   fetchPictureUrl,
   getCachedPictureUrl,
+  isPictureCacheStale,
   lookupContextCardIdByName,
 } from '@/lib/findskema-storage';
 import { formatRelativeDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
@@ -186,10 +187,10 @@ function SenderAvatar({
     setImgError(false);
     setPictureUrl(null);
 
-    const cached = getCachedPictureUrl(contextCardId);
+    const cached = getCachedPictureUrl(contextCardId, { allowStale: true });
     if (cached !== undefined) {
       if (cached) setPictureUrl(cached);
-      return;
+      if (!isPictureCacheStale(contextCardId)) return;
     }
 
     fetchPictureUrl(contextCardId, schoolId).then((url) => {

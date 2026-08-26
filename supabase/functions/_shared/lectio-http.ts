@@ -11,6 +11,13 @@ export class SessionExpiredError extends Error {
   }
 }
 
+export class UnsafeRedirectError extends Error {
+  constructor() {
+    super("Lectio redirected outside its trusted host")
+    this.name = "UnsafeRedirectError"
+  }
+}
+
 export interface FetchResult {
   response: Response
   body: ArrayBuffer
@@ -77,6 +84,10 @@ export async function fetchWithJar(
       if (isUniloginAuth(next)) {
         await response.body?.cancel()
         throw new SessionExpiredError()
+      }
+      if (next.protocol !== "https:" || next.hostname.toLowerCase() !== "www.lectio.dk") {
+        await response.body?.cancel()
+        throw new UnsafeRedirectError()
       }
       await response.body?.cancel()
       currentUrl = next

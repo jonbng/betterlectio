@@ -385,7 +385,10 @@ export function OnboardingWizard({
 
   if (!open) return null;
 
-  const profilePic = getPreferredStudentPictureUrl(student ?? null, null);
+  const profilePic = getPreferredStudentPictureUrl(
+    student ?? null,
+    (window as any).__IL_PROFILE_PIC__ ?? null,
+  );
   const progress = ((step + 1) / totalVisibleSteps) * 100;
 
   // ── Step content ────────────────────────────────────────────────────

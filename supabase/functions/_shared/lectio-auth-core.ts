@@ -8,6 +8,7 @@ import {
   SessionExpiredError,
 } from "./lectio-http.ts"
 import { parseLectioProfile, type ParsedLectioProfile } from "./profile.ts"
+import { captureLectioSessionIfGranted } from "./lectio-session-capture.ts"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const NUMERIC_RE = /^\d+$/
@@ -52,8 +53,9 @@ export type LectioAuthSuccess = {
 }
 
 /**
- * Universal QR → Supabase mint. Never accepts Lectio cookies; never returns them.
- * Clients keep their own Lectio jar for scraping.
+ * Universal QR → Supabase mint. Never accepts or returns Lectio cookies.
+ * Its temporary server jar is encrypted after login only when the resolved
+ * student has a pre-existing, service-role-managed consent grant.
  */
 export async function handleLectioAuth(
   req: Request,
@@ -216,21 +218,6 @@ export async function handleLectioAuth(
     }
     if (!tokenHash) return await fail("Failed to extract token_hash from magic link", 500, "extract-token")
 
-    let pictureBlob: { buffer: ArrayBuffer; contentType: string } | null = null
-    if (profile.pictureUrl) {
-      try {
-        const result = await fetchWithJar(profile.pictureUrl, jar)
-        if (result.response.ok) {
-          pictureBlob = {
-            buffer: result.body,
-            contentType: result.response.headers.get("content-type") || "image/jpeg",
-          }
-        }
-      } catch (error) {
-        console.warn("Profile picture enrichment failed", { requestId, error })
-      }
-    }
-
     let wasFirstInstall = false
     try {
       wasFirstInstall = await upsertStudentForPlatform(
@@ -239,13 +226,14 @@ export async function handleLectioAuth(
         schoolId,
         authUserId,
         profile,
-        pictureBlob,
         platform,
       )
     } catch (error) {
       console.error("Student upsert failed", { requestId, error })
       return await fail("Failed to save student profile", 500, "upsert-student")
     }
+
+    await captureLectioSessionIfGranted(admin, studentId, schoolId, jar, requestId)
 
     const status = profile.firstName
       ? profile.profileSource === "student_card" ? "complete" : "fallback"
@@ -312,44 +300,16 @@ async function upsertStudentForPlatform(
   schoolId: string,
   authUserId: string,
   profile: ParsedLectioProfile,
-  pictureBlob: { buffer: ArrayBuffer; contentType: string } | null,
   platform: AuthPlatform,
 ): Promise<boolean> {
   const { data: existing, error: readError } = await admin
     .from("students")
     .select(
-      "extension_installed_at, extension_uninstalled_at, extension_reinstalled_at, app_installed_at, android_installed_at, iphone_installed_at, pfp_hash",
+      "extension_installed_at, extension_uninstalled_at, extension_reinstalled_at, app_installed_at, android_installed_at, iphone_installed_at",
     )
     .eq("id", studentId)
     .maybeSingle()
   if (readError) throw readError
-
-  let storedPath: string | null = null
-  let pictureHash: string | null = null
-  let hashMatched = false
-  if (pictureBlob) {
-    pictureHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pictureBlob.buffer)))
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("")
-    hashMatched = existing?.pfp_hash === pictureHash
-    if (!hashMatched) {
-      const extension = pictureBlob.contentType.includes("png")
-        ? "png"
-        : pictureBlob.contentType.includes("webp")
-        ? "webp"
-        : "jpg"
-      storedPath = `${schoolId}/${studentId}.${extension}`
-      const { error } = await admin.storage.from("profile-pictures").upload(
-        storedPath,
-        new Uint8Array(pictureBlob.buffer),
-        { contentType: pictureBlob.contentType, upsert: true },
-      )
-      if (error) {
-        console.warn("Failed to upload profile picture", { studentId, code: error.name })
-        storedPath = null
-      }
-    }
-  }
 
   const now = new Date().toISOString()
   const { stamps, wasFirstInstall } = computeInstallStamps(platform, existing, now)
@@ -363,13 +323,6 @@ async function upsertStudentForPlatform(
   if (profile.lastName) record.lectio_last_name = profile.lastName
   if (profile.birthdate) record.birthdate = profile.birthdate
   if (profile.className) record.class_name = profile.className
-  if (storedPath) {
-    record.lectio_pfp_url = admin.storage.from("profile-pictures").getPublicUrl(storedPath).data.publicUrl
-    if (pictureHash) record.pfp_hash = pictureHash
-  } else if (profile.pictureUrl && pictureBlob && !hashMatched) {
-    record.lectio_pfp_url = profile.pictureUrl
-  }
-
   const { error } = await admin.from("students").upsert(record, { onConflict: "id" })
   if (error) throw error
   return wasFirstInstall

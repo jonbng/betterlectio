@@ -6,7 +6,6 @@ import {
   getUserSchoolThemes,
   upsertUserSchoolTheme,
 } from '@/lib/supabase/resources';
-import { onTableChange, subscribe, unsubscribe } from '@/lib/supabase/realtime';
 import {
   applySettingsSideEffects,
   FeatureSettingsSchema,
@@ -33,18 +32,41 @@ const THEMES_HYDRATED_AT_KEY = 'bl-themes-hydrated-at';
 const FEATURE_SETTINGS_KEY = 'bl-feature-settings';
 
 const DEBOUNCE_MS = 500;
-// Skip the bootstrap GET if we hydrated within this window. Realtime
-// subscription covers cross-device updates while a tab is open; the only
-// regression is a fresh tab on device B within the TTL after a change on
-// device A — next page load past TTL fixes it.
-const HYDRATE_TTL_MS = 30 * 60_000;
+// Skip a fresh GET when this user was hydrated recently. Focus and visible
+// lifecycle events use this persisted stamp as their only refresh throttle.
+const HYDRATE_TTL_MS = 5 * 60_000;
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let themePushTimer: ReturnType<typeof setTimeout> | null = null;
 let pageHideHooked = false;
 
-let hydratePromise: Promise<boolean> | null = null;
-let hydrateThemesPromise: Promise<boolean> | null = null;
+interface HydrationRequestCoordinator {
+  run(force: boolean, createRequest: () => Promise<boolean>): Promise<boolean>;
+}
+
+/**
+ * Coalesces normal hydrations while allowing a force refresh to supersede an
+ * older request. Only the promise that is still active may clear the guard.
+ */
+export function createHydrationRequestCoordinator(): HydrationRequestCoordinator {
+  let activeRequest: Promise<boolean> | null = null;
+
+  return {
+    run(force, createRequest) {
+      if (!force && activeRequest) return activeRequest;
+
+      const request = createRequest();
+      const guardedRequest = request.finally(() => {
+        if (activeRequest === guardedRequest) activeRequest = null;
+      });
+      activeRequest = guardedRequest;
+      return guardedRequest;
+    },
+  };
+}
+
+const settingsHydrationRequests = createHydrationRequestCoordinator();
+const themeHydrationRequests = createHydrationRequestCoordinator();
 
 interface SyncContext {
   schoolId: string;
@@ -142,21 +164,19 @@ function showReloadToast(): void {
 
 // ── Settings hydrate ────────────────────────────────────────────────
 
-export async function hydrateSettingsFromSupabase(force = false): Promise<boolean> {
-  if (!force && hydratePromise) return hydratePromise;
-
-  hydratePromise = (async () => {
+export function hydrateSettingsFromSupabase(force = false): Promise<boolean> {
+  return settingsHydrationRequests.run(force, async () => {
     const ctx = await getSyncContext();
     if (!ctx) return false;
 
-    // Skip the GET when we recently hydrated this user. Realtime keeps tabs
-    // up to date in-session; bootstrap-on-every-page-load was redundant.
+    // Skip the GET when we recently hydrated this user.
     if (!force && isHydrateFresh(SETTINGS_HYDRATED_AT_KEY, ctx.supabaseId)) {
       return false;
     }
 
     try {
-      const row = await getUserSettingsRow(ctx.supabaseId);
+      // A due hydration must not be satisfied from the cached previous read.
+      const row = await getUserSettingsRow(ctx.supabaseId, { bypassCache: true });
       stampHydrate(SETTINGS_HYDRATED_AT_KEY, ctx.supabaseId);
       if (!row) {
         // No remote row yet — push current local state if it's been touched
@@ -222,13 +242,7 @@ export async function hydrateSettingsFromSupabase(force = false): Promise<boolea
       }
       return false;
     }
-  })();
-
-  try {
-    return await hydratePromise;
-  } finally {
-    hydratePromise = null;
-  }
+  });
 }
 
 // ── Settings push (debounced) ───────────────────────────────────────
@@ -279,10 +293,8 @@ export function schedulePushSettingsToSupabase(): void {
 
 // ── Theme hydrate ───────────────────────────────────────────────────
 
-export async function hydrateSchoolThemesFromSupabase(force = false): Promise<boolean> {
-  if (!force && hydrateThemesPromise) return hydrateThemesPromise;
-
-  hydrateThemesPromise = (async () => {
+export function hydrateSchoolThemesFromSupabase(force = false): Promise<boolean> {
+  return themeHydrationRequests.run(force, async () => {
     const ctx = await getSyncContext();
     if (!ctx) return false;
 
@@ -291,7 +303,8 @@ export async function hydrateSchoolThemesFromSupabase(force = false): Promise<bo
     }
 
     try {
-      const rows = await getUserSchoolThemes(ctx.supabaseId);
+      // A due hydration must not be satisfied from the cached previous read.
+      const rows = await getUserSchoolThemes(ctx.supabaseId, { bypassCache: true });
       stampHydrate(THEMES_HYDRATED_AT_KEY, ctx.supabaseId);
       if (rows.length === 0) {
         const localPref = getThemePreferenceForSchool(ctx.schoolId);
@@ -340,13 +353,7 @@ export async function hydrateSchoolThemesFromSupabase(force = false): Promise<bo
       }
       return false;
     }
-  })();
-
-  try {
-    return await hydrateThemesPromise;
-  } finally {
-    hydrateThemesPromise = null;
-  }
+  });
 }
 
 // ── Theme push (debounced, current school only) ─────────────────────
@@ -395,47 +402,31 @@ export function schedulePushCurrentSchoolThemeToSupabase(): void {
   }, DEBOUNCE_MS);
 }
 
-// ── Realtime subscription ───────────────────────────────────────────
+// ── Foreground refresh lifecycle ───────────────────────────────────
 
-export async function subscribeToSettingsRealtime(): Promise<() => void> {
-  const ctx = await getSyncContext();
-  if (!ctx) return () => {};
+function refreshSettingsAndThemes(): void {
+  void hydrateSettingsFromSupabase().catch(() => {});
+  void hydrateSchoolThemesFromSupabase().catch(() => {});
+}
 
-  const settingsChannel = `user-settings:${ctx.supabaseId}`;
-  const themesChannel = `user-school-themes:${ctx.supabaseId}`;
+/**
+ * Refresh settings after a tab returns to the foreground. Hydration stamps
+ * are persisted per user, so these listeners never create background polling
+ * and normally do no network work within the five-minute freshness window.
+ */
+export function installSettingsHydrationLifecycle(
+  refresh: () => void = refreshSettingsAndThemes,
+): () => void {
+  const refreshWhenVisible = () => {
+    if (document.visibilityState !== 'visible') return;
+    refresh();
+  };
 
-  // Pass the same `user:<uid>` cache namespace we use for cachedQuery so the
-  // background's postgres_changes handler invalidates the right cache slot.
-  // Otherwise it would invalidate a school-scoped slot we never wrote to,
-  // and storage.onChanged would never fire.
-  const cacheNs = `user:${ctx.supabaseId}`;
-  void subscribe({
-    channel: settingsChannel,
-    table: 'user_settings',
-    schoolId: cacheNs,
-    filter: `supabase_id=eq.${ctx.supabaseId}`,
-  });
-  void subscribe({
-    channel: themesChannel,
-    table: 'user_school_themes',
-    schoolId: cacheNs,
-    filter: `supabase_id=eq.${ctx.supabaseId}`,
-  });
-
-  // Cache invalidations from postgres_changes flow through storage.onChanged
-  // and onTableChange. The first hydrate populates the cache so subsequent
-  // invalidations have something to remove (and thus fire the listener).
-  const offSettings = onTableChange('user_settings', () => {
-    void hydrateSettingsFromSupabase(true);
-  });
-  const offThemes = onTableChange('user_school_themes', () => {
-    void hydrateSchoolThemesFromSupabase(true);
-  });
+  window.addEventListener('focus', refreshWhenVisible);
+  document.addEventListener('visibilitychange', refreshWhenVisible);
 
   return () => {
-    offSettings();
-    offThemes();
-    void unsubscribe(settingsChannel);
-    void unsubscribe(themesChannel);
+    window.removeEventListener('focus', refreshWhenVisible);
+    document.removeEventListener('visibilitychange', refreshWhenVisible);
   };
 }

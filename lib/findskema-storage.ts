@@ -11,7 +11,7 @@ const LEGACY_NAME_ID_CACHE_KEY = 'il-name-id-cache';
 const MAX_STARRED = 50;
 const MAX_RECENTS = 10;
 const MAX_CACHED_PICTURES = 1000;
-const PICTURE_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const PICTURE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface StarredPerson {
   id: string;
@@ -271,17 +271,25 @@ function savePictureCache(cache: PictureCache): void {
   }
 }
 
-export function getCachedPictureUrl(id: string): string | null | undefined {
+export function getCachedPictureUrl(
+  id: string,
+  options?: { allowStale?: boolean },
+): string | null | undefined {
   const cache = getPictureCache();
   const entry = cache[id];
   if (!entry) return undefined; // Not in cache
 
   // Check if cache is still valid
-  if (Date.now() - entry.cachedAt > PICTURE_CACHE_TTL) {
+  if (!options?.allowStale && Date.now() - entry.cachedAt > PICTURE_CACHE_TTL) {
     return undefined; // Expired
   }
 
   return entry.url;
+}
+
+export function isPictureCacheStale(id: string): boolean {
+  const entry = getPictureCache()[id];
+  return !entry || Date.now() - entry.cachedAt > PICTURE_CACHE_TTL;
 }
 
 export function cachePictureUrl(id: string, url: string | null): void {

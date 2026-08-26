@@ -17,24 +17,23 @@ interface CacheEntry<T = unknown> {
 const DEFAULT_TTL = 15 * 60_000; // 15 min
 
 const TABLE_TTL: Partial<Record<TableName, number>> = {
-  schools: 2 * 60 * 60_000,          // 2 hours
+  schools: 2 * 60 * 60_000, // 2 hours
   // 24h. ProfilePage / FindSkemaPage force-fresh on mount via
   // `useSchoolStudents({ refreshOnMount: true })` → `invalidateStudentsCacheIfStale`,
   // so opening a profile always shows current data. Own-row mutations
   // invalidate locally via `mutate()`. Background surfaces (Beskeder/Forside
   // avatars, FindSkema search) accept up to 24h staleness for names/avatars.
-  students: 24 * 60 * 60_000,        // 24 hours
+  students: 24 * 60 * 60_000, // 24 hours
 
-  lessons: 15 * 60_000,              // 15 min
+  lessons: 15 * 60_000, // 15 min
   student_lessons: 15 * 60_000,
   homework_entries: 6 * 60 * 60_000, // 6 hours — effectively immutable join registry; mutations invalidate locally
-  student_homework: 5 * 60_000,      // 5 min (user-mutable)
+  student_homework: 5 * 60_000, // 5 min (user-mutable)
   lesson_mappings: 24 * 60 * 60_000, // 24 hours — admin-curated, mutations invalidate locally
   school_lesson_mappings: 24 * 60 * 60_000,
   student_lessoncontrols: 30 * 60_000,
   user_lesson_overrides: 5 * 60_000,
   week_sync: 15 * 60_000,
-  updates: 5 * 60_000,
 };
 
 export function getTtl(table: TableName): number {
@@ -55,6 +54,7 @@ export function queryFingerprint(params: {
   filters?: unknown[];
   order?: unknown;
   limit?: number;
+  allPages?: boolean;
   single?: boolean;
 }): string {
   return JSON.stringify({
@@ -62,6 +62,7 @@ export function queryFingerprint(params: {
     f: params.filters ?? [],
     o: params.order ?? null,
     l: params.limit ?? null,
+    ...(params.allPages ? { ap: true } : {}),
     si: params.single ?? false,
   });
 }

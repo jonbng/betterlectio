@@ -41,6 +41,7 @@ import {
   ensureNameIdCache,
   fetchPictureUrl,
   getCachedPictureUrl,
+  isPictureCacheStale,
   getPersonScheduleUrlFromMessage,
 } from '@/lib/findskema-storage';
 import { sanitizeHtml } from '@/lib/sanitize-html';
@@ -303,16 +304,16 @@ function SenderAvatar({ name, contextCardId, schoolId, size = 36, studentsMap }:
     setPictureUrl(null);
 
     // Try cache first
-    const cached = getCachedPictureUrl(contextCardId);
+    const cached = getCachedPictureUrl(contextCardId, { allowStale: true });
     if (cached !== undefined) {
       if (cached) setPictureUrl(cached);
       else setError(true);
-      return;
+      if (!isPictureCacheStale(contextCardId)) return;
     }
 
     fetchPictureUrl(contextCardId, schoolId).then((url) => {
-      if (url) setPictureUrl(url);
-      else setError(true);
+      setPictureUrl(url);
+      setError(!url);
     });
   }, [contextCardId, preferredPictureUrl, schoolId]);
 

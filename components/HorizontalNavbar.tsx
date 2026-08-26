@@ -32,7 +32,7 @@ import {
   Users,
   ArrowLeft,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, FallbackAvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
@@ -270,7 +270,8 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
     return () => document.removeEventListener('keydown', close);
   }, [imageOpen]);
 
-  const profilePicture = getPreferredStudentPictureUrl(currentStudent, (window as any).__IL_PROFILE_PIC__ ?? profile?.pictureUrl);
+  const lectioProfilePicture = (window as any).__IL_PROFILE_PIC__ ?? profile?.pictureUrl ?? null;
+  const profilePicture = getPreferredStudentPictureUrl(currentStudent, lectioProfilePicture);
   const profileName = getPreferredStudentDisplayName(currentStudent, profile?.fullName || profile?.name || t('sidebar.menu.profile'));
   const schoolName = getCachedSchoolDisplayName(schoolId) || profile?.schoolName || snapshot.schoolName;
   const logoUrl = browser.runtime.getURL(schoolId === '94' ? '/assets/soroeakademi.png' : '/assets/logo-transparent.svg');
@@ -550,7 +551,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
             <DropdownMenuTrigger asChild>
               <button type="button" className="il-horizontal-profile-trigger flex h-11 min-w-0 cursor-pointer items-center gap-2 rounded-xl border-0 bg-transparent py-1 pr-2 pl-1 text-left text-sidebar-foreground hover:bg-sidebar-accent focus-visible:bg-sidebar-accent focus-visible:outline-none data-[state=open]:bg-sidebar-accent" aria-label={t('horizontalNav.openProfileMenu')}>
                 <Avatar className="size-8 rounded-lg">
-                  {profilePicture && <AvatarImage src={profilePicture} alt="" className="object-cover object-top" />}
+                  {profilePicture && <FallbackAvatarImage src={profilePicture} fallbackSrc={lectioProfilePicture} alt="" className="object-cover object-top" />}
                   <AvatarFallback className="rounded-lg">{profileName.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <span className="il-horizontal-profile-copy grid min-w-14 max-w-28 leading-none max-[1080px]:hidden">
@@ -567,7 +568,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
               <div className="flex items-center gap-3 px-2 py-2">
                 <button type="button" onClick={() => profilePicture && setImageOpen(true)} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="size-11 rounded-lg">
-                    {profilePicture && <AvatarImage src={profilePicture} alt={profileName} className="object-cover object-top" />}
+                    {profilePicture && <FallbackAvatarImage src={profilePicture} fallbackSrc={lectioProfilePicture} alt={profileName} className="object-cover object-top" />}
                     <AvatarFallback className="rounded-lg">{profileName.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </button>
@@ -625,7 +626,17 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
 
       {imageOpen && profilePicture && (
         <div className="fixed inset-0 z-100 flex cursor-pointer items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setImageOpen(false)}>
-          <img src={profilePicture} alt={profileName} className="max-h-[80vh] max-w-[80vw] rounded-xl object-contain shadow-2xl" onClick={(event) => event.stopPropagation()} />
+          <img
+            src={profilePicture}
+            alt={profileName}
+            className="max-h-[80vh] max-w-[80vw] rounded-xl object-contain shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+            onError={(event) => {
+              if (lectioProfilePicture && event.currentTarget.src !== new URL(lectioProfilePicture, window.location.origin).href) {
+                event.currentTarget.src = lectioProfilePicture;
+              }
+            }}
+          />
         </div>
       )}
     </header>

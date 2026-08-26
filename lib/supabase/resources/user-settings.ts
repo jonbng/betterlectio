@@ -17,6 +17,11 @@ export interface UpsertUserSchoolThemeResult {
   updated_at: string;
 }
 
+export interface UserSettingsQueryOptions {
+  /** Fetch fresh settings rather than serving the local query cache. */
+  bypassCache?: boolean;
+}
+
 // Cache namespace for user-scoped tables — settings/themes are keyed on
 // auth.uid(), not a school. Using a `user:<uid>` namespace keeps the
 // existing schoolId-keyed cache invalidations isolated per user.
@@ -26,12 +31,13 @@ function userNamespace(supabaseId: string): string {
 
 // ── Feature settings (single jsonb blob, keyed on auth.uid()) ───────
 
-export function getUserSettingsRow(supabaseId: string) {
+export function getUserSettingsRow(supabaseId: string, options?: UserSettingsQueryOptions) {
   return cachedQuery<UserSettingsRow | null>({
     schoolId: userNamespace(supabaseId),
     table: 'user_settings',
     filters: [{ column: 'supabase_id', op: 'eq', value: supabaseId }],
     single: true,
+    bypassCache: options?.bypassCache,
   });
 }
 
@@ -54,11 +60,12 @@ export async function upsertUserSettings(args: {
 
 // ── Per-school theme ────────────────────────────────────────────────
 
-export function getUserSchoolThemes(supabaseId: string) {
+export function getUserSchoolThemes(supabaseId: string, options?: UserSettingsQueryOptions) {
   return cachedQuery<UserSchoolThemeRow[]>({
     schoolId: userNamespace(supabaseId),
     table: 'user_school_themes',
     filters: [{ column: 'supabase_id', op: 'eq', value: supabaseId }],
+    bypassCache: options?.bypassCache,
   });
 }
 

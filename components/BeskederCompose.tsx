@@ -16,7 +16,7 @@ import {
 } from '@/lib/beskeder-submit';
 import { fetchBeskederRecipientItems } from '@/lib/beskeder-recipients-cache';
 import { getRecentRecipients, addRecentRecipient, type RecentRecipient } from '@/lib/beskeder-compose-recents';
-import { fetchPictureUrl, getCachedPictureUrl } from '@/lib/findskema-storage';
+import { fetchPictureUrl, getCachedPictureUrl, isPictureCacheStale } from '@/lib/findskema-storage';
 import { normalizeString, fuzzyMatch } from '@/lib/fuzzy-search';
 import { cn } from '@/lib/utils';
 import { getDisplayNameFromLookupId, getNameAliasesFromLookupId, getPictureUrlFromLookupId, useSchoolStudents } from '@/lib/supabase/student-lookup';
@@ -112,10 +112,10 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       return;
     }
 
-    const cached = getCachedPictureUrl(contextId);
+    const cached = getCachedPictureUrl(contextId, { allowStale: true });
     if (cached !== undefined) {
       setPictureByContextId((prev) => ({ ...prev, [contextId]: cached }));
-      return;
+      if (!isPictureCacheStale(contextId)) return;
     }
 
     pictureInFlightRef.current.add(contextId);

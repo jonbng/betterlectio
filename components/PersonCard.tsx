@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { Pin, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
-import { fetchPictureUrl, getCachedPictureUrl } from '../lib/findskema-storage';
+import { fetchPictureUrl, getCachedPictureUrl, isPictureCacheStale } from '../lib/findskema-storage';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, type StudentsMap } from '@/lib/supabase/student-lookup';
 import { browser } from 'wxt/browser';
 import { useTranslation } from '@/lib/i18n';
@@ -142,15 +142,18 @@ export function PersonCard({
     }
 
     // Check cache first
-    const cached = getCachedPictureUrl(id);
+    const cached = getCachedPictureUrl(id, { allowStale: true });
     if (cached !== undefined) {
       if (cached === null) {
         setPictureError(true); // No picture available
       } else {
         setPictureUrl(cached);
       }
-      hasFetchedRef.current = true;
-      return; // Already have cached data, no need for observer
+      // A stale entry remains visible while fetchPictureUrl revalidates it.
+      if (!isPictureCacheStale(id)) {
+        hasFetchedRef.current = true;
+        return;
+      }
     }
 
     const loadPicture = async () => {
@@ -225,7 +228,28 @@ export function PersonCard({
     setPictureLoaded(true);
   };
 
-  const handleImageError = () => {
+  const handleImageError = async () => {
+    setPictureLoaded(false);
+    // A moderated custom portrait is preferred, but a broken custom object
+    // must fall through to the authenticated Lectio portrait before initials.
+    if (preferredPictureUrl && pictureUrl === preferredPictureUrl) {
+      const cachedLectioUrl = getCachedPictureUrl(id, { allowStale: true });
+      if (typeof cachedLectioUrl === 'string') {
+        setPictureError(false);
+        setPictureUrl(cachedLectioUrl);
+        if (isPictureCacheStale(id)) {
+          const refreshedUrl = await fetchPictureUrl(id, schoolId);
+          if (refreshedUrl) setPictureUrl(refreshedUrl);
+        }
+        return;
+      }
+      const lectioUrl = await fetchPictureUrl(id, schoolId);
+      if (lectioUrl && lectioUrl !== pictureUrl) {
+        setPictureError(false);
+        setPictureUrl(lectioUrl);
+        return;
+      }
+    }
     setPictureError(true);
   };
 

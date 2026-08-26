@@ -12,13 +12,7 @@ import type {
   SupabaseMessage,
   SupabaseResponse,
 } from './messages';
-import {
-  cacheKey,
-  queryFingerprint,
-  readCache,
-  writeCache,
-  invalidateTable,
-} from './cache';
+import { cacheKey, queryFingerprint, readCache, writeCache, invalidateTable } from './cache';
 
 // ── Message sender ──────────────────────────────────────────────────
 
@@ -31,15 +25,11 @@ async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
 
 // ── Query / Mutate / RPC ────────────────────────────────────────────
 
-export async function sendQuery(
-  opts: Omit<QueryMessage, 'type'>,
-): Promise<SupabaseResponse> {
+export async function sendQuery(opts: Omit<QueryMessage, 'type'>): Promise<SupabaseResponse> {
   return send({ type: 'bl-sb:query', ...opts });
 }
 
-export async function sendMutation(
-  opts: Omit<MutateMessage, 'type'>,
-): Promise<SupabaseResponse> {
+export async function sendMutation(opts: Omit<MutateMessage, 'type'>): Promise<SupabaseResponse> {
   return send({ type: 'bl-sb:mutate', ...opts });
 }
 
@@ -96,10 +86,7 @@ export async function sendProfilePictureSubmission(opts: {
   });
 }
 
-export async function sendRpc(
-  fn: FunctionName,
-  args: Record<string, unknown>,
-): Promise<SupabaseResponse> {
+export async function sendRpc(fn: FunctionName, args: Record<string, unknown>): Promise<SupabaseResponse> {
   const resp = await send({ type: 'bl-sb:rpc', fn, args });
 
   // Our security-definer RPCs (`upsert_user_lesson_override_v2`,
@@ -115,11 +102,7 @@ export async function sendRpc(
     const { schoolId, studentId } = extractRpcIdentity(args);
     if (schoolId) {
       const { forceReauthenticate } = await import('./session');
-      const reauthed = await forceReauthenticate(
-        schoolId,
-        'rpc-unauthorized-retry',
-        studentId,
-      );
+      const reauthed = await forceReauthenticate(schoolId, 'rpc-unauthorized-retry', studentId);
       if (reauthed) {
         return send({ type: 'bl-sb:rpc', fn, args });
       }
@@ -138,7 +121,10 @@ export interface CachedQueryOpts {
   filters?: Filter[];
   order?: OrderBy;
   limit?: number;
+  allPages?: boolean;
   single?: boolean;
+  /** Skip the local cache and fetch a fresh result. */
+  bypassCache?: boolean;
 }
 
 /**
@@ -154,12 +140,13 @@ export async function cachedQuery<T>(opts: CachedQueryOpts): Promise<T> {
       filters: opts.filters,
       order: opts.order,
       limit: opts.limit,
+      allPages: opts.allPages,
       single: opts.single,
     }),
   );
 
-  // 1. Try cache
-  const cached = await readCache<T>(key);
+  // 1. Try cache unless the caller explicitly requests fresh data.
+  const cached = opts.bypassCache ? null : await readCache<T>(key);
 
   // Treat a previously-cached null single-row result as a cache miss. Older
   // extension versions could poison the cache with `null` when the query ran
@@ -178,12 +165,15 @@ export async function cachedQuery<T>(opts: CachedQueryOpts): Promise<T> {
       filters: opts.filters,
       order: opts.order,
       limit: opts.limit,
+      allPages: opts.allPages,
       single: opts.single,
-    }).then((resp) => {
-      if (resp.ok && resp.data !== undefined) {
-        writeCache(key, resp.data, opts.table);
-      }
-    }).catch(() => {});
+    })
+      .then((resp) => {
+        if (resp.ok && resp.data !== undefined) {
+          writeCache(key, resp.data, opts.table);
+        }
+      })
+      .catch(() => {});
     return cached.data;
   }
 
@@ -194,6 +184,7 @@ export async function cachedQuery<T>(opts: CachedQueryOpts): Promise<T> {
     filters: opts.filters,
     order: opts.order,
     limit: opts.limit,
+    allPages: opts.allPages,
     single: opts.single,
   });
 
@@ -247,7 +238,10 @@ export async function mutate(opts: MutationOpts): Promise<unknown> {
 
 // ── Auth helpers ────────────────────────────────────────────────────
 
-export async function getSession(): Promise<{ expires_at: number; user_id?: string | null } | null> {
+export async function getSession(): Promise<{
+  expires_at: number;
+  user_id?: string | null;
+} | null> {
   try {
     const resp = await send({ type: 'bl-sb:auth:session' });
     return resp.ok ? (resp.session ?? null) : null;

@@ -285,7 +285,7 @@ Intended cross-client flow:
 3. user toggles a card
 4. client writes one upsert with a new `client_updated_at`
 5. server accepts newer writes and ignores stale ones
-6. other clients refetch / receive realtime updates and converge on the same state
+6. other clients refetch (and poll every 60 seconds while their homework UI is visible) and converge on the same state
 
 This is patch-sync, not snapshot-sync.
 

@@ -20,6 +20,7 @@
     "dev:safari": "wxt -b safari --mv3",
     "geocode:schools": "bun run ./tools/geocode-schools.mjs",
     "import:schools": "bun run ./tools/import-schools-to-supabase.mjs",
+    "cleanup:legacy-profile-pictures": "bun run ./tools/cleanup-legacy-profile-pictures.mjs",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "build:safari": "wxt build -b safari --mv3",

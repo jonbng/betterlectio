@@ -14,10 +14,7 @@ const STUDENTS_REFRESH_KEY_PREFIX = 'bl-students-last-refresh';
 const STUDENTS_REFRESH_TTL_MS = 30_000;
 
 /** Hook that fetches all students from the same school. Returns a Map for O(1) lookups. */
-export function useSchoolStudents(
-  schoolId: string,
-  opts?: { refreshOnMount?: boolean },
-) {
+export function useSchoolStudents(schoolId: string, opts?: { refreshOnMount?: boolean }) {
   const [refreshReady, setRefreshReady] = useState(!opts?.refreshOnMount);
 
   useEffect(() => {
@@ -43,8 +40,11 @@ export function useSchoolStudents(
   const { data: students, isLoading } = useQuery<Student[]>({
     schoolId,
     table: 'students',
-    select: 'id,name,lectio_first_name,lectio_last_name,custom_pfp_url,lectio_pfp_url,extension_installed_at,extension_uninstalled_at,last_seen_at,app_installed_at',
+    select:
+      'id,name,lectio_first_name,lectio_last_name,custom_pfp_url,lectio_pfp_url,extension_installed_at,extension_uninstalled_at,last_seen_at,app_installed_at',
     filters: [{ column: 'school_id', op: 'eq', value: Number(schoolId) }],
+    order: { column: 'id', ascending: true },
+    allPages: true,
     enabled: refreshReady,
   });
 
@@ -70,23 +70,23 @@ export function useSchoolStudents(
 export function useAdoptionCounts(
   schoolId: string,
   className: string | null,
-): { schoolCount: number | null; classCount: number | null; isLoading: boolean } {
+): {
+  schoolCount: number | null;
+  classCount: number | null;
+  isLoading: boolean;
+} {
   type Row = Pick<
     Student,
-    | 'id'
-    | 'class_name'
-    | 'extension_installed_at'
-    | 'extension_uninstalled_at'
-    | 'last_seen_at'
-    | 'app_installed_at'
+    'id' | 'class_name' | 'extension_installed_at' | 'extension_uninstalled_at' | 'last_seen_at' | 'app_installed_at'
   >;
 
   const { data: schoolStudents, isLoading } = useQuery<Row[]>({
     schoolId,
     table: 'students',
-    select:
-      'id,class_name,extension_installed_at,extension_uninstalled_at,last_seen_at,app_installed_at',
+    select: 'id,class_name,extension_installed_at,extension_uninstalled_at,last_seen_at,app_installed_at',
     filters: [{ column: 'school_id', op: 'eq', value: Number(schoolId) }],
+    order: { column: 'id', ascending: true },
+    allPages: true,
     enabled: Boolean(schoolId),
   });
 
@@ -141,7 +141,9 @@ export function getPreferredStudentPictureUrl(
   student: Pick<Student, 'custom_pfp_url' | 'lectio_pfp_url'> | null | undefined,
   fallbackPictureUrl?: string | null,
 ): string | null {
-  return student?.custom_pfp_url || student?.lectio_pfp_url || fallbackPictureUrl || null;
+  // Ordinary school portraits are authenticated Lectio assets. Do not prefer
+  // the deprecated Supabase mirror over a live/context-card Lectio URL.
+  return student?.custom_pfp_url || fallbackPictureUrl || null;
 }
 
 export function getPreferredStudentDisplayName(
@@ -210,10 +212,7 @@ export function getPictureUrlFromLookupId(
   lookupId: string | null | undefined,
   fallbackPictureUrl?: string | null,
 ): string | null {
-  return getPreferredStudentPictureUrl(
-    getStudentFromLookupId(studentsMap, lookupId),
-    fallbackPictureUrl,
-  );
+  return getPreferredStudentPictureUrl(getStudentFromLookupId(studentsMap, lookupId), fallbackPictureUrl);
 }
 
 export function getDisplayNameFromLookupId(
@@ -221,10 +220,7 @@ export function getDisplayNameFromLookupId(
   lookupId: string | null | undefined,
   fallbackName: string,
 ): string {
-  return getPreferredStudentDisplayName(
-    getStudentFromLookupId(studentsMap, lookupId),
-    fallbackName,
-  );
+  return getPreferredStudentDisplayName(getStudentFromLookupId(studentsMap, lookupId), fallbackName);
 }
 
 export function getNameAliasesFromLookupId(
@@ -232,10 +228,7 @@ export function getNameAliasesFromLookupId(
   lookupId: string | null | undefined,
   fallbackName?: string | null,
 ): string[] {
-  return getStudentNameAliases(
-    getStudentFromLookupId(studentsMap, lookupId),
-    fallbackName,
-  );
+  return getStudentNameAliases(getStudentFromLookupId(studentsMap, lookupId), fallbackName);
 }
 
 /** Format ISO date (YYYY-MM-DD) to Danish format like "9. jan 2008" */

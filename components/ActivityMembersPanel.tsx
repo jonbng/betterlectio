@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "preact/hooks";
 import type { Member } from "@/lib/members-fetch";
 import {
   getStudentFromLookupId,
@@ -120,18 +121,11 @@ export function MemberChip({
       )}
     >
       <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
-        {pictureUrl ? (
-          <img
-            src={pictureUrl}
-            alt=""
-            className="h-full w-full object-cover object-top"
-            loading="lazy"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-            {displayName.charAt(0).toUpperCase()}
-          </span>
-        )}
+        <MemberAvatar
+          primaryUrl={pictureUrl ?? null}
+          fallbackUrl={member.pictureUrl ?? null}
+          displayName={displayName}
+        />
       </span>
       <span className="truncate max-w-[140px]">{displayName}</span>
     </span>
@@ -151,4 +145,36 @@ export function MemberChip({
   }
 
   return chip;
+}
+
+function MemberAvatar({
+  primaryUrl,
+  fallbackUrl,
+  displayName,
+}: {
+  primaryUrl: string | null;
+  fallbackUrl: string | null;
+  displayName: string;
+}) {
+  const [url, setUrl] = useState(primaryUrl);
+
+  useEffect(() => setUrl(primaryUrl), [primaryUrl, fallbackUrl]);
+
+  if (!url) {
+    return (
+      <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+        {displayName.charAt(0).toUpperCase()}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt=""
+      className="h-full w-full object-cover object-top"
+      loading="lazy"
+      onError={() => setUrl(fallbackUrl && fallbackUrl !== url ? fallbackUrl : null)}
+    />
+  );
 }

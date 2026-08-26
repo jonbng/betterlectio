@@ -971,36 +971,6 @@ export type Database = {
           },
         ]
       }
-      updates: {
-        Row: {
-          changed_at: string | null
-          column_changed: string
-          id: string
-          new_state: Json | null
-          old_state: Json | null
-          record_id: string | null
-          table_name: string
-        }
-        Insert: {
-          changed_at?: string | null
-          column_changed: string
-          id?: string
-          new_state?: Json | null
-          old_state?: Json | null
-          record_id?: string | null
-          table_name: string
-        }
-        Update: {
-          changed_at?: string | null
-          column_changed?: string
-          id?: string
-          new_state?: Json | null
-          old_state?: Json | null
-          record_id?: string | null
-          table_name?: string
-        }
-        Relationships: []
-      }
       user_lesson_overrides: {
         Row: {
           client_updated_at: string | null

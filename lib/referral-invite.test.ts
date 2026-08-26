@@ -14,7 +14,7 @@ import {
   searchReferralInviteCandidates,
   stampReferralInviteSent,
 } from './referral-invite';
-import type { StudentsMap } from './supabase/student-lookup';
+import { getPreferredStudentPictureUrl, type StudentsMap } from './supabase/student-lookup';
 import { fetchBeskederRecipientItems } from './beskeder-recipients-cache';
 import { parseComposeFromDOM } from './beskeder-thread-parser';
 
@@ -36,6 +36,18 @@ function item(name: string, id: string): [string, string, ...unknown[]] {
 }
 
 describe('referral invite candidates', () => {
+  test('uses only custom Supabase pictures before the authenticated Lectio fallback', () => {
+    const fallback = 'https://www.lectio.dk/lectio/94/GetImage.aspx?pictureid=2';
+    assert.equal(getPreferredStudentPictureUrl({
+      custom_pfp_url: 'https://cdn.example/custom.jpg',
+      lectio_pfp_url: 'https://cdn.example/deprecated-mirror.jpg',
+    }, fallback), 'https://cdn.example/custom.jpg');
+    assert.equal(getPreferredStudentPictureUrl({
+      custom_pfp_url: null,
+      lectio_pfp_url: 'https://cdn.example/deprecated-mirror.jpg',
+    }, fallback), fallback);
+  });
+
   test('keeps eligible students, hides the sender and active BetterLectio users', () => {
     const studentsMap = new Map([
       ['103', {

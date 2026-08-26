@@ -168,23 +168,8 @@ Deno.serve(async (req: Request) => {
     }
     if (!tokenHash) return await fail("Failed to extract token_hash from magic link", 500, "extract-token")
 
-    let pictureBlob: { buffer: ArrayBuffer; contentType: string } | null = null
-    if (profile.pictureUrl) {
-      try {
-        const result = await fetchWithJar(profile.pictureUrl, jar)
-        if (result.response.ok) {
-          pictureBlob = {
-            buffer: result.body,
-            contentType: result.response.headers.get("content-type") || "image/jpeg",
-          }
-        }
-      } catch (error) {
-        console.warn("Profile picture enrichment failed", { requestId, error })
-      }
-    }
-
     try {
-      await upsertStudent(admin, studentId, gymId, authUserId, profile, pictureBlob, platform)
+      await upsertStudent(admin, studentId, gymId, authUserId, profile, platform)
     } catch (error) {
       console.error("Student upsert failed", { requestId, error })
       return await fail("Failed to save student profile", 500, "upsert-student")
@@ -223,36 +208,8 @@ async function upsertStudent(
   schoolId: string,
   authUserId: string,
   profile: ParsedLectioProfile,
-  pictureBlob: { buffer: ArrayBuffer; contentType: string } | null,
   platform: AuthPlatform,
 ): Promise<void> {
-  let storedPath: string | null = null
-  let pictureHash: string | null = null
-  let hashMatched = false
-
-  if (pictureBlob) {
-    pictureHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", pictureBlob.buffer)))
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("")
-    const { data: existing } = await admin.from("students").select("pfp_hash").eq("id", studentId).maybeSingle()
-    hashMatched = existing?.pfp_hash === pictureHash
-    if (!hashMatched) {
-      const extension = pictureBlob.contentType.includes("png")
-        ? "png"
-        : pictureBlob.contentType.includes("webp") ? "webp" : "jpg"
-      storedPath = `${schoolId}/${studentId}.${extension}`
-      const { error } = await admin.storage.from("profile-pictures").upload(
-        storedPath,
-        new Uint8Array(pictureBlob.buffer),
-        { contentType: pictureBlob.contentType, upsert: true },
-      )
-      if (error) {
-        console.warn("Failed to upload profile picture", { studentId, code: error.name })
-        storedPath = null
-      }
-    }
-  }
-
   const { data: existing, error: existingError } = await admin
     .from("students")
     .select("app_installed_at, android_installed_at, iphone_installed_at")
@@ -274,13 +231,6 @@ async function upsertStudent(
   if (profile.lastName) record.lectio_last_name = profile.lastName
   if (profile.birthdate) record.birthdate = profile.birthdate
   if (profile.className) record.class_name = profile.className
-  if (storedPath) {
-    record.lectio_pfp_url = admin.storage.from("profile-pictures").getPublicUrl(storedPath).data.publicUrl
-    if (pictureHash) record.pfp_hash = pictureHash
-  } else if (profile.pictureUrl && pictureBlob && !hashMatched) {
-    record.lectio_pfp_url = profile.pictureUrl
-  }
-
   const { error } = await admin.from("students").upsert(record, { onConflict: "id" })
   if (error) throw error
 }

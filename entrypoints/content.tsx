@@ -57,7 +57,7 @@ import { hydrateHoldMappingsFromSupabase, seedKnownHoldMappingsToSupabase } from
 import {
   hydrateSettingsFromSupabase,
   hydrateSchoolThemesFromSupabase,
-  subscribeToSettingsRealtime,
+  installSettingsHydrationLifecycle,
 } from "@/lib/settings-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
@@ -1055,9 +1055,8 @@ function initLayout() {
         if (activeChanged) applyThemeForSchool(schoolId ?? null);
       }).catch(() => {});
 
-      void subscribeToSettingsRealtime().then((unsub) => {
-        window.addEventListener('pagehide', () => { unsub(); }, { once: true });
-      }).catch(() => {});
+      const cleanupSettingsHydrationLifecycle = installSettingsHydrationLifecycle();
+      window.addEventListener('pagehide', cleanupSettingsHydrationLifecycle, { once: true });
 
       const pathnameLower = window.location.pathname.toLowerCase();
       const isSchedulePage =

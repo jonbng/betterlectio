@@ -28,6 +28,8 @@ export interface QueryMessage {
   filters?: Filter[];
   order?: OrderBy;
   limit?: number;
+  /** Fetch every result page. Requires a deterministic order and cannot be combined with single. */
+  allPages?: boolean;
   single?: boolean;
 }
 
@@ -125,5 +127,9 @@ export type SupabaseMessage =
 // ── Response ────────────────────────────────────────────────────────
 
 export type SupabaseResponse =
-  | { ok: true; data?: unknown; session?: { expires_at: number; user_id?: string | null } | null }
+  | {
+      ok: true;
+      data?: unknown;
+      session?: { expires_at: number; user_id?: string | null } | null;
+    }
   | { ok: false; error?: string; data?: unknown };

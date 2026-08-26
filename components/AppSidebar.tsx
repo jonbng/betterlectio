@@ -37,7 +37,7 @@ import {
   Calculator,
   Smartphone,
 } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, FallbackAvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 import {
   Collapsible,
@@ -317,7 +317,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     single: true,
     enabled: Boolean(cachedProfile?.studentId),
   });
-  const profilePic = getPreferredStudentPictureUrl(sidebarStudent, getProfilePicture());
+  const lectioProfilePic = getProfilePicture();
+  const profilePic = getPreferredStudentPictureUrl(sidebarStudent, lectioProfilePic);
   const userName = getPreferredStudentDisplayName(sidebarStudent, getUserName());
   const userClass = getUserClass();
   const currentPage = getCurrentPage();
@@ -653,7 +654,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12 rounded-lg">
                       {profilePic ? (
-                        <AvatarImage src={profilePic} alt={userName} className="object-cover object-top" />
+                        <FallbackAvatarImage src={profilePic} fallbackSrc={lectioProfilePic} alt={userName} className="object-cover object-top" />
                       ) : null}
                       <AvatarFallback className="rounded-lg text-base">
                         {userName.charAt(0).toUpperCase()}
@@ -752,7 +753,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 }}
               >
                 {profilePic ? (
-                  <AvatarImage src={profilePic} alt={userName} className="object-cover object-top" />
+                  <FallbackAvatarImage src={profilePic} fallbackSrc={lectioProfilePic} alt={userName} className="object-cover object-top" />
                 ) : null}
                 <AvatarFallback className="rounded-lg text-sm">
                   {userName.charAt(0).toUpperCase()}
@@ -781,6 +782,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             alt={userName}
             className="max-w-[80vw] max-h-[80vh] rounded-lg shadow-2xl object-contain animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
+            onError={(event) => {
+              if (lectioProfilePic && event.currentTarget.src !== new URL(lectioProfilePic, window.location.origin).href) {
+                event.currentTarget.src = lectioProfilePic;
+              }
+            }}
           />
         </div>
       )}

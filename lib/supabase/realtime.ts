@@ -67,14 +67,21 @@ export async function subscribe(opts: {
   event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*';
   filter?: string;
 }): Promise<void> {
-  await browser.runtime.sendMessage({
+  const response = await browser.runtime.sendMessage({
     type: 'bl-sb:subscribe' as const,
     channel: opts.channel,
     table: opts.table,
     schoolId: opts.schoolId,
     event: opts.event,
     filter: opts.filter,
-  });
+  }) as { ok?: boolean; error?: unknown } | undefined;
+
+  if (!response?.ok) {
+    const message = typeof response?.error === 'string'
+      ? response.error
+      : 'Supabase Realtime subscription failed';
+    throw new Error(message);
+  }
 }
 
 export async function unsubscribe(channel: string): Promise<void> {

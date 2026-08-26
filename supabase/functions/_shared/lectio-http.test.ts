@@ -5,6 +5,7 @@ import {
   isLectioLoginHtml,
   mergeCookies,
   SessionExpiredError,
+  UnsafeRedirectError,
 } from "./lectio-http.ts"
 
 Deno.test("protected primary cookies survive empty Set-Cookie values", () => {
@@ -53,6 +54,27 @@ Deno.test("redirects to UniLogin are classified as expired sessions", async () =
       () => fetchWithJar("https://www.lectio.dk/start", new Map()),
       SessionExpiredError,
     )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+Deno.test("cookies are never forwarded to an untrusted redirect host", async () => {
+  const originalFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = (() => {
+    calls++
+    return Promise.resolve(new Response(null, {
+      status: 302,
+      headers: { location: "https://example.com/collect" },
+    }))
+  }) as typeof fetch
+  try {
+    await assertRejects(
+      () => fetchWithJar("https://www.lectio.dk/start", new Map([["secret", "value"]])),
+      UnsafeRedirectError,
+    )
+    assertEquals(calls, 1)
   } finally {
     globalThis.fetch = originalFetch
   }

@@ -4,9 +4,9 @@ import { FileText, BookOpen, Download, ArrowUpRight, Check } from 'lucide-react'
 import type { Tables } from '@/database.types';
 import { getLoggedInUserId } from '@/lib/profile-cache';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
-import { subscribe, unsubscribe } from '@/lib/supabase/realtime';
 import { useQuery } from '@/lib/supabase/hooks';
 import { upsertStudentHomeworkStatus } from '@/lib/supabase/resources';
+import { installVisiblePoller } from '@/lib/visible-poller';
 import { cn } from '@/lib/utils';
 import { captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
 
@@ -470,29 +470,19 @@ export function LektierPage({ entries }: LektierPageProps) {
     enabled: Boolean(schoolId && visibleEntryIds.length > 0),
   });
 
-  const { data: studentHomeworkRows } = useQuery<StudentHomeworkRow[]>({
+  const { data: studentHomeworkRows, refetch: refetchStudentHomework } = useQuery<StudentHomeworkRow[]>({
     schoolId: schoolId ?? '0',
     table: 'student_homework',
     filters: [{ column: 'student_id', op: 'eq', value: studentId }],
     enabled: Boolean(schoolId && studentId),
+    skipInitialFetch: true,
+    refetchOnCacheChange: false,
   });
 
   useEffect(() => {
     if (!schoolId || !studentId) return;
-
-    const studentChannel = `student-homework:${schoolId}:${studentId}`;
-
-    void subscribe({
-      channel: studentChannel,
-      table: 'student_homework',
-      schoolId,
-      filter: `student_id=eq.${studentId}`,
-    });
-
-    return () => {
-      void unsubscribe(studentChannel);
-    };
-  }, [schoolId, studentId]);
+    return installVisiblePoller(() => refetchStudentHomework({ bypassCache: true }));
+  }, [schoolId, studentId, refetchStudentHomework]);
 
   const remoteStatusByEntryId = useMemo(() => {
     if (!homeworkRows || !studentHomeworkRows) return null;
