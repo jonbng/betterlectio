@@ -89,19 +89,19 @@ function HueRingPicker({
     onChange(clientToHue(clientX, clientY, el.getBoundingClientRect()));
   };
 
-  const onPointerDown = (e: React.PointerEvent) => {
+  const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
     e.preventDefault();
     draggingRef.current = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     applyFromClient(e.clientX, e.clientY);
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
+  const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
     if (!draggingRef.current) return;
     applyFromClient(e.clientX, e.clientY);
   };
 
-  const onPointerUp = (e: React.PointerEvent) => {
+  const onPointerUp = (e: React.PointerEvent<HTMLElement>) => {
     draggingRef.current = false;
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -110,7 +110,7 @@ function HueRingPicker({
     }
   };
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     const step = e.shiftKey ? 10 : 1;
     if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
       e.preventDefault();

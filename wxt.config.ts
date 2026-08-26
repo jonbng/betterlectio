@@ -25,19 +25,45 @@ export default defineConfig({
         matches: ['*://*.lectio.dk/*'],
       },
     ],
+    // Declared on the config (not only the generate hook) so WXT 0.21 sees
+    // the Firefox ID / data-collection permissions and skips those warnings.
+    // Stripped from Chrome/Safari manifests.
+    browser_specific_settings: {
+      gecko: {
+        id: '{c3b94c3b-a7d2-4130-9adc-75cc174b0aaa}',
+        strict_min_version: '109.0',
+        data_collection_permissions: {
+          required: ['none'],
+        },
+      },
+    },
   },
   hooks: {
+    // Keep WXT 0.20 compiler options. v0.21's generated tsconfig turns on
+    // verbatimModuleSyntax, noUncheckedIndexedAccess, and a DOM lib that
+    // clash with this Preact + @types/react setup (~570 tsc errors).
+    'prepare:tsconfig': (_wxt, { tsconfig }) => {
+      const opts = tsconfig.compilerOptions;
+      delete opts.lib;
+      opts.module = 'ESNext';
+      delete opts.moduleDetection;
+      delete opts.allowImportingTsExtensions;
+      delete opts.verbatimModuleSyntax;
+      opts.esModuleInterop = true;
+      opts.forceConsistentCasingInFileNames = true;
+      opts.resolveJsonModule = true;
+      delete opts.noFallthroughCasesInSwitch;
+      delete opts.noUncheckedIndexedAccess;
+      delete opts.noImplicitOverride;
+    },
     'build:manifestGenerated': (wxt, manifest) => {
-      if (wxt.config.browser === 'firefox') {
-        manifest.browser_specific_settings = {
-          gecko: {
-            id: '{c3b94c3b-a7d2-4130-9adc-75cc174b0aaa}',
-            strict_min_version: '109.0',
-            data_collection_permissions: {
-              required: ['none'],
-            },
-          },
-        };
+      // gecko lives on config.manifest so WXT's ID / data-collection
+      // warnings stay quiet, but it must not ship on Chrome or Safari.
+      if (wxt.config.browser !== 'firefox' && manifest.browser_specific_settings) {
+        delete (manifest.browser_specific_settings as { gecko?: unknown }).gecko;
+        if (Object.keys(manifest.browser_specific_settings).length === 0) {
+          delete manifest.browser_specific_settings;
+        }
       }
       if (wxt.config.browser === 'safari') {
         // Safari ships as a macOS-only Safari Web Extension (MV3) bundled inside
@@ -79,38 +105,30 @@ export default defineConfig({
     startUrls: ['https://www.lectio.dk/'],
   },
   zip: {
-    excludeSources: [
-      // Build dependencies and artifacts
-      'node_modules/**',
-      '.output/**',
-      '.wxt/**',
-      // Reference materials (flagged by Mozilla)
-      'lectio-html/**',
-      'lectio-scripts/**',
-      'tools/**',
-      // Sensitive/config files
-      '.env',
-      '.claude/**',
-      '.mcp.json',
-      // CI/CD and docs
-      '.github/**',
-      'docs/**',
-      '.cursor/**',
-      // Store listing assets (not part of extension)
-      'chrome-*.svg',
-      'firefox-*.svg',
-      'screenshots/**',
-      // Development docs
-      'CLAUDE.md',
-      'AGENTS.md',
-      'ARCHITECTURE.md',
+    // WXT 0.21: includeSources - excludeSources. Default include is all
+    // non-dot files, so an explicit allowlist keeps AMO sources to the
+    // files needed to rebuild the extension.
+    includeSources: [
+      'entrypoints',
+      'components',
+      'lib',
+      'hooks',
+      'styles',
+      'public',
+      'package.json',
+      'bun.lock',
+      'tsconfig.json',
+      'wxt.config.ts',
+      'preact-compat.d.ts',
+      'database.types.ts',
+      'README.md',
+      'LICENSE',
+      'PRIVACY.md',
       'SOURCE_CODE_REVIEW.md',
-      'web-ext.config.ts',
-      'admin/**',
-      'supabase/**',
-      'website/**',
-      // Flutter mobile app (separate project, not part of the extension)
-      'android/**',
+    ],
+    excludeSources: [
+      '**/*.test.ts',
+      'styles/globals.before-restore-recovery.css',
     ],
   },
   vite: () => ({

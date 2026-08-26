@@ -109,23 +109,43 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
 
       - name: Submit to stores
-        continue-on-error: true
         run: |
-          ARGS=""
+          set -euo pipefail
+          shopt -s nullglob
+
+          require_one() {
+            local label="$1"
+            shift
+            local files=("$@")
+            if [ "${#files[@]}" -ne 1 ]; then
+              echo "::error::Expected exactly one $label zip, found ${#files[@]}: ${files[*]:-none}"
+              ls -la .output || true
+              exit 1
+            fi
+            printf '%s' "${files[0]}"
+          }
+
+          ARGS=()
           if [ "${{ inputs.publish_chrome }}" = "true" ]; then
-            ARGS="$ARGS --chrome-zip .output/*-chrome.zip"
+            CHROME_ZIP="$(require_one chrome .output/*-chrome.zip)"
+            ARGS+=(--chrome-zip "$CHROME_ZIP")
           fi
           if [ "${{ inputs.publish_firefox }}" = "true" ]; then
-            ARGS="$ARGS --firefox-zip .output/*-firefox.zip --firefox-sources-zip .output/*-sources.zip"
+            FIREFOX_ZIP="$(require_one firefox .output/*-firefox.zip)"
+            SOURCES_ZIP="$(require_one sources .output/*-sources.zip)"
+            ARGS+=(--firefox-zip "$FIREFOX_ZIP" --firefox-sources-zip "$SOURCES_ZIP")
           fi
           if [ "${{ inputs.publish_edge }}" = "true" ]; then
-            ARGS="$ARGS --edge-zip .output/*-chrome.zip"
+            EDGE_ZIP="$(require_one chrome .output/*-chrome.zip)"
+            ARGS+=(--edge-zip "$EDGE_ZIP")
           fi
-          if [ -n "$ARGS" ]; then
-            npx wxt@latest submit $ARGS
-          else
+          if [ "${#ARGS[@]}" -eq 0 ]; then
             echo "No stores selected for publishing, skipping submit"
+            exit 0
           fi
+
+          # Use the repo-locked WXT CLI (0.21+). Do not `npx wxt@latest`.
+          bun run submit -- "${ARGS[@]}"
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}

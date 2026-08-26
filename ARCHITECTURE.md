@@ -17,10 +17,10 @@
 
 | Technology | Purpose |
 |------------|---------|
-| [WXT](https://wxt.dev/) 0.20.6 | Browser extension framework |
-| [Preact](https://preactjs.com/) 10.28.0 | Lightweight React alternative (3KB) |
-| TypeScript 5.9.2 | Type safety |
-| Tailwind CSS 4.1.18 | Utility-first styling |
+| [WXT](https://wxt.dev/) 0.21.4 | Browser extension framework |
+| [Preact](https://preactjs.com/) 10.29.8 | Lightweight React alternative (3KB) |
+| TypeScript 5.9.3 | Type safety |
+| Tailwind CSS 4.3.3 | Utility-first styling |
 | shadcn/ui + Radix UI | Component system + accessible primitives |
 | Lucide + Tabler Icons | Icon libraries |
 | @dnd-kit, @tanstack/react-table, recharts, sonner, zod, next-themes | DnD, tables, charts, toasts, validation, theming |

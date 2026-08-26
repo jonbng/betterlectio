@@ -48,7 +48,7 @@ Download [her](https://betterlectio.dk/download)
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (recommended) or Node.js
+- [Bun](https://bun.sh/) (recommended) or Node.js 22+
 
 ### Commands
 
@@ -73,7 +73,7 @@ bun run zip:firefox  # Firefox
 
 | Technology | Purpose |
 |------------|---------|
-| [WXT](https://wxt.dev/) | Browser extension framework |
+| [WXT](https://wxt.dev/) 0.21 | Browser extension framework |
 | [Preact](https://preactjs.com/) | Lightweight React alternative (3KB) |
 | [TypeScript](https://www.typescriptlang.org/) | Type safety |
 | [Tailwind CSS](https://tailwindcss.com/) | Utility-first styling |

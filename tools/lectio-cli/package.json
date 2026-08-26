@@ -16,13 +16,13 @@
     "@inquirer/prompts": "^7.10.1",
     "chalk": "^5.6.2",
     "commander": "^15.0.0",
-    "fuse.js": "^7.4.2",
-    "ora": "^9.4.0",
-    "puppeteer": "^25.1.0",
-    "tough-cookie": "^6.0.1"
+    "fuse.js": "^7.5.0",
+    "ora": "^9.4.1",
+    "puppeteer": "^25.9.0",
+    "tough-cookie": "^6.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.19.21",
+    "@types/node": "^22.20.1",
     "@types/tough-cookie": "^4.0.5",
     "typescript": "^5.9.3"
   }

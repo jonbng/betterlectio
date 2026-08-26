@@ -211,7 +211,7 @@ export function hideSiblingsOfElevfeedbackIsland(doc: Document): void {
 
   let node: HTMLElement | null = island;
   while (node && node !== doc.body && node !== doc.documentElement) {
-    const parent = node.parentElement;
+    const parent: HTMLElement | null = node.parentElement;
     if (!parent || parent === doc.documentElement) break;
     for (const sibling of Array.from(parent.children)) {
       if (sibling === node || sibling.nodeType !== 1) continue;

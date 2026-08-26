@@ -9,7 +9,7 @@
 Browser extension that modernizes [Lectio](https://www.lectio.dk/), a Danish school management system.
 
 ## Tech Stack
-- **WXT** - Browser extension framework
+- **WXT** 0.21 - Browser extension framework. `vite` (required peer, pin **Vite 7** — Vite 8's Rolldown rejects WXT's IIFE background/content scripts) and `web-ext` (optional peer, opens the browser in `wxt dev`) are listed in `devDependencies`. Node `>=22`.
 - **Preact** - Lightweight React alternative (aliased from React)
 - **TypeScript** + **Tailwind CSS**
 - **shadcn/ui** + **Radix UI** - UI components
@@ -284,6 +284,10 @@ fetch(`${window.location.origin}/lectio/${schoolId}/path.aspx`)
 **Safari background CORS:** Safari does NOT apply the `host_permissions` CORS bypass to a background *service worker* — only to a background page/event page. All Supabase and PostHog traffic originates in `entrypoints/background.ts`, so the Safari branch of `build:manifestGenerated` emits `background.scripts` alongside `background.service_worker`. Do not remove it: without `scripts`, every background network call fails CORS on Safari. Safari builds must use `--mv3` (`bun run build:safari`) since WXT defaults Safari to MV2; `manifestVersion` is a single top-level config scalar, so it can't be set per-browser in `wxt.config.ts`. Safari is macOS-only — no iOS Safari extension. See ARCHITECTURE.md → Browser Compatibility → Safari.
 
 **Version single-source:** `wxt.config.ts` has no `version` key — WXT falls back to `package.json`, which `release.yml` bumps. Don't reintroduce it; the workflow used to patch it with a hardcoded `sed` line number.
+
+**Firefox sources ZIP:** WXT 0.21 uses `includeSources - excludeSources`. `wxt.config.ts` `zip.includeSources` is the allowlist of files AMO needs to rebuild; do not switch back to exclude-only. Production zip names stay `{{name}}-{{packageVersion}}-{{browser}}.zip`.
+
+**Store publishing:** `.github/workflows/release.yml` runs `bun run submit` (`wxt submit` from the repo-locked WXT 0.21). Never `npx wxt@latest`. Chrome Web Store v1 refresh-token secrets still work; v1 is retired 15 Oct 2026, after which `wxt submit init` can switch the project to the CWS v2 service-account flow.
 
 ## Marketing site (`website/`)
 
