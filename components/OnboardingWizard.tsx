@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'preact/hooks';
 import { createPortal } from 'preact/compat';
-import { browser } from 'wxt/browser';
+import { safeRuntimeUrl } from '@/lib/safe-runtime';
 import {
   Sun,
   Moon,
@@ -131,7 +131,7 @@ export function OnboardingWizard({
   const [showBirthday, setShowBirthday] = useState(false);
   const [profileInitialized, setProfileInitialized] = useState(false);
 
-  const logoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
+  const logoUrl = safeRuntimeUrl('/assets/logo-transparent.svg');
 
   // Load student data
   const { data: student, isLoading: studentLoading } = useQuery<Student>({

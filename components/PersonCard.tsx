@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { Pin, Trash2, School, DoorOpen, Box, UsersRound, LayoutGrid } from 'lucide-react';
 import { fetchPictureUrl, getCachedPictureUrl, isPictureCacheStale } from '../lib/findskema-storage';
+import { safeRuntimeUrl } from '../lib/safe-runtime';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, type StudentsMap } from '@/lib/supabase/student-lookup';
 import { browser } from 'wxt/browser';
 import { useTranslation } from '@/lib/i18n';
@@ -376,7 +377,7 @@ export function PersonCard({
         {/* BetterLectio badge */}
         {hasBetterLectio && (
           <img
-            src={browser.runtime.getURL('/assets/logo-rounded.svg')}
+            src={safeRuntimeUrl('/assets/logo-rounded.svg')}
             alt="BetterLectio"
             className="absolute bottom-2 right-2 size-9 drop-shadow-[0_2px_4px_oklch(0_0_0/0.25)]"
           />
