@@ -67,6 +67,10 @@ const ALLOWED_EVENTS = new Set([
   'onboarding_completed',
   'extension installed',
   'extension updated',
+  // `extension loaded` is the denominator for the bypass rate. It must be
+  // captured at 100% so `betterlectio bypass engaged` (also 100%) divides
+  // against a full count of loads. Sampling it to 10% inflated the rate ~10×.
+  'extension loaded',
   'betterlectio bypass engaged',
   'mobile_app_invite_success_shown',
   'referral share link copied',
@@ -84,7 +88,7 @@ function sampleFraction(key: string): number {
 
 function shouldCaptureEvent(event: string, distinctId: string): boolean {
   if (ALLOWED_EVENTS.has(event)) return true;
-  if (event !== 'feature used' && event !== 'extension loaded') return false;
+  if (event !== 'feature used') return false;
 
   // A stable monthly cohort keeps comparisons internally consistent while
   // using roughly one tenth of the former feature-event volume.
@@ -167,6 +171,21 @@ function getAutoProperties(): Record<string, unknown> {
     };
   } catch {
     return {};
+  }
+}
+
+/**
+ * Lowercase page slug from a URL pathname (e.g. `skemany.aspx`). Lectio serves
+ * the same page under mixed case (`SkemaNy.aspx` vs `skemany.aspx`), so every
+ * analytics `page` value must be lowercased or one page splits into two, which
+ * scatters breakdowns and breaks per-page rate math.
+ */
+export function getPageSlug(pathname?: string): string {
+  try {
+    const path = pathname ?? window.location.pathname;
+    return path.split('/').pop()?.split('?')[0]?.toLowerCase() || 'unknown';
+  } catch {
+    return 'unknown';
   }
 }
 
@@ -473,7 +492,7 @@ function getErrorContext(): Record<string, unknown> {
   try {
     if (typeof window === 'undefined') return {};
     const path = window.location.pathname;
-    const page = path.split('/').pop()?.split('?')[0] ?? 'unknown';
+    const page = getPageSlug(path);
     const profile =
       (window as { __IL_CACHED_PROFILE__?: { schoolId?: string | null; studentId?: string | null; className?: string | null } })
         .__IL_CACHED_PROFILE__ ?? getCachedProfile();

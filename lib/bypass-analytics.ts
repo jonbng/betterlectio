@@ -18,6 +18,7 @@ import {
   captureException,
   flushAnalytics,
   getDistinctId,
+  getPageSlug,
 } from '@/lib/posthog';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getSettings } from '@/lib/settings-storage';
@@ -98,8 +99,7 @@ export async function captureBypassEngaged(
     const visibleError = scanForVisibleLectioError();
     const recentUrls = getRecentUrls(5);
 
-    const page =
-      window.location.pathname.split('/').pop()?.split('?')[0] || 'unknown';
+    const page = getPageSlug();
 
     const props: Record<string, unknown> = {
       trigger: 'sidebar_button',

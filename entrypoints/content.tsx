@@ -63,7 +63,7 @@ import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
-import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, getPageSlug, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
@@ -714,7 +714,7 @@ function initLayout() {
     : null;
   const pageProps = {
     school_id: schoolId,
-    page: window.location.pathname.split('/').pop()?.split('?')[0] ?? 'unknown',
+    page: getPageSlug(),
     extension_version: browser.runtime.getManifest().version,
   };
 
