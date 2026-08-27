@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { browser } from 'wxt/browser';
+import { safeRuntimeUrl } from '@/lib/safe-runtime';
 import {
   BookMarked,
   BookOpen,
@@ -274,7 +274,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
   const profilePicture = getPreferredStudentPictureUrl(currentStudent, lectioProfilePicture);
   const profileName = getPreferredStudentDisplayName(currentStudent, profile?.fullName || profile?.name || t('sidebar.menu.profile'));
   const schoolName = getCachedSchoolDisplayName(schoolId) || profile?.schoolName || snapshot.schoolName;
-  const logoUrl = browser.runtime.getURL(schoolId === '94' ? '/assets/soroeakademi.png' : '/assets/logo-transparent.svg');
+  const logoUrl = safeRuntimeUrl(schoolId === '94' ? '/assets/soroeakademi.png' : '/assets/logo-transparent.svg');
 
   const contextFallbackName = snapshot.contextTitle?.match(/^Eleven\s+(.+?)(?:\([^)]+\))?,\s/)?.[1] ?? snapshot.contextTitle ?? '';
   const contextName = getDisplayNameFromLookupId(studentsMap, snapshot.contextId, contextFallbackName);

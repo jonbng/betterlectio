@@ -1,6 +1,7 @@
 import { PostHog } from 'posthog-node';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getRecentUrls } from '@/lib/url-history';
+import { safeGetManifest } from '@/lib/safe-runtime';
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string;
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
@@ -162,7 +163,7 @@ function getAutoProperties(): Record<string, unknown> {
       $current_url: window.location.href,
       $pathname: window.location.pathname,
       extension_version: typeof browser !== 'undefined'
-        ? browser.runtime.getManifest().version
+        ? safeGetManifest()?.version
         : undefined,
     };
   } catch {
@@ -418,7 +419,7 @@ function shouldCaptureException(
 function getExceptionAutoProperties(): Record<string, unknown> {
   try {
     const extension_version =
-      typeof browser !== 'undefined' ? browser.runtime.getManifest().version : undefined;
+      typeof browser !== 'undefined' ? safeGetManifest()?.version : undefined;
     if (typeof window === 'undefined') {
       return {
         extension_version,

@@ -67,7 +67,7 @@ import { capture, captureException, captureFeatureUsedOncePerSession, captureOnc
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
-import { isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
+import { isExtensionContextInvalidatedError, isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
 import { isBypassActive, disableBypass, getBypassRemainingMs } from "@/lib/bypass-redesigns";
 import { watchCKEditorDarkMode } from "@/lib/ckeditor-dark";
 import { t as tLocale } from "@/lib/i18n/t";
@@ -770,7 +770,7 @@ function initLayout() {
 
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
-      if (isIgnorableNetworkError(e.error) || isNonActionableSupabaseError(e.error)) return;
+      if (isIgnorableNetworkError(e.error) || isNonActionableSupabaseError(e.error) || isExtensionContextInvalidatedError(e.error)) return;
       const err =
         e.error instanceof Error
           ? e.error
@@ -785,7 +785,7 @@ function initLayout() {
       });
     });
     window.addEventListener('unhandledrejection', (e) => {
-      if (isIgnorableNetworkError(e.reason) || isNonActionableSupabaseError(e.reason)) return;
+      if (isIgnorableNetworkError(e.reason) || isNonActionableSupabaseError(e.reason) || isExtensionContextInvalidatedError(e.reason)) return;
       captureException(e.reason, phDistinctId, { source: 'unhandledrejection' });
     });
     let _blConsoleErrorCaptures = 0;

@@ -67,6 +67,18 @@ export function isTransientNetworkError(error: unknown): boolean {
   );
 }
 
+// Chrome invalidates a content script's extension context when the extension
+// reloads, updates, or is disabled. Any `browser.runtime` call in the orphaned
+// script then throws "Extension context invalidated.". The `safe-runtime`
+// helpers keep this out of React render, but an in-flight call can still reject
+// after invalidation and reach the global catch-all handlers. The next page load
+// runs a fresh script, so this recovers on its own and is not actionable.
+export function isExtensionContextInvalidatedError(error: unknown): boolean {
+  const message = extractSupabaseErrorMessage(error);
+  if (!message) return false;
+  return /extension context invalidated/i.test(message);
+}
+
 // The union guard: true for any Supabase error that is not worth reporting —
 // unauthorized ownership rejections, expired JWTs (incl. PGRST301), and
 // transient network failures. Use this at capture sites that report Supabase

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
 import { browser } from "wxt/browser";
+import { safeGetManifest, safeRuntimeUrl } from "@/lib/safe-runtime";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -236,10 +237,9 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
     { id: "advanced", name: t('settings.nav.advanced'), icon: Wrench },
     { id: "about", name: t('settings.nav.about'), icon: Info },
   ];
-  const manifest = browser.runtime.getManifest();
-  const version = manifest.version;
+  const version = safeGetManifest()?.version ?? '';
   const lectioVersion = (document.getElementById("s_m_VersionInfoLink") ?? document.getElementById("m_VersionInfoLink"))?.textContent?.replace(/^\s*Lectio\s+version\s*/i, "")?.trim() ?? null;
-  const logoUrl = browser.runtime.getURL("/assets/logo-transparent.svg");
+  const logoUrl = safeRuntimeUrl("/assets/logo-transparent.svg");
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState("appearance");
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);

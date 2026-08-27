@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Search, ArrowRight, X } from "lucide-react";
 import { getLastSchool, saveLastSchool } from "../lib/school-storage";
+import { safeRuntimeUrl } from "../lib/safe-runtime";
 import { useTranslation } from "@/lib/i18n";
 
 export interface School {
@@ -22,7 +23,7 @@ export function LoginPage({ schools }: LoginPageProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   // Get logo URL at render time when browser context is available
-  const logoUrl = browser.runtime.getURL("/assets/logo-transparent.png");
+  const logoUrl = safeRuntimeUrl("/assets/logo-transparent.png");
 
   // Filter schools based on query
   const filteredSchools = query
