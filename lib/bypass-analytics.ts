@@ -26,6 +26,10 @@ import { getThemePreferenceForSchool } from '@/lib/theme-storage';
 import { getSchoolYearFromClassName } from '@/lib/class-name';
 import { getRecentUrls } from '@/lib/url-history';
 
+// Stable Error Tracking group for the paired bypass exception. Release-independent
+// by design (see the capture call below).
+const BYPASS_EXCEPTION_FINGERPRINT = 'betterlectio-bypass-engaged';
+
 interface VisibleLectioError {
   title: string;
   body: string;
@@ -152,7 +156,16 @@ export async function captureBypassEngaged(
         'User engaged BetterLectio bypass — redesign suspected broken on this page',
       ),
       distinctId,
-      { ...props, source: 'bypass_button' },
+      {
+        ...props,
+        source: 'bypass_button',
+        // This capture is intentional — one deliberate user action, not a code
+        // fault. A fixed fingerprint keeps every press in a single Error
+        // Tracking issue. Without it PostHog groups by the minified stack frames
+        // of content.js, which move on every release and mint a fresh issue each
+        // time (15 issues across 0.0.27–0.0.37).
+        $exception_fingerprint: BYPASS_EXCEPTION_FINGERPRINT,
+      },
     );
 
     // Wait for HTTP flush before the caller reloads so the request isn't
