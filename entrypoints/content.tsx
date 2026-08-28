@@ -63,7 +63,7 @@ import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
-import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, isIgnorableNetworkError, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
@@ -746,27 +746,6 @@ function initLayout() {
         );
       }
     }).catch(() => {});
-
-    // Transient network failures (a dropped connection, offline, Lectio blip)
-    // surface as a bare `TypeError: Failed to fetch` (Chrome) or
-    // `NetworkError when attempting to fetch resource.` (Firefox). Our fetch
-    // callsites already handle these gracefully (degrade to null/empty), so
-    // forwarding them to error tracking is pure noise that buries real bugs and
-    // burns free-tier quota. Drop them from the catch-all capture paths only —
-    // explicit captureException() calls elsewhere are intentional.
-    const isIgnorableNetworkError = (value: unknown): boolean => {
-      const message =
-        value instanceof Error
-          ? `${value.name}: ${value.message}`
-          : typeof value === 'string'
-            ? value
-            : '';
-      return (
-        /(?:^|\b)TypeError:?\s*Failed to fetch\b/i.test(message) ||
-        /NetworkError when attempting to fetch resource/i.test(message) ||
-        /Load failed$/i.test(message)
-      );
-    };
 
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
