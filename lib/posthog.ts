@@ -390,11 +390,35 @@ const AMBIENT_ERROR_SOURCES = new Set([
 let _errorCount = 0;
 const _seenErrorSignatures = new Set<string>();
 
+/**
+ * True for transient network failures: a dropped connection, offline, or a
+ * Lectio blip. Chrome surfaces these as `TypeError: Failed to fetch`, Firefox
+ * as `NetworkError when attempting to fetch resource.`, and Safari as
+ * `Load failed`. Every fetch callsite already degrades to null/empty on these,
+ * so reporting them is pure noise that buries real bugs and burns free-tier
+ * quota. `shouldCaptureException` drops them, so no callsite can report one.
+ */
+export function isIgnorableNetworkError(value: unknown): boolean {
+  const message =
+    value instanceof Error
+      ? `${value.name}: ${value.message}`
+      : typeof value === 'string'
+        ? value
+        : '';
+  return (
+    /(?:^|\b)TypeError:?\s*Failed to fetch\b/i.test(message) ||
+    /NetworkError when attempting to fetch resource/i.test(message) ||
+    /Load failed$/i.test(message)
+  );
+}
+
 function shouldCaptureException(
   error: unknown,
   distinctId: string,
   properties?: Record<string, unknown>,
 ): boolean {
+  if (isIgnorableNetworkError(error)) return false;
+
   const message = error instanceof Error ? error.message : String(error);
   const source = String(properties?.source ?? 'unknown');
   const signature = `${source}:${message}`.slice(0, 500);
