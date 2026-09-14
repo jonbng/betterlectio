@@ -39,9 +39,13 @@ export function getSessionStatus(): SessionStatus {
     return { authenticated: false };
   }
 
-  // Check if isloggedin3 cookie exists and is "Y"
+  // Browser logins include the client-side isloggedin3 marker, while sessions
+  // captured by the server contain Lectio's persistent authentication cookie.
   const authCookie = store.cookies.find((c) => c.name === "isloggedin3");
-  if (!authCookie || authCookie.value !== "Y") {
+  const autoLoginCookie = store.cookies.find(
+    (c) => c.name === "autologinkeyV2" && c.value.length > 0
+  );
+  if (authCookie?.value !== "Y" && !autoLoginCookie) {
     return { authenticated: false };
   }
 
@@ -51,16 +55,16 @@ export function getSessionStatus(): SessionStatus {
   );
   let sessionValid = true;
   let expiresIn = SESSION_TIMEOUT_MS;
-  let lastActivity = new Date().toISOString();
+  let lastActivity = new Date(store.savedAt).toISOString();
 
-  if (lastAuthCookie) {
-    const lastAuthTime = parseInt(lastAuthCookie.value, 10);
-    if (!isNaN(lastAuthTime)) {
-      const elapsed = Date.now() - lastAuthTime;
-      expiresIn = Math.max(0, SESSION_TIMEOUT_MS - elapsed);
-      sessionValid = elapsed < SESSION_TIMEOUT_MS;
-      lastActivity = new Date(lastAuthTime).toISOString();
-    }
+  const lastAuthTime = lastAuthCookie
+    ? parseInt(lastAuthCookie.value, 10)
+    : store.savedAt;
+  if (!isNaN(lastAuthTime)) {
+    const elapsed = Date.now() - lastAuthTime;
+    expiresIn = Math.max(0, SESSION_TIMEOUT_MS - elapsed);
+    sessionValid = elapsed < SESSION_TIMEOUT_MS;
+    lastActivity = new Date(lastAuthTime).toISOString();
   }
 
   return {

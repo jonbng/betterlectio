@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.49.8"
 
-export type AuthPlatform = "ios" | "android" | "extension" | "unknown"
+export type AuthPlatform =
+  | "ios"
+  | "android"
+  | "extension"
+  | "admin-ios"
+  | "admin-android"
+  | "unknown"
 export type AuthOutcome = "success" | "degraded" | "failed"
 
 interface ClientMetadata {
@@ -25,7 +31,11 @@ export function clientMetadata(
     : {}
   const clientInfo = bounded(req.headers.get("x-client-info"), 200)
   const requested = bounded(supplied.platform, 20)
-  let platform: AuthPlatform = requested === "ios" || requested === "android" || requested === "extension"
+  let platform: AuthPlatform = requested === "ios" ||
+      requested === "android" ||
+      requested === "extension" ||
+      requested === "admin-ios" ||
+      requested === "admin-android"
     ? requested
     : fallback
   const normalized = clientInfo?.toLowerCase() ?? ""

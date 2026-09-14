@@ -141,7 +141,11 @@ export async function handleLectioAuth(
       return await fail("schoolId must be numeric", 400, "validate-input")
     }
     if (platform === "unknown") {
-      return await fail("client.platform must be ios, android, or extension", 400, "validate-input")
+      return await fail(
+        "client.platform must be ios, android, extension, admin-ios, or admin-android",
+        400,
+        "validate-input",
+      )
     }
 
     const qrResponse = await fetch(

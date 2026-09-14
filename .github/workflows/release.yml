@@ -27,6 +27,11 @@ on:
         required: false
         default: true
         type: boolean
+      skip_version_bump:
+        description: 'Skip version bump (retry a failed store after rotating secrets)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -52,14 +57,17 @@ jobs:
       - name: Bump version
         id: version
         run: |
-          # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT_VERSION"
 
-          # Parse version components
+          if [ "${{ inputs.skip_version_bump }}" = "true" ]; then
+            echo "Skipping version bump; publishing $CURRENT_VERSION"
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-          # Bump based on input
           case "${{ github.event.inputs.version_bump }}" in
             major)
               MAJOR=$((MAJOR + 1))
@@ -90,7 +98,6 @@ jobs:
           # wxt.config.ts no longer carries a `version` — WXT falls back to
           # package.json, so package.json is the single source of truth.
 
-          # Commit version bump
           git add package.json
           git commit -m "chore: bump version to $NEW_VERSION"
           git push
@@ -99,6 +106,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build and zip extensions
+        id: zip
         run: |
           bun run zip
           bun run zip:firefox
@@ -109,9 +117,25 @@ jobs:
           VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
 
       - name: Submit to stores
+        id: submit
+        continue-on-error: true
         run: |
           set -euo pipefail
           shopt -s nullglob
+
+          trim() {
+            printf '%s' "${1-}" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+          }
+          export CHROME_EXTENSION_ID="$(trim "${CHROME_EXTENSION_ID-}")"
+          export CHROME_CLIENT_ID="$(trim "${CHROME_CLIENT_ID-}")"
+          export CHROME_CLIENT_SECRET="$(trim "${CHROME_CLIENT_SECRET-}")"
+          export CHROME_REFRESH_TOKEN="$(trim "${CHROME_REFRESH_TOKEN-}")"
+          export FIREFOX_EXTENSION_ID="$(trim "${FIREFOX_EXTENSION_ID-}")"
+          export FIREFOX_JWT_ISSUER="$(trim "${FIREFOX_JWT_ISSUER-}")"
+          export FIREFOX_JWT_SECRET="$(trim "${FIREFOX_JWT_SECRET-}")"
+          export EDGE_PRODUCT_ID="$(trim "${EDGE_PRODUCT_ID-}")"
+          export EDGE_CLIENT_ID="$(trim "${EDGE_CLIENT_ID-}")"
+          export EDGE_API_KEY="$(trim "${EDGE_API_KEY-}")"
 
           require_one() {
             local label="$1"
@@ -136,6 +160,10 @@ jobs:
             ARGS+=(--firefox-zip "$FIREFOX_ZIP" --firefox-sources-zip "$SOURCES_ZIP")
           fi
           if [ "${{ inputs.publish_edge }}" = "true" ]; then
+            if [ -z "${EDGE_PRODUCT_ID}" ] || [ -z "${EDGE_CLIENT_ID}" ] || [ -z "${EDGE_API_KEY}" ]; then
+              echo "::error::Edge secrets missing. Partner Center → Microsoft Edge → Publish API: copy Client ID and a current API key into EDGE_CLIENT_ID / EDGE_API_KEY (keys expire)."
+              exit 1
+            fi
             EDGE_ZIP="$(require_one chrome .output/*-chrome.zip)"
             ARGS+=(--edge-zip "$EDGE_ZIP")
           fi
@@ -159,6 +187,7 @@ jobs:
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
 
       - name: Create GitHub Release
+        if: ${{ !cancelled() && steps.zip.outcome == 'success' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
@@ -179,3 +208,9 @@ jobs:
             .output/*-chrome.zip
             .output/*-firefox.zip
           generate_release_notes: true
+
+      - name: Fail if store submit failed
+        if: ${{ always() && steps.submit.outcome == 'failure' }}
+        run: |
+          echo "::error::One or more store submissions failed. Chrome/Firefox can stay published; retry Edge with skip_version_bump after rotating EDGE_API_KEY in Partner Center → Publish API."
+          exit 1

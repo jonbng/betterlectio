@@ -2,22 +2,46 @@ import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
+const isAdminBuild = process.env.BETTERLECTIO_ADMIN_BUILD === 'true';
+const adminApiOrigin = process.env.VITE_ADMIN_API_ORIGIN?.replace(/\/$/, '') || 'http://localhost:3000';
+const adminChromePublicKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1jb6R9h8tEiyHAsEzouUaoY8BGMJrqDc7g4jbMKvZzxABDMkx43V46Q7aD6mIO1sBClitguOEgQoLPj9iKMNJJIk+ZUHUQTifCfQH7tOEYHKzono//E2FhlQfLgOY+mQ+T9hF32CQo93ha/w4xenFqQNdnOB4nLDUxmvaYQ+/Iwi/ok6B36/0mqJiUp42+OC6YD+ISiAWao/6PE0FMCywwAOA6ozSuutaG3RkhehhL5rCZey6wcvv03dcjvVdt0rJbClWjN/4YsFoj77fYMVP2zYi37L+iE3FrMgrM/UvdlKj/vYXdCB8HFlEc8bsH37UzE5iOJJ+49IhnTZ4PUf4QIDAQAB';
+
+function adminHostPermission(): string {
+  const url = new URL(adminApiOrigin);
+  if (url.protocol !== 'https:' && url.hostname !== 'localhost') {
+    throw new Error('VITE_ADMIN_API_ORIGIN must use HTTPS (except localhost)');
+  }
+  if (url.origin !== adminApiOrigin) {
+    throw new Error('VITE_ADMIN_API_ORIGIN must be an origin without a path');
+  }
+  return `${url.origin}/*`;
+}
+
 // See https://wxt.dev/api/config.html
 export default defineConfig({
+  // Admin builds are intentionally written outside the release workflow's
+  // .output directory so they cannot be picked up by a store upload.
+  outDir: isAdminBuild ? '.output-admin' : '.output',
   manifest: {
-    name: 'Better Lectio',
+    name: isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
+    ...(isAdminBuild ? { key: adminChromePublicKey, incognito: 'not_allowed' as const } : {}),
     description: 'Gør Lectio suverent bedre. Installér mobil appen også!',
     // No `version` key — WXT falls back to package.json's version, which
     // .github/workflows/release.yml bumps. Keeping it in one place only.
     author: 'Jonathan Bangert <betterlectio@jonathanb.dk>' as any,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
-      default_title: 'Better Lectio',
+      default_title: isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
     },
-    permissions: ['activeTab', 'storage'],
+    permissions: isAdminBuild
+      ? ['activeTab', 'storage', 'cookies']
+      : ['activeTab', 'storage'],
     host_permissions: [
       `${process.env.VITE_SUPABASE_URL || 'https://*.supabase.co'}/*`,
       'https://eu.i.posthog.com/*',
+      ...(isAdminBuild
+        ? ['https://*.lectio.dk/*', adminHostPermission()]
+        : []),
     ],
     web_accessible_resources: [
       {
@@ -30,8 +54,10 @@ export default defineConfig({
     // Stripped from Chrome/Safari manifests.
     browser_specific_settings: {
       gecko: {
-        id: '{c3b94c3b-a7d2-4130-9adc-75cc174b0aaa}',
-        strict_min_version: '109.0',
+        id: isAdminBuild
+          ? 'betterlectio-admin@jonathanb.dk'
+          : '{c3b94c3b-a7d2-4130-9adc-75cc174b0aaa}',
+        strict_min_version: isAdminBuild ? '115.0' : '109.0',
         data_collection_permissions: {
           required: ['none'],
         },
@@ -39,6 +65,14 @@ export default defineConfig({
     },
   },
   hooks: {
+    'entrypoints:found': (_wxt, entrypoints) => {
+      // The dashboard handoff bridge is privileged. Remove it before WXT
+      // imports or bundles entrypoints for every ordinary/store build.
+      if (!isAdminBuild) {
+        const bridgeIndex = entrypoints.findIndex((entrypoint) => entrypoint.name === 'admin-handoff');
+        if (bridgeIndex >= 0) entrypoints.splice(bridgeIndex, 1);
+      }
+    },
     // Keep WXT 0.20 compiler options. v0.21's generated tsconfig turns on
     // verbatimModuleSyntax, noUncheckedIndexedAccess, and a DOM lib that
     // clash with this Preact + @types/react setup (~570 tsc errors).
@@ -57,6 +91,11 @@ export default defineConfig({
       delete opts.noImplicitOverride;
     },
     'build:manifestGenerated': (wxt, manifest) => {
+      // `key` pins a separate, stable Chromium ID for unpacked admin builds.
+      // It is Chromium-only; Firefox uses the separate Gecko ID below.
+      if (wxt.config.browser !== 'chrome' && 'key' in manifest) {
+        delete manifest.key;
+      }
       // gecko lives on config.manifest so WXT's ID / data-collection
       // warnings stay quiet, but it must not ship on Chrome or Safari.
       if (wxt.config.browser !== 'firefox' && manifest.browser_specific_settings) {
@@ -69,9 +108,9 @@ export default defineConfig({
         // Safari ships as a macOS-only Safari Web Extension (MV3) bundled inside
         // the BetterLectio Mac app. Built via `bun run build:safari` (--mv3) and
         // vendored into the mobile repo by scripts/sync-safari-extension.sh.
-        manifest.name = 'BetterLectio';
+        manifest.name = isAdminBuild ? 'BetterLectio Admin' : 'BetterLectio';
         if (manifest.action && typeof manifest.action === 'object') {
-          manifest.action.default_title = 'BetterLectio';
+          manifest.action.default_title = isAdminBuild ? 'BetterLectio Admin' : 'BetterLectio';
         }
 
         // `world: "MAIN"` on content_scripts requires Safari 18; MV3 service
@@ -128,6 +167,7 @@ export default defineConfig({
     ],
     excludeSources: [
       '**/*.test.ts',
+      ...(!isAdminBuild ? ['entrypoints/admin-handoff.content.ts', 'lib/admin-session-handoff.ts'] : []),
       'styles/globals.before-restore-recovery.css',
     ],
   },

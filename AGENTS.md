@@ -155,6 +155,10 @@ Uses `posthog-node` (edge build via Vite `conditions: ['edge', ...]`) for lightw
 
 **Consented Lectio session donors:** Only the unified `lectio-auth` flow may capture its rotating cookie jar, and only after Lectio-derived identity matches an active row in the private, service-role-only `lectio_session_grants` allowlist. Jars are envelope-encrypted (AES-256-GCM DEK plus versioned wrapped master key), never returned or logged, and stored separately from `lectio_tokens`. Revocation deletes credentials immediately. `lectio-session-keepalive` atomically leases due rows and calls `/ping.aspx` every 30 minutes through Supabase Cron; only HTTPS `www.lectio.dk` redirects may receive cookies. Secrets live in Edge secrets/Vault. Local admin import uses environment-only service-role/key credentials and writes mode-`0600` cookies. Operations: `docs/lectio-session-operations.md`. Schema: `20260826233000_add_consent_gated_lectio_sessions.sql`, `20260826233100_schedule_lectio_session_keepalive.sql`.
 
+**Admin extension build:** `BETTERLECTIO_ADMIN_BUILD=true` enables the otherwise-skipped `entrypoints/admin-handoff.content.ts` bridge and writes exclusively to `.output-admin`; `bun run build:admin` is the supported build command and `bun run dev:admin` builds for `https://admin.betterlectio.dk`, then opens `/lectio-sessions` with that complete static manifest in Chrome. Only this build is named **Better Lectio Admin** and receives `cookies`, the Lectio host permission, and the configured `VITE_ADMIN_API_ORIGIN` host permission. Ordinary builds and store workflows continue to use `.output` and must have no handoff bridge, cookie permission, Lectio host permission, or admin endpoint strings; verify both artifacts with `bun run test:admin-build-isolation`. An authenticated dashboard action issues a hashed, 60-second, single-use token; the extension bridge redeems it at `/api/extension/lectio-session-handoff`, after which the server decrypts the consented jar. There is no reusable extension bearer token, and service-role/session master keys must never enter extension env or bundles. `dev:admin:hot` retains WXT HMR but depends on dynamic content-script registration, so it is not the default session-switching launcher.
+
+**Admin mobile auth:** Separately identified iOS/Android admin development builds fetch consented jars only through the bearer-gated admin server; no service-role or session-master key enters a mobile artifact. Their `lectio-auth` metadata uses `admin-ios` / `admin-android`. Those platforms still mint the owned Supabase session and refresh the encrypted donor jar, but `computeInstallStamps` intentionally gives them no ordinary mobile-install attribution. Client builds suppress analytics, push, referral, review, and other automatic user side effects.
+
 **Auth observability:** `auth_attempts` is the 30-day operational record for `lectio-auth`, `token-for-auth`, and `verify-lectio-auth`; edge telemetry is best-effort and must never alter an auth outcome. Responses include `request_id`, `profile_status`, `profile_source`, and `profile_fields`. Authenticated clients call `confirm_auth_attempt` after a usable session exists. Admin reads only the service-role `get_auth_health` RPC; never expose `auth_user_id` in the UI. PostHog is secondary correlation, not the source of truth. Schema: `supabase/migrations/20260808_add_auth_attempt_observability.sql`, `20260812_add_lectio_auth_function_name.sql`.
 
 **Canonical Supabase source:** deploy functions and migrations only from this `extension/supabase` tree. The old iOS-local deployable copy was removed so it cannot overwrite production with stale auth behavior.
@@ -287,7 +291,7 @@ fetch(`${window.location.origin}/lectio/${schoolId}/path.aspx`)
 
 **Firefox sources ZIP:** WXT 0.21 uses `includeSources - excludeSources`. `wxt.config.ts` `zip.includeSources` is the allowlist of files AMO needs to rebuild; do not switch back to exclude-only. Production zip names stay `{{name}}-{{packageVersion}}-{{browser}}.zip`.
 
-**Store publishing:** `.github/workflows/release.yml` runs `bun run submit` (`wxt submit` from the repo-locked WXT 0.21). Never `npx wxt@latest`. Chrome Web Store v1 refresh-token secrets still work; v1 is retired 15 Oct 2026, after which `wxt submit init` can switch the project to the CWS v2 service-account flow.
+**Store publishing:** `.github/workflows/release.yml` runs `bun run submit` (`wxt submit` from the repo-locked WXT 0.21). Never `npx wxt@latest`. Chrome Web Store v1 refresh-token secrets still work; v1 is retired 15 Oct 2026, after which `wxt submit init` can switch the project to the CWS v2 service-account flow. Edge uses Partner Center **Publish API** v1.1 (`EDGE_PRODUCT_ID` + `EDGE_CLIENT_ID` + `EDGE_API_KEY`); those API keys expire and a 401 `API Key is Invalid` means regenerate the key in Partner Center and retry with `skip_version_bump` + Edge only.
 
 ## Marketing site (`website/`)
 
@@ -309,6 +313,7 @@ bun run dev          # Development (Chrome)
 bun run dev:firefox  # Development (Firefox)
 bun run dev:safari   # Development (Safari, MV3)
 bun run build        # Production build
+bun run build:admin  # Separate privileged Chrome admin build -> .output-admin
 bun run build:safari # Production build (Safari, MV3 -> .output/safari-mv3)
 bun run zip          # Package extension
 bun run geocode:schools -- --google-key "$GOOGLE_MAPS_API_KEY"  # One-off schools lat/lon backfill

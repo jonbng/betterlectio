@@ -1170,6 +1170,34 @@ export default defineBackground(() => {
   initLifecycleTracking();
   initAuthStateListener();
 
+  if (import.meta.env.MODE === 'admin') {
+    browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: (response?: any) => void) => {
+      if (message?.type !== 'bl-admin:redeem-handoff') return false;
+      const expectedOrigin = (import.meta.env.VITE_ADMIN_API_ORIGIN || 'http://localhost:3000').replace(/\/$/, '');
+      let senderOrigin = '';
+      try {
+        senderOrigin = sender.url ? new URL(sender.url).origin : '';
+      } catch {
+        // Invalid sender URL is rejected below.
+      }
+      if (senderOrigin !== expectedOrigin || typeof message.token !== 'string') {
+        sendResponse({ ok: false, error: 'Invalid admin handoff sender' });
+        return false;
+      }
+
+      void import('@/lib/admin-session-handoff').then(async ({ redeemAndInstallAdminSession }) => {
+        const storeId = (sender.tab as { cookieStoreId?: string } | undefined)?.cookieStoreId;
+        await getSupabase().auth.signOut().catch(() => undefined);
+        return await redeemAndInstallAdminSession(message.token, storeId);
+      }).then(() => sendResponse({ ok: true }))
+        .catch((error) => sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not import the Lectio session',
+        }));
+      return true;
+    });
+  }
+
   // Handle extension icon click
   const actionApi = browser.action ?? (browser as any).browserAction;
   actionApi?.onClicked.addListener(async (tab: { id?: number }) => {

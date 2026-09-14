@@ -110,3 +110,27 @@ The service-role key has broad project access. Use it only on a trusted develope
 machine, keep it out of shell history and repo files, and rotate it after suspected
 exposure. Imported cookies are written to `~/.lectio-cli/cookies.json` with mode
 `0600`; output includes only a cookie count.
+
+## Admin browser extension access
+
+The authenticated admin dashboard exposes a **Log in as user** action for each
+active, non-disabled session. Its server action creates a random, single-use
+handoff whose SHA-256 hash is stored for 60 seconds. The admin extension receives
+the raw handoff through its dashboard-only content script, redeems it atomically
+at `/api/extension/lectio-session-handoff`, and receives the decrypted cookie jar.
+Responses are `no-store`; neither the service-role key nor master key is sent to
+the browser. Apply `20260914213000_add_admin_extension_handoffs.sql` before using
+the feature.
+
+Build from `extension/` with:
+
+```bash
+VITE_ADMIN_API_ORIGIN=https://<admin-host> bun run build:admin
+```
+
+Load `.output-admin/chrome-mv3-admin` in a dedicated browser profile. The admin
+artifact has a separate identity/output directory and is the only variant with
+the `cookies`, Lectio host, and dashboard-origin permissions. Sign in to the
+dashboard in that profile and use the row action; there is no extension token to
+remember. Never publish this artifact, and run `bun run test:admin-build-isolation`
+after building both variants.

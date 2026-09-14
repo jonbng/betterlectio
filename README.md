@@ -58,6 +58,7 @@ bun install
 
 # Start development server
 bun run dev          # Chrome
+bun run dev:admin    # Chrome with the complete admin build
 bun run dev:firefox  # Firefox
 
 # Build for production
@@ -68,6 +69,30 @@ bun run build:firefox  # Firefox
 bun run zip          # Chrome
 bun run zip:firefox  # Firefox
 ```
+
+### Admin build
+
+The privileged dashboard handoff is never included in ordinary builds. Build it
+separately with the admin dashboard origin baked into its host permissions:
+
+```bash
+VITE_ADMIN_API_ORIGIN=https://<admin-host> bun run build:admin
+# Or: VITE_ADMIN_API_ORIGIN=https://<admin-host> bun run build:admin:firefox
+```
+
+Load `.output-admin/chrome-mv3-admin` as an unpacked extension. It has a distinct
+name and Chromium identity and is the only variant that requests `cookies` and
+`https://*.lectio.dk/*`. Sign in to the configured dashboard, open **Lectio
+sessions**, and click **Log in as user**. The dashboard creates a single-use
+60-second handoff; no reusable extension token is configured or entered. Never
+put the Supabase service-role or Lectio session master key in extension
+environment variables.
+
+For local development, start the admin app on port 3000, then run
+`bun run dev:admin` here. It builds the complete static manifest for
+`https://admin.betterlectio.dk` and opens `/lectio-sessions` in a separate Chrome
+development profile. Use `bun run dev:admin:hot` only when working on extension
+code—the WXT hot-reload variant depends on dynamic content-script registration.
 
 ## Tech Stack
 
