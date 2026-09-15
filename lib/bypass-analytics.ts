@@ -18,12 +18,15 @@ import {
   captureException,
   flushAnalytics,
   getDistinctId,
+  getPageSlug,
 } from '@/lib/posthog';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getSettings } from '@/lib/settings-storage';
 import { getThemePreferenceForSchool } from '@/lib/theme-storage';
 import { getSchoolYearFromClassName } from '@/lib/class-name';
 import { getRecentUrls } from '@/lib/url-history';
+
+const BYPASS_EXCEPTION_FINGERPRINT = 'betterlectio-bypass-engaged';
 
 interface VisibleLectioError {
   title: string;
@@ -98,8 +101,7 @@ export async function captureBypassEngaged(
     const visibleError = scanForVisibleLectioError();
     const recentUrls = getRecentUrls(5);
 
-    const page =
-      window.location.pathname.split('/').pop()?.split('?')[0] || 'unknown';
+    const page = getPageSlug();
 
     const props: Record<string, unknown> = {
       trigger: 'sidebar_button',
@@ -152,7 +154,11 @@ export async function captureBypassEngaged(
         'User engaged BetterLectio bypass — redesign suspected broken on this page',
       ),
       distinctId,
-      { ...props, source: 'bypass_button' },
+      {
+        ...props,
+        source: 'bypass_button',
+        $exception_fingerprint: BYPASS_EXCEPTION_FINGERPRINT,
+      },
     );
 
     // Wait for HTTP flush before the caller reloads so the request isn't

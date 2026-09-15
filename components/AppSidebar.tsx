@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import { reset as resetPostHog } from '@/lib/posthog';
+import { safeRuntimeUrl } from '@/lib/safe-runtime';
 import { markLogoutIntent } from '@/lib/logout-tracking';
 import {
   Calendar,
@@ -288,8 +289,8 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const visibleNavSecondary = navSecondary.filter(item => sidebarSettings[item.settingKey] ?? true);
 
   // Get logo URL at render time when browser context is available
-  const defaultLogoUrl = browser.runtime.getURL('/assets/logo-transparent.svg');
-  const soroeLogoUrl = browser.runtime.getURL('/assets/soroeakademi.png');
+  const defaultLogoUrl = safeRuntimeUrl('/assets/logo-transparent.svg');
+  const soroeLogoUrl = safeRuntimeUrl('/assets/soroeakademi.png');
 
   const { data: schoolRow } = useQuery<{ id: number; name: string; display_name: string | null }>({
     schoolId,

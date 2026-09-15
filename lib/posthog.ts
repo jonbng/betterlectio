@@ -1,6 +1,11 @@
 import { PostHog } from 'posthog-node';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getRecentUrls } from '@/lib/url-history';
+import { safeGetManifest } from '@/lib/safe-runtime';
+import {
+  isExtensionContextInvalidatedError,
+  isTransientNetworkError,
+} from '@/lib/supabase-error-noise';
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string;
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string;
@@ -86,7 +91,7 @@ function sampleFraction(key: string): number {
 
 function shouldCaptureEvent(event: string, distinctId: string): boolean {
   if (ALLOWED_EVENTS.has(event)) return true;
-  if (event !== 'feature used' && event !== 'extension loaded') return false;
+  if (event !== 'feature used') return false;
 
   // A stable monthly cohort keeps comparisons internally consistent while
   // using roughly one tenth of the former feature-event volume.
@@ -157,7 +162,7 @@ function getClient(): PostHog {
 function getAutoProperties(): Record<string, unknown> {
   try {
     const version = typeof browser !== 'undefined'
-      ? browser.runtime.getManifest().version
+      ? safeGetManifest()?.version
       : undefined;
     return {
       platform: 'extension',
@@ -172,6 +177,16 @@ function getAutoProperties(): Record<string, unknown> {
     };
   } catch {
     return {};
+  }
+}
+
+/** Return a case-stable page slug for analytics breakdowns. */
+export function getPageSlug(pathname?: string): string {
+  try {
+    const path = pathname ?? window.location.pathname;
+    return path.split('/').pop()?.split('?')[0]?.toLowerCase() || 'unknown';
+  } catch {
+    return 'unknown';
   }
 }
 
@@ -299,7 +314,7 @@ export function identify(
         platform: 'extension',
         last_platform: 'extension',
         app_version: typeof browser !== 'undefined'
-          ? browser.runtime.getManifest().version
+          ? safeGetManifest()?.version
           : undefined,
         ...properties,
       },
@@ -452,6 +467,11 @@ function shouldCaptureException(
   distinctId: string,
   properties?: Record<string, unknown>,
 ): boolean {
+  if (
+    isTransientNetworkError(error)
+    || isExtensionContextInvalidatedError(error)
+  ) return false;
+
   const message = error instanceof Error ? error.message : String(error);
   const source = String(properties?.source ?? 'unknown');
   const signature = `${source}:${message}`.slice(0, 500);
@@ -475,7 +495,7 @@ function shouldCaptureException(
 function getExceptionAutoProperties(): Record<string, unknown> {
   try {
     const extension_version =
-      typeof browser !== 'undefined' ? browser.runtime.getManifest().version : undefined;
+      typeof browser !== 'undefined' ? safeGetManifest()?.version : undefined;
     if (typeof window === 'undefined') {
       return {
         platform: 'extension',
@@ -532,7 +552,7 @@ function getErrorContext(): Record<string, unknown> {
   try {
     if (typeof window === 'undefined') return {};
     const path = window.location.pathname;
-    const page = path.split('/').pop()?.split('?')[0] ?? 'unknown';
+    const page = getPageSlug(path);
     const profile =
       (window as { __IL_CACHED_PROFILE__?: { schoolId?: string | null; studentId?: string | null; className?: string | null } })
         .__IL_CACHED_PROFILE__ ?? getCachedProfile();

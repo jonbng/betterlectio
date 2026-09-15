@@ -180,7 +180,7 @@ export default defineContentScript({
     // Lectio without our redesigns. Skip the CSS layer-wrapping and the theme
     // bootstrap so Lectio's own styles apply at their original priority and our
     // modernizer in `@layer components` loses the cascade automatically. The
-    // flag stays active for 5 minutes (auto-expiry) or until the user clicks
+    // flag stays active for 60 minutes (auto-expiry) or until the user clicks
     // the floating re-enable button injected by `content.tsx`.
     if (isBypassActive()) {
       document.documentElement.classList.add('il-ready');

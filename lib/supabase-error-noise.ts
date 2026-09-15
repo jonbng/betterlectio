@@ -67,6 +67,14 @@ export function isTransientNetworkError(error: unknown): boolean {
   );
 }
 
+// Extension updates, reloads, and disables orphan the old content script.
+// Runtime calls from that script then fail until the page is refreshed; this
+// is self-recovering and not an actionable product exception.
+export function isExtensionContextInvalidatedError(error: unknown): boolean {
+  const message = extractSupabaseErrorMessage(error);
+  return /extension context invalidated/i.test(message);
+}
+
 // The union guard: true for any Supabase error that is not worth reporting —
 // unauthorized ownership rejections, expired JWTs (incl. PGRST301), and
 // transient network failures. Use this at capture sites that report Supabase

@@ -1,5 +1,6 @@
 import { sendRpc, sendStorageUpload } from '../client';
 import { getDistinctId } from '@/lib/posthog';
+import { safeGetManifest } from '@/lib/safe-runtime';
 
 export type FeedbackCategory = 'bug' | 'idea' | 'other';
 
@@ -36,7 +37,7 @@ export async function submitFeedback(
     return { ok: false, error: 'Not signed in' };
   }
 
-  const version = browser.runtime.getManifest().version;
+  const version = safeGetManifest()?.version;
   const context: Record<string, unknown> = {
     app_version: version,
     browser_info: input.browserInfo ?? null,

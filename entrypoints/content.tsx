@@ -63,11 +63,12 @@ import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
-import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, getPageSlug, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
-import { isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
+import { isExtensionContextInvalidatedError, isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
+import { safeGetManifest, safeRuntimeUrl } from "@/lib/safe-runtime";
 import { isBypassActive, disableBypass, getBypassRemainingMs } from "@/lib/bypass-redesigns";
 import { watchCKEditorDarkMode } from "@/lib/ckeditor-dark";
 import { t as tLocale } from "@/lib/i18n/t";
@@ -159,6 +160,9 @@ export default defineContentScript({
 });
 
 function replaceFavicon() {
+  const faviconUrl = safeRuntimeUrl("/assets/favicon.ico");
+  if (!faviconUrl) return;
+
   // Remove existing favicons
   document
     .querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')
@@ -170,7 +174,7 @@ function replaceFavicon() {
   const favicon = document.createElement("link");
   favicon.rel = "icon";
   favicon.type = "image/x-icon";
-  favicon.href = browser.runtime.getURL("/assets/favicon.ico");
+  favicon.href = faviconUrl;
   document.head.appendChild(favicon);
 }
 
@@ -539,7 +543,7 @@ function injectBypassReenableButton(): void {
 
 function initLayout() {
   // Escape hatch: user armed `bl-bypass-redesigns` from the sidebar. The flag
-  // stays active for 5 minutes (auto-expiry) or until the user clicks the
+  // stays active for 60 minutes (auto-expiry) or until the user clicks the
   // floating re-enable button injected below. `hide-flash.content.ts` already
   // skipped the CSS layer-wrap, so Lectio's native DOM renders with its
   // original styles. We skip all other injection here.
@@ -712,10 +716,11 @@ function initLayout() {
   const schoolYear = cachedProfile?.className
     ? getSchoolYearFromClassName(cachedProfile.className)
     : null;
+  const extensionVersion = safeGetManifest()?.version;
   const pageProps = {
     school_id: schoolId,
-    page: window.location.pathname.split('/').pop()?.split('?')[0] ?? 'unknown',
-    extension_version: browser.runtime.getManifest().version,
+    page: getPageSlug(),
+    extension_version: extensionVersion,
   };
 
   // Identify and emit the canonical cross-platform activity heartbeat. This is
@@ -731,7 +736,7 @@ function initLayout() {
       dark_mode: currentSettings.visual.darkMode,
       theme_id: currentTheme.themeId,
       language: getLocale(),
-      extension_version: browser.runtime.getManifest().version,
+      extension_version: extensionVersion,
       lectio_version: getLectioVersion(),
     });
     captureOncePerSessionWindow('app_active', phDistinctId, {
@@ -758,30 +763,13 @@ function initLayout() {
       }
     }).catch(() => {});
 
-    // Transient network failures (a dropped connection, offline, Lectio blip)
-    // surface as a bare `TypeError: Failed to fetch` (Chrome) or
-    // `NetworkError when attempting to fetch resource.` (Firefox). Our fetch
-    // callsites already handle these gracefully (degrade to null/empty), so
-    // forwarding them to error tracking is pure noise that buries real bugs and
-    // burns free-tier quota. Drop them from the catch-all capture paths only —
-    // explicit captureException() calls elsewhere are intentional.
-    const isIgnorableNetworkError = (value: unknown): boolean => {
-      const message =
-        value instanceof Error
-          ? `${value.name}: ${value.message}`
-          : typeof value === 'string'
-            ? value
-            : '';
-      return (
-        /(?:^|\b)TypeError:?\s*Failed to fetch\b/i.test(message) ||
-        /NetworkError when attempting to fetch resource/i.test(message) ||
-        /Load failed$/i.test(message)
-      );
-    };
+    const isIgnorableCapturedError = (value: unknown) =>
+      isNonActionableSupabaseError(value)
+      || isExtensionContextInvalidatedError(value);
 
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
-      if (isIgnorableNetworkError(e.error) || isNonActionableSupabaseError(e.error)) return;
+      if (isIgnorableCapturedError(e.error)) return;
       const err =
         e.error instanceof Error
           ? e.error
@@ -796,7 +784,7 @@ function initLayout() {
       });
     });
     window.addEventListener('unhandledrejection', (e) => {
-      if (isIgnorableNetworkError(e.reason) || isNonActionableSupabaseError(e.reason)) return;
+      if (isIgnorableCapturedError(e.reason)) return;
       captureException(e.reason, phDistinctId, { source: 'unhandledrejection' });
     });
     let _blConsoleErrorCaptures = 0;
@@ -806,10 +794,8 @@ function initLayout() {
       const joined = args.map(String).join(' ');
       if (
         _blConsoleErrorCaptures < MAX_CONSOLE_ERROR_REPORTS &&
-        !isIgnorableNetworkError(joined) &&
-        !args.some(isIgnorableNetworkError) &&
-        !isNonActionableSupabaseError(joined) &&
-        !args.some(isNonActionableSupabaseError)
+        !isIgnorableCapturedError(joined) &&
+        !args.some(isIgnorableCapturedError)
       ) {
         _blConsoleErrorCaptures++;
         captureException(new Error(joined), phDistinctId, {
