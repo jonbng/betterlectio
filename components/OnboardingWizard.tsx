@@ -296,7 +296,7 @@ export function OnboardingWizard({
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
-      capture('setting changed', distinctId, { category: 'visual', key: 'darkMode', value, school_id: schoolId });
+      capture('setting_changed', distinctId, { category: 'visual', key: 'darkMode', value, school_id: schoolId });
       setPersonProperties(distinctId, { dark_mode: value });
     }
   };
@@ -308,7 +308,7 @@ export function OnboardingWizard({
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
-      capture('theme changed', distinctId, { school_id: schoolId, theme_id: nextThemeId });
+      capture('theme_changed', distinctId, { school_id: schoolId, theme_id: nextThemeId });
       setPersonProperties(distinctId, { theme_id: nextThemeId });
     }
   };
@@ -321,7 +321,7 @@ export function OnboardingWizard({
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
-      capture('setting changed', distinctId, { category: 'schedule', key: 'subjectColors', value, school_id: schoolId });
+      capture('setting_changed', distinctId, { category: 'schedule', key: 'subjectColors', value, school_id: schoolId });
     }
   };
 
@@ -333,7 +333,7 @@ export function OnboardingWizard({
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
-      capture('setting changed', distinctId, { category: 'interface', key: 'navigationLayout', value, school_id: schoolId });
+      capture('setting_changed', distinctId, { category: 'interface', key: 'navigationLayout', value, school_id: schoolId });
     }
   };
 
@@ -348,7 +348,7 @@ export function OnboardingWizard({
 
     const distinctId = getDistinctIdSafe();
     if (distinctId) {
-      capture('betterlectio profile updated', distinctId, {
+      capture('betterlectio_profile_updated', distinctId, {
         field,
         school_id: schoolId,
         source: 'onboarding',

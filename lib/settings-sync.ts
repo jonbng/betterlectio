@@ -224,7 +224,7 @@ export function hydrateSettingsFromSupabase(force = false): Promise<boolean> {
         window.dispatchEvent(new CustomEvent('betterlectio:settings-hydrated'));
         const distinctId = getDistinctId(ctx.studentId);
         if (distinctId) {
-          capture('settings synced from cloud', distinctId, {
+          capture('settings_synced_from_cloud', distinctId, {
             school_id: ctx.schoolId,
             required_reload: needsReload,
           });
@@ -272,7 +272,7 @@ async function pushSettingsNow(): Promise<void> {
       });
       const distinctId = getDistinctId(ctx.studentId);
       if (distinctId) {
-        capture('settings sync failed', distinctId, {
+        capture('settings_sync_failed', distinctId, {
           school_id: ctx.schoolId,
           phase: 'push',
           error_message: error instanceof Error ? error.message : String(error),
@@ -383,7 +383,7 @@ async function pushCurrentSchoolThemeNow(): Promise<void> {
       });
       const distinctId = getDistinctId(ctx.studentId);
       if (distinctId) {
-        capture('settings sync failed', distinctId, {
+        capture('settings_sync_failed', distinctId, {
           school_id: ctx.schoolId,
           phase: 'push-theme',
           error_message: error instanceof Error ? error.message : String(error),

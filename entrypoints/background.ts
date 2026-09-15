@@ -955,7 +955,7 @@ async function runEnsureSupabaseSession(
         const identity = await getAnalyticsIdentity({ studentId, schoolId });
         if (identity) {
           identify(identity.distinctId, identity.properties);
-          capture('supabase auth succeeded', identity.distinctId, {
+          capture('auth_supabase_completed', identity.distinctId, {
             school_id: schoolId,
             source,
             auth_stage: result.authStage,
@@ -987,7 +987,7 @@ async function runEnsureSupabaseSession(
         const identity = await getAnalyticsIdentity({ studentId, schoolId });
         if (identity) {
           identify(identity.distinctId, identity.properties);
-          capture('supabase auth succeeded', identity.distinctId, {
+          capture('auth_supabase_completed', identity.distinctId, {
             school_id: schoolId,
             source,
             auth_stage: 'verify-otp-recovered',
@@ -1017,7 +1017,7 @@ async function runEnsureSupabaseSession(
         });
         if (identity) {
           identify(identity.distinctId, identity.properties);
-          capture('supabase auth failed', identity.distinctId, {
+          capture('auth_supabase_failed', identity.distinctId, {
             error: result.error,
             failure_count: failures.count + 1,
             school_id: schoolId,
@@ -1125,7 +1125,7 @@ function initAuthStateListener(): void {
 function initLifecycleTracking(): void {
   try {
     browser.runtime.onInstalled.addListener((details) => {
-      void queueLifecycleEvent(details.reason === 'update' ? 'extension updated' : 'extension installed', {
+      void queueLifecycleEvent(details.reason === 'update' ? 'extension_updated' : 'extension_installed', {
         extension_version: browser.runtime.getManifest().version,
         previous_version: details.previousVersion,
         install_reason: details.reason,

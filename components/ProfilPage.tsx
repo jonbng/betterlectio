@@ -315,7 +315,7 @@ export function ProfilePictureEditor({
       await navigator.clipboard.writeText(buildReferralUrl(studentId));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      capture('referral share link copied', getDistinctId(studentId), { method: 'copy' });
+      capture('referral_shared', getDistinctId(studentId), { method: 'copy' });
     } catch {
       setError(t('profilPage.profilePicture.copyFailed'));
     }
@@ -332,7 +332,7 @@ export function ProfilePictureEditor({
         text: t('profilPage.profilePicture.shareText'),
         url: buildReferralUrl(studentId),
       });
-      capture('referral share link copied', getDistinctId(studentId), { method: 'native_share' });
+      capture('referral_shared', getDistinctId(studentId), { method: 'native_share' });
     } catch {
       // Closing the native share sheet is not an error.
     }
@@ -580,7 +580,7 @@ function SocialProfileSection({ schoolId }: { schoolId: string }) {
     setTimeout(() => setSavedField(null), 2000);
 
     if (distinctId) {
-      capture('betterlectio profile updated', distinctId, {
+      capture('betterlectio_profile_updated', distinctId, {
         school_id: schoolId,
         field,
       });

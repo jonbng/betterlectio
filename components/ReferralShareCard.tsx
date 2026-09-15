@@ -56,7 +56,7 @@ export function ReferralShareCard() {
       if (studentId) {
         const distinctId = getDistinctId(studentId);
         captureFeatureUsedOncePerSession("referral_share", distinctId);
-        capture("referral share link copied", distinctId, { method: "copy" });
+        capture("referral_shared", distinctId, { method: "copy" });
       }
     } catch {
       toast.error("Kunne ikke kopiere link");
@@ -72,7 +72,7 @@ export function ReferralShareCard() {
         url: shareUrl,
       });
       if (studentId) {
-        capture("referral share link copied", getDistinctId(studentId), {
+        capture("referral_shared", getDistinctId(studentId), {
           method: "native_share",
         });
       }

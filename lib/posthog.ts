@@ -65,18 +65,64 @@ export async function loadOptOutFlag(): Promise<void> {
 
 let _client: PostHog | null = null;
 let _flushHandlersRegistered = false;
+const _identifyFingerprints = new Map<string, string>();
+
+export const ANALYTICS_EVENTS = {
+  appActive: 'app_active',
+  appLoadCompleted: 'app_load_completed',
+  loadCompleted: 'load_completed',
+  authLoginStarted: 'auth_login_started',
+  authLoginCompleted: 'auth_login_completed',
+  authLoginFailed: 'auth_login_failed',
+  authSessionLost: 'auth_session_lost',
+  authLoggedOut: 'auth_logged_out',
+  authSupabaseCompleted: 'auth_supabase_completed',
+  authSupabaseFailed: 'auth_supabase_failed',
+  referralShared: 'referral_shared',
+  featureUsed: 'feature_used',
+} as const;
+
+const LEGACY_EVENT_NAMES: Readonly<Record<string, string>> = {
+  'login_started': ANALYTICS_EVENTS.authLoginStarted,
+  'login_completed': ANALYTICS_EVENTS.authLoginCompleted,
+  'login_failed': ANALYTICS_EVENTS.authLoginFailed,
+  'lectio session lost': ANALYTICS_EVENTS.authSessionLost,
+  'logged_out': ANALYTICS_EVENTS.authLoggedOut,
+  'supabase auth succeeded': ANALYTICS_EVENTS.authSupabaseCompleted,
+  'supabase auth failed': ANALYTICS_EVENTS.authSupabaseFailed,
+  'referral share link copied': ANALYTICS_EVENTS.referralShared,
+  'feature used': ANALYTICS_EVENTS.featureUsed,
+  'extension installed': 'extension_installed',
+  'extension updated': 'extension_updated',
+  'betterlectio bypass engaged': 'betterlectio_bypass_engaged',
+  'lectio native error': 'lectio_native_error',
+  'setting changed': 'setting_changed',
+  'theme changed': 'theme_changed',
+  'betterlectio profile updated': 'betterlectio_profile_updated',
+  'settings synced from cloud': 'settings_synced_from_cloud',
+  'settings sync failed': 'settings_sync_failed',
+};
+
+function canonicalEventName(event: string): string {
+  return LEGACY_EVENT_NAMES[event] ?? event.replaceAll(' ', '_');
+}
 
 const ALLOWED_EVENTS = new Set([
   'app_active',
   'app_load_completed',
+  'load_completed',
   'feedback_submitted',
   'onboarding_started',
   'onboarding_completed',
-  'extension installed',
-  'extension updated',
-  'betterlectio bypass engaged',
+  'extension_installed',
+  'extension_updated',
+  'betterlectio_bypass_engaged',
   'mobile_app_invite_success_shown',
-  'referral share link copied',
+  'referral_shared',
+  'auth_supabase_completed',
+  'auth_supabase_failed',
+  'auth_session_lost',
+  'auth_logged_out',
 ]);
 const FEATURE_SAMPLE_RATE = 0.1;
 
@@ -91,7 +137,7 @@ function sampleFraction(key: string): number {
 
 function shouldCaptureEvent(event: string, distinctId: string): boolean {
   if (ALLOWED_EVENTS.has(event)) return true;
-  if (event !== 'feature used') return false;
+  if (event !== ANALYTICS_EVENTS.featureUsed) return false;
 
   // A stable monthly cohort keeps comparisons internally consistent while
   // using roughly one tenth of the former feature-event volume.
@@ -284,10 +330,11 @@ export function capture(
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
     if (!id) return;
-    if (!shouldCaptureEvent(event, id)) return;
+    const canonicalEvent = canonicalEventName(event);
+    if (!shouldCaptureEvent(canonicalEvent, id)) return;
     getClient().capture({
       distinctId: id,
-      event,
+      event: canonicalEvent,
       properties: { ...getAutoProperties(), ...properties },
     });
   } catch {
@@ -308,17 +355,32 @@ export function identify(
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
     if (!id) return;
+    const version = typeof browser !== 'undefined'
+      ? safeGetManifest()?.version
+      : undefined;
+    const studentId = id.slice(LECTIO_DISTINCT_PREFIX.length);
+    const personProperties = {
+      student_id: studentId,
+      platform: 'extension',
+      last_platform: 'extension',
+      uses_extension: true,
+      app_version: version,
+      extension_version: version,
+      ...properties,
+      ...(properties?.school_id != null
+        ? { school_id: String(properties.school_id) }
+        : {}),
+      ...(properties?.name != null && properties.$name == null
+        ? { $name: properties.name }
+        : {}),
+    };
+    const fingerprint = JSON.stringify(personProperties);
+    if (_identifyFingerprints.get(id) === fingerprint) return;
     getClient().identify({
       distinctId: id,
-      properties: {
-        platform: 'extension',
-        last_platform: 'extension',
-        app_version: typeof browser !== 'undefined'
-          ? safeGetManifest()?.version
-          : undefined,
-        ...properties,
-      },
+      properties: personProperties,
     });
+    _identifyFingerprints.set(id, fingerprint);
   } catch {
     // Never let analytics errors surface to the user
   }
@@ -343,7 +405,7 @@ export function identifyIfNeeded(
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
     if (!id) return;
-    const serialized = JSON.stringify({ id, properties });
+    const serialized = JSON.stringify({ schema: 2, id, properties });
     const key = 'bl-posthog-identify';
     if (localStorage.getItem(key) === serialized) return;
     identify(id, properties);
@@ -365,6 +427,7 @@ export function reset(): void {
       if (key?.startsWith('bl-posthog-')) sessionStorage.removeItem(key);
     }
     localStorage.removeItem('bl-posthog-identify');
+    _identifyFingerprints.clear();
     (_client as any)?.reset?.();
   } catch {
     // Non-critical
@@ -393,15 +456,16 @@ export function captureOncePerSessionWindow(
   try {
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
-    if (!id || !shouldCaptureEvent(event, id)) return;
-    const key = `bl-posthog-session:${event}:${id}`;
+    const canonicalEvent = canonicalEventName(event);
+    if (!id || !shouldCaptureEvent(canonicalEvent, id)) return;
+    const key = `bl-posthog-session:${canonicalEvent}:${id}`;
     const now = Date.now();
     const previous = Number(localStorage.getItem(key) ?? 0);
     localStorage.setItem(key, String(now));
     if (previous > 0 && now - previous < 30 * 60 * 1000) return;
     getClient().capture({
       distinctId: id,
-      event,
+      event: canonicalEvent,
       properties: { ...getAutoProperties(), ...properties },
     });
   } catch {
@@ -419,13 +483,14 @@ export function captureOncePerSessionByKey(
     if (isOptedOut()) return;
     const id = requireLectioStudentDistinctId(distinctId);
     if (!id) return;
-    if (!shouldCaptureEvent(event, id)) return;
+    const canonicalEvent = canonicalEventName(event);
+    if (!shouldCaptureEvent(canonicalEvent, id)) return;
     const key = `bl-posthog-once:${keySuffix}`;
     if (sessionStorage.getItem(key)) return;
 
     getClient().capture({
       distinctId: id,
-      event,
+      event: canonicalEvent,
       properties: { ...getAutoProperties(), ...properties },
     });
     sessionStorage.setItem(key, '1');
@@ -441,10 +506,41 @@ export function captureFeatureUsedOncePerSession(
 ): void {
   captureOncePerSessionByKey(
     `feature:${feature}`,
-    'feature used',
+    ANALYTICS_EVENTS.featureUsed,
     distinctId,
     { feature, ...properties },
   );
+}
+
+/**
+ * Low-volume page/API health timing. Successful loads are kept for a stable
+ * 10% user cohort and at most once per operation per browser session; failures
+ * are retained for every identified user.
+ */
+export function captureLoadCompleted(
+  operation: string,
+  outcome: 'success' | 'failure',
+  durationMs: number,
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
+  const id = requireLectioStudentDistinctId(distinctId);
+  if (!id) return;
+  const inHealthSample = sampleFraction(`health:${id}`) < FEATURE_SAMPLE_RATE;
+  if (outcome === 'success' && !inHealthSample) return;
+  const payload = {
+    ...properties,
+    operation,
+    outcome,
+    duration_ms: Math.max(0, Math.round(durationMs)),
+    sample_rate: outcome === 'success' ? FEATURE_SAMPLE_RATE : 1,
+    health_sample: inHealthSample,
+  };
+  if (outcome === 'success') {
+    captureOncePerSessionByKey(`load:${operation}`, ANALYTICS_EVENTS.loadCompleted, id, payload);
+    return;
+  }
+  capture(ANALYTICS_EVENTS.loadCompleted, id, payload);
 }
 
 // ── Rate limiting for error capture ─────────────────────────────────

@@ -427,7 +427,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
 
     const distinctId = getPostHogDistinctId();
     if (distinctId && !(category === "behavior" && key === "analyticsOptOut" && value)) {
-      capture("setting changed", distinctId, {
+      capture("setting_changed", distinctId, {
         category,
         key: String(key),
         value,
@@ -484,7 +484,7 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
 
     const distinctId = getPostHogDistinctId();
     if (distinctId) {
-      capture("theme changed", distinctId, {
+      capture("theme_changed", distinctId, {
         school_id: schoolId,
         theme_id: nextThemeId,
       });

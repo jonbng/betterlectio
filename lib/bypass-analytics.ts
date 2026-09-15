@@ -148,7 +148,7 @@ export async function captureBypassEngaged(
       ...extraProps,
     };
 
-    capture('betterlectio bypass engaged', distinctId, props);
+    capture('betterlectio_bypass_engaged', distinctId, props);
     captureException(
       new Error(
         'User engaged BetterLectio bypass — redesign suspected broken on this page',
