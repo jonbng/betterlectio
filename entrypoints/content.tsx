@@ -63,7 +63,7 @@ import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
-import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
+import { capture, captureException, captureFeatureUsedOncePerSession, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
@@ -718,7 +718,8 @@ function initLayout() {
     extension_version: browser.runtime.getManifest().version,
   };
 
-  // Identify and capture extension loaded event
+  // Identify and emit the canonical cross-platform activity heartbeat. This is
+  // the denominator for active users, retention, platform health and errors.
   if (cachedProfile?.studentId) {
     const phDistinctId = getDistinctId(cachedProfile.studentId);
     identifyIfNeeded(phDistinctId, {
@@ -733,7 +734,17 @@ function initLayout() {
       extension_version: browser.runtime.getManifest().version,
       lectio_version: getLectioVersion(),
     });
-    captureOncePerSession('extension loaded', phDistinctId, pageProps);
+    captureOncePerSessionWindow('app_active', phDistinctId, {
+      ...pageProps,
+      platform: 'extension',
+      auth_state: 'authenticated',
+    });
+    captureOncePerSessionWindow('app_load_completed', phDistinctId, {
+      ...pageProps,
+      platform: 'extension',
+      outcome: 'success',
+      duration_ms: Math.round(performance.now()),
+    });
     void consumeLifecycleEvents().then((events) => {
       for (const lifecycleEvent of events) {
         captureOncePerSession(

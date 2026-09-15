@@ -62,6 +62,8 @@ let _client: PostHog | null = null;
 let _flushHandlersRegistered = false;
 
 const ALLOWED_EVENTS = new Set([
+  'app_active',
+  'app_load_completed',
   'feedback_submitted',
   'onboarding_started',
   'onboarding_completed',
@@ -154,16 +156,19 @@ function getClient(): PostHog {
 
 function getAutoProperties(): Record<string, unknown> {
   try {
+    const version = typeof browser !== 'undefined'
+      ? browser.runtime.getManifest().version
+      : undefined;
     return {
+      platform: 'extension',
+      app_version: version,
       $browser: getBrowserName(),
       $os: navigator.platform,
       $screen_height: screen.height,
       $screen_width: screen.width,
       $current_url: window.location.href,
       $pathname: window.location.pathname,
-      extension_version: typeof browser !== 'undefined'
-        ? browser.runtime.getManifest().version
-        : undefined,
+      extension_version: version,
     };
   } catch {
     return {};
@@ -281,11 +286,27 @@ export function capture(
  * redundant identify calls on every navigation.
  */
 export function identify(
-  _distinctId: string,
-  _properties?: Record<string, unknown>,
+  distinctId: string,
+  properties?: Record<string, unknown>,
 ): void {
-  // Person profiles are not needed for the tiny explicit event set. Keeping
-  // this compatibility helper as a no-op avoids repeated $identify events.
+  try {
+    if (isOptedOut()) return;
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id) return;
+    getClient().identify({
+      distinctId: id,
+      properties: {
+        platform: 'extension',
+        last_platform: 'extension',
+        app_version: typeof browser !== 'undefined'
+          ? browser.runtime.getManifest().version
+          : undefined,
+        ...properties,
+      },
+    });
+  } catch {
+    // Never let analytics errors surface to the user
+  }
 }
 
 export function setPersonProperties(
@@ -296,15 +317,25 @@ export function setPersonProperties(
 }
 
 /**
- * Identify only when the user or their properties have changed this session.
- * Stores a hash of distinctId + properties in sessionStorage so we skip
- * redundant identify calls on every Lectio page navigation.
+ * Identify only when the user or their properties have changed. The local
+ * cache is shared by tabs so navigation and multi-tab use do not emit repeats.
  */
 export function identifyIfNeeded(
-  _distinctId: string,
-  _properties?: Record<string, unknown>,
+  distinctId: string,
+  properties?: Record<string, unknown>,
 ): void {
-  // Intentionally disabled; see identify().
+  try {
+    if (isOptedOut()) return;
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id) return;
+    const serialized = JSON.stringify({ id, properties });
+    const key = 'bl-posthog-identify';
+    if (localStorage.getItem(key) === serialized) return;
+    identify(id, properties);
+    localStorage.setItem(key, serialized);
+  } catch {
+    // Non-critical
+  }
 }
 
 /**
@@ -318,6 +349,7 @@ export function reset(): void {
       const key = sessionStorage.key(i);
       if (key?.startsWith('bl-posthog-')) sessionStorage.removeItem(key);
     }
+    localStorage.removeItem('bl-posthog-identify');
     (_client as any)?.reset?.();
   } catch {
     // Non-critical
@@ -335,6 +367,31 @@ export function captureOncePerSession(
   properties?: Record<string, unknown>,
 ): void {
   captureOncePerSessionByKey(event, event, distinctId, properties);
+}
+
+/** Capture a new session after 30 minutes without a page activation. */
+export function captureOncePerSessionWindow(
+  event: string,
+  distinctId: string,
+  properties?: Record<string, unknown>,
+): void {
+  try {
+    if (isOptedOut()) return;
+    const id = requireLectioStudentDistinctId(distinctId);
+    if (!id || !shouldCaptureEvent(event, id)) return;
+    const key = `bl-posthog-session:${event}:${id}`;
+    const now = Date.now();
+    const previous = Number(localStorage.getItem(key) ?? 0);
+    localStorage.setItem(key, String(now));
+    if (previous > 0 && now - previous < 30 * 60 * 1000) return;
+    getClient().capture({
+      distinctId: id,
+      event,
+      properties: { ...getAutoProperties(), ...properties },
+    });
+  } catch {
+    // Non-critical
+  }
 }
 
 export function captureOncePerSessionByKey(
@@ -421,6 +478,8 @@ function getExceptionAutoProperties(): Record<string, unknown> {
       typeof browser !== 'undefined' ? browser.runtime.getManifest().version : undefined;
     if (typeof window === 'undefined') {
       return {
+        platform: 'extension',
+        app_version: extension_version,
         extension_version,
         runtime: 'service-worker',
         $os: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
