@@ -3,7 +3,7 @@ import { useTranslation, formatLocaleDate, formatLocaleTime } from '@/lib/i18n';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getCachedSchedule } from '@/lib/schedule-cache';
 import { getHoldDisplayName } from '@/lib/hold-mapping';
-import { fetchMissingOpgaver } from '@/lib/missing-opgaver';
+import { fetchOpgaverScan } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { getSession } from '@/lib/supabase/client';
 
@@ -34,6 +34,8 @@ interface UrgentOpgave {
   url: string;
   /** True if this assignment has exercisemissing status (past due, never submitted) */
   isMissing?: boolean;
+  /** True if Lectio reports that the student has already submitted it */
+  isSubmitted?: boolean;
 }
 
 /** Get urgent opgaver from the forside widget table (only has ~3 upcoming assignments) */
@@ -82,8 +84,6 @@ function getUrgentOpgaver(): UrgentOpgave[] {
   urgent.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
   return urgent;
 }
-
-// fetchMissingOpgaver is imported from @/lib/missing-opgaver (shared, cached)
 
 /** Merge missing opgaver into urgent list, deduplicating by URL */
 function mergeUrgentOpgaver(local: UrgentOpgave[], missing: UrgentOpgave[]): UrgentOpgave[] {
@@ -223,29 +223,36 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
     const localUrgent = getUrgentOpgaver();
     setUrgentOpgaver(localUrgent);
 
-    // Background fetch: check for missing assignments from full opgaver page.
+    // Background fetch: resolve submitted/missing status from the full opgaver page.
     // Delay slightly to avoid adding pressure during initial page boot.
     const missingTimer = window.setTimeout(() => {
-      fetchMissingOpgaver(schoolId).then((missingRaw) => {
+      fetchOpgaverScan(schoolId).then(({ missing: missingRaw, submittedIds }) => {
         if (isCancelled) return;
-        if (missingRaw.length > 0) {
-          const ignoredIds = loadIgnoredMissingIds(schoolId);
-          const missing: UrgentOpgave[] = missingRaw
-            .filter(m => {
-              const id = getExerciseIdFromUrl(m.url);
-              return !id || !ignoredIds.has(id);
-            })
-            .map(m => ({
-              title: m.title,
-              hold: m.hold,
-              deadline: m.deadline,
-              url: m.url,
-              isMissing: true,
-            }));
-          if (missing.length > 0) {
-            setUrgentOpgaver((prev) => mergeUrgentOpgaver(prev, missing));
-          }
-        }
+
+        const ignoredIds = loadIgnoredMissingIds(schoolId);
+        const missing: UrgentOpgave[] = missingRaw
+          .filter(m => {
+            const id = getExerciseIdFromUrl(m.url);
+            return !id || !ignoredIds.has(id);
+          })
+          .map(m => ({
+            title: m.title,
+            hold: m.hold,
+            deadline: m.deadline,
+            url: m.url,
+            isMissing: true,
+          }));
+
+        setUrgentOpgaver((prev) => {
+          const withSubmittedStatus = prev.map((opgave) => {
+            if (opgave.isMissing) return opgave;
+            const id = getExerciseIdFromUrl(opgave.url);
+            return id && submittedIds.has(id)
+              ? { ...opgave, isSubmitted: true }
+              : opgave;
+          });
+          return mergeUrgentOpgaver(withSubmittedStatus, missing);
+        });
       });
     }, 1500);
 
@@ -316,6 +323,16 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
             <div className="flex flex-col gap-2">
               {urgentOpgaver.map((opgave) => {
                 const isOverdue = opgave.isMissing || opgave.deadline.getTime() < Date.now();
+                const statusColor = opgave.isSubmitted
+                  ? 'oklch(0.5 0.15 145)'
+                  : isOverdue
+                    ? 'oklch(0.55 0.15 25)'
+                    : 'oklch(0.55 0.15 55)';
+                const dotColor = opgave.isSubmitted
+                  ? 'oklch(0.6 0.17 145)'
+                  : isOverdue
+                    ? 'oklch(0.55 0.2 25)'
+                    : 'oklch(0.65 0.2 55)';
                 const label = formatUrgentLabel(opgave);
                 const holdName = opgave.hold ? getHoldDisplayName(opgave.hold) : '';
                 return (
@@ -323,7 +340,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
                     key={opgave.url || `${opgave.title}-${opgave.hold}`}
                     href={opgave.url || undefined}
                     className="flex items-center gap-2 text-sm font-medium no-underline hover:underline"
-                    style={{ color: isOverdue ? 'oklch(0.55 0.15 25)' : 'oklch(0.55 0.15 55)' }}
+                    style={{ color: statusColor }}
                     onClick={(e) => {
                       if (!opgave.url) return;
                       e.preventDefault();
@@ -338,7 +355,11 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
                               deadline: opgave.deadline,
                               deadlineText: '',
                               studentTime: '',
-                              status: opgave.isMissing ? 'mangler' as const : 'venter' as const,
+                              status: opgave.isMissing
+                                ? 'mangler' as const
+                                : opgave.isSubmitted
+                                  ? 'afleveret' as const
+                                  : 'venter' as const,
                               absence: '',
                               awaiting: '',
                               note: '',
@@ -355,7 +376,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
                       width: opgave.isMissing ? '7px' : '6px',
                       height: opgave.isMissing ? '7px' : '6px',
                       borderRadius: '50%',
-                      backgroundColor: isOverdue ? 'oklch(0.55 0.2 25)' : 'oklch(0.65 0.2 55)',
+                      backgroundColor: dotColor,
                       flexShrink: 0,
                       boxShadow: opgave.isMissing ? '0 0 0 2px oklch(0.55 0.2 25 / 0.3)' : 'none',
                     }} />
