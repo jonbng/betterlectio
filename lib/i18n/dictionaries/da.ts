@@ -377,6 +377,9 @@ export const da = {
       lektier: 'Lektier',
       opgaver: 'Opgaver',
       beskeder: 'Beskeder',
+      holdGroups: 'Hold og grupper',
+      showAllGroups: 'Vis alle {n}',
+      showFewerGroups: 'Vis færre',
       unknownDate: 'Ukendt',
     },
     opgaverCard: {
@@ -391,6 +394,9 @@ export const da = {
       allDay: 'Hele dagen',
       failedToLoad: 'Kunne ikke hente skema',
     },
+  },
+  membersPage: {
+    editGroup: 'Rediger gruppe',
   },
   onboarding: {
     welcome: {

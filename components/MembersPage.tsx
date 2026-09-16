@@ -11,13 +11,17 @@ import {
 import { getSettings } from '../lib/settings-storage';
 import { parseMembersFromDocument, type Member } from '../lib/members-fetch';
 import { useSchoolStudents } from '@/lib/supabase/student-lookup';
+import { useTranslation } from '@/lib/i18n';
+import { Pencil } from 'lucide-react';
 
 interface MembersPageProps {
   schoolId: string;
   members: Member[];
+  editGroupUrl?: string | null;
 }
 
-export function MembersPage({ schoolId, members }: MembersPageProps) {
+export function MembersPage({ schoolId, members, editGroupUrl }: MembersPageProps) {
+  const { t } = useTranslation();
   const [, setStarred] = useState<StarredPerson[]>([]);
   const pinningEnabled = getSettings().data?.starredPeople ?? false;
   const { studentsMap } = useSchoolStudents(schoolId);
@@ -62,26 +66,39 @@ export function MembersPage({ schoolId, members }: MembersPageProps) {
   }, [schoolId]);
 
   return (
-    <div className="findskema-card-grid">
-      {sortedMembers.map((member) => {
-        const fullName = `${member.firstName} ${member.lastName}`.trim();
-        return (
-          <PersonCard
-            key={member.id}
-            id={member.id}
-            name={fullName}
-            classCode={member.classCode}
-            type={member.type}
-            href={getScheduleUrl(member.id, schoolId)}
-            isStarred={isPersonStarred(member.id)}
-            onStarToggle={handleStarToggle}
-            showPinButton={pinningEnabled}
-            onClick={() => handleCardClick(member)}
-            schoolId={schoolId}
-            studentsMap={studentsMap}
-          />
-        );
-      })}
+    <div className="flex flex-col gap-4">
+      {editGroupUrl && (
+        <div className="flex justify-end">
+          <a
+            href={editGroupUrl}
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium text-foreground no-underline shadow-sm transition-[background-color,border-color,transform] duration-150 hover:border-primary/30 hover:bg-accent active:scale-[0.96]"
+          >
+            <Pencil className="size-4" strokeWidth={2} aria-hidden="true" />
+            {t('membersPage.editGroup')}
+          </a>
+        </div>
+      )}
+      <div className="findskema-card-grid">
+        {sortedMembers.map((member) => {
+          const fullName = `${member.firstName} ${member.lastName}`.trim();
+          return (
+            <PersonCard
+              key={member.id}
+              id={member.id}
+              name={fullName}
+              classCode={member.classCode}
+              type={member.type}
+              href={getScheduleUrl(member.id, schoolId)}
+              isStarred={isPersonStarred(member.id)}
+              onStarToggle={handleStarToggle}
+              showPinButton={pinningEnabled}
+              onClick={() => handleCardClick(member)}
+              schoolId={schoolId}
+              studentsMap={studentsMap}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

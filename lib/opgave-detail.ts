@@ -63,8 +63,8 @@ export type SubmissionStatus = 'uploading' | 'sending' | 'verifying';
 
 // ── Parser ─────────────────────────────────────────────────────────────
 
-function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
-  const origin = window.location.origin;
+export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail {
+  const origin = new URL(pageUrl).origin;
 
   // Title
   const title = doc.querySelector('#m_Content_NameLbl')?.textContent?.trim() || '';
@@ -218,7 +218,8 @@ function parseDetail(doc: Document, pageUrl: string): OpgaveDetail {
       let removePostbackTarget: string | null = null;
       let removePostbackArgument: string | null = null;
       if (removeLink) {
-        const raw = removeLink.getAttribute('href') || removeLink.getAttribute('onclick') || '';
+        const attributes = [removeLink.getAttribute('onclick'), removeLink.getAttribute('href')];
+        const raw = attributes.find((value) => value?.includes('__doPostBack')) || '';
         const pbMatch = raw.match(/__doPostBack\('([^']+)'\s*,\s*'([^']*)'\)/);
         if (pbMatch) {
           removePostbackTarget = pbMatch[1];
@@ -304,7 +305,7 @@ export async function fetchOpgaveDetail(url: string): Promise<OpgaveDetail> {
       throw new Error('SESSION_EXPIRED');
     }
 
-    return parseDetail(doc, absoluteUrl);
+    return parseOpgaveDetail(doc, absoluteUrl);
   } catch (err) {
     if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
     captureException(err, undefined, { source: 'opgave-detail', url });
@@ -339,7 +340,7 @@ export async function submitComment(
   if (!doc.querySelector('#m_Content_NameLbl')) return false;
 
   onStatus?.('verifying');
-  const parsed = parseDetail(doc, detail.sourceUrl);
+  const parsed = parseOpgaveDetail(doc, detail.sourceUrl);
   const trimmedComment = comment.trim();
 
   return (
@@ -368,7 +369,7 @@ export async function addGroupMember(
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return null;
 
-  return parseDetail(doc, detail.sourceUrl);
+  return parseOpgaveDetail(doc, detail.sourceUrl);
 }
 
 export async function removeGroupMember(
@@ -389,7 +390,7 @@ export async function removeGroupMember(
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return null;
 
-  return parseDetail(doc, detail.sourceUrl);
+  return parseOpgaveDetail(doc, detail.sourceUrl);
 }
 
 export async function uploadFileAndSubmit(
@@ -446,7 +447,7 @@ export async function uploadFileAndSubmit(
   if (!doc.querySelector('#m_Content_NameLbl')) return false;
 
   onStatus?.('verifying');
-  const parsed = parseDetail(doc, detail.sourceUrl);
+  const parsed = parseOpgaveDetail(doc, detail.sourceUrl);
   return (
     parsed.entries.length > detail.entries.length
     || parsed.entries.some(entry => !!entry.documentName)

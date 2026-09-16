@@ -95,7 +95,45 @@ export interface ActivityDetail {
   elevfeedback: ActivityElevfeedbackRef | null;
 }
 
-function sanitizeActivityHtml(fragmentRoot: ParentNode): void {
+export function extractWebvisningUrl(onclick: string, baseUrl: string): string | null {
+  const match = onclick.match(
+    /(?:window\.open|(?:[A-Za-z_$][\w$]*\.)*OpenWindow)\s*\(\s*(['"])(.*?)\1/i,
+  );
+  if (!match?.[2]) return null;
+
+  try {
+    const absolute = new URL(match[2], baseUrl);
+    return ["http:", "https:"].includes(absolute.protocol) ? absolute.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeWebvisningLinks(fragmentRoot: ParentNode, baseUrl: string): void {
+  fragmentRoot.querySelectorAll<HTMLAnchorElement>("a").forEach((anchor) => {
+    const label = [anchor.textContent, anchor.getAttribute("title"), anchor.getAttribute("aria-label")]
+      .filter(Boolean)
+      .join(" ");
+    if (!/webvisning/i.test(label)) return;
+
+    const onclick = anchor.getAttribute("onclick") || "";
+    const viewerUrl = extractWebvisningUrl(onclick, baseUrl);
+    if (viewerUrl) {
+      anchor.setAttribute("href", viewerUrl);
+      anchor.setAttribute("target", "_blank");
+      anchor.setAttribute("rel", "noopener noreferrer");
+      anchor.setAttribute("data-bl-webvisning", "true");
+    } else if ((anchor.getAttribute("href") || "").trim() === "#") {
+      anchor.removeAttribute("href");
+    }
+  });
+}
+
+export function sanitizeActivityHtml(
+  fragmentRoot: ParentNode,
+  baseUrl = window.location.origin,
+): void {
+  normalizeWebvisningLinks(fragmentRoot, baseUrl);
   const scripts = fragmentRoot.querySelectorAll("script");
   scripts.forEach((node) => node.remove());
 
@@ -112,7 +150,7 @@ function sanitizeActivityHtml(fragmentRoot: ParentNode): void {
 
       if ((attrName === "href" || attrName === "src") && value) {
         try {
-          const absolute = new URL(value, window.location.origin);
+          const absolute = new URL(value, baseUrl);
           if (!["http:", "https:"].includes(absolute.protocol)) {
             el.removeAttribute(attr.name);
           } else {
@@ -311,9 +349,14 @@ function linkifyBareUrls(html: string): string {
   );
 }
 
-function extractLinksFromElement(el: HTMLElement): ActivityHomeworkLink[] {
+function extractLinksFromElement(
+  el: HTMLElement,
+  includeInlineWebvisning = false,
+): ActivityHomeworkLink[] {
   const links: ActivityHomeworkLink[] = [];
   el.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+    // Webvisning stays as a safe inline anchor. Do not repeat it as a link pill.
+    if (!includeInlineWebvisning && a.dataset.blWebvisning === "true") return;
     const label = a.textContent?.replace(/\s+/g, " ").trim() || "Link";
     const href = a.getAttribute("href");
     if (!href) return;
@@ -368,6 +411,9 @@ function findSoleImage(bodyRoot: HTMLElement): HTMLImageElement | null {
 }
 
 function parseArticle(article: HTMLElement, fallbackLabel: string, index: number): ActivityHomeworkItem {
+  // Lectio's Webvisning anchors often use href="#" and keep the real URL in
+  // onclick. Normalize that one known command before extracting heading links.
+  normalizeWebvisningLinks(article, window.location.origin);
   // Lectio uses h1 or h2 as the article title heading depending on content type
   const titleEl =
     article.querySelector<HTMLElement>("h1") ||
@@ -375,7 +421,7 @@ function parseArticle(article: HTMLElement, fallbackLabel: string, index: number
     article.querySelector<HTMLElement>("h2");
 
   // Extract links from heading BEFORE removing it (heading often wraps file download links)
-  const h1Links = titleEl ? extractLinksFromElement(titleEl) : [];
+  const h1Links = titleEl ? extractLinksFromElement(titleEl, true) : [];
 
   // Detect "title is a single link" case (e.g. <h1><a href="...">Tornerose.pdf</a></h1>)
   const headingAnchor = titleEl ? findHeadingSoleAnchor(titleEl) : null;

@@ -7,6 +7,7 @@ import { ViewingScheduleHeader } from "@/components/ViewingScheduleHeader";
 import { ProfilePage } from "@/components/ProfilePage";
 import { ForsideGreeting } from "@/components/ForsideGreeting";
 import { MembersPage, parseMembersFromDOM } from "@/components/MembersPage";
+import { getGroupEditUrl, parseHoldGroupLinks } from "@/lib/group-admin";
 import { LektierPage, parseLektierFromDOM } from "@/components/LektierPage";
 import { OpgaverPage, parseOpgaverFromDOM, fetchAllOpgaver, type OpgaveEntry } from "@/components/OpgaverPage";
 import { getCachedOpgaver, fetchAndCacheOpgaver } from "@/lib/opgaver-deadlines-cache";
@@ -2304,6 +2305,8 @@ function injectForsideDashboard(schoolId: string, contentContainer: HTMLElement)
     ? parseBeskeder(beskederIsland)
     : { entries: [], unreadCount: 0 };
 
+  const holdGroups = parseHoldGroupLinks(document, window.location.href);
+
   // Parse any other (unsupported) native dashboard islands so they can be
   // re-rendered into the same dashboard layout with consistent styling.
   // Exclude the 4 we have custom versions for + the schedule island
@@ -2358,6 +2361,7 @@ function injectForsideDashboard(schoolId: string, contentContainer: HTMLElement)
       unreadCount={unreadCount}
       schoolId={schoolId}
       extras={extras}
+      holdGroups={holdGroups}
     />,
     dashboardContainer,
   );
@@ -2799,6 +2803,8 @@ function injectMembersPage(schoolId: string) {
   const contentContainer = document.getElementById("il-lectio-content");
   if (!contentContainer) return;
 
+  const editGroupUrl = getGroupEditUrl(document, window.location.href);
+
   // Create container for our members page
   const membersContainer = document.createElement("div");
   membersContainer.id = "il-members-page";
@@ -2811,7 +2817,7 @@ function injectMembersPage(schoolId: string) {
 
   // Render the members page component
   render(
-    <MembersPage schoolId={schoolId} members={members} />,
+    <MembersPage schoolId={schoolId} members={members} editGroupUrl={editGroupUrl} />,
     membersContainer,
   );
 

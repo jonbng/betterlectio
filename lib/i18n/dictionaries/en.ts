@@ -379,6 +379,9 @@ export const en = {
       lektier: 'Homework',
       opgaver: 'Assignments',
       beskeder: 'Messages',
+      holdGroups: 'Classes and groups',
+      showAllGroups: 'Show all {n}',
+      showFewerGroups: 'Show fewer',
       unknownDate: 'Unknown',
     },
     opgaverCard: {
@@ -393,6 +396,9 @@ export const en = {
       allDay: 'All day',
       failedToLoad: 'Could not load schedule',
     },
+  },
+  membersPage: {
+    editGroup: 'Edit group',
   },
   onboarding: {
     welcome: {

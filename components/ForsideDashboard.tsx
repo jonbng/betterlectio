@@ -11,6 +11,7 @@ import { nameToHue } from '@/lib/beskeder-helpers';
 import type { ForsideOpgave } from '@/components/ForsideOpgaverCard';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
 import { getSettings } from '@/lib/settings-storage';
+import type { HoldGroupLink } from '@/lib/group-admin';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -950,6 +951,47 @@ function GenericCard({ data, schoolId }: { data: GenericIslandData; schoolId: st
   );
 }
 
+function HoldGroupsCard({ links, schoolId }: { links: HoldGroupLink[]; schoolId: string }) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  if (links.length === 0) return null;
+
+  const visibleLinks = expanded ? links : links.slice(0, 10);
+  return (
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <CardHeader
+        title={t('forside.cards.holdGroups')}
+        href={`/lectio/${schoolId}/SkemaNy.aspx`}
+        icon={Users}
+        count={links.length}
+      />
+      <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+        {visibleLinks.map((link) => (
+          <a
+            key={link.url}
+            href={link.url}
+            className="inline-flex min-h-10 items-center rounded-lg bg-muted px-3 text-sm font-medium text-foreground no-underline transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.96]"
+          >
+            {link.label}
+          </a>
+        ))}
+        {links.length > 10 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-primary transition-[background-color,transform] duration-150 hover:bg-primary/10 active:scale-[0.96]"
+            aria-expanded={expanded}
+          >
+            {expanded
+              ? t('forside.cards.showFewerGroups')
+              : t('forside.cards.showAllGroups', { n: links.length })}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard Component ─────────────────────────────────────────────
 
 interface DashboardProps {
@@ -960,6 +1002,7 @@ interface DashboardProps {
   unreadCount: number;
   schoolId: string;
   extras?: GenericIslandData[];
+  holdGroups?: HoldGroupLink[];
 }
 
 export function ForsideDashboard({
@@ -970,6 +1013,7 @@ export function ForsideDashboard({
   unreadCount,
   schoolId,
   extras = [],
+  holdGroups = [],
 }: DashboardProps) {
   const [, setSettingsTick] = useState(0);
   useEffect(() => {
@@ -1000,11 +1044,16 @@ export function ForsideDashboard({
         <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '60ms' }}>
           <LektierCard entries={lektier} schoolId={schoolId} />
         </div>
+        {holdGroups.length > 0 && (
+          <div className="animate-[bl-fade-in_350ms_var(--ease-out)_both]" style={{ animationDelay: '120ms' }}>
+            <HoldGroupsCard links={holdGroups} schoolId={schoolId} />
+          </div>
+        )}
         {leftExtras.map((extra, i) => (
           <div
             key={extra.id || `left-extra-${i}`}
             className="animate-[bl-fade-in_350ms_var(--ease-out)_both]"
-            style={{ animationDelay: `${120 + i * 60}ms` }}
+            style={{ animationDelay: `${180 + i * 60}ms` }}
           >
             <GenericCard data={extra} schoolId={schoolId} />
           </div>
