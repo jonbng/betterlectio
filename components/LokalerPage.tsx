@@ -10,7 +10,7 @@ import {
   type RoomWithOccupancy,
 } from '@/lib/lokaler-occupancy';
 
-type OccupancyFilter = 'all' | 'free' | 'busy';
+type OccupancyFilter = 'all' | 'free' | 'busy' | 'unknown';
 
 type LoadState =
   | { kind: 'loading' }
@@ -39,7 +39,8 @@ export function LokalerPage({ schoolId }: LokalerPageProps) {
       setState({ kind: 'loading' });
     }
 
-    if (fresh) return () => { cancelled = true; };
+    // A click on Refresh must bypass the freshness window.
+    if (fresh && reloadKey === 0) return () => { cancelled = true; };
 
     (async () => {
       try {
@@ -65,25 +66,29 @@ export function LokalerPage({ schoolId }: LokalerPageProps) {
   }, [schoolId, reloadKey]);
 
   const counts = useMemo(() => {
-    if (state.kind !== 'ready') return { all: 0, free: 0, busy: 0 };
+    if (state.kind !== 'ready') return { all: 0, free: 0, busy: 0, unknown: 0 };
     let free = 0;
     let busy = 0;
+    let unknown = 0;
     for (const room of state.rooms) {
-      if (room.inUse) busy++;
-      else free++;
+      if (room.inUse === true) busy++;
+      else if (room.inUse === false) free++;
+      else unknown++;
     }
-    return { all: state.rooms.length, free, busy };
+    return { all: state.rooms.length, free, busy, unknown };
   }, [state]);
 
   const visibleRooms = useMemo(() => {
     if (state.kind !== 'ready') return [];
     const filtered = state.rooms.filter((room) => {
-      if (filter === 'free') return !room.inUse;
-      if (filter === 'busy') return room.inUse;
+      if (filter === 'free') return room.inUse === false;
+      if (filter === 'busy') return room.inUse === true;
+      if (filter === 'unknown') return room.inUse === null;
       return true;
     });
     return filtered.slice().sort((a, b) => {
-      if (a.inUse !== b.inUse) return a.inUse ? 1 : -1;
+      const statusRank = (inUse: boolean | null) => inUse === false ? 0 : inUse === true ? 1 : 2;
+      if (a.inUse !== b.inUse) return statusRank(a.inUse) - statusRank(b.inUse);
       return a.shortName.localeCompare(b.shortName, 'da');
     });
   }, [state, filter]);
@@ -174,6 +179,14 @@ export function LokalerPage({ schoolId }: LokalerPageProps) {
               count={counts.busy}
               tone="busy"
             />
+            {counts.unknown > 0 && (
+              <FilterChip
+                active={filter === 'unknown'}
+                onClick={() => setFilter('unknown')}
+                label={t('lokalerPage.filterUnknown')}
+                count={counts.unknown}
+              />
+            )}
           </div>
 
           {state.rooms.length === 0 ? (
@@ -188,6 +201,8 @@ export function LokalerPage({ schoolId }: LokalerPageProps) {
                   ? t('lokalerPage.emptyFree')
                   : filter === 'busy'
                     ? t('lokalerPage.emptyBusy')
+                    : filter === 'unknown'
+                      ? t('lokalerPage.emptyUnknown')
                     : t('lokalerPage.empty')}
               </p>
             </div>
@@ -206,9 +221,11 @@ export function LokalerPage({ schoolId }: LokalerPageProps) {
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-foreground truncate">
                           {room.shortName}
-                          <span className="font-normal text-muted-foreground">
-                            {' '}· {room.name}
-                          </span>
+                          {room.name && (
+                            <span className="font-normal text-muted-foreground">
+                              {' '}· {room.name}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <OccupancyBadge inUse={room.inUse} />
@@ -258,18 +275,24 @@ function FilterChip({
   );
 }
 
-function OccupancyBadge({ inUse }: { inUse: boolean }) {
+function OccupancyBadge({ inUse }: { inUse: boolean | null }) {
   const { t } = useTranslation();
   return (
     <span
       className={cn(
         'shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
-        inUse
+        inUse === true
           ? 'bg-orange-500/10 text-orange-700 dark:text-orange-300'
-          : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+          : inUse === false
+            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+            : 'bg-muted text-muted-foreground',
       )}
     >
-      {inUse ? t('lokalerPage.inUse') : t('lokalerPage.free')}
+      {inUse === true
+        ? t('lokalerPage.inUse')
+        : inUse === false
+          ? t('lokalerPage.free')
+          : t('lokalerPage.unknown')}
     </span>
   );
 }

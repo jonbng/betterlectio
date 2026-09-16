@@ -936,8 +936,10 @@ export const da = {
     filterAll: 'Alle',
     filterFree: 'Ledige',
     filterBusy: 'I brug',
+    filterUnknown: 'Ukendt',
     free: 'Ledig',
     inUse: 'I brug',
+    unknown: 'Ukendt',
     refresh: 'Opdater',
     refreshing: 'Opdaterer…',
     errorTitle: 'Kunne ikke hente lokaler',
@@ -946,6 +948,7 @@ export const da = {
     empty: 'Ingen lokaler fundet.',
     emptyFree: 'Ingen ledige lokaler lige nu.',
     emptyBusy: 'Ingen lokaler er i brug lige nu.',
+    emptyUnknown: 'Alle lokaler har en kendt status.',
   },
   modulregnskaberPage: {
     title: 'Modulregnskaber',

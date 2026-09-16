@@ -938,8 +938,10 @@ export const en = {
     filterAll: 'All',
     filterFree: 'Free',
     filterBusy: 'In use',
+    filterUnknown: 'Unknown',
     free: 'Free',
     inUse: 'In use',
+    unknown: 'Unknown',
     refresh: 'Refresh',
     refreshing: 'Refreshing…',
     errorTitle: 'Could not load rooms',
@@ -948,6 +950,7 @@ export const en = {
     empty: 'No rooms found.',
     emptyFree: 'No free rooms right now.',
     emptyBusy: 'No rooms are in use right now.',
+    emptyUnknown: 'Every room has a known status.',
   },
   modulregnskaberPage: {
     title: 'Module accounts',

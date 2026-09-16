@@ -19,10 +19,12 @@ export interface RoomWithOccupancy {
   id: string;
   shortName: string;
   name: string;
-  inUse: boolean;
+  /** null means Lectio did not return occupancy for this room. */
+  inUse: boolean | null;
 }
 
-const CACHE_PREFIX = 'bl-lokaler-occupancy-v1';
+// v2 distinguishes unknown occupancy from a room that is confirmed free.
+const CACHE_PREFIX = 'bl-lokaler-occupancy-v2';
 
 /** Occupancy is live — treat cache as stale quickly. */
 export const LOKALER_FRESH_MS = 1000 * 60 * 2;
@@ -77,11 +79,26 @@ function parseRoomAnchor(a: Element): RoomListItem | null {
   const href = a.getAttribute('href');
   const id = idFromHref(href);
   if (!id) return null;
+  const symbol = a.querySelector('.findskema-symbol');
   const full = (a.textContent ?? '').replace(/\u00a0/g, ' ').trim();
   if (!full) return null;
-  const parts = full.split(/\s+/, 2);
-  const shortName = parts[0] ?? full;
-  const name = parts[1]?.trim() || shortName;
+
+  if (symbol) {
+    const shortName = (symbol.textContent ?? '').replace(/\u00a0/g, ' ').trim();
+    if (!shortName) return null;
+
+    // Lectio places the description directly after the span, without a text
+    // separator: <span>10</span>Lærer arbejdsrum. Reading the anchor's
+    // textContent therefore produces "10Lærer arbejdsrum".
+    const clone = a.cloneNode(true) as Element;
+    clone.querySelector('.findskema-symbol')?.remove();
+    const name = (clone.textContent ?? '').replace(/\u00a0/g, ' ').trim();
+    return { id, shortName, name };
+  }
+
+  const match = full.match(/^(\S+)(?:\s+(.*))?$/);
+  const shortName = match?.[1] ?? full;
+  const name = match?.[2]?.trim() ?? '';
   return { id, shortName, name };
 }
 
@@ -219,7 +236,7 @@ export function mergeOccupancy(
       id: room.id,
       shortName: room.shortName,
       name: room.name,
-      inUse: match?.inUse ?? false,
+      inUse: match?.inUse ?? null,
     };
   });
 }
@@ -236,15 +253,16 @@ async function fetchHtml(path: string): Promise<string> {
 export async function fetchLokalerOccupancy(schoolId: string): Promise<RoomWithOccupancy[]> {
   const roomsHtml = await fetchHtml(`/lectio/${schoolId}/FindSkema.aspx?type=lokale`);
   const rooms = parseRooms(roomsHtml);
+  if (rooms.length === 0) {
+    throw new Error('Kunne ikke aflæse Lectios lokaleliste');
+  }
 
-  let availabilities: RoomAvailability[] = [];
-  try {
-    const availHtml = await fetchHtml(
-      `/lectio/${schoolId}/SkemaAvanceret.aspx?type=aktuelleallelokaler&nosubnav=1&prevurl=FindSkemaAdv.aspx`,
-    );
-    availabilities = parseAvailabilities(availHtml);
-  } catch {
-    /* occupancy page optional — still show rooms as free */
+  const availHtml = await fetchHtml(
+    `/lectio/${schoolId}/SkemaAvanceret.aspx?type=aktuelleallelokaler&nosubnav=1&prevurl=FindSkemaAdv.aspx`,
+  );
+  const availabilities = parseAvailabilities(availHtml);
+  if (availabilities.length === 0) {
+    throw new Error('Kunne ikke aflæse Lectios lokalebelægning');
   }
 
   const merged = mergeOccupancy(rooms, availabilities);
