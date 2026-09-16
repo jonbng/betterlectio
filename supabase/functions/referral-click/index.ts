@@ -62,6 +62,11 @@ function isAndroidUa(ua: string | null): boolean {
   return /Android/i.test(ua) && !/Windows Phone/i.test(ua);
 }
 
+function isAutomatedPreviewUa(ua: string | null): boolean {
+  if (!ua) return false;
+  return /(?:\bbot\b|crawler|spider|preview|facebookexternalhit|Google-Calendar-Importer)/i.test(ua);
+}
+
 function coarseUserAgent(ua: string | null): string | null {
   if (!ua) return null;
   const platform = /Android/i.test(ua) ? 'android' : /iPhone|iPad|iPod/i.test(ua) ? 'ios' :
@@ -130,6 +135,14 @@ Deno.serve(async (req: Request) => {
   // wrong-feeling redirect.
   if (!ref || !ELEVID_RE.test(ref)) {
     if (jsonDelivery) return jsonResponse({ error: 'invalid_referral' }, 400);
+    return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
+  }
+
+  // Link unfurlers and calendar importers repeatedly request shared URLs but
+  // can never install the product. Counting them makes referral stats look
+  // active while producing no possible conversions. API delivery modes are
+  // app-to-server requests and must not be filtered by their user agent.
+  if (!jsonDelivery && !validateDelivery && isAutomatedPreviewUa(userAgent)) {
     return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
   }
 

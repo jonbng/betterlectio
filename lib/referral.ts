@@ -7,14 +7,17 @@
 // the click to this install — the function uses it to look up the row and
 // stamp `students.referred_by`.
 //
-// Once we've made an attempt for a given student we never retry — the
-// edge function is the source of truth for whether attribution succeeded,
+// Once we've received a parsed 2xx outcome for a student we never retry —
+// the edge function is the source of truth for whether attribution succeeded,
 // and re-calling on every page load would just spam the endpoint with
-// `no_cookie` responses. The flag is keyed by studentId because a single
-// browser can authenticate as different Lectio users over time.
+// `no_cookie` responses. Transport, timeout, and server failures remain
+// retryable. The flag is keyed by studentId because a single browser can
+// authenticate as different Lectio users over time.
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const ATTEMPTED_KEY_PREFIX = 'bl-referral-finalize-attempted:';
+const FINALIZE_TIMEOUT_MS = 10_000;
 
 interface FinalizeResponse {
   attributed: boolean;
@@ -59,8 +62,10 @@ export async function maybeFinalizeReferral(opts: {
     resp = await fetch(`${SUPABASE_URL}/functions/v1/referral-finalize`, {
       method: 'POST',
       credentials: 'include',
+      signal: AbortSignal.timeout(FINALIZE_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -72,8 +77,7 @@ export async function maybeFinalizeReferral(opts: {
   } catch {
     // Genuine network error (offline, DNS, abort). The server didn't
     // hear from us, so nothing changed server-side. Don't mark attempted
-    // — let the next session try again. `wasFirstInstall` is one-shot
-    // so this is the only retry shot we get.
+    // — let the next ensure-session call try again.
     return null;
   }
 

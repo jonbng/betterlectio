@@ -891,6 +891,14 @@ async function runEnsureSupabaseSession(
       const ownershipOk = await isSessionOwnedByExpected(expectedStudentId, schoolId, !!qrData?.userId);
       if (ownershipOk) {
         await browser.storage.local.remove(REAUTH_KEY);
+        const { data: existingData } = await supabase.auth.getSession();
+        if (expectedStudentId && existingData.session?.access_token) {
+          await runReferralFinalize({
+            studentId: expectedStudentId,
+            schoolId,
+            accessToken: existingData.session.access_token,
+          });
+        }
         return { ok: true, session: { expires_at: existingSessionExpiry } };
       }
       // Session is stale for the caller's Lectio user. Sign it out so any
@@ -908,6 +916,14 @@ async function runEnsureSupabaseSession(
     const sessionExpiryAfterSignout = qrData ? null : await getUsableSessionExpiry();
     if (sessionExpiryAfterSignout && !qrData) {
       await browser.storage.local.remove(REAUTH_KEY);
+      const { data: existingData } = await supabase.auth.getSession();
+      if (expectedStudentId && existingData.session?.access_token) {
+        await runReferralFinalize({
+          studentId: expectedStudentId,
+          schoolId,
+          accessToken: existingData.session.access_token,
+        });
+      }
       return { ok: true, session: { expires_at: sessionExpiryAfterSignout } };
     }
 
@@ -962,12 +978,12 @@ async function runEnsureSupabaseSession(
             auth_server_school_id: result.authServerSchoolId,
           });
         }
-        // Referral attribution — only on this very first auth, gated by the
-        // edge function's wasFirstInstall flag (which is true exactly when
-        // it just stamped extension_installed_at). Best-effort, never fails
-        // the auth flow.
-        if (studentId && result.wasFirstInstall && newData.session?.access_token) {
-          void runReferralFinalize({
+        // Keep the auth request alive until referral finalization completes.
+        // The client-side attempted flag prevents repeat calls after a
+        // definitive response; network/5xx failures remain retryable from a
+        // later ensure-session call. Eligibility stays server-side.
+        if (studentId && newData.session?.access_token) {
+          await runReferralFinalize({
             studentId,
             schoolId,
             accessToken: newData.session.access_token,
@@ -993,6 +1009,14 @@ async function runEnsureSupabaseSession(
             auth_stage: 'verify-otp-recovered',
             auth_server_school_id: result.authServerSchoolId,
             recovered_from_error: result.error,
+          });
+        }
+        const { data: recoveredData } = await supabase.auth.getSession();
+        if (studentId && recoveredData.session?.access_token) {
+          await runReferralFinalize({
+            studentId,
+            schoolId,
+            accessToken: recoveredData.session.access_token,
           });
         }
         return { ok: true, session: { expires_at: recoveredSessionExpiry } };
