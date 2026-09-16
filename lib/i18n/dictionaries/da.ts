@@ -221,6 +221,7 @@ export const da = {
       sendTitle: 'Send (Ctrl+Enter)',
       removeRecipient: 'Fjern {name}',
       errors: {
+        emptyBody: 'Skriv en besked, før du sender.',
         loadRecipients: 'Kunne ikke hente modtagere',
         addRecipient: 'Kunne ikke tilføje modtager. Opdatér siden og prøv igen.',
         addRecipientRetry: 'Kunne ikke tilføje modtager. Prøv igen.',

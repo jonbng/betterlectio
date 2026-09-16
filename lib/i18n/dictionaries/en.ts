@@ -223,6 +223,7 @@ export const en = {
       sendTitle: 'Send (Ctrl+Enter)',
       removeRecipient: 'Remove {name}',
       errors: {
+        emptyBody: 'Write a message before sending.',
         loadRecipients: 'Could not load recipients',
         addRecipient: 'Could not add recipient. Refresh the page and try again.',
         addRecipientRetry: 'Could not add recipient. Please try again.',

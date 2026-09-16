@@ -106,6 +106,41 @@ function checkSessionAndParse(doc: Document): { expired: boolean; formState: For
   return { expired: false, formState: parseNewFormState(doc) };
 }
 
+/** True when the editor contains no user-visible message text. */
+export function isEmptyMessageBody(body: string): boolean {
+  return body
+    .replace(/\[[^\]]+\]/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/\u00a0/g, ' ')
+    .trim().length === 0;
+}
+
+/**
+ * A valid ViewState only proves that Lectio returned a page. Failed sends keep
+ * the compose form open with validation markup, while successful sends leave
+ * compose and return a message thread/list.
+ */
+export function messageSendResponseLooksSuccessful(doc: Document): boolean {
+  if (doc.querySelector('.validation-summary-errors, .field-validation-error')) return false;
+
+  const bodyText = doc.body?.textContent?.toLowerCase() ?? '';
+  if (bodyText.includes('fejlhandled.aspx') || bodyText.includes('du er blevet logget ud')) {
+    return false;
+  }
+
+  // Thread pages also contain an EditModeContentBBTB reply textarea. The
+  // recipient editor is specific to the new-message compose state.
+  const composeStillOpen = !!doc.querySelector(
+    '#s_m_Content_Content_MessageThreadCtrl_RecipientsEditMode',
+  );
+  if (composeStillOpen) return false;
+
+  return !!doc.querySelector(
+    'table[id*="MessageThreadCtrl_MessagesGV"], table[id*="threadGV"]',
+  );
+}
+
 // ── Thread List Operations ─────────────────────────────────────────────
 
 export function toggleFlagViaIframe(
@@ -932,6 +967,13 @@ export function sendMessageViaIframe(
       const { expired, formState: newState } = checkSessionAndParse(doc);
       if (expired) return { success: false, error: { kind: 'session_expired' } };
       if (!newState) return { success: false, error: { kind: 'parse_failure', message: 'No tokens in response' } };
+
+      if (!messageSendResponseLooksSuccessful(doc)) {
+        return {
+          success: false,
+          error: { kind: 'parse_failure', message: 'Lectio did not confirm the sent message' },
+        };
+      }
 
       return { success: true, formState: newState, data: undefined };
     } catch (err) {

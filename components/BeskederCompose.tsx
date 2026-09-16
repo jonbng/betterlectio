@@ -5,6 +5,7 @@ import { type ComposeFormData, type ComposeRecipient, shouldSkipSignature } from
 import { doPostBack, parseFormTokens } from '@/lib/beskeder-parser';
 import {
   sendMessageViaIframe,
+  isEmptyMessageBody,
   addRecipientViaIframe,
   removeRecipientViaIframe,
   uploadFileToLectio,
@@ -380,6 +381,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
     let finalBody = bodyBBCode;
     if (editorSyncRef.current) {
       finalBody = editorSyncRef.current();
+    }
+    if (isEmptyMessageBody(finalBody)) {
+      setSending(false);
+      setError(t('beskeder.compose.errors.emptyBody'));
+      return;
     }
 
     const contextIds = recipientsWithContext
