@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { mobileAppDownloadUrlFor, shouldPromoteMobileApp } from './mobile-app';
+import {
+  mobileAppDownloadUrlFor,
+  recordMobileAppPromotionActiveDay,
+  shouldPromoteMobileApp,
+} from './mobile-app';
 
 describe('mobile app promotion', () => {
   test('is available regardless of former rollout and intent fields', () => {
@@ -26,5 +30,27 @@ describe('mobile app promotion', () => {
       mobileAppDownloadUrlFor('123_Ab-c'),
       'https://betterlectio.dk/download/app?u=123_Ab-c',
     );
+  });
+
+  test('requires activity on two distinct local calendar days', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+
+    assert.equal(recordMobileAppPromotionActiveDay('123', new Date(2026, 8, 18, 10), storage), 1);
+    assert.equal(recordMobileAppPromotionActiveDay('123', new Date(2026, 8, 18, 22), storage), 1);
+    assert.equal(recordMobileAppPromotionActiveDay('123', new Date(2026, 8, 19, 8), storage), 2);
+  });
+
+  test('recovers active-day eligibility from corrupt storage', () => {
+    const values = new Map<string, string>([['bl-mobile-app-active-days:123', '{bad']]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    };
+
+    assert.equal(recordMobileAppPromotionActiveDay('123', new Date(2026, 8, 18, 10), storage), 1);
   });
 });

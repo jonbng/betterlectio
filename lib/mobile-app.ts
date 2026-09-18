@@ -38,6 +38,44 @@ export async function renderMobileAppQrSvg(studentId?: string | null): Promise<s
 
 const INVITE_SNOOZE_KEY_PREFIX = 'bl-mobile-app-invite-last-shown';
 const INVITE_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+const ACTIVE_DAYS_KEY_PREFIX = 'bl-mobile-app-active-days';
+
+type PromotionStorage = Pick<Storage, 'getItem' | 'setItem'>;
+
+function activeDaysKey(studentId: string): string {
+  return `${ACTIVE_DAYS_KEY_PREFIX}:${studentId}`;
+}
+
+function localDayKey(now: Date): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Records extension use once per local calendar day and returns distinct days seen. */
+export function recordMobileAppPromotionActiveDay(
+  studentId: string,
+  now = new Date(),
+  storage: PromotionStorage = localStorage,
+): number {
+  const key = activeDaysKey(studentId);
+  try {
+    const parsed = JSON.parse(storage.getItem(key) ?? '[]');
+    const days = new Set<string>(
+      Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [],
+    );
+    days.add(localDayKey(now));
+    const recentDays = Array.from(days).sort().slice(-31);
+    storage.setItem(key, JSON.stringify(recentDays));
+    return recentDays.length;
+  } catch {
+    try {
+      storage.setItem(key, JSON.stringify([localDayKey(now)]));
+    } catch {}
+    return 1;
+  }
+}
 
 function inviteSnoozeKey(studentId: string): string {
   return `${INVITE_SNOOZE_KEY_PREFIX}:${studentId}`;

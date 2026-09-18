@@ -1116,6 +1116,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_feedback_thread: {
+        Args: { p_feedback_id: string }
+        Returns: Json
+      }
+      list_my_feedback: { Args: never; Returns: Json }
+      mark_feedback_read: {
+        Args: { p_feedback_id: string }
+        Returns: undefined
+      }
+      reply_to_feedback: {
+        Args: { p_body: string; p_feedback_id: string }
+        Returns: string
+      }
       confirm_auth_attempt: {
         Args: { p_completion_kind?: string; p_request_id: string }
         Returns: boolean
@@ -1481,8 +1494,7 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }

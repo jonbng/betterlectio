@@ -638,7 +638,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
             <button
               type="button"
               onClick={() => {
-                window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT));
+                window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT, {
+                  detail: { source: 'sidebar' },
+                }));
               }}
               className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/80 transition-[color,background-color] duration-150"
               title="Open mobile app invite popup"

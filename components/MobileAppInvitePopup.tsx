@@ -10,7 +10,7 @@ import {
   createMobileAppInviteDialogSubscription,
 } from '@/lib/mobile-app-dialog-subscription';
 import { getCachedProfile } from '@/lib/profile-cache';
-import { capture, captureFeatureUsedOncePerSession, getDistinctId } from '@/lib/posthog';
+import { capture, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
 import type { TFunction } from '@/lib/i18n/types';
 import {
@@ -21,6 +21,7 @@ import {
   getInviteSnoozeAt,
   hasInviteThanksBeenShown,
   markInviteThanksShown,
+  recordMobileAppPromotionActiveDay,
 } from '@/lib/mobile-app';
 import { getCachedSchedule, getTodaySchedule, type ScheduleBlock } from '@/lib/schedule-cache';
 import { getCountdownState } from '@/components/ScheduleCountdown';
@@ -74,15 +75,32 @@ export function MobileAppInvitePopup() {
   const profile = getCachedProfile();
   const schoolId = profile?.schoolId ?? null;
   const studentId = profile?.studentId ?? null;
+  const [activeDayCount, setActiveDayCount] = useState(0);
 
-  // Debug trigger from the sidebar — bumps a nonce that PopupInner uses to
-  // bypass all eligibility/snooze/quiet-hours/in-class gates.
+  // Count extension use even during the first 24 hours, while the automatic
+  // campaign itself is intentionally suppressed by the freshness gate below.
+  useEffect(() => {
+    if (!studentId) return;
+    setActiveDayCount(recordMobileAppPromotionActiveDay(studentId));
+  }, [studentId]);
+
+  // Explicit navigation actions bump a nonce so PopupInner can bypass the
+  // automatic eligibility, snooze, quiet-hours, and in-class gates.
   const [forceNonce, setForceNonce] = useState(0);
   useEffect(() => {
-    const onOpen = () => setForceNonce((n) => n + 1);
+    const onOpen = (event: Event) => {
+      const source = (event as CustomEvent<{ source?: string }>).detail?.source ?? 'navigation';
+      if (schoolId && studentId) {
+        capture('mobile_app_invite_opened', getDistinctId(studentId), {
+          school_id: schoolId,
+          source,
+        });
+      }
+      setForceNonce((n) => n + 1);
+    };
     window.addEventListener(MOBILE_APP_INVITE_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(MOBILE_APP_INVITE_OPEN_EVENT, onOpen);
-  }, []);
+  }, [schoolId, studentId]);
 
   const { data: student, refetch, isLoading } = useQuery<Student>({
     schoolId: schoolId ?? '',
@@ -176,6 +194,7 @@ export function MobileAppInvitePopup() {
       blocks={blocks}
       forceNonce={forceNonce}
       qrScannedAt={student?.app_qr_scanned_at ?? null}
+      activeDayCount={activeDayCount}
       onOpened={() => setHasOpenedOnce(true)}
       onSubscriptionReady={reconcileDialogSubscription}
     />
@@ -190,6 +209,8 @@ interface PopupInnerProps {
   forceNonce: number;
   /** Live `students.app_qr_scanned_at` value — null until the student scans. */
   qrScannedAt: string | null;
+  /** Distinct local calendar days on which this browser used the extension. */
+  activeDayCount: number;
   /** Called the first time the popup actually opens; locks the parent gate. */
   onOpened: () => void;
   /** Re-fetches the exact own row after the Realtime socket has joined. */
@@ -204,6 +225,7 @@ function PopupInner({
   blocks,
   forceNonce,
   qrScannedAt,
+  activeDayCount,
   onOpened,
   onSubscriptionReady,
 }: PopupInnerProps) {
@@ -239,7 +261,7 @@ function PopupInner({
   useEffect(() => {
     if (decidedRef.current) return;
 
-    // Debug bypass: open immediately without touching snooze stamp or analytics.
+    // Manual navigation bypass: open immediately without touching the automatic snooze stamp.
     if (forceNonce > 0) {
       decidedRef.current = true;
       qrAtOpenRef.current = qrScannedAt;
@@ -248,8 +270,10 @@ function PopupInner({
       return;
     }
 
-    if (blocks == null) return; // wait for schedule cache/fetch
+    if (blocks == null || activeDayCount === 0) return; // wait for schedule and persisted activity
     decidedRef.current = true;
+
+    if (activeDayCount < 2) return;
 
     if (isQuietHours()) return;
     if (isInviteSnoozed(studentId)) return;
@@ -261,11 +285,13 @@ function PopupInner({
     setOpen(true);
     onOpened();
 
-    captureFeatureUsedOncePerSession('mobile_app_invite_shown', distinctId, {
+    capture('mobile_app_invite_shown', distinctId, {
       school_id: schoolId,
+      source: 'automatic_popup',
       trigger: previous ? 're_prompt' : 'first_time',
+      active_day_count: activeDayCount,
     });
-  }, [blocks, distinctId, schoolId, studentId, forceNonce, onOpened]);
+  }, [blocks, distinctId, schoolId, studentId, forceNonce, activeDayCount, onOpened]);
 
   // Render QR once when we're going to show. Tagged with studentId so the
   // /download/app selects the correct store and stamps app_qr_scanned_at.
@@ -273,10 +299,17 @@ function PopupInner({
     if (!open) return;
     let cancelled = false;
     renderMobileAppQrSvg(studentId)
-      .then((svg) => { if (!cancelled) setQrSvg(svg); })
+      .then((svg) => {
+        if (cancelled) return;
+        setQrSvg(svg);
+        capture('mobile_app_qr_rendered', distinctId, {
+          school_id: schoolId,
+          source: forceNonce > 0 ? 'manual_popup' : 'automatic_popup',
+        });
+      })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [open, studentId]);
+  }, [open, studentId, distinctId, schoolId, forceNonce]);
 
   // Realtime is deliberately scoped to the visible QR dialog rather than the
   // mounted popup component. A fresh channel per open prevents one tab's
@@ -320,6 +353,10 @@ function PopupInner({
     markInviteThanksShown(studentId);
 
     setView('thanks');
+    capture('mobile_app_qr_scan_observed', distinctId, {
+      school_id: schoolId,
+      source: forceNonce > 0 ? 'manual_popup' : 'automatic_popup',
+    });
     capture('mobile_app_invite_success_shown', distinctId, {
       school_id: schoolId,
     });
@@ -335,7 +372,7 @@ function PopupInner({
     }, SUCCESS_DISPLAY_MS);
 
     return () => clearTimeout(closeTimer);
-  }, [open, view, qrScannedAt, distinctId, schoolId, reduceMotion, studentId]);
+  }, [open, view, qrScannedAt, distinctId, schoolId, reduceMotion, studentId, forceNonce]);
 
   // Esc to close (soft snooze) — works in any view so the user can dismiss
   // the success state instead of being forced to wait it out.
@@ -354,7 +391,10 @@ function PopupInner({
   function closeSoft() {
     setExiting(true);
     if (view === 'invite') {
-      capture('mobile_app_invite_dismissed', distinctId, { school_id: schoolId });
+      capture('mobile_app_invite_dismissed', distinctId, {
+        school_id: schoolId,
+        source: forceNonce > 0 ? 'manual_popup' : 'automatic_popup',
+      });
     }
     setTimeout(() => {
       setOpen(false);

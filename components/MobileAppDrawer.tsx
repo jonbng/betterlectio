@@ -101,6 +101,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const qrVisibleTracked = useRef(false);
 
   const { mutate: updateStudent } = useMutation<Partial<Student>>({
     table: 'students',
@@ -124,7 +125,20 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
     return () => {
       cancelled = true;
     };
-  }, [studentId]);
+  }, [studentId, distinctId, schoolId]);
+
+  useEffect(() => {
+    if (!open) {
+      qrVisibleTracked.current = false;
+      return;
+    }
+    if (!qrSvg || qrVisibleTracked.current) return;
+    qrVisibleTracked.current = true;
+    capture('mobile_app_qr_rendered', distinctId, {
+      school_id: schoolId,
+      source: 'drawer',
+    });
+  }, [open, qrSvg, distinctId, schoolId]);
 
   // Outside click + Escape close
   useEffect(() => {
@@ -148,7 +162,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
   useEffect(() => {
     const onOpenRequest = () => {
       setOpen(true);
-      capture('mobile_app_prompt_opened', distinctId, {
+      capture('mobile_app_invite_opened', distinctId, {
         school_id: schoolId,
         source: 'sidebar',
       });
@@ -163,7 +177,7 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
     const next = !open;
     setOpen(next);
     if (next) {
-      capture('mobile_app_prompt_opened', distinctId, {
+      capture('mobile_app_invite_opened', distinctId, {
         school_id: schoolId,
         source: 'tab',
       });
@@ -271,10 +285,9 @@ function DrawerInner({ schoolId, studentId }: { schoolId: string; studentId: str
           <button
             type="button"
             onClick={() => {
-              window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT));
-              capture('mobile_app_invite_opened_from_drawer', distinctId, {
-                school_id: schoolId,
-              });
+              window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT, {
+                detail: { source: 'drawer_detail' },
+              }));
             }}
             tabIndex={open ? 0 : -1}
             className="px-4 py-2.5 text-left text-[12px] font-semibold text-black transition-colors duration-150 ease-out hover:bg-zinc-100 active:bg-zinc-200"

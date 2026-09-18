@@ -21,3 +21,6 @@ verify_jwt = true
 
 [functions.lectio-session-keepalive]
 verify_jwt = false
+
+[functions.feedback-ai-triage]
+verify_jwt = false

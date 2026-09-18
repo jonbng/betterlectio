@@ -520,7 +520,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
               <QuickActionButton
                 className="max-[1179px]:hidden"
                 label={t('horizontalNav.mobileApp')}
-                onClick={() => window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT))}
+                onClick={() => window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT, { detail: { source: 'horizontal_quick_action' } }))}
               >
                 <Smartphone className="size-[1.05rem]" />
               </QuickActionButton>
@@ -542,7 +542,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
                 <DropdownMenuItem onSelect={toggleTheme}>{isDark ? <Sun /> : <Moon />}{isDark ? t('sidebar.lightModeTitle') : t('sidebar.darkModeTitle')}</DropdownMenuItem>
                 <DropdownMenuItem onSelect={showOriginal}><EyeOff />{t('horizontalNav.showOriginal')}</DropdownMenuItem>
                 {currentStudent && (
-                  <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT))}><Smartphone />{t('horizontalNav.mobileApp')}</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT, { detail: { source: 'horizontal_overflow' } }))}><Smartphone />{t('horizontalNav.mobileApp')}</DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -584,7 +584,7 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
               <DropdownMenuItem onSelect={toggleTheme}>{isDark ? <Sun /> : <Moon />}{isDark ? t('sidebar.lightModeTitle') : t('sidebar.darkModeTitle')}</DropdownMenuItem>
               <DropdownMenuItem onSelect={showOriginal}><EyeOff />{t('horizontalNav.showOriginal')}</DropdownMenuItem>
               {currentStudent && (
-                <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT))}><Smartphone />{t('horizontalNav.mobileApp')}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => window.dispatchEvent(new CustomEvent(MOBILE_APP_INVITE_OPEN_EVENT, { detail: { source: 'profile_menu' } }))}><Smartphone />{t('horizontalNav.mobileApp')}</DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={logout}><LogOut />{t('sidebar.menu.logout')}</DropdownMenuItem>

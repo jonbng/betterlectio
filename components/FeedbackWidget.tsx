@@ -19,13 +19,11 @@ import {
   submitFeedback,
   type FeedbackCategory,
 } from '@/lib/supabase/resources/feedback';
-import {
-  canCaptureScreen,
-  captureScreenSnapshot,
-} from '@/lib/screen-capture';
+import { canCaptureScreen, captureScreenSnapshot } from '@/lib/screen-capture';
 import { capture, getDistinctId } from '@/lib/posthog';
 import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { FeedbackInbox } from '@/components/FeedbackInbox';
 
 type Props = {
   schoolId: string | number | null | undefined;
@@ -119,6 +117,7 @@ export function FeedbackWidget({
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [view, setView] = useState<'compose' | 'inbox'>('compose');
 
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -159,6 +158,7 @@ export function FeedbackWidget({
       setCategory('bug');
       setMessage('');
       setFile(null);
+      setView('compose');
     }, 220);
     return () => window.clearTimeout(t);
   }, [open]);
@@ -240,9 +240,7 @@ export function FeedbackWidget({
       setError(null);
     } catch (e) {
       if (root) root.style.visibility = prevVisibility;
-      setError(
-        e instanceof Error ? e.message : 'Kunne ikke tage skærmbillede',
-      );
+      setError(e instanceof Error ? e.message : 'Kunne ikke tage skærmbillede');
     } finally {
       if (root) root.style.visibility = prevVisibility;
       setCapturing(false);
@@ -286,9 +284,7 @@ export function FeedbackWidget({
 
       // Text landed; keep a soft warning if the image failed (text still saved).
       if (result.attachmentError) {
-        setError(
-          'Beskeden er gemt, men skærmbilledet kunne ikke uploades.',
-        );
+        setError('Beskeden er gemt, men skærmbilledet kunne ikke uploades.');
       } else {
         setError(null);
       }
@@ -337,7 +333,12 @@ export function FeedbackWidget({
         )}
         style={{ transitionTimingFunction: EASE }}
       >
-        {done ? (
+        {view === 'inbox' ? (
+          <FeedbackInbox
+            onCompose={() => setView('compose')}
+            onClose={() => setOpen(false)}
+          />
+        ) : done ? (
           <div className="flex flex-col items-center gap-2.5 px-5 py-8 text-center">
             <div className="flex size-11 items-center justify-center rounded-full bg-primary/10">
               <CheckCircle2 className="size-5 text-primary" />
@@ -360,8 +361,15 @@ export function FeedbackWidget({
             </div>
             <button
               type="button"
+              onClick={() => setView('inbox')}
+              className="mt-1 min-h-10 rounded-lg border border-border px-3.5 text-xs font-medium text-foreground transition-[background-color,border-color] hover:border-primary/40 hover:bg-muted"
+            >
+              Se mine beskeder
+            </button>
+            <button
+              type="button"
               onClick={() => setOpen(false)}
-              className="mt-1 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              className="min-h-10 rounded-lg bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
               {t('feedbackWidget.close')}
             </button>
@@ -381,6 +389,13 @@ export function FeedbackWidget({
                   {t('feedbackWidget.subtitle')}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setView('inbox')}
+                className="min-h-10 rounded-lg px-2.5 text-xs font-medium text-primary hover:bg-primary/10"
+              >
+                Mine beskeder
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -489,7 +504,8 @@ export function FeedbackWidget({
                       'text-foreground transition-[color,background-color,border-color] duration-150',
                       'hover:border-primary/40 hover:bg-muted/50',
                       'disabled:opacity-50',
-                      capturing && 'border-primary/40 bg-primary/5 text-primary',
+                      capturing &&
+                        'border-primary/40 bg-primary/5 text-primary',
                     )}
                   >
                     {capturing ? (
@@ -497,7 +513,11 @@ export function FeedbackWidget({
                     ) : (
                       <Camera className="size-3.5" />
                     )}
-                    {capturing ? 'Tager…' : previewUrl ? 'Tag nyt' : 'Tag skærm'}
+                    {capturing
+                      ? 'Tager…'
+                      : previewUrl
+                        ? 'Tag nyt'
+                        : 'Tag skærm'}
                   </button>
                 ) : null}
 
@@ -578,7 +598,9 @@ export function FeedbackWidget({
         }}
         aria-expanded={open}
         aria-controls="bl-feedback-panel"
-        aria-label={open ? t('feedbackWidget.closeAria') : t('feedbackWidget.openAria')}
+        aria-label={
+          open ? t('feedbackWidget.closeAria') : t('feedbackWidget.openAria')
+        }
         title={t('feedbackWidget.tooltip')}
         className={cn(
           'pointer-events-auto flex h-12 items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg',

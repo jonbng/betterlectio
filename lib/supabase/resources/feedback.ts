@@ -25,6 +25,66 @@ export type FeedbackSubmitResult =
   | { ok: true; feedbackId: string; attachmentError?: string }
   | { ok: false; error: string };
 
+export type MyFeedbackItem = {
+  id: string;
+  created_at: string;
+  last_public_activity_at: string;
+  category: FeedbackCategory;
+  status: string;
+  conversation_state: 'awaiting_staff' | 'awaiting_user' | 'resolved';
+  title: string | null;
+  message: string;
+  platform: string;
+  is_unread: boolean;
+  last_reply: string | null;
+};
+
+export type FeedbackThread = {
+  item: MyFeedbackItem;
+  comments: Array<{
+    id: string;
+    created_at: string;
+    updated_at: string;
+    author_kind: 'user' | 'admin';
+    body: string;
+  }>;
+  status_events: Array<{
+    id: string;
+    created_at: string;
+    from_status: string | null;
+    to_status: string;
+    note: string | null;
+  }>;
+};
+
+export async function listMyFeedback(): Promise<MyFeedbackItem[]> {
+  const response = await sendRpc('list_my_feedback', {});
+  if (!response.ok)
+    throw new Error(response.error ?? 'Kunne ikke hente feedback');
+  return (response.data ?? []) as MyFeedbackItem[];
+}
+
+export async function getMyFeedbackThread(id: string): Promise<FeedbackThread> {
+  const response = await sendRpc('get_my_feedback_thread', {
+    p_feedback_id: id,
+  });
+  if (!response.ok)
+    throw new Error(response.error ?? 'Kunne ikke hente beskeden');
+  if (!response.data) throw new Error('Kunne ikke hente beskeden');
+  return response.data as FeedbackThread;
+}
+
+export async function replyToFeedback(id: string, body: string): Promise<void> {
+  const message = body.trim();
+  if (!message) throw new Error('Skriv en besked først');
+  const response = await sendRpc('reply_to_feedback', {
+    p_feedback_id: id,
+    p_body: message.slice(0, 4000),
+  });
+  if (!response.ok)
+    throw new Error(response.error ?? 'Kunne ikke sende svaret');
+}
+
 /**
  * Submit private feedback via submit_feedback RPC (+ optional Storage screenshot).
  */
@@ -59,7 +119,8 @@ export async function submitFeedback(
     return { ok: false, error: resp.error ?? 'Submit failed' };
   }
 
-  const feedbackId = typeof resp.data === 'string' ? resp.data : String(resp.data ?? '');
+  const feedbackId =
+    typeof resp.data === 'string' ? resp.data : String(resp.data ?? '');
   if (!feedbackId) {
     return { ok: false, error: 'No feedback id returned' };
   }
@@ -103,7 +164,10 @@ export async function submitFeedback(
       p_height: shot.height ?? null,
     });
     if (!reg.ok) {
-      console.warn('[feedback] register_feedback_attachment failed:', reg.error);
+      console.warn(
+        '[feedback] register_feedback_attachment failed:',
+        reg.error,
+      );
       return {
         ok: true,
         feedbackId,
