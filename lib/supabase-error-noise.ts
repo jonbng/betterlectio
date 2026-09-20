@@ -75,6 +75,18 @@ export function isExtensionContextInvalidatedError(error: unknown): boolean {
   return /extension context invalidated/i.test(message);
 }
 
+// The `lectio-auth` edge function returns stage "session-expired" when the
+// QR-minted Lectio cookie jar is already dead server-side (the schedule page
+// redirects back to the Lectio login). This is a user session state, not an
+// extension bug: the next QR attempt mints a fresh jar and recovers on its
+// own. Reporting it just opens an error-tracking issue for a self-healing
+// condition. Callers should scope this to auth failures.
+export function isSessionExpiredAuthError(error: unknown): boolean {
+  const message = extractSupabaseErrorMessage(error);
+  if (!message) return false;
+  return /\bsession[-\s]?expired\b/i.test(message);
+}
+
 // The union guard: true for any Supabase error that is not worth reporting —
 // unauthorized ownership rejections, expired JWTs (incl. PGRST301), and
 // transient network failures. Use this at capture sites that report Supabase
