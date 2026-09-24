@@ -866,8 +866,9 @@ function initLayout() {
       if (res.status >= 400) {
         const req = args[0] instanceof Request ? args[0] : null;
         const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : req!.url;
-        // Drop Lectio server errors (5xx): its backend failing is upstream
-        // noise, not our bug. Only client errors (4xx) may flag our own request.
+        // Drop transient Lectio gateway/availability failures (502–504).
+        // Keep 4xx and other 5xx responses: those may expose a bad request
+        // made by extension code.
         if (isLectioUrl(url) && isReportableLectioHttpStatus(res.status)) {
           const opts = args[1];
           const method = opts?.method ?? req?.method ?? 'GET';
@@ -923,7 +924,8 @@ function initLayout() {
     XMLHttpRequest.prototype.send = function (this: XMLHttpRequest & { __blMethod?: string; __blUrl?: string }, ...args: any[]) {
       const body = serializeBody(args[0]);
       this.addEventListener('loadend', () => {
-        // Drop Lectio server errors (5xx) as upstream noise; keep client errors.
+        // Drop transient Lectio gateway/availability failures (502–504), while
+        // retaining statuses that may expose a bad extension request.
         if (isReportableLectioHttpStatus(this.status) && isLectioUrl(this.__blUrl ?? '')) {
           const { message, fingerprint } = describeLectioHttpError(this.status, this.__blUrl ?? '', window.location.origin);
           captureException(new Error(message), phDistinctId, {

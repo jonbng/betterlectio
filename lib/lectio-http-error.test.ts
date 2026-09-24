@@ -15,9 +15,16 @@ describe('isReportableLectioHttpStatus', () => {
     assert.equal(isReportableLectioHttpStatus(499), true);
   });
 
-  test('drops server errors (5xx) as upstream noise', () => {
-    assert.equal(isReportableLectioHttpStatus(500), false);
+  test('keeps server errors that may expose a bad extension request', () => {
+    assert.equal(isReportableLectioHttpStatus(500), true);
+    assert.equal(isReportableLectioHttpStatus(501), true);
+    assert.equal(isReportableLectioHttpStatus(505), true);
+  });
+
+  test('drops transient gateway and availability errors', () => {
+    assert.equal(isReportableLectioHttpStatus(502), false);
     assert.equal(isReportableLectioHttpStatus(503), false);
+    assert.equal(isReportableLectioHttpStatus(504), false);
   });
 
   test('drops success and redirect statuses', () => {

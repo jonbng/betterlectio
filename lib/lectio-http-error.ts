@@ -4,9 +4,9 @@
 // reports any lectio.dk response with status >= 400 to error tracking. Two
 // problems came out of that:
 //
-//   1. Server errors (5xx) are Lectio's backend failing, not our bug. Most land
-//      in its nightly maintenance window, so forwarding them just buries real
-//      errors and burns error-tracking quota.
+//   1. Gateway/availability errors (502–504) are Lectio's infrastructure
+//      failing, not our bug. Most land in its nightly maintenance window, so
+//      forwarding them just buries real errors and burns error-tracking quota.
 //   2. Lectio serves over HTTP/2, where `statusText` is always empty, so the old
 //      `HTTP ${status} ${statusText}` message read `HTTP 503 ` with no endpoint.
 //      Error tracking then grouped on the minified stack, which shifts on every
@@ -20,12 +20,12 @@
 /**
  * Whether a failed Lectio HTTP response is worth reporting to error tracking.
  *
- * Client errors (4xx) can flag a request our own code got wrong, so we keep
- * them. Server errors (5xx) are Lectio's backend failing — upstream noise — so
- * we drop them.
+ * Client errors (4xx), HTTP 500, and less common 5xx statuses can flag a
+ * request our own code got wrong, so we keep them. Only gateway/availability
+ * failures (502–504) are unambiguously transient upstream noise.
  */
 export function isReportableLectioHttpStatus(status: number): boolean {
-  return status >= 400 && status < 500;
+  return status >= 400 && (status < 502 || status > 504);
 }
 
 /**
