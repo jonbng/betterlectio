@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 
 import {
   isExtensionContextInvalidatedError,
+  isSessionExpiredAuthError,
   isTransientNetworkError,
 } from './supabase-error-noise';
 
@@ -26,5 +27,21 @@ describe('isExtensionContextInvalidatedError', () => {
 
   test('does not suppress unrelated extension errors', () => {
     assert.equal(isExtensionContextInvalidatedError(new Error('Could not establish connection')), false);
+  });
+});
+
+describe('isSessionExpiredAuthError', () => {
+  test('recognizes the normalized stage message', () => {
+    assert.equal(isSessionExpiredAuthError(new Error('Auth failed: session-expired')), true);
+  });
+
+  test('recognizes the raw edge error text', () => {
+    assert.equal(isSessionExpiredAuthError('Lectio session expired or invalid'), true);
+    assert.equal(isSessionExpiredAuthError({ message: 'Lectio session expired or invalid' }), true);
+  });
+
+  test('does not suppress other auth failure stages', () => {
+    assert.equal(isSessionExpiredAuthError(new Error('Auth failed: edge-error')), false);
+    assert.equal(isSessionExpiredAuthError(new Error('QR code invalid or expired')), false);
   });
 });

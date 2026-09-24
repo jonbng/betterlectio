@@ -899,7 +899,10 @@ function initLayout() {
       // Detect fetch redirected to login.aspx (session loss via 302 -> 200)
       if (res.redirected && res.url.includes('login.aspx') && isLectioUrl(res.url)) {
         const reqUrl = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-        captureException(new Error('Fetch redirected to login.aspx (session expired)'), phDistinctId, {
+        // Session expiry is user state, not an extension exception. Keep it as
+        // an explicit product event so the rate remains measurable without
+        // creating a fresh error-tracking issue for each minified build.
+        capture('auth_session_lost', phDistinctId, {
           source: 'fetch-session-loss',
           original_url: reqUrl,
           redirected_url: res.url,

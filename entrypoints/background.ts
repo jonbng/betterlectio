@@ -17,6 +17,7 @@ import {
   isTransientNetworkError,
   isAuthOwnershipError,
   isExpiredJwtError,
+  isSessionExpiredAuthError,
 } from '@/lib/supabase-error-noise';
 import { waitForRealtimeChannelReady } from '@/lib/supabase/realtime-channel-ready';
 
@@ -255,6 +256,9 @@ async function captureSupabaseError(
     source?: string;
     authStage?: string;
     authServerSchoolId?: string;
+    requestId?: string;
+    authError?: string;
+    $exception_fingerprint?: string;
   },
 ): Promise<void> {
   try {
@@ -262,6 +266,7 @@ async function captureSupabaseError(
     if (isNonActionablePostgrestError(error)) return;
     if (isExpiredJwtError(error)) return;
     if (context.action === 'rpc' && isAuthOwnershipError(error)) return;
+    if (context.action === 'auth' && isSessionExpiredAuthError(error)) return;
 
     const identity = await getAnalyticsIdentity({
       studentId: context.studentId,
@@ -691,6 +696,7 @@ interface AuthAttemptResult {
   authServerSchoolId?: string;
   elevid?: string;
   wasFirstInstall?: boolean;
+  requestId?: string;
 }
 
 async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: string): Promise<AuthAttemptResult> {
@@ -720,26 +726,30 @@ async function triggerSupabaseAuth(qrId: string, userId: string, schoolId?: stri
   });
 
   if (!resp.ok) {
+    // Parse the edge error body for the stage and request id, but keep the
+    // per-request UUID out of the error string. Embedding the raw body here
+    // gave every failure a unique message, so error tracking filed a fresh
+    // issue per occurrence. The stage drives a stable message and fingerprint
+    // upstream; the request id travels as a property instead.
     const rawBody = await resp.text();
+    let parsed: {
+      error?: string;
+      stage?: string;
+      schoolId?: string;
+      request_id?: string;
+    } | null = null;
     try {
-      const parsed = JSON.parse(rawBody) as {
-        error?: string;
-        stage?: string;
-        schoolId?: string;
-      };
-      return {
-        success: false,
-        error: `Serverfejl: ${rawBody}`,
-        authStage: parsed.stage ?? 'edge-error',
-        authServerSchoolId: parsed.schoolId,
-      };
+      parsed = JSON.parse(rawBody);
     } catch {
-      return {
-        success: false,
-        error: `Serverfejl: ${rawBody}`,
-        authStage: 'edge-error',
-      };
+      // Non-JSON body (e.g. an upstream HTML error page).
     }
+    return {
+      success: false,
+      error: parsed?.error ?? `Serverfejl (${resp.status})`,
+      authStage: parsed?.stage ?? 'edge-error',
+      authServerSchoolId: parsed?.schoolId,
+      requestId: parsed?.request_id,
+    };
   }
 
   const {
@@ -1030,23 +1040,42 @@ async function runEnsureSupabaseSession(
           count: failures.count + 1,
           lastAttempt: Date.now(),
         });
-        const identity = await getAnalyticsIdentity({ studentId, schoolId });
-        await captureSupabaseError(new Error(result.error ?? 'Unknown auth failure'), {
+        const authStage = result.authStage ?? 'edge-error';
+        // A session-expired failure carries no elevid, so fall back to the
+        // expected student from bootstrap to keep the failure attributable.
+        const failureStudentId = studentId ?? expectedStudentId;
+        const identity = await getAnalyticsIdentity({ studentId: failureStudentId, schoolId });
+
+        // Message and fingerprint key on the stable stage, never the raw edge
+        // body — repeats of the same failure group into one error-tracking
+        // issue instead of one per request. session-expired is dropped whole
+        // by the noise guard in captureSupabaseError.
+        await captureSupabaseError(new Error(`Auth failed: ${authStage}`), {
           action: 'auth',
           schoolId,
-          studentId,
+          studentId: failureStudentId,
           source,
-          authStage: result.authStage,
+          authStage,
           authServerSchoolId: result.authServerSchoolId,
+          requestId: result.requestId,
+          authError: result.error,
+          $exception_fingerprint: `auth-error:${authStage}`,
         });
-        if (identity) {
-          identify(identity.distinctId, identity.properties);
-          capture('auth_supabase_failed', identity.distinctId, {
+
+        // The event is the honest, non-spamming way to measure auth failure
+        // rate (incl. session-expired), so emit it even when the exception was
+        // suppressed. Prefer the resolved identity, else attribute to the
+        // expected student.
+        const failureDistinctId = identity?.distinctId
+          ?? (failureStudentId ? getDistinctId(failureStudentId) : undefined);
+        if (failureDistinctId && isLectioStudentDistinctId(failureDistinctId)) {
+          if (identity) identify(identity.distinctId, identity.properties);
+          capture('auth_supabase_failed', failureDistinctId, {
             error: result.error,
             failure_count: failures.count + 1,
             school_id: schoolId,
             source,
-            auth_stage: result.authStage,
+            auth_stage: authStage,
             auth_server_school_id: result.authServerSchoolId,
           });
         }
