@@ -28,15 +28,18 @@ function DialogClose({
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
-function DialogOverlay({
-  className,
-  forceMount,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay> & {
-  forceMount?: true
-}) {
+// Radix Portal gives its direct child a Presence ref that calls
+// getComputedStyle(node). Preact gives a plain function component's ref the
+// component instance, so the overlay must forward its ref to the DOM node.
+const DialogOverlay = React.forwardRef<
+  React.ComponentRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay> & {
+    forceMount?: true
+  }
+>(function DialogOverlay({ className, forceMount, ...props }, ref) {
   return (
     <DialogPrimitive.Overlay
+      ref={ref}
       data-slot="dialog-overlay"
       forceMount={forceMount}
       className={cn(
@@ -46,7 +49,7 @@ function DialogOverlay({
       {...props}
     />
   )
-}
+})
 
 function DialogContent({
   className,
