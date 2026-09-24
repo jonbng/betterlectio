@@ -1,6 +1,6 @@
 /**
  * Room list + live occupancy (Android RoomParser / RoomScheduleRepository parity).
- * Sources: FindSkema.aspx?type=lokale + SkemaAvanceret.aspx?type=aktuelleallelokaler
+ * Sources: FindSkema.aspx?type=lokale + both current-room variants of SkemaAvanceret.aspx
  */
 
 export interface RoomAvailability {
@@ -24,7 +24,7 @@ export interface RoomWithOccupancy {
 }
 
 // v2 distinguishes unknown occupancy from a room that is confirmed free.
-const CACHE_PREFIX = 'bl-lokaler-occupancy-v2';
+const CACHE_PREFIX = 'bl-lokaler-occupancy-v3';
 
 /** Occupancy is live — treat cache as stale quickly. */
 export const LOKALER_FRESH_MS = 1000 * 60 * 2;
@@ -146,25 +146,50 @@ function parseAvailabilityFromHeader(
   container: Element,
 ): RoomAvailability | null {
   const text = (header.textContent ?? '').replace(/\u00a0/g, ' ').trim();
-  const dashIndex = text.indexOf('-');
+  const separator = text.match(/\s[-\u2013\u2014]\s*/);
+  const dashIndex = separator?.index ?? -1;
   if (dashIndex <= 0) return null;
   const shortName = text.slice(0, dashIndex).trim();
-  const name = text.slice(dashIndex + 1).trim();
-  if (!shortName || !name) return null;
+  const separatorLength = separator?.[0].length ?? 1;
+  const name = text.slice(dashIndex + separatorLength).trim();
+  // Some schools only configure a room code. Lectio still renders the
+  // separator (for example "101 -"), so an empty description is valid.
+  if (!shortName) return null;
   const booking = container.querySelector('table');
   const bookingText = booking?.textContent ?? '';
-  const notUsed = !booking || bookingText.includes('Der er ingen data');
+  const notUsed = !booking || /Der er ingen data/i.test(bookingText);
   return { shortName, name, inUse: !notUsed };
 }
 
 function parseAvailabilityRow(row: Element): RoomAvailability | null {
   const header = row.querySelector('h2');
-  if (!header) return null;
-  return parseAvailabilityFromHeader(header, row);
+  if (header) return parseAvailabilityFromHeader(header, row);
+
+  // Lectio's older/current-department variant renders e.g.
+  // <span>Lokale: 101</span> instead of the newer "101 - Name" h2.
+  const label = row.querySelector('.title-medium span') ?? row.querySelector('span');
+  const text = (label?.textContent ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/^Lokale\s*:?\s*/i, '')
+    .trim();
+  if (!text) return null;
+
+  const separator = text.match(/\s[-\u2013\u2014]\s*/);
+  const separatorIndex = separator?.index ?? -1;
+  const shortName = separatorIndex > 0 ? text.slice(0, separatorIndex).trim() : text;
+  const name =
+    separatorIndex > 0
+      ? text.slice(separatorIndex + (separator?.[0].length ?? 1)).trim()
+      : text;
+
+  const booking = row.querySelector('table');
+  if (!booking) return null;
+  const inUse = !/Der er ingen data/i.test(booking.textContent ?? '');
+  return { shortName, name, inUse };
 }
 
 /**
- * Parse `SkemaAvanceret.aspx?type=aktuelleallelokaler` occupancy island.
+ * Parse the `aktuelleallelokaler` / `aktuellelokaler` occupancy island.
  * A room is in use when its booking table does not contain "Der er ingen data".
  */
 export function parseAvailabilities(html: string): RoomAvailability[] {
@@ -220,18 +245,41 @@ export function mergeOccupancy(
   rooms: RoomListItem[],
   availabilities: RoomAvailability[],
 ): RoomWithOccupancy[] {
+  const normalize = (value: string) =>
+    value
+      .normalize('NFKC')
+      .replace(/\u00a0/g, ' ')
+      .replace(/^lokale\s*:?\s*/i, '')
+      .replace(/\s*[-\u2013\u2014]\s*/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLocaleLowerCase('da-DK');
+
+  const keysFor = (shortName: string, name: string) => {
+    const values = [shortName, name, `${shortName} ${name}`];
+    const keys = new Set<string>();
+    values.forEach((value) => {
+      const normalized = normalize(value);
+      if (!normalized) return;
+      keys.add(normalized);
+      keys.add(normalized.replace(/\s/g, ''));
+    });
+    return keys;
+  };
+
+  const availabilityByKey = new Map<string, RoomAvailability>();
+  availabilities.forEach((availability) => {
+    keysFor(availability.shortName, availability.name).forEach((key) => {
+      if (!availabilityByKey.has(key)) availabilityByKey.set(key, availability);
+    });
+  });
+
   return rooms.map((room) => {
-    const match = availabilities.find(
-      (it) =>
-        it.name.localeCompare(room.name, undefined, { sensitivity: 'accent' }) === 0 ||
-        it.shortName.localeCompare(room.shortName, undefined, { sensitivity: 'accent' }) === 0 ||
-        it.name.localeCompare(room.shortName, undefined, { sensitivity: 'accent' }) === 0 ||
-        `${it.shortName} - ${it.name}`.localeCompare(
-          `${room.shortName} - ${room.name}`,
-          undefined,
-          { sensitivity: 'accent' },
-        ) === 0,
-    );
+    let match: RoomAvailability | undefined;
+    for (const key of keysFor(room.shortName, room.name)) {
+      match = availabilityByKey.get(key);
+      if (match) break;
+    }
     return {
       id: room.id,
       shortName: room.shortName,
@@ -257,13 +305,23 @@ export async function fetchLokalerOccupancy(schoolId: string): Promise<RoomWithO
     throw new Error('Kunne ikke aflæse Lectios lokaleliste');
   }
 
-  const availHtml = await fetchHtml(
-    `/lectio/${schoolId}/SkemaAvanceret.aspx?type=aktuelleallelokaler&nosubnav=1&prevurl=FindSkemaAdv.aspx`,
+  const availabilityLists = await Promise.all(
+    ['aktuelleallelokaler', 'aktuellelokaler'].map(async (type) => {
+      try {
+        const availHtml = await fetchHtml(
+          `/lectio/${schoolId}/SkemaAvanceret.aspx?type=${type}&nosubnav=1&prevurl=FindSkemaAdv.aspx`,
+        );
+        return parseAvailabilities(availHtml);
+      } catch {
+        return [];
+      }
+    }),
   );
-  const availabilities = parseAvailabilities(availHtml);
-  if (availabilities.length === 0) {
-    throw new Error('Kunne ikke aflæse Lectios lokalebelægning');
-  }
+  const availabilities = availabilityLists.flat();
+
+  // Occupancy is optional and is not exposed consistently by every school.
+  // If neither variant is available, keep the room directory useful and
+  // render the statuses as unknown.
 
   const merged = mergeOccupancy(rooms, availabilities);
   writeCache(schoolId, merged);

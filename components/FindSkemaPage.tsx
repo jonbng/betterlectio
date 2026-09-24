@@ -57,16 +57,6 @@ const TYPE_TO_PREFIX: Record<string, string> = {
 
 const ALL_FILTER_KEYS = ['S', 'T', 'K', 'L', 'R', 'H', 'G'];
 
-function getBrowseLimit(typeKey: string, singleFilter: boolean): number {
-  if (singleFilter) {
-    if (typeKey === 'G') return Number.POSITIVE_INFINITY;
-    if (typeKey === 'S' || typeKey === 'T') return 32;
-    return 50;
-  }
-  if (typeKey === 'S' || typeKey === 'T') return 12;
-  return 10;
-}
-
 interface FindSkemaPageProps {
   schoolId: string;
   searchType?: SearchType;
@@ -265,28 +255,36 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   }, [items, myTeacherIds]);
 
   const browseSections = useMemo(() => {
-    // Only show browse sections when a specific filter is selected (not "Alle")
-    if (showSearchResults || activeFilter === 'all') return [];
+    if (showSearchResults) return [];
 
-    // Students are handled by the classmates section, teachers by myTeachers section
+    // Students and teachers keep their useful contextual views when selected
+    // directly. The exhaustive lists belong to the explicit "Alle" view.
     if (activeFilter === 'S' || activeFilter === 'T') return [];
 
-    const limit = getBrowseLimit(activeFilter, true);
-    const config = FILTER_CONFIG.find(f => f.key === activeFilter);
-    if (!config) return [];
+    // "Alle" is the exhaustive people view. Previously it only rendered the
+    // contextual classmates and own-teachers sections.
+    const filters = activeFilter === 'all'
+      ? FILTER_CONFIG.filter((filter) => filter.key === 'S' || filter.key === 'T')
+      : FILTER_CONFIG.filter((filter) => filter.key === activeFilter);
 
-    const list = items
-      .filter((item) => {
-        if (item.type !== activeFilter) return false;
-        // For classes, only show active ones (grade 1-3) in browse view
-        if (item.type === 'K' && (item.classGrade == null || item.classGrade < 1 || item.classGrade > 3)) return false;
-        return true;
+    return filters
+      .map((filter) => {
+        const limit = activeFilter === 'all' || filter.key === 'G'
+          ? Number.POSITIVE_INFINITY
+          : 50;
+        const sectionItems = items
+          .filter((item) => {
+            if (item.type !== filter.key) return false;
+            // For classes, only show active ones (grade 1-3) in browse view.
+            if (item.type === 'K' && (item.classGrade == null || item.classGrade < 1 || item.classGrade > 3)) return false;
+            return true;
+          })
+          .sort((a, b) => a.name.localeCompare(b.name, 'da-DK'))
+          .slice(0, limit);
+
+        return { ...filter, items: sectionItems, limit };
       })
-      .sort((a, b) => a.name.localeCompare(b.name, 'da-DK'))
-      .slice(0, limit);
-
-    if (list.length === 0) return [];
-    return [{ ...config, items: list, limit }];
+      .filter((section) => section.items.length > 0);
   }, [items, activeFilter, showSearchResults]);
 
   // Get classmates (people in same class as user)
@@ -371,8 +369,8 @@ export function FindSkemaPage({ schoolId, searchType = 'all' }: FindSkemaPagePro
   const pinningEnabled = settings.data?.starredPeople ?? false;
   const showRecents = !showSearchResults && filteredRecents.length > 0 && (settings.data?.recentSearches ?? false);
   const showStarred = !showSearchResults && filteredStarred.length > 0 && pinningEnabled;
-  const showClassmates = !showSearchResults && classmates.length > 0 && activeFilters.has('S');
-  const showMyTeachers = !showSearchResults && myTeachers.length > 0 && activeFilters.has('T');
+  const showClassmates = !showSearchResults && classmates.length > 0 && activeFilter === 'S';
+  const showMyTeachers = !showSearchResults && myTeachers.length > 0 && activeFilter === 'T';
 
   const hasBL = (personId: string) =>
     hasBetterLectio(getStudentFromLookupId(studentsMap, personId));

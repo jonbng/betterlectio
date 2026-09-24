@@ -11,7 +11,7 @@ import {
   Info,
   Loader2,
 } from 'lucide-react';
-import { getHoldHue, getHoldDisplayName, registerHold } from '@/lib/hold-mapping';
+import { getHoldHue, getHoldDisplayName, getSubjectIdentityKey, registerHold } from '@/lib/hold-mapping';
 import {
   type FravaerPageData,
   type FravaerHoldEntry,
@@ -269,7 +269,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   const queryLower = recordSearch.toLowerCase().trim();
 
   const filteredRecords = allRecords.filter(r => {
-    if (selectedHold && r.hold !== selectedHold) return false;
+    if (selectedHold && getSubjectIdentityKey(r.hold) !== selectedHold) return false;
     if (queryLower) {
       const searchIn = `${r.hold} ${getHoldDisplayName(r.hold)} ${r.date} ${r.teacher} ${r.aarsag} ${r.note} ${r.bemaerkning} ${r.module}`.toLowerCase();
       if (!searchIn.includes(queryLower)) return false;
@@ -291,9 +291,19 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
 
   const shownRecords = prioritizedRecords.slice(0, visibleRecords);
 
-  const recordHolds = [...new Set(allRecords.map(r => r.hold))]
-    .filter(Boolean)
-    .sort((a, b) => getHoldDisplayName(a).localeCompare(getHoldDisplayName(b), 'da'));
+  const recordHolds = [...allRecords.reduce((subjects, record) => {
+    if (!record.hold) return subjects;
+    const key = getSubjectIdentityKey(record.hold);
+    if (!subjects.has(key)) {
+      subjects.set(key, {
+        key,
+        representativeHold: record.hold,
+        label: getHoldDisplayName(record.hold),
+      });
+    }
+    return subjects;
+  }, new Map<string, { key: string; representativeHold: string; label: string }>()).values()]
+    .sort((a, b) => a.label.localeCompare(b.label, 'da'));
 
   return (
     <div className={cn('mx-auto max-w-7xl px-10 pb-12 pt-8', loading && 'pointer-events-none opacity-60')}>
@@ -383,7 +393,8 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
                   setExpandedSubject(expandedSubject === hold.hold ? null : hold.hold)
                 }
                 onFilterRecords={() => {
-                  setSelectedHold(selectedHold === hold.hold ? null : hold.hold);
+                  const subjectKey = getSubjectIdentityKey(hold.hold);
+                  setSelectedHold(selectedHold === subjectKey ? null : subjectKey);
                   document.getElementById('il-fravaer-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
                 style={{ animationDelay: `${140 + i * 25}ms` }}
@@ -466,14 +477,14 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             >
               {t('fravaerPage.allSubjects')}
             </FilterPill>
-            {recordHolds.map(hold => (
+            {recordHolds.map(subject => (
               <FilterPill
-                key={hold}
-                active={selectedHold === hold}
-                hue={getHoldHue(hold)}
-                onClick={() => setSelectedHold(selectedHold === hold ? null : hold)}
+                key={subject.key}
+                active={selectedHold === subject.key}
+                hue={getHoldHue(subject.representativeHold)}
+                onClick={() => setSelectedHold(selectedHold === subject.key ? null : subject.key)}
               >
-                {getHoldDisplayName(hold)}
+                {subject.label}
               </FilterPill>
             ))}
           </div>

@@ -28,6 +28,7 @@ export interface OpgaveDetail {
   descriptionFiles: { name: string; url: string }[];
   students: {
     name: string;
+    contextCardId: string;
     awaiting: string;
     statusText: string;
     isCompleted: boolean;
@@ -61,6 +62,81 @@ export interface OpgaveDetail {
 
 export type SubmissionStatus = 'uploading' | 'sending' | 'verifying';
 
+/** Lectio renders empty grade cells as one or two dash glyphs. */
+export function isMeaningfulAssignmentGrade(value: string | null | undefined): boolean {
+  const grade = (value || '').trim();
+  return grade.length > 0 && !/^(?:-{1,2}|[–—])$/.test(grade);
+}
+
+function normalizedLabel(value: string | null | undefined): string {
+  return (value || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/:\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('da-DK');
+}
+
+/** Extract visible text while preserving Lectio's <br>-separated feedback lines. */
+function elementText(element: Element | null): string {
+  if (!element) return '';
+
+  const read = (node: Node): string => {
+    if (node.nodeType === 3) return node.textContent || '';
+    if (node.nodeType !== 1) return '';
+    const child = node as Element;
+    if (child.tagName.toLowerCase() === 'br') return '\n';
+    return Array.from(child.childNodes).map(read).join('');
+  };
+
+  return read(element)
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map(line => line.replace(/[\t\r ]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function cellsByInlineLabel(row: Element, labelSelector: string): Map<string, HTMLTableCellElement> {
+  const result = new Map<string, HTMLTableCellElement>();
+  for (const cell of row.querySelectorAll<HTMLTableCellElement>('td')) {
+    const label = cell.querySelector(labelSelector);
+    if (label) result.set(normalizedLabel(label.textContent), cell);
+  }
+  return result;
+}
+
+function valueWithoutLabel(cell: Element | null, labelSelector: string): string {
+  if (!cell) return '';
+  const clone = cell.cloneNode(true) as Element;
+  clone.querySelectorAll(labelSelector).forEach(label => label.remove());
+  return elementText(clone);
+}
+
+/** Repair the common UTF-8-as-Latin-1 sequences Lectio can emit in filenames. */
+function repairLectioFilename(value: string): string {
+  return value
+    .replace(/Ã¦/g, 'æ')
+    .replace(/Ã¸/g, 'ø')
+    .replace(/Ã¥/g, 'å')
+    .replace(/Ã†/g, 'Æ')
+    .replace(/Ã˜/g, 'Ø')
+    .replace(/Ã…/g, 'Å');
+}
+
+function getLectioContextCardId(element: Element | null): string {
+  if (!element) return '';
+  const attribute = Array.from(element.attributes)
+    .find(item => item.name.toLowerCase() === 'data-lectiocontextcard');
+  return attribute?.value || '';
+}
+
+function findLectioContextCardElement(root: Element): HTMLElement | null {
+  return Array.from(root.querySelectorAll<HTMLElement>('*'))
+    .find(element => !!getLectioContextCardId(element)) || null;
+}
+
 // ── Parser ─────────────────────────────────────────────────────────────
 
 export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail {
@@ -75,7 +151,10 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
     for (const th of ths) {
       if (th.textContent?.trim().startsWith(thText)) {
         const td = th.nextElementSibling;
-        return td?.textContent?.trim() || '';
+        if (!td) return '';
+        const clone = td.cloneNode(true) as Element;
+        clone.querySelectorAll('.OnlyMobile').forEach(label => label.remove());
+        return (clone.textContent || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
       }
     }
     return '';
@@ -86,7 +165,11 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
     for (const th of ths) {
       if (th.textContent?.trim().startsWith(thText)) {
         const td = th.nextElementSibling;
-        const html = td?.innerHTML?.trim();
+        if (!td) return null;
+        const value = td.querySelector('.ls-elevaflevering-value') || td;
+        const clone = value.cloneNode(true) as Element;
+        clone.querySelectorAll('.OnlyMobile').forEach(label => label.remove());
+        const html = clone.innerHTML.trim();
         return html || null;
       }
     }
@@ -96,7 +179,9 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
   const hold = findInfoValue('Hold:');
   const gradeScale = doc.querySelector('#m_Content_gradeScaleIdLbl')?.textContent?.trim() || '';
   const responsible = findInfoValue('Ansvarlig:');
-  const studentTime = doc.querySelector('#m_Content_WeightLbl')?.textContent?.trim() || '';
+  const studentTime = (doc.querySelector('#m_Content_WeightLbl')?.textContent?.trim() || '')
+    .replace(/\s*(?:elev)?timer?\s*$/i, '')
+    .trim();
   const deadline = findInfoValue('Afleveringsfrist:');
   const inUVBeskrivelse = findInfoValue('I undervisningsbeskrivelse:');
 
@@ -117,7 +202,7 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
         for (const link of fileLinks) {
           const href = link.getAttribute('href');
           if (href) {
-            const name = link.textContent?.trim() || 'Download';
+            const name = repairLectioFilename(link.textContent?.trim() || 'Download');
             descriptionFiles.push({
               name,
               url: new URL(href, origin).href,
@@ -136,20 +221,28 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
     const rows = studentTable.querySelectorAll('tr');
     for (const row of rows) {
       if (row.querySelector('th')) continue; // skip header
-      const cells = row.querySelectorAll('td');
-      if (cells.length < 8) continue;
+      const cells = row.querySelectorAll<HTMLTableCellElement>('td');
+      if (cells.length === 0) continue;
 
-      // cells: [0]=photo, [1]=name, [2]=awaiting, [3]=status, [4]=completed checkbox, [5]=grade, [6]=gradeNote, [7]=studentNote
-      const name = cells[1]?.textContent?.trim() || '';
-      const awaiting = cells[2]?.textContent?.trim() || '';
-      const statusText = cells[3]?.textContent?.trim() || '';
-      const checkbox = cells[4]?.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
-      const isCompleted = checkbox?.checked ?? false;
-      const grade = cells[5]?.textContent?.trim() || '';
-      const gradeNote = cells[6]?.textContent?.trim() || '';
-      const studentNote = cells[7]?.textContent?.trim() || '';
+      // Current Lectio emits semantic labels inside the student fields.
+      // Prefer those live labels while retaining historical index fallbacks.
+      const labeledCells = cellsByInlineLabel(row, '.ls-elevaflevering-field-label');
+      const cellFor = (label: string, fallbackIndex: number): HTMLTableCellElement | null =>
+        labeledCells.get(normalizedLabel(label)) || cells[fallbackIndex] || null;
+      const nameSpan = findLectioContextCardElement(row);
+      const name = nameSpan?.textContent?.trim()
+        || valueWithoutLabel(cellFor('Elev', 1), '.ls-elevaflevering-field-label');
+      const contextCardId = getLectioContextCardId(nameSpan);
+      const awaiting = valueWithoutLabel(cellFor('Afventer', 2), '.ls-elevaflevering-field-label');
+      const statusText = valueWithoutLabel(cellFor('Status - fravær', 3), '.ls-elevaflevering-field-label');
+      const completedCell = cellFor('Afsluttet', 4);
+      const checkbox = completedCell?.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+      const isCompleted = !!checkbox && (checkbox.checked || checkbox.hasAttribute('checked'));
+      const grade = valueWithoutLabel(cellFor('Karakter', 5), '.ls-elevaflevering-field-label');
+      const gradeNote = valueWithoutLabel(cellFor('Karakternote', 6), '.ls-elevaflevering-field-label');
+      const studentNote = valueWithoutLabel(cellFor('Elevnote', 7), '.ls-elevaflevering-field-label');
 
-      students.push({ name, awaiting, statusText, isCompleted, grade, gradeNote, studentNote });
+      students.push({ name, contextCardId, awaiting, statusText, isCompleted, grade, gradeNote, studentNote });
     }
   }
 
@@ -162,29 +255,48 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
       const rows = recipientTable.querySelectorAll('tr');
       for (const row of rows) {
         if (row.querySelector('th')) continue; // skip header
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 4) continue;
+        const cells = row.querySelectorAll<HTMLTableCellElement>('td');
+        if (cells.length === 0) continue;
 
-        const timestamp = cells[0]?.textContent?.trim() || '';
-        const userSpan = cells[1]?.querySelector('[data-lectioContextCard]') as HTMLElement | null;
+        // The first cell duplicates the whole row for mobile. Anchor desktop
+        // values to header names instead of treating that duplicate as time.
+        const headerCells = recipientTable.querySelectorAll<HTMLTableCellElement>('tr:first-child th');
+        const headerIndexes = new Map<string, number>();
+        headerCells.forEach((header, index) => headerIndexes.set(normalizedLabel(header.textContent), index));
+        const desktopCell = (label: string): HTMLTableCellElement | null => {
+          const index = headerIndexes.get(normalizedLabel(label));
+          return index === undefined ? null : cells[index] || null;
+        };
+        const mobileValue = (label: string): Element | null => {
+          const labelElement = Array.from(row.querySelectorAll('.ls-elevaflevering-entry-label'))
+            .find(element => normalizedLabel(element.textContent) === normalizedLabel(label));
+          return labelElement?.parentElement?.querySelector('.ls-elevaflevering-entry-value') || null;
+        };
+
+        const timestampCell = desktopCell('Tidspunkt');
+        const userCell = desktopCell('Bruger');
+        const commentCell = desktopCell('Indlæg');
+        const documentCell = desktopCell('Dokument');
+        const timestamp = elementText(timestampCell || mobileValue('Tidspunkt'));
+        const userRoot = userCell || mobileValue('Bruger');
+        const userSpan = userRoot ? findLectioContextCardElement(userRoot) : null;
         const userText = userSpan?.textContent?.trim() || '';
         const userTitle = userSpan?.getAttribute('title')?.trim() || '';
         // Teacher spans render as initials with full name in `title`; prefer the title.
         const user = (userTitle && userTitle.length > userText.length ? userTitle : userText)
-          || cells[1]?.textContent?.trim() || '';
-        const userContextCardId = userSpan?.getAttribute('data-lectioContextCard') || '';
+          || elementText(userCell || mobileValue('Bruger'));
+        const userContextCardId = getLectioContextCardId(userSpan);
         const isTeacher = userContextCardId.startsWith('T');
-        const comment = cells[2]?.textContent?.trim() || '';
+        const comment = elementText(commentCell || mobileValue('Indlæg'));
 
-        const docLink = cells[3]?.querySelector('a[href*="ExerciseFileGet.aspx"]');
-        const documentName = docLink?.textContent?.trim() || '';
+        const docLink = (documentCell || mobileValue('Dokument'))?.querySelector('a[href*="ExerciseFileGet.aspx"]');
+        const documentName = repairLectioFilename(docLink?.textContent?.trim() || '');
         const docHref = docLink?.getAttribute('href') || '';
         const documentUrl = docHref ? new URL(docHref, origin).href : '';
 
-        // Lectio marks the boundary between student submission(s) and teacher
-        // return/correction rows with `class="separationCell"` on the first
-        // teacher row. Treat any teacher entry with a document as a "return".
-        const isReturn = isTeacher && !!documentName;
+        // A teacher can return text feedback without attaching a corrected
+        // file. Those rows are feedback too and must be featured in the UI.
+        const isReturn = isTeacher && (!!comment || !!documentName || row.classList.contains('separationCell'));
 
         entries.push({
           timestamp,
@@ -207,9 +319,9 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
     const rows = groupMembersTable.querySelectorAll('tr');
     for (const row of rows) {
       if (row.querySelector('th')) continue;
-      const nameSpan = row.querySelector('[data-lectiocontextcard]');
+      const nameSpan = findLectioContextCardElement(row);
       if (!nameSpan) continue;
-      const contextCardId = nameSpan.getAttribute('data-lectiocontextcard') || '';
+      const contextCardId = getLectioContextCardId(nameSpan);
       const name = nameSpan.textContent?.trim() || '';
       // Remove button is in the noprint td - look for a postback link
       // e.g. href="javascript:__doPostBack('m$Content$groupMembersGV','DEL$1')"
@@ -226,7 +338,12 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
           removePostbackArgument = pbMatch[2];
         }
       }
-      groupMembers.push({ name, contextCardId, removePostbackTarget, removePostbackArgument });
+      groupMembers.push({
+        name,
+        contextCardId,
+        removePostbackTarget,
+        removePostbackArgument,
+      });
     }
   }
 
@@ -235,13 +352,19 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
   if (groupAddDropdown) {
     for (const option of groupAddDropdown.querySelectorAll('option')) {
       const opt = option as HTMLOptionElement;
+      // Lectio includes an empty prompt option. Treating it as a student makes
+      // the custom picker submit an invalid group postback.
+      if (!opt.value.trim() || opt.disabled || opt.hasAttribute('disabled')) continue;
       availableGroupStudents.push({
         name: opt.textContent?.trim() || '',
         value: opt.value,
       });
     }
   }
-  const hasGroupForm = !!doc.querySelector('#m_Content_showAddToGroupPanel') && availableGroupStudents.length > 0;
+  // Keep the group surface visible even when every available student has
+  // already been added. In that state Lectio leaves the picker in the DOM but
+  // naturally has no selectable options.
+  const hasGroupForm = !!groupAddDropdown && !!doc.querySelector('#m_Content_showAddToGroupPanel');
 
   // Submission form
   const hasSubmissionForm = !!doc.querySelector('#m_Content_ElectronicHandInPanel');
@@ -369,7 +492,10 @@ export async function addGroupMember(
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return null;
 
-  return parseOpgaveDetail(doc, detail.sourceUrl);
+  const parsed = parseOpgaveDetail(doc, detail.sourceUrl);
+  const studentWasRemoved = parsed.availableGroupStudents.length < detail.availableGroupStudents.length;
+  const memberWasAdded = parsed.groupMembers.length > detail.groupMembers.length;
+  return studentWasRemoved || memberWasAdded ? parsed : null;
 }
 
 export async function removeGroupMember(
@@ -390,7 +516,8 @@ export async function removeGroupMember(
   const doc = await postFormViaHiddenIframe(detail.formTokens.action, fields);
   if (!doc.querySelector('#m_Content_NameLbl')) return null;
 
-  return parseOpgaveDetail(doc, detail.sourceUrl);
+  const parsed = parseOpgaveDetail(doc, detail.sourceUrl);
+  return parsed.groupMembers.length < detail.groupMembers.length ? parsed : null;
 }
 
 export async function uploadFileAndSubmit(

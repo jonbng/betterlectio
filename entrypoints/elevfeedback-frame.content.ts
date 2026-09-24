@@ -18,8 +18,10 @@ export default defineContentScript({
     if (window.name !== ELEVFEEDBACK_FRAME_NAME) return;
 
     let scheduled = false;
+    let stopped = false;
     const strip = () => {
       scheduled = false;
+      if (stopped) return;
       prepareElevfeedbackIframeDocument(document, parentPrefersDark());
     };
     const observer = new MutationObserver(() => {
@@ -27,7 +29,25 @@ export default defineContentScript({
       scheduled = true;
       requestAnimationFrame(strip);
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    strip();
+
+    const start = () => {
+      if (stopped || !document.documentElement) return;
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      strip();
+    };
+    const stop = () => {
+      strip();
+      stopped = true;
+      observer.disconnect();
+    };
+
+    if (document.documentElement) start();
+    else document.addEventListener("readystatechange", start, { once: true });
+
+    // The observer is only needed while the parser builds the document. Once
+    // load fires, CSS handles later CKEditor dialogs without repeatedly walking
+    // every mutation the editor produces.
+    window.addEventListener("load", stop, { once: true });
+    window.setTimeout(stop, 10_000);
   },
 });

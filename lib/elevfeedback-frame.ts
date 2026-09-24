@@ -3,6 +3,13 @@ export const ELEVFEEDBACK_FRAME_NAME = "bl-elevfeedback-editor";
 
 const FRAME_STYLE_ID = "bl-elevfeedback-frame";
 
+export type ElevfeedbackFrameState =
+  | "loading"
+  | "edit"
+  | "view"
+  | "session-expired"
+  | "unexpected";
+
 /**
  * Lectio chrome that must not appear in the editor overlay.
  * Keep #aspnetForm, hidden fields, the LC editor island, and CKEditor dialogs.
@@ -49,6 +56,10 @@ const KEEP_SIBLING_SELECTOR = [
   ".cke_dialog_background_cover",
   ".cke_panel",
   ".cke_reset_all",
+  ".ls-alertbox",
+  "#lectioalerts",
+  "[role='alert']",
+  "dialog",
   "#bl-elevfeedback-nyt",
 ].join(", ");
 
@@ -121,7 +132,7 @@ const FRAME_CHROME_CSS = `
     box-shadow: none !important;
   }
 
-  html.bl-elevfeedback-frame body > :not(#masterContent):not(.cke):not(.cke_dialog):not(.cke_dialog_background_cover):not(.cke_panel):not(.cke_reset_all) {
+  html.bl-elevfeedback-frame body > :not(#masterContent):not(.cke):not(.cke_dialog):not(.cke_dialog_background_cover):not(.cke_panel):not(.cke_reset_all):not(.ls-alertbox):not(#lectioalerts):not([role="alert"]):not(dialog) {
     display: none !important;
   }
 
@@ -171,7 +182,7 @@ const FRAME_CHROME_CSS = `
 
 function isProtectedChrome(el: Element): boolean {
   return !!el.closest(
-    ".cke, .cke_dialog, .cke_dialog_background_cover, .cke_panel, .cke_reset_all, #bl-elevfeedback-nyt",
+    ".cke, .cke_dialog, .cke_dialog_background_cover, .cke_panel, .cke_reset_all, .ls-alertbox, #lectioalerts, [role='alert'], dialog, #bl-elevfeedback-nyt",
   );
 }
 
@@ -235,7 +246,34 @@ export function injectElevfeedbackFrameStyles(doc: Document, dark: boolean): voi
     style.id = FRAME_STYLE_ID;
     (doc.head ?? doc.documentElement).appendChild(style);
   }
-  style.textContent = FRAME_CHROME_CSS;
+  // This function is called from a MutationObserver at document_start. Avoid
+  // replacing the style's text node on every pass: doing so emits another
+  // childList mutation and used to keep the iframe in a permanent rAF loop.
+  if (style.textContent !== FRAME_CHROME_CSS) {
+    style.textContent = FRAME_CHROME_CSS;
+  }
+}
+
+export function getElevfeedbackFrameState(doc: Document): ElevfeedbackFrameState {
+  const hasEditor = !!doc.querySelector("textarea[lectio-role='editor-textarea']");
+  if (hasEditor) return "edit";
+
+  const hasElevfeedbackRoot =
+    !!doc.querySelector("#ElevContentContainer") ||
+    !!doc.querySelector("[id*='Elevindhold']") ||
+    !!doc.querySelector(".ls-texteditor-container");
+  const hasEditButton = !!doc.querySelector(
+    "#s_m_Content_Content_Elevindhold_tocAndToolbar_editModeBtn, [id$='_editModeBtn']",
+  );
+  if (hasEditButton || hasElevfeedbackRoot) return "view";
+
+  const hasLogin = !!doc.querySelector(
+    "input[type='password'], form[action*='login'], [id*='Login'][id*='username'], [id*='Login'][id*='password']",
+  );
+  if (hasLogin || /log\s*ind|login/i.test(doc.title)) return "session-expired";
+
+  if (doc.readyState === "loading" && !doc.body?.childElementCount) return "loading";
+  return "unexpected";
 }
 
 /** Hide Lectio chrome and keep the LC/CKEditor island. Safe to call on every load. */

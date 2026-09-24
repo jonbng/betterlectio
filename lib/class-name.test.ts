@@ -8,7 +8,7 @@ import {
   looksLikeAcademicClassPrefix,
   normalizeClassCode,
 } from './class-name';
-import { getCanonicalHoldKey } from './hold-mapping';
+import { getCanonicalHoldKey, getSubjectIdentityKey } from './hold-mapping';
 
 describe('looksLikeAcademicClassPrefix', () => {
   test('accepts grade-based and prefixed class codes', () => {
@@ -41,6 +41,7 @@ describe('normalizeClassCode', () => {
   test('peels Lectio hold ids when the tail is a class code', () => {
     assert.equal(normalizeClassCode('t25htxvx_1vx'), '1vx');
     assert.equal(normalizeClassCode('h26hhxc_gf'), 'gf');
+    assert.equal(normalizeClassCode('h24hhxe_3e'), '3e');
   });
 });
 
@@ -81,5 +82,25 @@ describe('getCanonicalHoldKey', () => {
     assert.equal(getCanonicalHoldKey('Idéhistorie'), 'ih');
     assert.equal(getCanonicalHoldKey('Kommunikation/IT'), 'kit');
     assert.equal(getCanonicalHoldKey('KIT'), 'kit');
+  });
+
+  test('maps EUC Nord underscore-delimited holds onto the subject', () => {
+    assert.equal(getCanonicalHoldKey('h24hhxe_3e_AfsætningA'), 'af');
+    assert.equal(getCanonicalHoldKey('h24hhxe_3e_EngelskA'), 'en');
+    assert.equal(getCanonicalHoldKey('h24hhxe_3e_HistorieB'), 'hi');
+    assert.equal(getCanonicalHoldKey('h24hhxe_3e_DanskA'), 'da');
+    assert.equal(getCanonicalHoldKey('h24hhxabef_3_Matematik_A'), 'ma');
+    assert.equal(getCanonicalHoldKey('h24hhxabcef_3abcef_InnovationC'), 'in');
+    assert.equal(getCanonicalHoldKey('Makroøkonomisk analyse'), 'mak');
+  });
+
+});
+
+describe('getSubjectIdentityKey', () => {
+  test('deduplicates yearly class names without merging unrelated custom holds', () => {
+    assert.equal(getSubjectIdentityKey('1x FY'), getSubjectIdentityKey('2x fy'));
+    assert.equal(getSubjectIdentityKey('1x FY'), 'subject:fy');
+    assert.equal(getSubjectIdentityKey('  Projekt   Alpha '), 'hold:projekt alpha');
+    assert.notEqual(getSubjectIdentityKey('Projekt Alpha'), getSubjectIdentityKey('Projekt Beta'));
   });
 });

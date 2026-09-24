@@ -24,3 +24,18 @@ describe('forside.showAktuelInfo', () => {
     assert.equal(parsed.forside.showAktuelInfo, false);
   });
 });
+
+describe('assignments.hiddenSubjectKeys', () => {
+  test('defaults to an empty list for old and new settings', () => {
+    assert.deepEqual(FeatureSettingsSchema.parse({}).assignments.hiddenSubjectKeys, []);
+    assert.deepEqual(FeatureSettingsSchema.parse({ version: 1 }).assignments.hiddenSubjectKeys, []);
+  });
+
+  test('preserves hidden canonical subject keys', () => {
+    const parsed = FeatureSettingsSchema.parse({
+      version: 1,
+      assignments: { hiddenSubjectKeys: ['subject:fy', 'subject:ma'] },
+    });
+    assert.deepEqual(parsed.assignments.hiddenSubjectKeys, ['subject:fy', 'subject:ma']);
+  });
+});

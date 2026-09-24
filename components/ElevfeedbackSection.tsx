@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { NotebookPen, Pencil, PenLine } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { NotebookPen, Pencil, PenLine, RefreshCw } from "lucide-react";
 import {
   fetchElevfeedback,
   openElevfeedbackEditor,
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 
 const PROSE_CLASS =
-  "overflow-wrap-anywhere text-base leading-[1.6] text-foreground [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-[1.05rem] [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-[1rem] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[420px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]";
+  "overflow-wrap-anywhere text-lg leading-[1.65] text-foreground text-pretty [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[420px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]";
 
 const PAPER_RULE =
   "bg-[repeating-linear-gradient(transparent_0_1.65rem,oklch(0.54_0.08_265/0.07)_1.65rem_calc(1.65rem+1px))] dark:bg-[repeating-linear-gradient(transparent_0_1.65rem,oklch(0.93_0.003_90/0.05)_1.65rem_calc(1.65rem+1px))]";
@@ -29,22 +29,24 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
   const [detail, setDetail] = useState<ElevfeedbackDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const requestIdRef = useRef(0);
 
   const load = useCallback(
     (signal?: AbortSignal) => {
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       setError(false);
       fetchElevfeedback(refInfo.url, signal)
         .then((next) => {
-          if (signal?.aborted) return;
+          if (signal?.aborted || requestId !== requestIdRef.current) return;
           setDetail(next);
         })
         .catch(() => {
-          if (signal?.aborted) return;
+          if (signal?.aborted || requestId !== requestIdRef.current) return;
           setError(true);
         })
         .finally(() => {
-          if (!signal?.aborted) setLoading(false);
+          if (!signal?.aborted && requestId === requestIdRef.current) setLoading(false);
         });
     },
     [refInfo.url],
@@ -52,8 +54,13 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
 
   useEffect(() => {
     const controller = new AbortController();
+    // Never show one activity's private notes while another activity loads.
+    setDetail(null);
     load(controller.signal);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      requestIdRef.current += 1;
+    };
   }, [load]);
 
   useEffect(() => {
@@ -92,11 +99,11 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
   return (
     <section className={cn("mb-8 last:mb-0", className)}>
       <div className="mb-3.5 flex items-center justify-between gap-3">
-        <h3 className="m-0 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        <h3 className="m-0 flex items-center gap-2 text-base font-bold uppercase tracking-[0.08em] text-muted-foreground">
           <NotebookPen size={14} strokeWidth={2.2} className="opacity-80" />
           {t("activityModal.elevfeedback")}
           {detail && !empty ? (
-            <span className="inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-muted px-1 text-xs font-semibold normal-case tracking-normal text-muted-foreground">
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-sm font-semibold normal-case tracking-normal text-muted-foreground">
               {detail.sections.length}
             </span>
           ) : null}
@@ -105,7 +112,7 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
           <button
             type="button"
             onClick={openEditor}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-muted"
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-base font-medium text-foreground transition-[background-color,border-color] duration-150 hover:bg-muted"
           >
             {empty ? <PenLine size={14} /> : <Pencil size={14} />}
             {empty ? t("activityModal.elevfeedbackWrite") : t("activityModal.elevfeedbackEdit")}
@@ -114,11 +121,21 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
       </div>
 
       {loading && !detail ? (
-        <div className="overflow-hidden rounded-xl border border-border">
+        <div className="overflow-hidden rounded-xl border border-border" role="status" aria-label={t("activityModal.elevfeedbackLoading")}>
           <div className="h-24 w-full bg-[linear-gradient(90deg,var(--muted),color-mix(in_oklch,var(--muted)_55%,var(--background)),var(--muted))] bg-size-[200%_100%] animate-[act-sheet-shimmer_1.3s_linear_infinite]" />
         </div>
       ) : error && !detail ? (
-        <p className="m-0 text-sm text-muted-foreground">{t("activityModal.elevfeedbackLoadError")}</p>
+        <div className="flex flex-wrap items-center gap-3" role="alert">
+          <p className="m-0 text-base text-muted-foreground">{t("activityModal.elevfeedbackLoadError")}</p>
+          <button
+            type="button"
+            onClick={() => load()}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <RefreshCw className="size-4" aria-hidden="true" />
+            {t("activityModal.retry")}
+          </button>
+        </div>
       ) : empty ? (
         <button
           type="button"
@@ -136,7 +153,7 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
             aria-hidden="true"
             className="absolute inset-y-3 left-0 w-[3px] rounded-full bg-[oklch(0.58_0.18_var(--accent-hue,265)/0.55)] dark:bg-[oklch(0.6_0.13_var(--accent-hue,265)/0.55)]"
           />
-          <p className="m-0 pl-3 text-sm leading-relaxed text-muted-foreground">
+          <p className="m-0 pl-3 text-base leading-relaxed text-muted-foreground text-pretty">
             {t("activityModal.elevfeedbackEmpty")}
           </p>
         </button>
@@ -192,7 +209,7 @@ function PaperCard({
         )}
       />
       <header className="flex items-center gap-2 border-b border-border/70 px-[1.1rem] py-[0.7rem]">
-        <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="text-sm font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {section.kind === "teacher" ? teacherLabel : name}
         </span>
       </header>

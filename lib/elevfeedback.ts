@@ -49,7 +49,7 @@ function isElevfeedbackHref(href: string): boolean {
 function isEmptyHtml(html: string): boolean {
   const stripped = html
     .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/gi, " ")
+    .replace(/(?:&nbsp;|&#160;|&#xa0;|\u00a0)/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   return stripped.length === 0;
@@ -138,14 +138,24 @@ export function parseElevfeedbackRef(doc: Document, pageUrl: string): ActivityEl
   return { url, empty };
 }
 
+function studentContextCard(root: ParentNode): { element: HTMLElement; lookupId: string } | null {
+  for (const element of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+    const attribute = Array.from(element.attributes).find(
+      (candidate) => candidate.name.toLowerCase() === "data-lectiocontextcard" && candidate.value.startsWith("S"),
+    );
+    if (attribute) return { element, lookupId: attribute.value };
+  }
+  return null;
+}
+
 function headingKind(heading: HTMLElement): {
   kind: "teacher" | "student";
   authorName: string;
   authorLookupId: string | null;
 } {
-  const studentCard = heading.querySelector<HTMLElement>("[data-lectiocontextcard^='S']");
-  const lookupId = studentCard?.getAttribute("data-lectiocontextcard") || null;
-  const name = (studentCard?.textContent || heading.textContent || "").replace(/\s+/g, " ").trim();
+  const studentCard = studentContextCard(heading);
+  const lookupId = studentCard?.lookupId ?? null;
+  const name = (studentCard?.element.textContent || heading.textContent || "").replace(/\s+/g, " ").trim();
   if (lookupId) {
     return { kind: "student", authorName: name, authorLookupId: lookupId };
   }
@@ -156,11 +166,29 @@ function headingKind(heading: HTMLElement): {
 }
 
 function contentFromPaper(paper: HTMLElement): string {
+  const editorFallbacks = [
+    paper.querySelector<HTMLElement>("[id*='_backupContentDiv_']"),
+    paper.querySelector<HTMLElement>("[id*='_lv_']"),
+  ];
   const clone = paper.cloneNode(true) as HTMLElement;
   clone.querySelector(".ls-section-subgroup-heading")?.remove();
   clone.querySelectorAll("textarea, .cke, .alert, .nb_type_information").forEach((el) => el.remove());
   sanitizeFragment(clone);
-  return clone.innerHTML.trim();
+  const renderedHtml = clone.innerHTML.trim();
+  if (!isEmptyHtml(renderedHtml)) return renderedHtml;
+
+  // A direct GET can inherit Lectio's edit mode. Before CKEditor runs, its
+  // textarea is empty and the saved value lives in one of these hidden LC
+  // fallback nodes. Preserve that value for the read-only activity surface.
+  for (const fallback of editorFallbacks) {
+    if (!fallback) continue;
+    const safeFallback = fallback.cloneNode(true) as HTMLElement;
+    sanitizeFragment(safeFallback);
+    const fallbackHtml = safeFallback.innerHTML.trim();
+    if (!isEmptyHtml(fallbackHtml)) return fallbackHtml;
+  }
+
+  return "";
 }
 
 function parsePaperSections(container: HTMLElement): ElevfeedbackSectionBlock[] {
@@ -178,7 +206,7 @@ function parsePaperSections(container: HTMLElement): ElevfeedbackSectionBlock[] 
 
     const heading =
       root.querySelector<HTMLElement>(".ls-section-subgroup-heading") ||
-      root.querySelector<HTMLElement>("[data-lectiocontextcard^='S']")?.closest<HTMLElement>("div, h1, h2, h3, h4") ||
+      studentContextCard(root)?.element.closest<HTMLElement>("div, h1, h2, h3, h4") ||
       null;
 
     const html = contentFromPaper(root);
@@ -223,9 +251,9 @@ function parseArticleSections(container: HTMLElement): ElevfeedbackSectionBlock[
   });
 }
 
-function parseElevfeedbackDetail(doc: Document, url: string): ElevfeedbackDetail {
+export function parseElevfeedbackDetail(doc: Document, url: string): ElevfeedbackDetail {
   const writable = !!doc.querySelector(
-    "#s_m_Content_Content_Elevindhold_tocAndToolbar_editModeBtn, [id$='_editModeBtn']",
+    "#s_m_Content_Content_Elevindhold_tocAndToolbar_editModeBtn, [id$='_editModeBtn'], textarea[lectio-role='editor-textarea']",
   );
 
   const paperRoot =
@@ -286,7 +314,9 @@ export async function fetchElevfeedback(url: string, signal?: AbortSignal): Prom
 
 export {
   ELEVFEEDBACK_FRAME_NAME,
+  getElevfeedbackFrameState,
   prepareElevfeedbackIframeDocument,
+  type ElevfeedbackFrameState,
 } from "./elevfeedback-frame";
 
 export function isElevfeedbackViewMode(doc: Document): boolean {
@@ -308,12 +338,25 @@ export function clickElevfeedbackEdit(doc: Document): boolean {
   return true;
 }
 
-export function confirmElevfeedbackLeave(win: Window): boolean {
+export function confirmElevfeedbackLeave(win: Window, fallbackMessage = "Close without saving?"): boolean {
   const editor = (win as Window & {
     LCDocumentEditor?: { ConfirmEditorDirtyAndNotSaving?: () => boolean };
   }).LCDocumentEditor;
   if (typeof editor?.ConfirmEditorDirtyAndNotSaving === "function") {
-    return editor.ConfirmEditorDirtyAndNotSaving();
+    try {
+      return editor.ConfirmEditorDirtyAndNotSaving();
+    } catch {
+      return win.confirm(fallbackMessage);
+    }
+  }
+
+  try {
+    const dirty = Array.from(
+      win.document.querySelectorAll<HTMLInputElement>("input[id*='_isDirty_'], input[name*='_isDirty_']"),
+    ).some((input) => /^(?:1|true)$/i.test(input.value));
+    if (dirty) return win.confirm(fallbackMessage);
+  } catch {
+    return win.confirm(fallbackMessage);
   }
   return true;
 }
@@ -329,4 +372,3 @@ export function openElevfeedbackEditor(url: string): void {
     new CustomEvent("betterlectio:openElevfeedbackEditor", { detail: { url } }),
   );
 }
-

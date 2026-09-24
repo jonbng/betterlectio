@@ -199,13 +199,13 @@ export function FravaerEditSheet({ open, onOpenChange, record, onSaved }: Fravae
                 </label>
                 <select
                   id="fravaer-aarsag"
-                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 [color-scheme:light] dark:[color-scheme:dark]"
                   value={selectedAarsag}
                   onChange={(e) => setSelectedAarsag((e.target as HTMLSelectElement).value)}
                   disabled={submitting}
                 >
                   {formData.availableAarsager.map(opt => (
-                    <option key={opt.value} value={opt.value}>
+                    <option className="bg-popover text-popover-foreground" key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}

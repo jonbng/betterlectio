@@ -30,15 +30,11 @@ function DialogClose({
 
 function DialogOverlay({
   className,
-  forceMount,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay> & {
-  forceMount?: true
-}) {
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      forceMount={forceMount}
       className={cn(
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-200 bg-black/50 backdrop-blur-sm",
         className
@@ -60,10 +56,9 @@ function DialogContent({
 }) {
   return (
     <DialogPortal>
-      <DialogOverlay forceMount />
+      <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        forceMount
         onPointerDownOutside={onPointerDownOutside}
         onInteractOutside={onInteractOutside}
         className={cn(

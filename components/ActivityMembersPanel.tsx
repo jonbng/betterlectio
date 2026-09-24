@@ -31,14 +31,14 @@ export function MembersPanel({
     return (
       <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] px-4 py-5">
         <Loader2 size={16} className="animate-spin text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">{t('activityModal.loadingParticipants')}</span>
+        <span className="text-base text-muted-foreground">{t('activityModal.loadingParticipants')}</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="mt-4 rounded-xl border border-[oklch(0.83_0.07_25)] bg-[oklch(0.97_0.02_25)] px-4 py-3 text-sm text-[oklch(0.45_0.1_25)] dark:border-[oklch(0.4_0.05_25)] dark:bg-[oklch(0.2_0.02_25)] dark:text-[oklch(0.75_0.07_25)]">
+      <div className="mt-4 rounded-xl border border-[oklch(0.83_0.07_25)] bg-[oklch(0.97_0.02_25)] px-4 py-3 text-base text-[oklch(0.45_0.1_25)] dark:border-[oklch(0.4_0.05_25)] dark:bg-[oklch(0.2_0.02_25)] dark:text-[oklch(0.75_0.07_25)]">
         {error}
       </div>
     );
@@ -58,7 +58,7 @@ export function MembersPanel({
     <div className="mt-4 rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_35%,transparent)] overflow-hidden">
       {teachers.length > 0 ? (
         <div className="px-3.5 pt-3 pb-2">
-          <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
+          <p className="m-0 mb-2 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
             {teachers.length === 1 ? t('activityModal.teacherLabel') : t('activityModal.teachersLabel')}
           </p>
           <div className="flex flex-wrap items-start gap-1">
@@ -70,7 +70,7 @@ export function MembersPanel({
       ) : null}
       {students.length > 0 ? (
         <div className={cn("px-3.5 pb-3", teachers.length > 0 ? "pt-2" : "pt-3")}>
-          <p className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
+          <p className="m-0 mb-2 text-sm font-semibold uppercase tracking-[0.06em] text-muted-foreground/70">
             {t('activityModal.studentsLabel')}
             <span className="ml-1 font-normal opacity-70">{students.length}</span>
           </p>
@@ -114,13 +114,13 @@ export function MemberChip({
   const chip = (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-base leading-snug",
+        "inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-lg leading-snug",
         scheduleUrl
           ? "transition-[background-color] duration-150 hover:bg-[color-mix(in_oklch,var(--muted)_80%,transparent)] cursor-pointer"
           : "",
       )}
     >
-      <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+      <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-muted">
         <MemberAvatar
           primaryUrl={pictureUrl ?? null}
           fallbackUrl={member.pictureUrl ?? null}

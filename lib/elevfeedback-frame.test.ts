@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { DOMParser as LinkedomDOMParser } from "linkedom";
 
-import { prepareElevfeedbackIframeDocument } from "./elevfeedback-frame";
+import {
+  getElevfeedbackFrameState,
+  prepareElevfeedbackIframeDocument,
+} from "./elevfeedback-frame";
 
 function parse(html: string): Document {
   return new LinkedomDOMParser().parseFromString(html, "text/html") as unknown as Document;
@@ -13,6 +16,8 @@ function editorPageHtml(): string {
 <html>
 <body class="masterbody">
   <div id="modalBackgroundID"></div>
+  <div class="ls-alertbox" role="alert">Kunne ikke gemme</div>
+  <dialog class="cke_dialog">Link</dialog>
   <nav id="mobilMereSheetMenu">Mere</nav>
   <div id="masterContent" class="ls-master-container1">
     <form id="aspnetForm" class="ls-master-container2">
@@ -100,6 +105,8 @@ describe("prepareElevfeedbackIframeDocument", () => {
     assert.notEqual((island as HTMLElement).style.display, "none");
     assert.ok(doc.querySelector("textarea[lectio-role='editor-textarea']"));
     assert.equal(doc.querySelector("input[name='__VIEWSTATE']")?.getAttribute("value"), "x");
+    assert.equal(doc.querySelector<HTMLElement>(".ls-alertbox")?.style.display, "");
+    assert.equal(doc.querySelector<HTMLElement>("dialog")?.style.display, "");
   });
 
   test("moves Nyt out of the hidden TOC onto the paper", () => {
@@ -111,5 +118,34 @@ describe("prepareElevfeedbackIframeDocument", () => {
     assert.ok(doc.getElementById("ElevContentContainer")?.contains(nyt));
     assert.ok(nyt.querySelector("[id$='NytElevindholdBtn']"));
     assert.equal(nyt.getAttribute("aria-hidden"), null);
+  });
+
+  test("is idempotent and does not rewrite its own style node", () => {
+    const doc = parse(editorPageHtml());
+    prepareElevfeedbackIframeDocument(doc, false);
+    const style = doc.getElementById("bl-elevfeedback-frame");
+    const styleTextNode = style?.firstChild;
+
+    prepareElevfeedbackIframeDocument(doc, false);
+
+    assert.equal(doc.querySelectorAll("#bl-elevfeedback-frame").length, 1);
+    assert.equal(style?.firstChild, styleTextNode);
+    assert.equal(doc.querySelectorAll("#bl-elevfeedback-nyt").length, 1);
+  });
+
+  test("classifies editor, view, login, and unexpected documents", () => {
+    assert.equal(getElevfeedbackFrameState(parse(editorPageHtml())), "edit");
+    assert.equal(
+      getElevfeedbackFrameState(parse("<html><body><div id='ElevContentContainer'>Readonly</div></body></html>")),
+      "view",
+    );
+    assert.equal(
+      getElevfeedbackFrameState(parse("<html><head><title>Log ind</title></head><body><input type='password'></body></html>")),
+      "session-expired",
+    );
+    assert.equal(
+      getElevfeedbackFrameState(parse("<html><body><main>Something else</main></body></html>")),
+      "unexpected",
+    );
   });
 });

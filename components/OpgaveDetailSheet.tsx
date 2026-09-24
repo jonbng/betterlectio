@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import {
   fetchOpgaveDetail,
+  isMeaningfulAssignmentGrade,
   submitComment,
   addGroupMember,
   removeGroupMember,
@@ -104,7 +105,7 @@ function getAssignmentFravaerLabel(entry: Pick<OpgaveEntry, 'absence'>, fallback
 function deriveStatus(entry: OpgaveEntry): DerivedStatus {
   if (entry.status === 'mangler') return 'mangler';
   if (entry.status === 'venter') return 'venter';
-  if (entry.grade && entry.grade.trim()) return 'bedoemt';
+  if (isMeaningfulAssignmentGrade(entry.grade)) return 'bedoemt';
   return 'afleveret';
 }
 
@@ -369,13 +370,31 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
     return formatRelativeDeadline(entry.deadline, new Date(nowTick), entry.status === 'mangler', t);
   }, [entry?.deadline, entry?.status, nowTick, t]);
 
+  const requestedStudentContextCardId = useMemo(() => {
+    if (!detail) return '';
+    try {
+      const studentId = new URL(detail.sourceUrl, window.location.origin).searchParams.get('elevid');
+      return studentId ? `S${studentId}` : '';
+    } catch {
+      return '';
+    }
+  }, [detail]);
+
+  const feedbackStudent = useMemo(() => {
+    if (!detail) return null;
+    return detail.students.find(student => student.contextCardId === requestedStudentContextCardId)
+      || detail.students.find(student => isMeaningfulAssignmentGrade(student.grade) || student.gradeNote.trim() || student.studentNote.trim())
+      || detail.students[0]
+      || null;
+  }, [detail, requestedStudentContextCardId]);
+
   const awaitingLabel = useMemo(() => {
-    const raw = (detail?.students[0]?.awaiting || entry?.awaiting || '').trim();
+    const raw = (feedbackStudent?.awaiting || entry?.awaiting || '').trim();
     if (!raw) return '';
     if (/l[aæ]rer/i.test(raw)) return t('opgaveDetail.awaiting.laerer');
     if (/elev/i.test(raw)) return t('opgaveDetail.awaiting.elev');
     return raw;
-  }, [detail?.students, entry?.awaiting, t]);
+  }, [feedbackStudent?.awaiting, entry?.awaiting, t]);
 
   const latestReturn = useMemo(() => {
     if (!detail) return null;
@@ -440,14 +459,19 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
     return t('opgaveDetail.awaiting.submittedAgo', { value: unit });
   }, [derivedStatus, latestStudentSubmission?.timestamp, nowTick, t]);
 
-  const gradeStudent = useMemo(() => {
-    if (!detail) return null;
-    return detail.students.find(s => s.grade && s.grade.trim()) || null;
-  }, [detail]);
-
-  const displayGrade = (gradeStudent?.grade || entry?.grade || '').trim();
-  const gradeNote = (gradeStudent?.gradeNote || entry?.gradeExtra || '').trim();
-  const studentNote = gradeStudent?.studentNote?.trim() || '';
+  const rawDisplayGrade = (feedbackStudent?.grade || entry?.grade || '').trim();
+  const displayGrade = isMeaningfulAssignmentGrade(rawDisplayGrade) ? rawDisplayGrade : '';
+  const gradeNote = (feedbackStudent?.gradeNote || entry?.gradeExtra || '').trim();
+  // `entry.note` is Lectio's Opgavenote (the assignment instructions), not
+  // teacher feedback. It is rendered from `detail.note` in the brief section.
+  const studentNote = (feedbackStudent?.studentNote || '').trim();
+  const hasTeacherFeedback = !!(
+    gradeNote
+    || studentNote
+    || latestReturn?.comment
+    || latestReturn?.documentName
+  );
+  const effectiveStatus: DerivedStatus | null = displayGrade ? 'bedoemt' : derivedStatus;
 
   const showCustomGradeScale = !!detail?.gradeScale
     && detail.gradeScale.trim() !== ''
@@ -464,17 +488,17 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
           ? t('opgaveDetail.submit.verifying')
           : t('opgaveDetail.submit.sending2');
 
-  // For bedoemt the latest return is already featured in GradeHero — don't
-  // render it again in the timeline.
+  // The latest teacher response is featured with the other feedback, so don't
+  // duplicate it in the timeline.
   const timelineEntries = detail
-    ? (derivedStatus === 'bedoemt' && latestReturn
+    ? (hasTeacherFeedback && latestReturn
       ? detail.entries.filter(e => e !== latestReturn)
       : detail.entries)
     : [];
   const visibleEntries = showAllEntries ? timelineEntries : timelineEntries.slice(-3);
   const hiddenEntryCount = Math.max(0, timelineEntries.length - visibleEntries.length);
 
-  const shouldCollapseSubmit = derivedStatus === 'bedoemt' || derivedStatus === 'afleveret';
+  const shouldCollapseSubmit = effectiveStatus === 'bedoemt' || effectiveStatus === 'afleveret';
   const submitFormExpanded = !shouldCollapseSubmit || submitFormOpen;
 
   // ── Shared submission form fields ────────────────────────────────────
@@ -490,8 +514,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
         disabled={submitting}
       />
 
-      <button
-        type="button"
+      <div
         className={cn(
           "group relative cursor-pointer rounded-xl border border-dashed border-border bg-card px-4 py-3 transition-[color,background-color] duration-150 hover:bg-accent/20",
           dragOver && "border-ring bg-accent/30",
@@ -502,7 +525,15 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
         onDragLeave={() => setDragOver(false)}
         onDrop={handleFileDrop}
         onClick={() => !selectedFile && fileInputRef.current?.click()}
-        disabled={submitting}
+        role={selectedFile ? undefined : 'button'}
+        tabIndex={selectedFile || submitting ? -1 : 0}
+        onKeyDown={(event) => {
+          if (!selectedFile && !submitting && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        aria-disabled={submitting}
       >
         {selectedFile ? (
           <div className="flex items-center gap-2">
@@ -517,6 +548,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
               type="button"
               className="ml-1 inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground"
               onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+              aria-label={t('opgaveDetail.submit.removeFile')}
             >
               <X size={15} />
             </button>
@@ -527,7 +559,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
             <span>{t('opgaveDetail.submit.fileDropLabel')}</span>
           </div>
         )}
-      </button>
+      </div>
       <input
         ref={fileInputRef}
         type="file"
@@ -555,13 +587,91 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
   // ── Modal-layout content flags ───────────────────────────────────────
   const hasBrief = !!detail && (!!detail.note || detail.descriptionFiles.length > 0);
   const hasGroup = !!detail && (detail.groupMembers.length > 0 || detail.hasGroupForm);
-  const hasGradeHeroContent = derivedStatus === 'bedoemt' && !!displayGrade;
-  const hasLeftColumn = hasGradeHeroContent || hasBrief;
+  const hasGradeHeroContent = effectiveStatus === 'bedoemt' && !!displayGrade;
+  const hasFeedbackCard = !hasGradeHeroContent && hasTeacherFeedback;
+  const hasLeftColumn = hasGradeHeroContent || hasFeedbackCard || hasBrief;
   const hasRightColumn = !!detail && (detail.hasSubmissionForm || hasGroup || timelineEntries.length > 0);
-  const emptyCopy = derivedStatus === 'mangler' || derivedStatus === 'venter'
+  const emptyCopy = effectiveStatus === 'mangler' || effectiveStatus === 'venter'
     ? t('opgaveDetail.empty.pendingCopy')
     : t('opgaveDetail.empty.otherCopy');
   const accentStyle = { '--accent-hue': holdHue } as Record<string, string | number>;
+  const groupMembersContent = detail ? (
+    <div className="flex flex-col gap-2.5">
+      <p className="m-0 text-sm leading-relaxed text-muted-foreground">
+        {t('opgaveDetail.groupSection.description')}
+      </p>
+      {detail.groupMembers.length > 0 ? detail.groupMembers.map((member, index) => (
+        <GroupMemberRow
+          key={member.contextCardId || `${member.name}-${index}`}
+          member={member}
+          schoolId={schoolId}
+          studentsMap={studentsMap}
+          isCurrentStudent={!!requestedStudentContextCardId && member.contextCardId === requestedStudentContextCardId}
+          removing={groupRemoving === (member.contextCardId || member.name)}
+          onRemove={member.removePostbackTarget && member.removePostbackArgument !== null
+            ? () => handleRemoveGroupMember(
+                member.removePostbackTarget!,
+                member.removePostbackArgument!,
+                member.contextCardId || member.name,
+              )
+            : undefined
+          }
+        />
+      )) : (
+        <div className="rounded-xl border border-dashed border-border bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+          {t('opgaveDetail.groupSection.empty')}
+        </div>
+      )}
+
+      {detail.hasGroupForm && (
+        <GroupStudentPicker
+          students={detail.availableGroupStudents}
+          schoolId={schoolId}
+          studentsMap={studentsMap}
+          adding={groupAdding}
+          onAdd={handleAddGroupMember}
+        />
+      )}
+    </div>
+  ) : null;
+  const assignmentBriefContent = detail ? (
+    <>
+      {detail.note && (
+        <section className="rounded-2xl border border-border bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] px-5 py-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <MessageSquare size={13} className="opacity-80" />
+            {t('opgaveDetail.primary.teacherNote')}
+          </div>
+          <div
+            className="mt-2 text-pretty text-base leading-[1.65] text-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }}
+          />
+        </section>
+      )}
+
+      {detail.descriptionFiles.length > 0 && (
+        <ModalSection icon={<FileText size={14} />} label={t('opgaveDetail.primary.taskFiles')} count={detail.descriptionFiles.length}>
+          <div className="flex flex-col gap-2">
+            {detail.descriptionFiles.map((file, index) => (
+              <a
+                key={`${file.url}-${index}`}
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-start gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 no-underline transition-[background-color,border-color] duration-150 hover:bg-muted"
+              >
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <FileDown size={15} />
+                </span>
+                <span className="line-clamp-2 min-w-0 flex-1 break-words pt-1 text-base font-medium text-foreground">{file.name}</span>
+                <ExternalLink size={14} className="mt-2 shrink-0 text-muted-foreground" />
+              </a>
+            ))}
+          </div>
+        </ModalSection>
+      )}
+    </>
+  ) : null;
 
   const sheetContent = (
     <div className="fixed inset-0 z-100 pointer-events-auto">
@@ -574,11 +684,17 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
 
       {/* Panel */}
       <div
-        className="absolute right-0 top-0 bottom-0 flex w-[92%] max-w-xl flex-col overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300"
+        className="absolute right-0 top-0 bottom-0 flex w-full max-w-[40rem] flex-col overflow-hidden border-l border-border bg-background shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-in slide-in-from-right duration-300 sm:w-[94%]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label={entry?.title || t('opgaveDetail.defaultTitle')}
+        style={accentStyle}
       >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.7_0.14_var(--accent-hue))]"
+        />
         {/* Swap view mode */}
         {onSwapViewMode && (
           <button
@@ -610,7 +726,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
             </h2>
             {entry && (
               <div className="flex flex-wrap items-center gap-2">
-                {derivedStatus && <StatusChip status={derivedStatus} t={t} />}
+                {effectiveStatus && <StatusChip status={effectiveStatus} t={t} />}
                 <span
                   className="inline-flex items-center rounded-md border border-border px-2 py-1 text-sm font-medium text-foreground"
                   style={{ '--hold-hue': holdHue } as any}
@@ -632,7 +748,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
                     {t('opgaveDetail.meta.studentTime', { value: detail.studentTime })}
                   </span>
                 )}
-                {awaitingLabel && derivedStatus === 'afleveret' && (
+                {awaitingLabel && effectiveStatus === 'afleveret' && (
                   <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-sm font-medium text-foreground">
                     {awaitingLabel}
                   </span>
@@ -694,58 +810,13 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
           )}
 
           {detail && !loading && !error && (() => {
-            // "Brief" sections — the assignment description. Primary for
-            // mangler/venter/afleveret, demoted below the feedback for bedoemt.
-            const briefSections = (
-              <>
-                {detail.note && (
-                  <div className="space-y-2">
-                    <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                      <MessageSquare size={16} />
-                      {t('opgaveDetail.primary.teacherNote')}
-                    </h3>
-                    <div
-                      className="rounded-xl border border-border bg-card p-4 text-base text-foreground leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }}
-                    />
-                  </div>
-                )}
-                {detail.descriptionFiles.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                      <FileText size={16} />
-                      {t('opgaveDetail.primary.taskFiles')}
-                    </h3>
-                    <div className="flex flex-col gap-2">
-                      {detail.descriptionFiles.map((file, i) => (
-                        <a
-                          key={i}
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
-                        >
-                          <FileDown size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
-                          <span className="line-clamp-2 min-w-0 break-words">{file.name}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            );
-            const hasBrief = !!detail.note || detail.descriptionFiles.length > 0;
-            const hasGradeHero = derivedStatus === 'bedoemt' && !!displayGrade;
-            const hasGroup = detail.groupMembers.length > 0 || detail.hasGroupForm;
-            const bodyIsEmpty = !hasGradeHero && !hasBrief && !hasGroup && timelineEntries.length === 0;
-            const emptyCopy = derivedStatus === 'mangler' || derivedStatus === 'venter'
-              ? t('opgaveDetail.empty.pendingCopy')
-              : t('opgaveDetail.empty.otherCopy');
+            const hasGradeHero = effectiveStatus === 'bedoemt' && !!displayGrade;
+            const bodyIsEmpty = !hasGradeHero && !hasFeedbackCard && !hasBrief && !hasGroup && timelineEntries.length === 0;
 
             return (
             <>
               {/* Grade hero — primary for graded assignments */}
-              {derivedStatus === 'bedoemt' && displayGrade && (
+              {effectiveStatus === 'bedoemt' && displayGrade && (
                 <GradeHero
                   grade={displayGrade}
                   gradeNote={gradeNote}
@@ -755,8 +826,17 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
                 />
               )}
 
+              {hasFeedbackCard && (
+                <TeacherFeedbackCard
+                  gradeNote={gradeNote}
+                  studentNote={studentNote}
+                  latestReturn={latestReturn}
+                  t={t}
+                />
+              )}
+
               {/* Brief — primary for non-graded */}
-              {derivedStatus !== 'bedoemt' && briefSections}
+              {effectiveStatus !== 'bedoemt' && assignmentBriefContent}
 
               {/* Empty state — when the teacher has added nothing */}
               {bodyIsEmpty && (
@@ -772,44 +852,12 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
               )}
 
               {/* Group members */}
-              {(detail.groupMembers.length > 0 || detail.hasGroupForm) && (
+              {hasGroup && (
                 <>
                   <Separator />
-                  <div className="space-y-3">
-                    <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                      <Users size={16} />
-                      {t('opgaveDetail.groupSection.title')}
-                      <span className="ml-1 inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                        {detail.groupMembers.length}
-                      </span>
-                    </h3>
-
-                    <div className="space-y-2">
-                      {detail.groupMembers.map((member) => (
-                        <GroupMemberRow
-                          key={member.contextCardId}
-                          member={member}
-                          schoolId={schoolId}
-                          studentsMap={studentsMap}
-                          removing={groupRemoving === member.contextCardId}
-                          onRemove={member.removePostbackTarget
-                            ? () => handleRemoveGroupMember(member.removePostbackTarget!, member.removePostbackArgument!, member.contextCardId)
-                            : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-
-                    {detail.hasGroupForm && (
-                      <GroupStudentPicker
-                        students={detail.availableGroupStudents}
-                        schoolId={schoolId}
-                        studentsMap={studentsMap}
-                        adding={groupAdding}
-                        onAdd={handleAddGroupMember}
-                      />
-                    )}
-                  </div>
+                  <ModalSection icon={<Users size={14} />} label={t('opgaveDetail.groupSection.title')} count={detail.groupMembers.length}>
+                    {groupMembersContent}
+                  </ModalSection>
                 </>
               )}
 
@@ -853,10 +901,10 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
               )}
 
               {/* Brief — demoted for graded assignments (reference material) */}
-              {derivedStatus === 'bedoemt' && hasBrief && (
+              {effectiveStatus === 'bedoemt' && hasBrief && (
                 <>
                   <Separator />
-                  {briefSections}
+                  {assignmentBriefContent}
                 </>
               )}
 
@@ -1018,7 +1066,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
             <header className="relative shrink-0 border-b border-border/70 px-8 pb-6 pt-8 max-[720px]:px-6 max-[720px]:pb-5 max-[720px]:pt-7 animate-[bl-rise_0.32s_cubic-bezier(0.23,1,0.32,1)]">
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  {derivedStatus && <StatusChip status={derivedStatus} t={t} />}
+                  {effectiveStatus && <StatusChip status={effectiveStatus} t={t} />}
                   {entry && (
                     <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[0.7rem] font-semibold tracking-[0.06em] text-[oklch(0.4_0.14_var(--accent-hue))] bg-[oklch(0.95_0.06_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))] dark:bg-[oklch(0.26_0.06_var(--accent-hue))]">
                       <Sparkles size={12} />
@@ -1081,7 +1129,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
                     <span className="text-foreground/85">{t('opgaveDetail.meta.responsible', { name: detail.responsible })}</span>
                   </span>
                 )}
-                {awaitingLabel && derivedStatus === 'afleveret' && (
+                {awaitingLabel && effectiveStatus === 'afleveret' && (
                   <span className="inline-flex items-center rounded-md border border-border bg-muted/60 px-2 py-1 text-sm font-medium text-foreground">
                     {awaitingLabel}
                   </span>
@@ -1122,44 +1170,16 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
                         />
                       )}
 
-                      {detail.note && (
-                        <section className="relative overflow-hidden rounded-2xl border border-border bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] px-5 py-4">
-                          <span
-                            aria-hidden="true"
-                            className="absolute inset-y-0 left-0 w-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.55_0.13_var(--accent-hue))]"
-                          />
-                          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                            <MessageSquare size={13} className="opacity-80" />
-                            {t('opgaveDetail.primary.teacherNote')}
-                          </div>
-                          <div
-                            className="mt-2 text-base leading-[1.65] text-foreground text-pretty [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5"
-                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(detail.note) }}
-                          />
-                        </section>
+                      {hasFeedbackCard && (
+                        <TeacherFeedbackCard
+                          gradeNote={gradeNote}
+                          studentNote={studentNote}
+                          latestReturn={latestReturn}
+                          t={t}
+                        />
                       )}
 
-                      {detail.descriptionFiles.length > 0 && (
-                        <ModalSection icon={<FileText size={14} />} label={t('opgaveDetail.primary.taskFiles')} count={detail.descriptionFiles.length}>
-                          <div className="flex flex-col gap-2">
-                            {detail.descriptionFiles.map((file, i) => (
-                              <a
-                                key={i}
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group flex items-start gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 no-underline transition-[background-color,border-color] duration-150 hover:bg-muted"
-                              >
-                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                                  <FileDown size={15} />
-                                </span>
-                                <span className="line-clamp-2 min-w-0 flex-1 break-words pt-1 text-base font-medium text-foreground">{file.name}</span>
-                                <ExternalLink size={14} className="mt-2 shrink-0 text-muted-foreground" />
-                              </a>
-                            ))}
-                          </div>
-                        </ModalSection>
-                      )}
+                      {assignmentBriefContent}
                     </div>
                   )}
 
@@ -1176,29 +1196,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
 
                       {hasGroup && (
                         <ModalSection icon={<Users size={14} />} label={t('opgaveDetail.groupSection.title')} count={detail.groupMembers.length}>
-                          <div className="space-y-2">
-                            {detail.groupMembers.map((member) => (
-                              <GroupMemberRow
-                                key={member.contextCardId}
-                                member={member}
-                                schoolId={schoolId}
-                                studentsMap={studentsMap}
-                                removing={groupRemoving === member.contextCardId}
-                                onRemove={member.removePostbackTarget
-                                  ? () => handleRemoveGroupMember(member.removePostbackTarget!, member.removePostbackArgument!, member.contextCardId)
-                                  : undefined}
-                              />
-                            ))}
-                            {detail.hasGroupForm && (
-                              <GroupStudentPicker
-                                students={detail.availableGroupStudents}
-                                schoolId={schoolId}
-                                studentsMap={studentsMap}
-                                adding={groupAdding}
-                                onAdd={handleAddGroupMember}
-                              />
-                            )}
-                          </div>
+                          {groupMembersContent}
                         </ModalSection>
                       )}
 
@@ -1338,6 +1336,7 @@ function GradeHero({
   t: TFunction;
 }) {
   const hue = getGradeHue(grade);
+  const hasWrittenFeedback = !!(gradeNote || studentNote || latestReturn?.comment);
   return (
     <div
       className="overflow-hidden rounded-xl border bg-card"
@@ -1357,8 +1356,8 @@ function GradeHero({
           <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {t('opgaveDetail.primary.gradeLabel')}
           </div>
-          {gradeNote && <div className="text-base font-medium text-foreground">{gradeNote}</div>}
-          {studentNote && <div className="text-sm text-muted-foreground">{studentNote}</div>}
+          {gradeNote && <div className="whitespace-pre-wrap text-base font-medium text-foreground">{gradeNote}</div>}
+          {studentNote && <div className="whitespace-pre-wrap text-sm text-muted-foreground">{studentNote}</div>}
         </div>
       </div>
 
@@ -1366,7 +1365,7 @@ function GradeHero({
         <div className="border-t border-border bg-background/40 p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             <GraduationCap size={14} />
-            {t('opgaveDetail.primary.teacherFeedback')}
+            {t(hasWrittenFeedback ? 'opgaveDetail.primary.teacherFeedback' : 'opgaveDetail.primary.returnedFile')}
           </div>
           {latestReturn.comment && (
             <p className="whitespace-pre-wrap text-base text-foreground leading-relaxed">
@@ -1387,6 +1386,46 @@ function GradeHero({
         </div>
       )}
     </div>
+  );
+}
+
+function TeacherFeedbackCard({
+  gradeNote,
+  studentNote,
+  latestReturn,
+  t,
+}: {
+  gradeNote: string;
+  studentNote: string;
+  latestReturn: OpgaveDetail['entries'][number] | null;
+  t: TFunction;
+}) {
+  const hasWrittenFeedback = !!(gradeNote || studentNote || latestReturn?.comment);
+  return (
+    <section className="overflow-hidden rounded-xl border border-[oklch(0.72_0.14_145/0.45)] bg-card">
+      <div className="flex items-center gap-2 border-b border-border bg-[oklch(0.96_0.04_145)] px-4 py-3 text-sm font-semibold text-[oklch(0.36_0.12_145)] dark:bg-[oklch(0.28_0.04_145/0.55)] dark:text-[oklch(0.82_0.12_145)]">
+        <GraduationCap size={15} />
+        {t(hasWrittenFeedback ? 'opgaveDetail.primary.teacherFeedback' : 'opgaveDetail.primary.returnedFile')}
+      </div>
+      <div className="space-y-2 p-4">
+        {gradeNote && <p className="m-0 whitespace-pre-wrap text-base font-medium text-foreground">{gradeNote}</p>}
+        {studentNote && <p className="m-0 whitespace-pre-wrap text-base text-foreground">{studentNote}</p>}
+        {latestReturn?.comment && (
+          <p className="m-0 whitespace-pre-wrap text-base leading-relaxed text-foreground">{latestReturn.comment}</p>
+        )}
+        {latestReturn?.documentName && (
+          <a
+            href={latestReturn.documentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
+          >
+            <FileDown size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+            <span className="line-clamp-2 min-w-0 break-words">{latestReturn.documentName}</span>
+          </a>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -1497,12 +1536,13 @@ function GroupMemberAvatar({ contextCardId, name, schoolId, size = 32, studentsM
   );
 }
 
-function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap }: {
+function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap, isCurrentStudent }: {
   member: import('@/lib/opgave-detail').GroupMember;
   schoolId: string;
   removing: boolean;
   onRemove?: () => void;
   studentsMap: StudentsMap | null;
+  isCurrentStudent: boolean;
 }) {
   const { t } = useTranslation();
   const displayName = getDisplayNameFromLookupId(studentsMap, member.contextCardId, member.name);
@@ -1517,6 +1557,11 @@ function GroupMemberRow({ member, schoolId, removing, onRemove, studentsMap }: {
       <span className="min-w-0 flex-1 truncate text-base font-medium text-foreground">
         {displayName}
       </span>
+      {isCurrentStudent && (
+        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+          {t('opgaveDetail.groupSection.you')}
+        </span>
+      )}
       {onRemove && (
         <button
           type="button"
@@ -1546,12 +1591,20 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const hasStudents = students.length > 0;
 
   const filtered = search
     ? students.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
     : students;
 
   useEffect(() => { setHighlightIndex(0); }, [search]);
+
+  useEffect(() => {
+    if (!hasStudents) {
+      setIsOpen(false);
+      setSearch('');
+    }
+  }, [hasStudents]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -1621,6 +1674,10 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
             value={search}
             onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
             onKeyDown={handleKeyDown}
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="opgave-group-student-options"
+            aria-autocomplete="list"
           />
           {!adding && <ChevronDown size={16} className="ml-auto rotate-180 text-muted-foreground transition-transform" />}
         </div>
@@ -1629,26 +1686,34 @@ function GroupStudentPicker({ students, schoolId, adding, onAdd, studentsMap }: 
           type="button"
           className={cn(
             "flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 text-left transition-[color,background-color] duration-150",
-            adding ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:bg-accent/20",
+            adding || !hasStudents ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-accent/20",
           )}
           onClick={() => {
-            if (!adding) {
+            if (!adding && hasStudents) {
               setIsOpen(true);
               setTimeout(() => inputRef.current?.focus(), 0);
             }
           }}
-          disabled={adding}
+          disabled={adding || !hasStudents}
         >
           {adding ? <Loader2 size={16} className="animate-spin text-muted-foreground" /> : <Plus size={16} className="text-muted-foreground" />}
           <span className="text-base text-muted-foreground">
-            {adding ? t('opgaveDetail.groupSection.adding') : t('opgaveDetail.groupSection.addButton')}
+            {adding
+              ? t('opgaveDetail.groupSection.adding')
+              : hasStudents
+                ? t('opgaveDetail.groupSection.addButton')
+                : t('opgaveDetail.groupSection.noStudentsAvailable')}
           </span>
           {!adding && <ChevronDown size={16} className="ml-auto text-muted-foreground transition-transform" />}
         </button>
       )}
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg">
+        <div
+          id="opgave-group-student-options"
+          className="mt-1 max-h-64 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg"
+          role="listbox"
+        >
           <div ref={listRef}>
             {filtered.length === 0 ? (
               <div className="px-4 py-3 text-sm text-muted-foreground">{t('opgaveDetail.groupSection.noStudents')}</div>
@@ -1689,6 +1754,8 @@ function GroupStudentOption({ student, schoolId, highlighted, onSelect, onHover,
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={highlighted}
       className={cn(
         "flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition-[color,background-color] duration-150",
         highlighted ? "bg-accent" : "hover:bg-accent/50",

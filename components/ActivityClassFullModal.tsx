@@ -255,7 +255,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
       />
 
       <div
-        className="relative z-10 mx-4 flex w-full max-w-[1080px] max-h-[88vh] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-[0_32px_72px_-24px_oklch(0_0_0/0.45),0_12px_24px_-12px_oklch(0_0_0/0.22)] animate-[bl-act-pop_0.26s_cubic-bezier(0.23,1,0.32,1)] motion-reduce:animate-[act-sheet-fade-in_0.2s_ease-out]"
+        className="relative z-10 mx-4 flex w-full max-w-[1200px] max-h-[92vh] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-[0_32px_72px_-24px_oklch(0_0_0/0.45),0_12px_24px_-12px_oklch(0_0_0/0.22)] animate-[bl-act-pop_0.26s_cubic-bezier(0.23,1,0.32,1)] motion-reduce:animate-[act-sheet-fade-in_0.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Hold-hue accent rail along the top edge */}
@@ -286,9 +286,9 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
             <header className="relative shrink-0 border-b border-border/70 px-8 pb-7 pt-9 max-[720px]:px-6 max-[720px]:pb-5 max-[720px]:pt-7 animate-[bl-rise_0.32s_cubic-bezier(0.23,1,0.32,1)]">
               {/* Top row: eyebrow + controls */}
               <div className="mb-5 flex items-start justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {detail.meta.hold ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[0.7rem] font-semibold tracking-[0.06em] text-[oklch(0.4_0.14_var(--accent-hue))] bg-[oklch(0.95_0.06_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))] dark:bg-[oklch(0.26_0.06_var(--accent-hue))]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold tracking-[0.06em] text-[oklch(0.4_0.14_var(--accent-hue))] bg-[oklch(0.95_0.06_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))] dark:bg-[oklch(0.26_0.06_var(--accent-hue))]">
                       <Sparkles size={12} />
                       {holdDisplayName || detail.meta.hold}
                     </span>
@@ -341,13 +341,13 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
               {/* Title */}
               <h2
                 id="activity-modal-title"
-                className="m-0 text-3xl font-semibold leading-[1.1] tracking-tight text-balance text-foreground md:text-[2.6rem]"
+                className="m-0 text-4xl font-semibold leading-[1.08] tracking-tight text-balance text-foreground md:text-5xl"
               >
                 {resolvedTitle}
               </h2>
 
               {/* Meta row */}
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-base text-muted-foreground">
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-lg text-muted-foreground">
                 {metaLine ? (
                   <span className="inline-flex items-center gap-2">
                     <CalendarDays size={16} className="opacity-70" />
@@ -387,7 +387,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                     type="button"
                     onClick={toggleMembers}
                     className={cn(
-                      "ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-[background-color,color,border-color] duration-150 cursor-pointer active:scale-[0.97]",
+                      "ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-base transition-[background-color,color,border-color] duration-150 cursor-pointer active:scale-[0.96]",
                       membersOpen
                         ? "border border-[oklch(0.62_0.14_var(--accent-hue)/0.35)] bg-[oklch(0.62_0.14_var(--accent-hue)/0.12)] text-[oklch(0.4_0.14_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))]"
                         : "border border-border text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -395,7 +395,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                   >
                     <Users size={14} />
                     {t('activityModal.participants')}
-                    {members ? <span className="text-xs font-semibold opacity-60">{members.length}</span> : null}
+                    {members ? <span className="text-sm font-semibold opacity-60">{members.length}</span> : null}
                   </button>
                 ) : null}
               </div>
@@ -413,7 +413,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
 
               {navError ? (
                 <div
-                  className="mt-4 flex items-center justify-between gap-2.5 rounded-xl border border-[oklch(0.83_0.07_65)] bg-[oklch(0.97_0.03_65)] px-3.5 py-2.5 text-sm text-[oklch(0.38_0.08_65)] dark:border-[oklch(0.45_0.06_65)] dark:bg-[oklch(0.22_0.03_65)] dark:text-[oklch(0.82_0.07_65)]"
+                  className="mt-4 flex items-center justify-between gap-2.5 rounded-xl border border-[oklch(0.83_0.07_65)] bg-[oklch(0.97_0.03_65)] px-4 py-3 text-base text-[oklch(0.38_0.08_65)] dark:border-[oklch(0.45_0.06_65)] dark:bg-[oklch(0.22_0.03_65)] dark:text-[oklch(0.82_0.07_65)]"
                   role="status"
                   aria-live="polite"
                 >
@@ -443,7 +443,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
               {!hasContent ? (
                 <div className="flex flex-col items-center justify-center gap-3.5 py-16 text-center text-muted-foreground">
                   <FileText size={32} strokeWidth={1.2} />
-                  <p className="m-0 text-base leading-relaxed text-pretty">{t('activityModal.noContent')}</p>
+                  <p className="m-0 text-lg leading-relaxed text-pretty">{t('activityModal.noContent')}</p>
                 </div>
               ) : (
                 <div
@@ -522,7 +522,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                               <a
                                 href={detail.phase.url}
                                 data-no-activity-modal="true"
-                                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-sm text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
+                                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-background/60 px-3.5 py-1.5 text-base text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
                               >
                                 <BookOpen size={14} />
                                 {detail.phase.title}
@@ -533,7 +533,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                                   key={tab.label}
                                   href={tab.url}
                                   data-no-activity-modal="true"
-                                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1.5 text-sm text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
+                                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-background/60 px-3.5 py-1.5 text-base text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
                                 >
                                   <Link2 size={14} />
                                   {tab.label}
@@ -561,13 +561,13 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                   <a
                     href={detail.navigation.hold.listUrl}
                     data-no-activity-modal="true"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground active:scale-[0.97]"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96]"
                     title={t('activityModal.holdActivityList')}
                   >
                     <List size={15} />
                   </a>
                 ) : (
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground opacity-30">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground opacity-30">
                     <List size={15} />
                   </span>
                 )}
@@ -578,7 +578,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                 >
                   <ChevronRight size={15} />
                 </FooterControl>
-                <span className="ml-2 text-sm text-muted-foreground/80 max-[720px]:hidden">
+                <span className="ml-2 text-base text-muted-foreground/80 max-[720px]:hidden">
                   {t('activityModal.holdNavLabel')}
                 </span>
               </div>
@@ -586,7 +586,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
               <a
                 href={detail.url}
                 data-no-activity-modal="true"
-                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-base text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
               >
                 <ExternalLink size={15} />
                 {t('activityModal.openInLectio')}
@@ -620,7 +620,7 @@ function IconButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100"
       {...rest}
     >
       {children}
@@ -645,7 +645,7 @@ function FooterControl({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-[background-color,color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100"
     >
       {children}
     </button>
@@ -669,7 +669,7 @@ function Section({
     <section>
       <h3
         className={cn(
-          "mb-3.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em]",
+          "mb-3.5 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.1em]",
           accent
             ? "text-[oklch(0.4_0.14_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))]"
             : "text-muted-foreground",
@@ -680,7 +680,7 @@ function Section({
         {typeof count === "number" ? (
           <span
             className={cn(
-              "inline-flex h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full px-1.5 text-[0.7rem] font-semibold normal-case tracking-normal",
+              "inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-sm font-semibold normal-case tracking-normal",
               accent
                 ? "bg-[oklch(0.62_0.14_var(--accent-hue)/0.15)] text-[oklch(0.4_0.14_var(--accent-hue))] dark:text-[oklch(0.82_0.12_var(--accent-hue))]"
                 : "bg-muted text-muted-foreground",
@@ -706,11 +706,11 @@ function NoteSection({ note }: { note: string }) {
         aria-hidden="true"
         className="absolute inset-y-0 left-0 w-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.55_0.13_var(--accent-hue))]"
       />
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         <StickyNote size={13} className="opacity-80" />
         {t('activityModal.note')}
       </div>
-      <p className="mt-2 m-0 whitespace-pre-wrap text-base leading-[1.65] text-foreground text-pretty">{note}</p>
+      <p className="mt-2 m-0 whitespace-pre-wrap text-lg leading-[1.65] text-foreground text-pretty">{note}</p>
     </section>
   );
 }
@@ -773,7 +773,7 @@ function ContentCard({
       <HeadingTag
         {...headingProps}
         className={cn(
-          "m-0 block px-[1.1rem] py-[0.85rem] text-base font-semibold leading-snug text-foreground no-underline",
+          "m-0 block px-5 py-4 text-lg font-semibold leading-snug text-foreground no-underline text-pretty",
           hasBody && "border-b border-border/70 bg-[color-mix(in_oklch,var(--muted)_45%,transparent)]",
           titleAsLink && "flex items-center gap-2 transition-[background-color] duration-150 hover:bg-muted",
         )}
@@ -808,7 +808,7 @@ function ContentCard({
 
       {hasContent ? (
         <div
-          className="overflow-wrap-anywhere px-[1.1rem] py-[0.9rem] text-base leading-[1.6] text-foreground [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-[1.05rem] [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-[1rem] [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-[0.95rem] [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[480px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
+          className="overflow-wrap-anywhere px-5 py-4 text-lg leading-[1.65] text-foreground text-pretty [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[480px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.contentHtml) }}
         />
       ) : null}
@@ -833,7 +833,7 @@ function ContentCard({
                       }
                     : undefined
                 }
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-sm text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-base text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
               >
                 <FileText size={14} />
                 {link.label}
@@ -899,7 +899,7 @@ function StatusBadge({ status }: { status: ActivityStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold tracking-[0.06em]",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold tracking-[0.06em]",
         cfg.classes,
       )}
     >
@@ -1030,16 +1030,16 @@ function RelatedRow({ item }: { item: ActivityRelatedItem }) {
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
         <Icon size={14} />
       </span>
-      <span className="min-w-0 flex-1 truncate text-base leading-snug text-foreground">
+      <span className="min-w-0 flex-1 truncate text-lg leading-snug text-foreground">
         {item.label}
       </span>
       {item.url ? (
-        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[oklch(0.5_0.13_255)] dark:text-[oklch(0.75_0.06_265)]">
+        <span className="inline-flex shrink-0 items-center gap-1 text-base font-semibold text-[oklch(0.5_0.13_255)] dark:text-[oklch(0.75_0.06_265)]">
           {t('activityModal.openLink')}
           <ExternalLink size={13} />
         </span>
       ) : (
-        <span className="text-sm text-muted-foreground">&mdash;</span>
+        <span className="text-base text-muted-foreground">&mdash;</span>
       )}
     </>
   );
@@ -1049,7 +1049,7 @@ function RelatedRow({ item }: { item: ActivityRelatedItem }) {
       <a
         href={item.url}
         data-no-activity-modal="true"
-        className="group flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5 no-underline transition-[background-color,border-color] duration-150 hover:bg-muted hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)]"
+        className="group flex min-h-12 items-center gap-3 rounded-xl border border-border bg-background/60 px-4 py-3 no-underline transition-[background-color,border-color] duration-150 hover:bg-muted hover:border-[color-mix(in_oklch,var(--border)_120%,var(--foreground)_10%)]"
       >
         {content}
       </a>
@@ -1057,7 +1057,7 @@ function RelatedRow({ item }: { item: ActivityRelatedItem }) {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-background/60 px-3 py-2.5">
+    <div className="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-background/60 px-4 py-3">
       {content}
     </div>
   );

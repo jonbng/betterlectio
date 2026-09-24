@@ -1145,7 +1145,12 @@ export function SettingsModal({ open, onOpenChange, onShowOnboarding, initialSec
         );
 
       case "subjects":
-        return <HoldMappingEditor />;
+        return (
+          <HoldMappingEditor
+            hiddenSubjectKeys={settings.assignments.hiddenSubjectKeys}
+            onHiddenSubjectKeysChange={(keys) => handleSettingChange('assignments', 'hiddenSubjectKeys', keys)}
+          />
+        );
 
       case "invite":
         return (

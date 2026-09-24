@@ -6,6 +6,8 @@ import { getHoldDisplayName } from '@/lib/hold-mapping';
 import { fetchOpgaverScan } from '@/lib/missing-opgaver';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { getSession } from '@/lib/supabase/client';
+import { useQuery } from '@/lib/supabase/hooks';
+import type { Student } from '@/lib/supabase/student-lookup';
 
 function pickGreeting(pool: string[]): string {
   const store = ((window as any).__ilGreetIdx ??= {}) as Record<string, number>;
@@ -133,10 +135,22 @@ function formatUrgentLabel(opgave: UrgentOpgave): string {
 export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   const { t } = useTranslation();
   const [time, setTime] = useState(new Date());
-  const [firstName, setFirstName] = useState<string>('');
   const [cancelledCount, setCancelledCount] = useState(0);
   const [urgentOpgaver, setUrgentOpgaver] = useState<UrgentOpgave[]>([]);
   const [cloudConnected, setCloudConnected] = useState<boolean | null>(null);
+  const cachedProfile = getCachedProfile();
+  const lectioFirstName = cachedProfile?.name.trim().split(/\s+/)[0] || '';
+  const { data: student } = useQuery<Pick<Student, 'name'>>({
+    schoolId,
+    table: 'students',
+    select: 'name',
+    filters: cachedProfile?.studentId
+      ? [{ column: 'id', op: 'eq', value: cachedProfile.studentId }]
+      : [],
+    single: true,
+    enabled: Boolean(cachedProfile?.studentId),
+  });
+  const greetingName = student?.name?.trim().split(/\s+/)[0] || lectioFirstName;
 
   const weekendGreetings = [
     t('forside.greeting.weekend.goodWeekend'),
@@ -180,13 +194,6 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
   useEffect(() => {
     let isCancelled = false;
     let retryId: ReturnType<typeof setInterval> | null = null;
-
-    // Get first name from cached profile
-    const profile = getCachedProfile();
-    if (profile?.name) {
-      const nameParts = profile.name.split(' ');
-      setFirstName(nameParts[0]);
-    }
 
     // Check for cancelled classes from schedule cache
     // The sidebar's ScheduleCountdown populates this — retry briefly if not yet ready
@@ -305,7 +312,7 @@ export function ForsideGreeting({ schoolId }: { schoolId: string }) {
 
       <div className="il-forside-hero-heading mt-4 grid items-end gap-6">
         <h1 className="text-[2.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-foreground">
-          {greeting}{firstName ? `, ${firstName}` : ''}
+          {greeting}{greetingName ? `, ${greetingName}` : ''}
         </h1>
         <p className="pb-0.5 text-3xl font-light leading-none text-muted-foreground tabular-nums">
           {formatTime(time)}

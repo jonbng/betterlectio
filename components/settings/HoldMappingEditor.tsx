@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pencil, RotateCcw, Sparkles, Search, Palette, SlidersHorizontal } from 'lucide-react';
+import { Eye, EyeOff, Pencil, RotateCcw, Sparkles, Search, Palette, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { buttonVariants } from '@/components/ui/button';
 import { hydrateHoldMappingsFromSupabase, syncHoldMappingOverrideToSupabase } from '@/lib/hold-mapping-sync';
@@ -288,7 +288,17 @@ function AutocompleteInput({
 }
 
 // ── Hold row ────────────────────────────────────────────────────────────
-function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () => void }) {
+function HoldRow({
+  mapping,
+  hiddenFromAssignments,
+  onToggleAssignmentVisibility,
+  onUpdate,
+}: {
+  mapping: HoldMappingRow;
+  hiddenFromAssignments: boolean;
+  onToggleAssignmentVisibility: () => void;
+  onUpdate: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [showColors, setShowColors] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -327,7 +337,7 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
   };
 
   return (
-    <div className={cn('flex items-center gap-3 px-4 py-2 transition-[color,background-color] duration-150 hover:bg-accent/30', showColors && 'relative z-2')}>
+    <div className={cn('flex items-center gap-3 px-4 py-2 transition-[color,background-color,opacity] duration-150 hover:bg-accent/30', hiddenFromAssignments && 'opacity-60', showColors && 'relative z-2')}>
       {/* Color dot */}
       <div className="relative shrink-0" ref={colorRef}>
         <button
@@ -431,6 +441,17 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
         <span className="truncate pl-px font-mono text-xs text-muted-foreground">{mapping.codeLabel}</span>
       </div>
 
+      <button
+        type="button"
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
+        aria-pressed={hiddenFromAssignments}
+        aria-label={hiddenFromAssignments ? `Vis ${mapping.displayName} i Opgaver` : `Skjul ${mapping.displayName} fra Opgaver`}
+        title={hiddenFromAssignments ? 'Vis i Opgaver' : 'Skjul fra Opgaver'}
+        onClick={onToggleAssignmentVisibility}
+      >
+        {hiddenFromAssignments ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+
       {showCustomModal && (
         <div className="fixed inset-0 z-220 flex items-center justify-center p-4" role="presentation">
           <button
@@ -529,7 +550,13 @@ function HoldRow({ mapping, onUpdate }: { mapping: HoldMappingRow; onUpdate: () 
 }
 
 // ── Main editor ─────────────────────────────────────────────────────────
-export function HoldMappingEditor() {
+export function HoldMappingEditor({
+  hiddenSubjectKeys,
+  onHiddenSubjectKeysChange,
+}: {
+  hiddenSubjectKeys: string[];
+  onHiddenSubjectKeysChange: (keys: string[]) => void;
+}) {
   useEffect(() => {
     const studentId = getLoggedInUserId();
     if (!studentId) return;
@@ -538,7 +565,15 @@ export function HoldMappingEditor() {
 
   const [, setTick] = useState(0);
   const [filter, setFilter] = useState('');
+  const hiddenSubjectKeySet = new Set(hiddenSubjectKeys);
   const forceUpdate = () => setTick((tick) => tick + 1);
+
+  const toggleAssignmentVisibility = (subjectKey: string) => {
+    const next = new Set(hiddenSubjectKeys);
+    if (next.has(subjectKey)) next.delete(subjectKey);
+    else next.add(subjectKey);
+    onHiddenSubjectKeysChange([...next]);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -597,7 +632,7 @@ export function HoldMappingEditor() {
       <div className="flex flex-col gap-3">
         <div>
           <p className="text-sm text-muted-foreground">
-            Klik på et fagnavn for at omdøbe den normaliserede holdnøgle. Klik på farvecirklen for at vælge farve.
+            Klik på et fagnavn for at omdøbe den normaliserede holdnøgle, vælg farve på cirklen, eller brug øjet til at skjule faget fra Opgaver.
             Alle klassevarianter som fx 1x MA og L2d MA samles automatisk under samme nøgle.
           </p>
         </div>
@@ -627,6 +662,8 @@ export function HoldMappingEditor() {
               <HoldRow
                 key={`${mapping.kind}:${mapping.id}`}
                 mapping={mapping}
+                hiddenFromAssignments={hiddenSubjectKeySet.has(`subject:${mapping.id}`)}
+                onToggleAssignmentVisibility={() => toggleAssignmentVisibility(`subject:${mapping.id}`)}
                 onUpdate={forceUpdate}
               />
             ))}

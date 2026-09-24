@@ -42,6 +42,10 @@ const ForsideSettingsSchema = z.object({
   showAktuelInfo: z.boolean().default(true),
 });
 
+const AssignmentSettingsSchema = z.object({
+  hiddenSubjectKeys: z.array(z.string()).default([]),
+});
+
 // Note: pictureCaching is always enabled to avoid Lectio rate limiting
 const DataSettingsSchema = z.object({
   starredPeople: z.boolean().default(false),
@@ -73,6 +77,7 @@ const DEFAULT_INTERFACE = InterfaceSettingsSchema.parse({});
 const DEFAULT_SCHEDULE = ScheduleSettingsSchema.parse({});
 const DEFAULT_BEHAVIOR = BehaviorSettingsSchema.parse({});
 const DEFAULT_FORSIDE = ForsideSettingsSchema.parse({});
+const DEFAULT_ASSIGNMENTS = AssignmentSettingsSchema.parse({});
 const DEFAULT_DATA = DataSettingsSchema.parse({});
 const DEFAULT_SIDEBAR = SidebarSettingsSchema.parse({});
 
@@ -87,6 +92,7 @@ export const FeatureSettingsSchema = z.object({
   schedule: ScheduleSettingsSchema.default(DEFAULT_SCHEDULE),
   behavior: BehaviorSettingsSchema.default(DEFAULT_BEHAVIOR),
   forside: ForsideSettingsSchema.default(DEFAULT_FORSIDE),
+  assignments: AssignmentSettingsSchema.default(DEFAULT_ASSIGNMENTS),
   data: DataSettingsSchema.default(DEFAULT_DATA),
   sidebar: SidebarSettingsSchema.default(DEFAULT_SIDEBAR),
 });
@@ -340,6 +346,11 @@ export function applySettingsSideEffects(
   if (prev.forside?.showAktuelInfo !== next.forside?.showAktuelInfo) {
     changed = true;
     window.dispatchEvent(new CustomEvent('betterlectio:forsideSettingsChanged'));
+  }
+
+  if (JSON.stringify(prev.assignments) !== JSON.stringify(next.assignments)) {
+    changed = true;
+    window.dispatchEvent(new CustomEvent('betterlectio:opgaverSettingsChanged'));
   }
 
   if (prev.behavior?.analyticsOptOut !== next.behavior?.analyticsOptOut) {

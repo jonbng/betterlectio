@@ -518,6 +518,24 @@ function InviteContent({ t, qrSvg }: InviteContentProps) {
           {t('mobileApp.invite.body')}
         </p>
 
+        <ul
+          className="mt-5 space-y-2 text-sm text-foreground opacity-0 animate-[bl-rise_360ms_cubic-bezier(0.23,1,0.32,1)_forwards]"
+          style={{ animationDelay: '170ms' }}
+        >
+          <li className="flex items-center gap-2">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+              <Check className="size-3.5" strokeWidth={2.5} />
+            </span>
+            {t('mobileApp.invite.benefitOverview')}
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+              <Check className="size-3.5" strokeWidth={2.5} />
+            </span>
+            {t('mobileApp.invite.benefitLogin')}
+          </li>
+        </ul>
+
       </div>
 
       {/* Right: QR. Slight scale-up entrance. */}
@@ -543,6 +561,12 @@ function InviteContent({ t, qrSvg }: InviteContentProps) {
             )}
           </div>
         </div>
+        <p className="mt-3 text-center text-sm font-medium text-foreground text-balance">
+          {t('mobileApp.invite.scanCta')}
+        </p>
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          {t('mobileApp.invite.platformNote')}
+        </p>
       </div>
     </div>
   );

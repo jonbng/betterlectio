@@ -159,6 +159,10 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   dan: 'Dansk',
   eng: 'Engelsk',
   vø: 'Virksomhedsøkonomi',
+  af: 'Afsætning',
+  afs: 'Afsætning',
+  in: 'Innovation',
+  mak: 'Makroøkonomisk analyse',
 };
 
 const SUBJECT_NAME_LOOKUP = new Map<string, string>();
@@ -218,6 +222,9 @@ const SUBJECT_DEFAULT_HUES: Record<string, number> = {
   pu: 22,
   skr: 12,
   bro: 155,
+  af: 336,
+  in: 295,
+  mak: 80,
 
   ap: 48,
   at: 188,
@@ -523,6 +530,46 @@ function resolveStandaloneSubject(holdCode: string): HoldDescriptor | null {
   };
 }
 
+function resolveCompactSubject(value: string): {
+  resolved: { canonicalKey: string; defaultName: string };
+  suffix: string;
+} | null {
+  const direct = resolveCanonicalLesson(value.replace(/_/g, ' '));
+  if (direct) return { resolved: direct, suffix: '' };
+
+  const separatedLevel = value.match(/^(.+?)([_-][ABC])$/i);
+  if (separatedLevel) {
+    const resolved = resolveCanonicalLesson(separatedLevel[1].replace(/_/g, ' '));
+    if (resolved) return { resolved, suffix: separatedLevel[2] };
+  }
+
+  const attachedLevel = value.match(/^(.+?)([ABC])$/);
+  if (attachedLevel) {
+    const resolved = resolveCanonicalLesson(attachedLevel[1].replace(/_/g, ' '));
+    if (resolved) return { resolved, suffix: attachedLevel[2] };
+  }
+
+  return null;
+}
+
+function resolveUnderscoreDelimitedHold(holdCode: string): HoldDescriptor | null {
+  for (let index = holdCode.indexOf('_'); index !== -1; index = holdCode.indexOf('_', index + 1)) {
+    const prefix = holdCode.slice(0, index);
+    if (!looksLikeAcademicClassPrefix(prefix)) continue;
+    const subject = resolveCompactSubject(holdCode.slice(index + 1));
+    if (!subject) continue;
+    return {
+      holdCode,
+      prefix,
+      suffix: subject.suffix,
+      classification: 'mapping',
+      canonicalKey: subject.resolved.canonicalKey,
+      defaultName: subject.resolved.defaultName,
+    };
+  }
+  return null;
+}
+
 function analyzeHold(holdCode: string): HoldDescriptor {
   const normalizedHoldCode = normalizeWhitespace(holdCode);
   if (!normalizedHoldCode) {
@@ -549,6 +596,9 @@ function analyzeHold(holdCode: string): HoldDescriptor {
 
   const standalone = resolveStandaloneSubject(normalizedHoldCode);
   if (standalone) return standalone;
+
+  const underscoreDelimited = resolveUnderscoreDelimitedHold(normalizedHoldCode);
+  if (underscoreDelimited) return underscoreDelimited;
 
   const match = normalizedHoldCode.match(/^(\S+)\s+(\S+)(.*)$/);
   if (!match) {
@@ -665,6 +715,22 @@ function expandHoldLabel(descriptor: HoldDescriptor, displayName: string): strin
 export function getCanonicalHoldKey(holdCode: string): string | null {
   const descriptor = analyzeHold(holdCode);
   return descriptor.classification === 'mapping' ? descriptor.canonicalKey : null;
+}
+
+/**
+ * Stable identity for subject-level filtering and grouping.
+ *
+ * Academic holds such as `1x FY` and `2x fy` intentionally share an identity,
+ * while unknown/custom holds only collapse case and whitespace variants. Keep
+ * the prefixes so an unknown hold can never collide with a canonical subject.
+ */
+export function getSubjectIdentityKey(holdCode: string): string {
+  const descriptor = analyzeHold(holdCode);
+  if (descriptor.classification === 'mapping' && descriptor.canonicalKey) {
+    return `subject:${descriptor.canonicalKey}`;
+  }
+
+  return `hold:${normalizeKey(descriptor.holdCode)}`;
 }
 
 export function getLessonMappingSnapshot(canonicalKey: string): LessonMappingSnapshot | null {

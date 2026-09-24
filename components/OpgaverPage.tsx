@@ -12,10 +12,12 @@ import {
   EyeOff,
   CornerDownLeft,
   MessageSquareText,
+  FileText,
 } from 'lucide-react';
 import { OpgaveDetailSheet } from '@/components/OpgaveDetailSheet';
+import { isMeaningfulAssignmentGrade } from '@/lib/opgave-detail';
 import { getSettings, updateSetting } from '@/lib/settings-storage';
-import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
+import { getHoldHue, getHoldDisplayName, getSubjectIdentityKey } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { saveCachedOpgaver } from '@/lib/opgaver-deadlines-cache';
 import { cn } from '@/lib/utils';
@@ -481,8 +483,14 @@ type StatusFilter = 'venter' | 'mangler' | 'afleveret';
 export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedHold, setSelectedHold] = useState<string | null>(null);
-  const [selectedSchoolYear, setSelectedSchoolYear] = useState<number | null>(null);
+  const [selectedSubjectKey, setSelectedSubjectKey] = useState<string | null>(null);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<number | null>(() => getSchoolYear(new Date()));
+  const [showAllSubjects, setShowAllSubjects] = useState(false);
+  const [subjectPillsHeight, setSubjectPillsHeight] = useState<number | null>(null);
+  const [subjectPillsOverflow, setSubjectPillsOverflow] = useState(false);
+  const [hiddenSubjectKeys, setHiddenSubjectKeys] = useState<Set<string>>(
+    () => new Set(getSettings().assignments.hiddenSubjectKeys),
+  );
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -502,6 +510,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const currentWeekRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const subjectPillsRef = useRef<HTMLDivElement>(null);
 
   const entries = submittedOverrides.size === 0
     ? entriesProp
@@ -516,6 +525,20 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   useEffect(() => {
     setIgnoredMissingIds(loadIgnoredMissingIds(schoolId));
   }, [schoolId]);
+
+  useEffect(() => {
+    const reloadHiddenSubjects = () => {
+      const next = new Set(getSettings().assignments.hiddenSubjectKeys);
+      setHiddenSubjectKeys(next);
+      setSelectedSubjectKey(current => current && next.has(current) ? null : current);
+    };
+    window.addEventListener('betterlectio:opgaverSettingsChanged', reloadHiddenSubjects);
+    window.addEventListener('betterlectio:settings-hydrated', reloadHiddenSubjects);
+    return () => {
+      window.removeEventListener('betterlectio:opgaverSettingsChanged', reloadHiddenSubjects);
+      window.removeEventListener('betterlectio:settings-hydrated', reloadHiddenSubjects);
+    };
+  }, []);
 
   // Persist parsed opgaver list to school-scoped cache so the schedule page
   // can render deadline bricks without re-fetching.
@@ -542,11 +565,11 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
 
   // Position the scroll container so current week is at the top — runs
   // synchronously before paint so the user never sees it jump.
-  // Offset matches the content wrapper's pt-28 so the current week lands
-  // below the 160px top fade (in its transparent tail), not buried under it.
+  // Offset matches the compact content padding so the current week lands just
+  // below the top fade instead of leaving a large empty runway.
   useLayoutEffect(() => {
     if (!scrollRef.current || !currentWeekRef.current || entries.length === 0) return;
-    scrollRef.current.scrollTop = currentWeekRef.current.offsetTop - 100;
+    scrollRef.current.scrollTop = currentWeekRef.current.offsetTop - 32;
   }, [entries.length]);
 
   useEffect(() => {
@@ -587,7 +610,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const scrollToCurrentWeek = () => {
     if (scrollRef.current && currentWeekRef.current) {
       scrollRef.current.scrollTo({
-        top: currentWeekRef.current.offsetTop - 100,
+        top: currentWeekRef.current.offsetTop - 32,
         behavior: 'smooth',
       });
     }
@@ -595,9 +618,90 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
 
   // ── Filtering ──
   const queryLower = searchQuery.toLowerCase().trim();
-  const filtered = entries.filter(e => {
-    if (selectedHold && e.hold !== selectedHold) return false;
-    if (selectedSchoolYear !== null && getSchoolYear(e.deadline) !== selectedSchoolYear) return false;
+  const now = new Date();
+  const currentSchoolYear = getSchoolYear(now);
+  const visibleEntries = entries.filter(entry => !hiddenSubjectKeys.has(getSubjectIdentityKey(entry.hold)));
+  const entriesForSelectedYear = selectedSchoolYear === null
+    ? visibleEntries
+    : visibleEntries.filter(e => getSchoolYear(e.deadline) === selectedSchoolYear);
+  const hiddenSubjectsInSelectedYear = new Set(
+    entries
+      .filter(entry => selectedSchoolYear === null || getSchoolYear(entry.deadline) === selectedSchoolYear)
+      .map(entry => getSubjectIdentityKey(entry.hold))
+      .filter(key => hiddenSubjectKeys.has(key)),
+  ).size;
+
+  const subjectOptions = [...entriesForSelectedYear.reduce((options, entry) => {
+    const key = getSubjectIdentityKey(entry.hold);
+    if (!options.has(key)) {
+      options.set(key, {
+        key,
+        representativeHold: entry.hold,
+        label: getHoldDisplayName(entry.hold),
+      });
+    }
+    return options;
+  }, new Map<string, { key: string; representativeHold: string; label: string }>()).values()]
+    .sort((a, b) => a.label.localeCompare(b.label, 'da'));
+
+  // Keep the active filter visible in the collapsed two-row view.
+  const displayedSubjectOptions = selectedSubjectKey
+    ? [
+        ...subjectOptions.filter(option => option.key === selectedSubjectKey),
+        ...subjectOptions.filter(option => option.key !== selectedSubjectKey),
+      ]
+    : subjectOptions;
+
+  useLayoutEffect(() => {
+    const container = subjectPillsRef.current;
+    if (!container) {
+      setSubjectPillsHeight(null);
+      setSubjectPillsOverflow(false);
+      return;
+    }
+
+    const measure = () => {
+      const pills = Array.from(container.children) as HTMLElement[];
+      const containerTop = container.getBoundingClientRect().top;
+      const pillMetrics = pills.map(pill => ({
+        element: pill,
+        top: Math.round(pill.getBoundingClientRect().top - containerTop),
+      }));
+      const rowTops = [...new Set(pillMetrics.map(pill => pill.top))].sort((a, b) => a - b);
+      if (rowTops.length <= 2) {
+        setSubjectPillsHeight(null);
+        setSubjectPillsOverflow(false);
+        return;
+      }
+
+      const secondRowTop = rowTops[1];
+      const secondRowBottom = Math.max(
+        ...pillMetrics
+          .filter(pill => pill.top === secondRowTop)
+          .map(pill => pill.top + pill.element.offsetHeight),
+      );
+      setSubjectPillsHeight(secondRowBottom);
+      setSubjectPillsOverflow(true);
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [displayedSubjectOptions.length, selectedSchoolYear, selectedSubjectKey]);
+
+  const matchesNonStatusFilters = (entry: OpgaveEntry) => {
+    if (hiddenSubjectKeys.has(getSubjectIdentityKey(entry.hold))) return false;
+    if (selectedSubjectKey && getSubjectIdentityKey(entry.hold) !== selectedSubjectKey) return false;
+    if (selectedSchoolYear !== null && getSchoolYear(entry.deadline) !== selectedSchoolYear) return false;
+    if (queryLower && !entry.title.toLowerCase().includes(queryLower) &&
+        !entry.hold.toLowerCase().includes(queryLower) &&
+        !getHoldDisplayName(entry.hold).toLowerCase().includes(queryLower)) return false;
+    return true;
+  };
+
+  const filtered = visibleEntries.filter(e => {
+    if (!matchesNonStatusFilters(e)) return false;
     if (statusFilter) {
       if (e.status !== statusFilter) return false;
       // When filtering to "mangler", exclude ignored so the list matches the count.
@@ -606,14 +710,10 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
         if (eid && ignoredMissingIds.has(eid)) return false;
       }
     }
-    if (queryLower && !e.title.toLowerCase().includes(queryLower) &&
-        !e.hold.toLowerCase().includes(queryLower) &&
-        !getHoldDisplayName(e.hold).toLowerCase().includes(queryLower)) return false;
     return true;
   });
 
   const sorted = [...filtered].sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
-  const now = new Date();
   const weekLabels = {
     thisWeek: t('opgaverPage.thisWeek'),
     nextWeek: t('opgaverPage.nextWeek'),
@@ -632,23 +732,32 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
     return weekGroups.length > 0 ? weekGroups[weekGroups.length - 1].key : null;
   })();
 
-  const holds = [...new Set(entries.map(e => e.hold))].sort((a, b) => {
-    return getHoldDisplayName(a).localeCompare(getHoldDisplayName(b), 'da');
-  });
+  // Always keep the current year available as an explicit selection, even for
+  // a new student with no assignments yet or an alumnus viewing old history.
+  const schoolYears = [...new Set([currentSchoolYear, ...entries.map(e => getSchoolYear(e.deadline))])]
+    .sort((a, b) => b - a);
+  const countScope = visibleEntries.filter(matchesNonStatusFilters);
 
-  const schoolYears = [...new Set(entries.map(e => getSchoolYear(e.deadline)))].sort((a, b) => b - a);
-  const currentSchoolYear = getSchoolYear(now);
-
-  const missingCount = entries.filter(e => {
+  const missingCount = countScope.filter(e => {
     if (e.status !== 'mangler') return false;
     const eid = getExerciseIdFromUrl(e.url);
     return !eid || !ignoredMissingIds.has(eid);
   }).length;
 
-  const submittedCount = entries.filter(e => e.status === 'afleveret').length;
-  const waitingCount = entries.filter(e => e.status === 'venter').length;
+  const submittedCount = countScope.filter(e => e.status === 'afleveret').length;
+  const waitingCount = countScope.filter(e => e.status === 'venter').length;
 
-  const hasActiveFilters = selectedHold !== null || queryLower !== '' || statusFilter !== null || selectedSchoolYear !== null;
+  const hasActiveFilters = selectedSubjectKey !== null || queryLower !== '' || statusFilter !== null || selectedSchoolYear !== currentSchoolYear;
+
+  const selectSchoolYear = (year: number | null) => {
+    setSelectedSchoolYear(year);
+    if (!selectedSubjectKey) return;
+    const subjectStillExists = entries.some(entry =>
+      (year === null || getSchoolYear(entry.deadline) === year)
+      && getSubjectIdentityKey(entry.hold) === selectedSubjectKey,
+    );
+    if (!subjectStillExists) setSelectedSubjectKey(null);
+  };
 
   const toggleStatusFilter = (next: StatusFilter) => {
     setStatusFilter(prev => (prev === next ? null : next));
@@ -657,15 +766,15 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden">
       {/* ── Fixed header — never scrolls ───────── */}
-      <div className="shrink-0 bg-background px-10 pb-5 pt-10">
+      <div className="shrink-0 bg-background px-10 pb-4 pt-6">
         <div className="mx-auto max-w-7xl">
           {/* Title row */}
-          <div className="flex flex-wrap items-end justify-between gap-6 pb-5">
-            <div>
-              <h1 className="text-[2.5rem] font-[800] tracking-[-0.02em] text-foreground">{t('opgaverPage.title')}</h1>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-lg text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-3">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <h1 className="text-[2.25rem] font-[800] tracking-[-0.02em] text-foreground">{t('opgaverPage.title')}</h1>
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-base text-muted-foreground">
                 <span className="px-0.5">
-                  <span className="tabular-nums">{entries.length === 1 ? t('opgaverPage.assignmentSingular', { n: String(entries.length) }) : t('opgaverPage.assignmentPlural', { n: String(entries.length) })}</span>
+                  <span className="tabular-nums">{filtered.length === 1 ? t('opgaverPage.assignmentSingular', { n: String(filtered.length) }) : t('opgaverPage.assignmentPlural', { n: String(filtered.length) })}</span>
                 </span>
                 {waitingCount > 0 && (
                   <>
@@ -713,7 +822,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
             </div>
             <button
               type="button"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-base font-medium text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
+              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-medium text-muted-foreground transition-[background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-[0.97]"
               onClick={scrollToCurrentWeek}
             >
               <ChevronUp size={16} className="rotate-180" />
@@ -722,13 +831,14 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
           </div>
 
           {/* Search + filters */}
-          <div className="space-y-3 pt-1">
-            <div className="relative">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[min(100%,24rem)] flex-1">
               <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
                 ref={searchRef}
                 type="text"
-                className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-20 text-lg text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                className="h-10 w-full rounded-xl border border-border bg-card pl-11 pr-20 text-base text-foreground outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
                 placeholder={t('opgaverPage.searchPlaceholder')}
                 value={searchQuery}
                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
@@ -743,95 +853,130 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
                 </button>
               )}
               <kbd className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">⌘K</kbd>
+              </div>
+
+              {schoolYears.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground/60">
+                    {t('opgaverPage.schoolYearLabel')}
+                  </span>
+                  <button
+                    type="button"
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
+                      selectedSchoolYear === null
+                        ? 'border-primary/30 bg-primary/10 text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                    onClick={() => selectSchoolYear(null)}
+                  >
+                    {t('opgaverPage.allYears')}
+                  </button>
+                  {schoolYears.map(year => {
+                    const active = selectedSchoolYear === year;
+                    const isCurrent = year === currentSchoolYear;
+                    return (
+                      <button
+                        key={year}
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium tabular-nums transition-[background-color,transform] duration-150 active:scale-[0.97]',
+                          active
+                            ? 'border-primary/30 bg-primary/10 text-foreground'
+                            : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                        )}
+                        onClick={() => selectSchoolYear(active ? null : year)}
+                      >
+                        {formatSchoolYear(year)}
+                        {isCurrent && (
+                          <span className="rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-primary">
+                            {t('opgaverPage.currentYearBadge')}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {schoolYears.length > 1 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground/60">
-                  {t('opgaverPage.schoolYearLabel')}
-                </span>
-                <button
-                  type="button"
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
-                    selectedSchoolYear === null
-                      ? 'border-primary/30 bg-primary/10 text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                  onClick={() => setSelectedSchoolYear(null)}
+            {(subjectOptions.length > 1 || selectedSubjectKey !== null) && (
+              <div>
+                <div
+                  ref={subjectPillsRef}
+                  id="bl-opgaver-subject-pills"
+                  className="flex flex-wrap gap-2 overflow-hidden"
+                  style={!showAllSubjects && subjectPillsHeight !== null
+                    ? { maxHeight: `${subjectPillsHeight}px` }
+                    : undefined}
                 >
-                  {t('opgaverPage.allYears')}
-                </button>
-                {schoolYears.map(year => {
-                  const active = selectedSchoolYear === year;
-                  const isCurrent = year === currentSchoolYear;
-                  return (
-                    <button
-                      key={year}
-                      type="button"
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium tabular-nums transition-[background-color,transform] duration-150 active:scale-[0.97]',
-                        active
-                          ? 'border-primary/30 bg-primary/10 text-foreground'
-                          : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                      )}
-                      onClick={() => setSelectedSchoolYear(active ? null : year)}
-                    >
-                      {formatSchoolYear(year)}
-                      {isCurrent && (
-                        <span className="rounded-full bg-primary/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-primary">
-                          {t('opgaverPage.currentYearBadge')}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                  <button
+                    type="button"
+                    className={cn(
+                      'inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
+                      selectedSubjectKey === null
+                        ? 'border-primary/30 bg-primary/10 text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                    )}
+                    onClick={() => setSelectedSubjectKey(null)}
+                  >
+                    {t('opgaverPage.allSubjects')}
+                  </button>
+                  {displayedSubjectOptions.map(option => {
+                    const hue = getHoldHue(option.representativeHold);
+                    const active = selectedSubjectKey === option.key;
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
+                          active
+                            ? 'border-transparent'
+                            : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                        )}
+                        style={active ? {
+                          background: `oklch(0.94 0.05 ${hue})`,
+                          color: `oklch(0.38 0.12 ${hue})`,
+                          borderColor: `oklch(0.85 0.08 ${hue})`,
+                        } : undefined}
+                        onClick={() => setSelectedSubjectKey(active ? null : option.key)}
+                      >
+                        <span
+                          className="inline-block size-3 rounded-full"
+                          style={{ background: `oklch(0.58 0.18 ${hue})` }}
+                        />
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {subjectPillsOverflow && (
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
+                    aria-expanded={showAllSubjects}
+                    aria-controls="bl-opgaver-subject-pills"
+                    onClick={() => setShowAllSubjects(value => !value)}
+                  >
+                    <ChevronUp size={14} className={cn(!showAllSubjects && 'rotate-180')} />
+                    {showAllSubjects ? t('opgaverPage.showFewerSubjects') : t('opgaverPage.showAllSubjects')}
+                  </button>
+                )}
               </div>
             )}
 
-            {holds.length > 1 && (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-base font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
-                    selectedHold === null
-                      ? 'border-primary/30 bg-primary/10 text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                  onClick={() => setSelectedHold(null)}
-                >
-                  {t('opgaverPage.allSubjects')}
-                </button>
-                {holds.map(hold => {
-                  const hue = getHoldHue(hold);
-                  const active = selectedHold === hold;
-                  return (
-                    <button
-                      key={hold}
-                      type="button"
-                      className={cn(
-                        'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-base font-medium transition-[background-color,transform] duration-150 active:scale-[0.97]',
-                        active
-                          ? 'border-transparent'
-                          : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                      )}
-                      style={active ? {
-                        background: `oklch(0.94 0.05 ${hue})`,
-                        color: `oklch(0.38 0.12 ${hue})`,
-                        borderColor: `oklch(0.85 0.08 ${hue})`,
-                      } : undefined}
-                      onClick={() => setSelectedHold(active ? null : hold)}
-                    >
-                      <span
-                        className="inline-block size-3 rounded-full"
-                        style={{ background: `oklch(0.58 0.18 ${hue})` }}
-                      />
-                      {getHoldDisplayName(hold)}
-                    </button>
-                  );
-                })}
-              </div>
+            {hiddenSubjectsInSelectedYear > 0 && (
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground"
+                onClick={() => window.dispatchEvent(new CustomEvent('betterlectio:openSettings', { detail: { section: 'subjects' } }))}
+              >
+                <EyeOff size={14} />
+                {hiddenSubjectsInSelectedYear === 1
+                  ? t('opgaverPage.hiddenSubjectSingular', { n: String(hiddenSubjectsInSelectedYear) })
+                  : t('opgaverPage.hiddenSubjectPlural', { n: String(hiddenSubjectsInSelectedYear) })}
+              </button>
             )}
           </div>
         </div>
@@ -840,16 +985,16 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
       {/* ── Scrollable timeline viewport ───────── */}
       <div className="relative min-h-0 flex-1">
         {/* Top fade — hints at past content above */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-40 bg-gradient-to-b from-background via-background/40 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-background via-background/40 to-transparent" />
 
         {/* Bottom fade */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-20 bg-gradient-to-t from-background via-background/40 to-transparent" />
 
         <div
           ref={scrollRef}
           className="h-full overflow-y-auto px-10"
         >
-          <div className="mx-auto max-w-7xl pb-16 pt-28">
+          <div className="mx-auto max-w-7xl pb-12 pt-10">
             {/* ── Empty state ──────────────────── */}
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-8 py-20 text-center">
@@ -861,7 +1006,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
                     <button
                       type="button"
                       className="mt-6 rounded-xl border border-border bg-background px-6 py-3 text-base font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]"
-                      onClick={() => { setSearchQuery(''); setSelectedHold(null); setStatusFilter(null); setSelectedSchoolYear(null); }}
+                      onClick={() => { setSearchQuery(''); setSelectedSubjectKey(null); setStatusFilter(null); setSelectedSchoolYear(currentSchoolYear); }}
                     >
                       {t('opgaverPage.reset')}
                     </button>
@@ -1091,7 +1236,7 @@ function AssignmentRow({
           </span>
 
           {/* Grade — compact inline, primary visual for completed feedback */}
-          {entry.grade && <GradeBadge grade={entry.grade} />}
+          {isMeaningfulAssignmentGrade(entry.grade) && <GradeBadge grade={entry.grade} />}
 
           {/* Elevtimer */}
           {hasHours && (
@@ -1134,15 +1279,17 @@ function AssignmentRow({
           )}
         </div>
 
-        {/* Teacher feedback text — single truncated line combining karakternote + elevnote */}
-        {(entry.gradeExtra || entry.note) && (
+        {/* Grade feedback and assignment note are distinct Lectio fields. */}
+        {entry.gradeExtra && (
           <p className="mt-1 line-clamp-1 flex items-center gap-1.5 text-sm text-muted-foreground/70">
             <MessageSquareText size={12} className="shrink-0 opacity-60" aria-hidden />
-            <span className="truncate">
-              {entry.gradeExtra && <span className="italic">{entry.gradeExtra}</span>}
-              {entry.gradeExtra && entry.note && <span className="mx-1.5 opacity-40">&middot;</span>}
-              {entry.note}
-            </span>
+            <span className="truncate italic">{entry.gradeExtra}</span>
+          </p>
+        )}
+        {entry.note && (
+          <p className="mt-1 line-clamp-1 flex items-center gap-1.5 text-sm text-muted-foreground/70">
+            <FileText size={12} className="shrink-0 opacity-60" aria-hidden />
+            <span className="truncate">{entry.note}</span>
           </p>
         )}
       </div>
