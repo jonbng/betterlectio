@@ -67,6 +67,7 @@ import { getSchoolYearFromClassName } from "@/lib/class-name";
 import { capture, captureException, captureFeatureUsedOncePerSession, captureLoadCompleted, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, getPageSlug, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
+import { describeLectioHttpError, isReportableLectioHttpStatus } from "@/lib/lectio-http-error";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
 import { isExtensionContextInvalidatedError, isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
 import { safeGetManifest, safeRuntimeUrl } from "@/lib/safe-runtime";
@@ -865,7 +866,10 @@ function initLayout() {
       if (res.status >= 400) {
         const req = args[0] instanceof Request ? args[0] : null;
         const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : req!.url;
-        if (isLectioUrl(url)) {
+        // Drop transient Lectio gateway/availability failures (502–504).
+        // Keep 4xx and other 5xx responses: those may expose a bad request
+        // made by extension code.
+        if (isLectioUrl(url) && isReportableLectioHttpStatus(res.status)) {
           const opts = args[1];
           const method = opts?.method ?? req?.method ?? 'GET';
           const body = serializeBody(opts?.body ?? req?.body);
@@ -879,7 +883,8 @@ function initLayout() {
             const cloned = res.clone();
             responseBody = (await cloned.text()).slice(0, 1000);
           } catch { /* ignore */ }
-          captureException(new Error(`HTTP ${res.status} ${res.statusText}`), phDistinctId, {
+          const { message, fingerprint } = describeLectioHttpError(res.status, url, window.location.origin);
+          captureException(new Error(message), phDistinctId, {
             url,
             status: res.status,
             method,
@@ -887,13 +892,17 @@ function initLayout() {
             request_headers: headerObj,
             response_body: responseBody,
             query_params: new URL(url, window.location.origin).search || undefined,
+            $exception_fingerprint: fingerprint,
           });
         }
       }
       // Detect fetch redirected to login.aspx (session loss via 302 -> 200)
       if (res.redirected && res.url.includes('login.aspx') && isLectioUrl(res.url)) {
         const reqUrl = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-        captureException(new Error('Fetch redirected to login.aspx (session expired)'), phDistinctId, {
+        // Session expiry is user state, not an extension exception. Keep it as
+        // an explicit product event so the rate remains measurable without
+        // creating a fresh error-tracking issue for each minified build.
+        capture('auth_session_lost', phDistinctId, {
           source: 'fetch-session-loss',
           original_url: reqUrl,
           redirected_url: res.url,
@@ -918,13 +927,17 @@ function initLayout() {
     XMLHttpRequest.prototype.send = function (this: XMLHttpRequest & { __blMethod?: string; __blUrl?: string }, ...args: any[]) {
       const body = serializeBody(args[0]);
       this.addEventListener('loadend', () => {
-        if (this.status >= 400 && isLectioUrl(this.__blUrl ?? '')) {
-          captureException(new Error(`HTTP ${this.status} ${this.statusText}`), phDistinctId, {
+        // Drop transient Lectio gateway/availability failures (502–504), while
+        // retaining statuses that may expose a bad extension request.
+        if (isReportableLectioHttpStatus(this.status) && isLectioUrl(this.__blUrl ?? '')) {
+          const { message, fingerprint } = describeLectioHttpError(this.status, this.__blUrl ?? '', window.location.origin);
+          captureException(new Error(message), phDistinctId, {
             url: this.__blUrl,
             status: this.status,
             method: this.__blMethod ?? 'GET',
             request_body: body,
             query_params: (() => { try { return new URL(this.__blUrl!, window.location.origin).search || undefined; } catch { return undefined; } })(),
+            $exception_fingerprint: fingerprint,
           });
         }
       }, { once: true });
