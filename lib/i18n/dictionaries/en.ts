@@ -513,6 +513,7 @@ export const en = {
     elevfeedbackCloseEditor: 'Close editor',
     elevfeedbackLoading: 'Loading student notes...',
     elevfeedbackLoadError: 'Could not load student notes.',
+    elevfeedbackEditorOnly: 'Lectio opened this content in edit mode. Open the editor to view it safely.',
     elevfeedbackLoadTimeout: 'The Lectio editor is not responding. Try again, or open student notes directly in Lectio.',
     elevfeedbackSessionExpired: 'Your Lectio session has expired. Sign in to Lectio, then try again.',
     elevfeedbackEditorError: 'The Lectio editor could not be opened safely. Try again, or continue directly in Lectio.',

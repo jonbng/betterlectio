@@ -511,6 +511,7 @@ export const da = {
     elevfeedbackCloseEditor: 'Luk editor',
     elevfeedbackLoading: 'Henter elevfeedback...',
     elevfeedbackLoadError: 'Kunne ikke hente elevfeedback.',
+    elevfeedbackEditorOnly: 'Lectio har åbnet indholdet i redigeringstilstand. Åbn editoren for at se det sikkert.',
     elevfeedbackLoadTimeout: 'Lectios editor svarer ikke. Prøv igen, eller åbn elevfeedback direkte i Lectio.',
     elevfeedbackSessionExpired: 'Din Lectio-session er udløbet. Log ind igen i Lectio, og prøv derefter igen.',
     elevfeedbackEditorError: 'Lectios editor kunne ikke åbnes sikkert. Prøv igen, eller fortsæt direkte i Lectio.',

@@ -17,6 +17,12 @@ export interface ElevfeedbackSectionBlock {
 export interface ElevfeedbackDetail {
   url: string;
   writable: boolean;
+  /**
+   * Lectio sometimes serves the edit shell to a plain GET. Its textarea is
+   * populated asynchronously, so the response does not contain trustworthy
+   * committed content for the read-only surface.
+   */
+  contentUnavailable: boolean;
   empty: boolean;
   sections: ElevfeedbackSectionBlock[];
 }
@@ -166,29 +172,11 @@ function headingKind(heading: HTMLElement): {
 }
 
 function contentFromPaper(paper: HTMLElement): string {
-  const editorFallbacks = [
-    paper.querySelector<HTMLElement>("[id*='_backupContentDiv_']"),
-    paper.querySelector<HTMLElement>("[id*='_lv_']"),
-  ];
   const clone = paper.cloneNode(true) as HTMLElement;
   clone.querySelector(".ls-section-subgroup-heading")?.remove();
   clone.querySelectorAll("textarea, .cke, .alert, .nb_type_information").forEach((el) => el.remove());
   sanitizeFragment(clone);
-  const renderedHtml = clone.innerHTML.trim();
-  if (!isEmptyHtml(renderedHtml)) return renderedHtml;
-
-  // A direct GET can inherit Lectio's edit mode. Before CKEditor runs, its
-  // textarea is empty and the saved value lives in one of these hidden LC
-  // fallback nodes. Preserve that value for the read-only activity surface.
-  for (const fallback of editorFallbacks) {
-    if (!fallback) continue;
-    const safeFallback = fallback.cloneNode(true) as HTMLElement;
-    sanitizeFragment(safeFallback);
-    const fallbackHtml = safeFallback.innerHTML.trim();
-    if (!isEmptyHtml(fallbackHtml)) return fallbackHtml;
-  }
-
-  return "";
+  return clone.innerHTML.trim();
 }
 
 function parsePaperSections(container: HTMLElement): ElevfeedbackSectionBlock[] {
@@ -252,6 +240,7 @@ function parseArticleSections(container: HTMLElement): ElevfeedbackSectionBlock[
 }
 
 export function parseElevfeedbackDetail(doc: Document, url: string): ElevfeedbackDetail {
+  const isEditMode = !!doc.querySelector("textarea[lectio-role='editor-textarea']");
   const writable = !!doc.querySelector(
     "#s_m_Content_Content_Elevindhold_tocAndToolbar_editModeBtn, [id$='_editModeBtn'], textarea[lectio-role='editor-textarea']",
   );
@@ -267,10 +256,12 @@ export function parseElevfeedbackDetail(doc: Document, url: string): Elevfeedbac
 
   const teacher = sections.filter((section) => section.kind === "teacher");
   const students = sections.filter((section) => section.kind === "student");
+  const contentUnavailable = isEditMode && sections.length === 0;
 
   return {
     url,
     writable,
+    contentUnavailable,
     empty: sections.length === 0,
     sections: [...teacher, ...students],
   };

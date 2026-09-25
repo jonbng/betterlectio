@@ -81,7 +81,8 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
   }, [load, refInfo.url]);
 
   const writable = detail?.writable ?? false;
-  const empty = detail ? detail.empty : refInfo.empty;
+  const contentUnavailable = detail?.contentUnavailable ?? false;
+  const empty = detail ? (contentUnavailable ? refInfo.empty : detail.empty) : refInfo.empty;
   const teacherSections = useMemo(
     () => (detail?.sections ?? []).filter((section) => section.kind === "teacher"),
     [detail?.sections],
@@ -136,6 +137,27 @@ export function ElevfeedbackSection({ refInfo, studentsMap, className }: Elevfee
             {t("activityModal.retry")}
           </button>
         </div>
+      ) : contentUnavailable ? (
+        <button
+          type="button"
+          onClick={writable ? openEditor : undefined}
+          disabled={!writable}
+          className={cn(
+            "relative w-full overflow-hidden rounded-xl border border-dashed border-border px-4 py-5 text-left transition-[border-color,background-color] duration-150",
+            PAPER_RULE,
+            writable
+              ? "cursor-pointer hover:border-[oklch(0.58_0.18_var(--accent-hue,265)/0.45)] hover:bg-[oklch(0.58_0.18_var(--accent-hue,265)/0.04)]"
+              : "cursor-default",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className="absolute inset-y-3 left-0 w-[3px] rounded-full bg-[oklch(0.58_0.18_var(--accent-hue,265)/0.55)] dark:bg-[oklch(0.6_0.13_var(--accent-hue,265)/0.55)]"
+          />
+          <p className="m-0 pl-3 text-base leading-relaxed text-muted-foreground text-pretty">
+            {t("activityModal.elevfeedbackEditorOnly")}
+          </p>
+        </button>
       ) : empty ? (
         <button
           type="button"
