@@ -33,10 +33,10 @@ export async function sendMutation(opts: Omit<MutateMessage, 'type'>): Promise<S
   return send({ type: 'bl-sb:mutate', ...opts });
 }
 
-function isAuthorizationError(resp: SupabaseResponse): boolean {
+export function isRpcAuthorizationError(resp: SupabaseResponse): boolean {
   if (resp.ok) return false;
   const message = typeof resp.error === 'string' ? resp.error : '';
-  return /\bunauthorized\b/i.test(message);
+  return /\bunauthorized\b|\bpermission denied for function\b/i.test(message);
 }
 
 function extractRpcIdentity(args: Record<string, unknown>): {
@@ -96,9 +96,11 @@ export async function sendRpc(fn: FunctionName, args: Record<string, unknown>): 
   // usually means the session is stale (different Lectio user on a
   // shared device, or a students row whose `supabase_id` never landed).
   // Sign out + reauth via QR and retry the RPC once. The reauth helper
-  // is deduped + cooldown-gated, so a burst of mutations (e.g. the
+  // PostgREST can also report `permission denied for function` while a stale
+  // or anonymous token is in flight; treat that as the same recoverable state.
+  // The reauth helper is deduped + cooldown-gated, so a burst of mutations (e.g. the
   // 40-upsert hold-mapping seed loop) drives at most one reauth.
-  if (isAuthorizationError(resp)) {
+  if (isRpcAuthorizationError(resp)) {
     const { schoolId, studentId } = extractRpcIdentity(args);
     if (schoolId) {
       const { forceReauthenticate } = await import('./session');

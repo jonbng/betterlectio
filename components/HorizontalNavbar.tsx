@@ -66,7 +66,7 @@ import {
 import { armBypass } from '@/lib/bypass-redesigns';
 import { captureBypassEngaged } from '@/lib/bypass-analytics';
 import { reset as resetPostHog } from '@/lib/posthog';
-import { markLogoutIntent } from '@/lib/logout-tracking';
+import { flushLogoutAnalytics, markLogoutIntent } from '@/lib/logout-tracking';
 import { MOBILE_APP_INVITE_OPEN_EVENT } from './MobileAppInvitePopup';
 import {
   activateNativeNavigationItem,
@@ -394,9 +394,10 @@ export function HorizontalNavbar({ snapshot }: HorizontalNavbarProps) {
     await Promise.race([captureBypassEngaged(), new Promise((resolve) => setTimeout(resolve, 1500))]);
     window.location.reload();
   };
-  const logout = () => {
+  const logout = async () => {
     markLogoutIntent(schoolId);
     clearLoginState();
+    await flushLogoutAnalytics();
     resetPostHog();
     fetch(`${baseUrl}/logout.aspx`, { credentials: 'include' })
       .catch(() => {})

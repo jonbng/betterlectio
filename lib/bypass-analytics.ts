@@ -5,17 +5,15 @@
 // occurrence to be loud and easy to find in PostHog, with enough context to
 // reproduce without a follow-up conversation:
 //
-//   - a named event (`betterlectio bypass engaged`)
-//   - a paired `captureException` so it surfaces in Error Tracking too
+//   - a named event (`betterlectio_bypass_engaged`)
 //   - identity + page + settings + viewport + recent navigation
 //   - any native Lectio error popup that was visible at the moment of click
 //
-// Both calls are flushed synchronously before the reload so the request isn't
-// aborted by the page unload.
+// The event is flushed before the reload so the request isn't aborted by the
+// page unload.
 
 import {
   capture,
-  captureException,
   flushAnalytics,
   getDistinctId,
   getPageSlug,
@@ -25,8 +23,6 @@ import { getSettings } from '@/lib/settings-storage';
 import { getThemePreferenceForSchool } from '@/lib/theme-storage';
 import { getSchoolYearFromClassName } from '@/lib/class-name';
 import { getRecentUrls } from '@/lib/url-history';
-
-const BYPASS_EXCEPTION_FINGERPRINT = 'betterlectio-bypass-engaged';
 
 interface VisibleLectioError {
   title: string;
@@ -75,10 +71,10 @@ function getLectioVersion(): string | undefined {
 }
 
 /**
- * Capture both a `betterlectio bypass engaged` analytics event and a paired
- * `$exception` so the signal is visible in both PostHog surfaces. Returns only
- * after PostHog's HTTP flush resolves so a subsequent `window.location.reload()`
- * doesn't abort the in-flight request.
+ * Capture a `betterlectio_bypass_engaged` product event. A user choosing the
+ * fallback is useful UX telemetry, but it is not itself an exception. Returns
+ * only after PostHog's HTTP flush resolves so a subsequent reload does not
+ * abort the in-flight request.
  *
  * No-op when the user isn't identified (mirrors posthog.ts policy — we never
  * send anonymous events).
@@ -149,17 +145,6 @@ export async function captureBypassEngaged(
     };
 
     capture('betterlectio_bypass_engaged', distinctId, props);
-    captureException(
-      new Error(
-        'User engaged BetterLectio bypass — redesign suspected broken on this page',
-      ),
-      distinctId,
-      {
-        ...props,
-        source: 'bypass_button',
-        $exception_fingerprint: BYPASS_EXCEPTION_FINGERPRINT,
-      },
-    );
 
     // Wait for HTTP flush before the caller reloads so the request isn't
     // cancelled by the page unload.

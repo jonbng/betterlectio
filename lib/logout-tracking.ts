@@ -1,5 +1,14 @@
+import {
+  ANALYTICS_EVENTS,
+  capture,
+  flushAnalytics,
+  getContentDistinctId,
+} from '@/lib/posthog';
+
 const AUTH_ACTIVITY_KEY = 'bl-last-authenticated-activity';
 const LOGOUT_INTENT_KEY = 'bl-last-logout-intent';
+const LOGOUT_CAPTURE_DEDUPE_MS = 5_000;
+const LOGOUT_FLUSH_TIMEOUT_MS = 1_000;
 
 export interface AuthenticatedActivity {
   schoolId: string | null;
@@ -40,10 +49,34 @@ export function getLastAuthenticatedActivity(): AuthenticatedActivity | null {
 }
 
 export function markLogoutIntent(schoolId: string | null): void {
+  const now = Date.now();
+  const previousIntent = readJson<LogoutIntent>(LOGOUT_INTENT_KEY);
   writeJson(LOGOUT_INTENT_KEY, {
     schoolId,
-    timestamp: Date.now(),
+    timestamp: now,
   } satisfies LogoutIntent);
+
+  // Native and custom navigation surfaces both call this helper. Capture once
+  // before navigation tears down the content script, then begin flushing.
+  try {
+    if (previousIntent && now - previousIntent.timestamp < LOGOUT_CAPTURE_DEDUPE_MS) return;
+    const distinctId = getContentDistinctId();
+    if (!distinctId) return;
+    capture(ANALYTICS_EVENTS.authLoggedOut, distinctId, {
+      school_id: schoolId ?? undefined,
+      source: 'user_initiated',
+    });
+    void flushLogoutAnalytics();
+  } catch {
+    // Logout must never depend on analytics.
+  }
+}
+
+export async function flushLogoutAnalytics(): Promise<void> {
+  await Promise.race([
+    flushAnalytics(),
+    new Promise<void>((resolve) => setTimeout(resolve, LOGOUT_FLUSH_TIMEOUT_MS)),
+  ]);
 }
 
 export function getLastLogoutIntent(): LogoutIntent | null {

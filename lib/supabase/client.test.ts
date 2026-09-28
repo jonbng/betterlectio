@@ -35,7 +35,7 @@ let cacheReadCount = 0;
   },
 };
 
-const { cachedQuery } = await import('./client');
+const { cachedQuery, isRpcAuthorizationError } = await import('./client');
 const { cacheKey, queryFingerprint, writeCache } = await import('./cache');
 
 test('cachedQuery bypassCache fetches and overwrites the query cache entry', async () => {
@@ -63,4 +63,20 @@ test('cachedQuery bypassCache fetches and overwrites the query cache entry', asy
   assert.equal(queryCount, 1);
   assert.equal(cacheReadCount, 1);
   assert.deepEqual((storage.get(key) as { data: unknown }).data, [{ id: 'network-result' }]);
+});
+
+test('isRpcAuthorizationError recognizes ownership and function grant failures', () => {
+  assert.equal(isRpcAuthorizationError({ ok: false, error: 'Unauthorized' }), true);
+  assert.equal(
+    isRpcAuthorizationError({
+      ok: false,
+      error: 'permission denied for function touch_student_last_seen',
+    }),
+    true,
+  );
+});
+
+test('isRpcAuthorizationError does not retry unrelated RPC failures', () => {
+  assert.equal(isRpcAuthorizationError({ ok: false, error: 'invalid input syntax' }), false);
+  assert.equal(isRpcAuthorizationError({ ok: true }), false);
 });

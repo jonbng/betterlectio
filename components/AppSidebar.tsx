@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '@/lib/i18n';
 import { reset as resetPostHog } from '@/lib/posthog';
 import { safeRuntimeUrl } from '@/lib/safe-runtime';
-import { markLogoutIntent } from '@/lib/logout-tracking';
+import { flushLogoutAnalytics, markLogoutIntent } from '@/lib/logout-tracking';
 import {
   Calendar,
   FileText,
@@ -719,10 +719,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 <div className="p-1.5 border-t border-border/50">
                   <a
                     href={`${baseUrl}/logout.aspx`}
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.preventDefault();
                       markLogoutIntent(schoolId);
                       clearLoginState();
+                      await flushLogoutAnalytics();
                       resetPostHog();
                       const logoutUrl = new URL(`${baseUrl}/logout.aspx`, window.location.origin).href;
                       fetch(logoutUrl, { credentials: 'include' })
