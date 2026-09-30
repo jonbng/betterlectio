@@ -84,6 +84,20 @@ describe('getCanonicalHoldKey', () => {
     assert.equal(getCanonicalHoldKey('KIT'), 'kit');
   });
 
+  test('maps known compound subject tokens onto their specific subject', () => {
+    assert.equal(getCanonicalHoldKey('2vhf ks-sa'), 'sa');
+    assert.equal(getCanonicalHoldKey('2vhf ks-Hi'), 'hi');
+    assert.equal(getCanonicalHoldKey('2hf ks-re'), 're');
+    assert.equal(getCanonicalHoldKey('2vhf ks-sa/b'), 'sa');
+  });
+
+  test('preserves legacy level and school-specific subject suffix handling', () => {
+    assert.equal(getCanonicalHoldKey('1x MA-A'), 'ma');
+    assert.equal(getCanonicalHoldKey('1x FY-grp'), 'fy');
+    assert.equal(getCanonicalHoldKey('2vhf ks-grp'), 'ks');
+    assert.equal(getCanonicalHoldKey('2vhf unknown-sa'), null);
+  });
+
   test('maps EUC Nord underscore-delimited holds onto the subject', () => {
     assert.equal(getCanonicalHoldKey('h24hhxe_3e_AfsætningA'), 'af');
     assert.equal(getCanonicalHoldKey('h24hhxe_3e_EngelskA'), 'en');
@@ -102,5 +116,12 @@ describe('getSubjectIdentityKey', () => {
     assert.equal(getSubjectIdentityKey('1x FY'), 'subject:fy');
     assert.equal(getSubjectIdentityKey('  Projekt   Alpha '), 'hold:projekt alpha');
     assert.notEqual(getSubjectIdentityKey('Projekt Alpha'), getSubjectIdentityKey('Projekt Beta'));
+  });
+
+  test('keeps compound subjects separate by their specific subject', () => {
+    assert.equal(getSubjectIdentityKey('2vhf ks-sa'), 'subject:sa');
+    assert.equal(getSubjectIdentityKey('2vhf ks-Hi'), 'subject:hi');
+    assert.equal(getSubjectIdentityKey('2hf ks-re'), 'subject:re');
+    assert.notEqual(getSubjectIdentityKey('2vhf ks-sa'), getSubjectIdentityKey('2vhf ks-Hi'));
   });
 });

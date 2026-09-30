@@ -480,6 +480,48 @@ function stripSubjectLevelSuffix(token: string): string {
   return token.replace(/(?:-[a-zæøå]+|\/[a-zæøå0-9])$/i, '');
 }
 
+function resolveCompoundSubjectToken(token: string): { canonicalKey: string; defaultName: string } | null {
+  const match = token.match(/^(.+)-([a-zæøå]+)$/i);
+  if (!match) return null;
+
+  const [, categoryToken, subjectToken] = match;
+  if (!resolveCanonicalLesson(categoryToken)) return null;
+
+  return resolveCanonicalLesson(subjectToken);
+}
+
+function resolveSubjectToken(token: string): {
+  resolved: { canonicalKey: string; defaultName: string };
+  effectiveToken: string;
+} | null {
+  const direct = resolveCanonicalLesson(token);
+  if (direct) return { resolved: direct, effectiveToken: token };
+
+  const compound = resolveCompoundSubjectToken(token);
+  if (compound) {
+    return {
+      resolved: compound,
+      effectiveToken: token.slice(token.lastIndexOf('-') + 1),
+    };
+  }
+
+  // Keep the legacy school-specific suffix behavior, but only after checking
+  // whether both sides describe known subjects (for example `ks-sa`).
+  const strippedToken = stripSubjectLevelSuffix(token);
+  if (strippedToken === token) return null;
+
+  const strippedDirect = resolveCanonicalLesson(strippedToken);
+  if (strippedDirect) return { resolved: strippedDirect, effectiveToken: strippedToken };
+
+  const strippedCompound = resolveCompoundSubjectToken(strippedToken);
+  if (!strippedCompound) return null;
+
+  return {
+    resolved: strippedCompound,
+    effectiveToken: strippedToken.slice(strippedToken.lastIndexOf('-') + 1),
+  };
+}
+
 function getDefaultHue(canonicalKey: string): number {
   return SUBJECT_DEFAULT_HUES[canonicalKey] ?? hashToHue(canonicalKey);
 }
@@ -513,10 +555,9 @@ function resolveStandaloneSubject(holdCode: string): HoldDescriptor | null {
   if (!match) return null;
 
   const [, token, suffix] = match;
-  const strippedToken = stripSubjectLevelSuffix(token);
-  const resolved = resolveCanonicalLesson(strippedToken);
+  const subject = resolveSubjectToken(token);
   const trimmedSuffix = suffix.trim();
-  if (!resolved || !isAutoDetectableSubjectSuffix(strippedToken, trimmedSuffix)) {
+  if (!subject || !isAutoDetectableSubjectSuffix(subject.effectiveToken, trimmedSuffix)) {
     return null;
   }
 
@@ -525,8 +566,8 @@ function resolveStandaloneSubject(holdCode: string): HoldDescriptor | null {
     prefix: null,
     suffix,
     classification: 'mapping',
-    canonicalKey: resolved.canonicalKey,
-    defaultName: resolved.defaultName,
+    canonicalKey: subject.resolved.canonicalKey,
+    defaultName: subject.resolved.defaultName,
   };
 }
 
@@ -536,6 +577,9 @@ function resolveCompactSubject(value: string): {
 } | null {
   const direct = resolveCanonicalLesson(value.replace(/_/g, ' '));
   if (direct) return { resolved: direct, suffix: '' };
+
+  const compound = resolveCompoundSubjectToken(value.replace(/_/g, ' '));
+  if (compound) return { resolved: compound, suffix: '' };
 
   const separatedLevel = value.match(/^(.+?)([_-][ABC])$/i);
   if (separatedLevel) {
@@ -624,17 +668,16 @@ function analyzeHold(holdCode: string): HoldDescriptor {
     };
   }
 
-  const normalizedSubjectToken = stripSubjectLevelSuffix(subjectToken);
-  const resolved = resolveCanonicalLesson(normalizedSubjectToken);
+  const subject = resolveSubjectToken(subjectToken);
   const trimmedSuffix = suffix.trim();
-  if (resolved && isAutoDetectableSubjectSuffix(normalizedSubjectToken, trimmedSuffix)) {
+  if (subject && isAutoDetectableSubjectSuffix(subject.effectiveToken, trimmedSuffix)) {
     return {
       holdCode: normalizedHoldCode,
       prefix,
       suffix,
       classification: 'mapping',
-      canonicalKey: resolved.canonicalKey,
-      defaultName: resolved.defaultName,
+      canonicalKey: subject.resolved.canonicalKey,
+      defaultName: subject.resolved.defaultName,
     };
   }
 
