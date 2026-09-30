@@ -163,6 +163,8 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   afs: 'Afsætning',
   in: 'Innovation',
   mak: 'Makroøkonomisk analyse',
+  idehis: 'Idehistorie',
+  sop: 'Studieområdeprojekt',
 };
 
 const SUBJECT_NAME_LOOKUP = new Map<string, string>();
@@ -194,6 +196,7 @@ const SUBJECT_DEFAULT_HUES: Record<string, number> = {
   ff: 172,
   ks: 186,
   ol: 40,
+  ih: 262,
 
   ma: 235,
   fy: 248,
@@ -230,6 +233,7 @@ const SUBJECT_DEFAULT_HUES: Record<string, number> = {
   at: 188,
   srp: 280,
   sro: 300,
+  sop: 280,
 };
 
 const IGNORED_HOLD_PATTERNS = [
@@ -614,6 +618,35 @@ function resolveUnderscoreDelimitedHold(holdCode: string): HoldDescriptor | null
   return null;
 }
 
+/**
+ * Some schools join class and subject with a hyphen and append the level
+ * letter to the subject, e.g. `1abc-dana` (class `1abc`, Dansk A) or
+ * `1abc-fysb`.
+ */
+function resolveHyphenatedHold(holdCode: string): HoldDescriptor | null {
+  if (/\s/.test(holdCode)) return null;
+  const separatorIndex = holdCode.lastIndexOf('-');
+  if (separatorIndex <= 0) return null;
+
+  const prefix = holdCode.slice(0, separatorIndex);
+  const subjectToken = holdCode.slice(separatorIndex + 1);
+  if (!prefix || !subjectToken || !looksLikeAcademicClassPrefix(prefix)) return null;
+
+  const resolved =
+    resolveCanonicalLesson(subjectToken) ??
+    (/^[a-zæøå]{3,}[abc]$/i.test(subjectToken) ? resolveCanonicalLesson(subjectToken.slice(0, -1)) : null);
+  if (!resolved) return null;
+
+  return {
+    holdCode,
+    prefix,
+    suffix: '',
+    classification: 'mapping',
+    canonicalKey: resolved.canonicalKey,
+    defaultName: resolved.defaultName,
+  };
+}
+
 function analyzeHold(holdCode: string): HoldDescriptor {
   const normalizedHoldCode = normalizeWhitespace(holdCode);
   if (!normalizedHoldCode) {
@@ -643,6 +676,9 @@ function analyzeHold(holdCode: string): HoldDescriptor {
 
   const underscoreDelimited = resolveUnderscoreDelimitedHold(normalizedHoldCode);
   if (underscoreDelimited) return underscoreDelimited;
+
+  const hyphenated = resolveHyphenatedHold(normalizedHoldCode);
+  if (hyphenated) return hyphenated;
 
   const match = normalizedHoldCode.match(/^(\S+)\s+(\S+)(.*)$/);
   if (!match) {
