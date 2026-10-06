@@ -28,7 +28,7 @@ export default defineConfig({
     description: 'Gør Lectio suverent bedre. Installér mobil appen også!',
     // No `version` key — WXT falls back to package.json's version, which
     // .github/workflows/release.yml bumps. Keeping it in one place only.
-    author: 'Jonathan Bangert <betterlectio@jonathanb.dk>' as any,
+    author: 'Jonathan Bangert',
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
       default_title: isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
