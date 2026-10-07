@@ -30,8 +30,7 @@ const corsHeaders: Record<string, string> = {
 const ELEVID_RE = /^[0-9A-Za-z_-]{1,48}$/;
 const DOWNLOAD_BASE = 'https://betterlectio.dk/download?ref=1';
 const REFERRAL_BASE = 'https://betterlectio.dk/r';
-const PLAY_STORE_BASE =
-  'https://play.google.com/store/apps/details?id=dk.betterlectio.android';
+const PLAY_STORE_BASE = 'https://play.google.com/store/apps/details?id=dk.betterlectio.android';
 const COOKIE_NAME = 'bl_ref';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // 180d
 const MAX_CLICKS_PER_IP_PER_MINUTE = 30;
@@ -64,21 +63,43 @@ function isAndroidUa(ua: string | null): boolean {
 
 function isAutomatedPreviewUa(ua: string | null): boolean {
   if (!ua) return false;
-  return /(?:\bbot\b|crawler|spider|preview|facebookexternalhit|Google-Calendar-Importer)/i.test(ua);
+  return /(?:bot|crawler|spider|preview|facebookexternalhit|Google-Calendar-Importer|Google-Lens|WhatsApp\/)/i.test(
+    ua,
+  );
 }
 
 function coarseUserAgent(ua: string | null): string | null {
   if (!ua) return null;
-  const platform = /Android/i.test(ua) ? 'android' : /iPhone|iPad|iPod/i.test(ua) ? 'ios' :
-    /Windows/i.test(ua) ? 'windows' : /Macintosh/i.test(ua) ? 'macos' : /Linux/i.test(ua) ? 'linux' : 'other';
-  const browser = /Firefox/i.test(ua) ? 'firefox' : /Edg\//i.test(ua) ? 'edge' :
-    /Chrome|CriOS/i.test(ua) ? 'chrome' : /Safari/i.test(ua) ? 'safari' : 'other';
+  const platform = /Android/i.test(ua)
+    ? 'android'
+    : /iPhone|iPad|iPod/i.test(ua)
+      ? 'ios'
+      : /Windows/i.test(ua)
+        ? 'windows'
+        : /Macintosh/i.test(ua)
+          ? 'macos'
+          : /Linux/i.test(ua)
+            ? 'linux'
+            : 'other';
+  const browser = /Firefox/i.test(ua)
+    ? 'firefox'
+    : /Edg\//i.test(ua)
+      ? 'edge'
+      : /Chrome|CriOS/i.test(ua)
+        ? 'chrome'
+        : /Safari/i.test(ua)
+          ? 'safari'
+          : 'other';
   return `${platform}/${browser}`;
 }
 
 function refererOrigin(value: string | null): string | null {
   if (!value) return null;
-  try { return new URL(value).origin; } catch { return null; }
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
 }
 
 function downloadUrl(cookieId?: string): string {
@@ -114,7 +135,10 @@ Deno.serve(async (req: Request) => {
   }
 
   if (req.method !== 'GET') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
+    return new Response('Method not allowed', {
+      status: 405,
+      headers: corsHeaders,
+    });
   }
 
   const url = new URL(req.url);
@@ -155,7 +179,8 @@ Deno.serve(async (req: Request) => {
     if (validateDelivery) {
       const token = url.searchParams.get('token') ?? '';
       if (!/^[0-9a-f-]{36}$/i.test(token)) return jsonResponse({ valid: false });
-      const { data: click } = await supabaseAdmin.from('referral_clicks')
+      const { data: click } = await supabaseAdmin
+        .from('referral_clicks')
         .select('cookie_id')
         .eq('cookie_id', token)
         .eq('referrer_student_id', ref)
@@ -181,8 +206,7 @@ Deno.serve(async (req: Request) => {
 
     const cookieId = crypto.randomUUID();
     const referer = refererOrigin(req.headers.get('referer'));
-    const country =
-      req.headers.get('cf-ipcountry') ?? req.headers.get('x-vercel-ip-country');
+    const country = req.headers.get('cf-ipcountry') ?? req.headers.get('x-vercel-ip-country');
     const ip = getClientIp(req);
     // Daily rotation prevents the hash from becoming a long-lived identifier.
     const day = new Date().toISOString().slice(0, 10);
@@ -191,15 +215,23 @@ Deno.serve(async (req: Request) => {
 
     const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
     const [{ count: referrerRate }, ipRateResult] = await Promise.all([
-      supabaseAdmin.from('referral_clicks').select('id', { count: 'exact', head: true })
-        .eq('referrer_student_id', ref).gte('created_at', oneMinuteAgo),
+      supabaseAdmin
+        .from('referral_clicks')
+        .select('id', { count: 'exact', head: true })
+        .eq('referrer_student_id', ref)
+        .gte('created_at', oneMinuteAgo),
       ipHash
-        ? supabaseAdmin.from('referral_clicks').select('id', { count: 'exact', head: true })
-          .eq('ip_hash', ipHash).gte('created_at', oneMinuteAgo)
+        ? supabaseAdmin
+            .from('referral_clicks')
+            .select('id', { count: 'exact', head: true })
+            .eq('ip_hash', ipHash)
+            .gte('created_at', oneMinuteAgo)
         : Promise.resolve({ count: 0, error: null }),
     ]);
-    if ((referrerRate ?? 0) >= MAX_CLICKS_PER_REFERRER_PER_MINUTE ||
-        (ipRateResult.count ?? 0) >= MAX_CLICKS_PER_IP_PER_MINUTE) {
+    if (
+      (referrerRate ?? 0) >= MAX_CLICKS_PER_REFERRER_PER_MINUTE ||
+      (ipRateResult.count ?? 0) >= MAX_CLICKS_PER_IP_PER_MINUTE
+    ) {
       console.warn('[referral-click] rate limit reached', { ref });
       if (jsonDelivery) return jsonResponse({ error: 'rate_limited' }, 429);
       return redirectResponse(android ? PLAY_STORE_BASE : downloadUrl());
@@ -210,18 +242,16 @@ Deno.serve(async (req: Request) => {
     // would later look it up, get nothing, and silently drop the
     // attribution. Better to redirect with no cookie so the user's next
     // click can try again on a healthy DB.
-    const { error: insertError } = await supabaseAdmin
-      .from('referral_clicks')
-      .insert({
-        cookie_id: cookieId,
-        referrer_student_id: ref,
-        user_agent: coarseUserAgent(userAgent),
-        referer,
-        landing_url: landingUrl,
-        ip_hash: ipHash,
-        country,
-        city: null,
-      });
+    const { error: insertError } = await supabaseAdmin.from('referral_clicks').insert({
+      cookie_id: cookieId,
+      referrer_student_id: ref,
+      user_agent: coarseUserAgent(userAgent),
+      referer,
+      landing_url: landingUrl,
+      ip_hash: ipHash,
+      country,
+      city: null,
+    });
 
     if (insertError) {
       console.error('[referral-click] insert failed', insertError);
@@ -239,7 +269,10 @@ Deno.serve(async (req: Request) => {
     ].join('; ');
 
     if (jsonDelivery) {
-      return jsonResponse({ cookieId, referralUrl: iosLandingUrl(ref, cookieId) });
+      return jsonResponse({
+        cookieId,
+        referralUrl: iosLandingUrl(ref, cookieId),
+      });
     }
 
     const destination = android

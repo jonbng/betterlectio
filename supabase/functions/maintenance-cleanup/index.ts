@@ -11,26 +11,27 @@ Deno.serve(async (req: Request) => {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
   const { data: failed, error: listError } = await admin
     .from('profile_picture_submissions')
-    .select('storage_path')
+    .select('id, storage_path, lectio_storage_path')
     .eq('status', 'failed')
     .lt('updated_at', cutoff);
   if (listError) return Response.json({ error: listError.message }, { status: 500 });
 
   const { data: reviewed, error: reviewedError } = await admin
     .from('profile_picture_submissions')
-    .select('storage_path')
+    .select('id, storage_path, lectio_storage_path')
     .in('status', ['approved', 'rejected'])
     .is('source_deleted_at', null)
     .lt('reviewed_at', new Date(Date.now() - 60 * 60_000).toISOString());
   if (reviewedError) return Response.json({ error: reviewedError.message }, { status: 500 });
 
-  const paths = [...new Set([...(failed ?? []), ...(reviewed ?? [])].map((row) => row.storage_path))];
+  const rows = [...(failed ?? []), ...(reviewed ?? [])];
+  const paths = [...new Set(rows.flatMap((row) => [row.storage_path, row.lectio_storage_path]).filter(Boolean))] as string[];
   if (paths.length) {
     const { error } = await admin.storage.from('profile-picture-submissions').remove(paths);
     if (error) return Response.json({ error: error.message }, { status: 500 });
     await admin.from('profile_picture_submissions')
       .update({ source_deleted_at: new Date().toISOString() })
-      .in('storage_path', paths);
+      .in('id', rows.map((row) => row.id));
   }
   const { data, error } = await admin.rpc('cleanup_referral_and_profile_upload_data');
   if (error) return Response.json({ error: error.message }, { status: 500 });

@@ -78,6 +78,9 @@ export async function sendProfilePictureSubmission(opts: {
   dataBase64: string;
   contentType: string;
   fileName: string;
+  lectioDataBase64: string;
+  lectioContentType: string;
+  lectioFileName: string;
 }): Promise<SupabaseResponse> {
   return send({
     type: 'bl-sb:profile-picture:submit',

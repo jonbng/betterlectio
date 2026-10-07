@@ -29,10 +29,15 @@ const baseCorsHeaders: Record<string, string> = {
 
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('origin') ?? '';
-  const allowed = origin === 'https://betterlectio.dk' ||
+  const allowed =
+    origin === 'https://betterlectio.dk' ||
     /^chrome-extension:\/\/[a-z]{32}$/.test(origin) ||
     /^moz-extension:\/\/[0-9a-f-]+$/i.test(origin);
-  return { ...baseCorsHeaders, 'Access-Control-Allow-Origin': allowed ? origin : 'https://betterlectio.dk', Vary: 'Origin' };
+  return {
+    ...baseCorsHeaders,
+    'Access-Control-Allow-Origin': allowed ? origin : 'https://betterlectio.dk',
+    Vary: 'Origin',
+  };
 }
 
 const COOKIE_NAME = 'bl_ref';
@@ -49,8 +54,25 @@ type RejectionReason =
   | 'returning_user'
   | 'expired';
 
-function jsonResponse(req: Request, body: Record<string, unknown>, status = 200, extraHeaders?: HeadersInit): Response {
-  const headers = new Headers({ ...corsHeaders(req), 'Content-Type': 'application/json' });
+type FinalizationAttempt = {
+  studentId: string;
+  referralClickId?: string | null;
+  platform: Platform;
+  outcome: 'attributed' | 'rejected';
+  reason?: string | null;
+  clientVersion?: string | null;
+};
+
+function jsonResponse(
+  req: Request,
+  body: Record<string, unknown>,
+  status = 200,
+  extraHeaders?: HeadersInit,
+): Response {
+  const headers = new Headers({
+    ...corsHeaders(req),
+    'Content-Type': 'application/json',
+  });
   if (extraHeaders) {
     new Headers(extraHeaders).forEach((value, key) => headers.append(key, value));
   }
@@ -68,14 +90,24 @@ function parseCookie(req: Request, name: string): string | null {
 }
 
 function clearCookieHeader(): string {
-  return [
-    `${COOKIE_NAME}=`,
-    'Max-Age=0',
-    'Path=/',
-    'Secure',
-    'HttpOnly',
-    'SameSite=None',
-  ].join('; ');
+  return [`${COOKIE_NAME}=`, 'Max-Age=0', 'Path=/', 'Secure', 'HttpOnly', 'SameSite=None'].join(
+    '; ',
+  );
+}
+
+async function recordFinalizationAttempt(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  attempt: FinalizationAttempt,
+): Promise<void> {
+  const { error } = await supabaseAdmin.from('referral_finalization_attempts').insert({
+    student_id: attempt.studentId,
+    referral_click_id: attempt.referralClickId ?? null,
+    platform: attempt.platform,
+    outcome: attempt.outcome,
+    reason: attempt.reason ?? null,
+    client_version: attempt.clientVersion ?? null,
+  });
+  if (error) console.error('[referral-finalize] attempt telemetry failed', error);
 }
 
 async function capturePostHog(
@@ -97,7 +129,11 @@ async function capturePostHog(
         api_key: apiKey,
         event,
         distinct_id: distinctId,
-        properties: { ...properties, $lib: 'supabase-edge', source: 'referral-finalize' },
+        properties: {
+          ...properties,
+          $lib: 'supabase-edge',
+          source: 'referral-finalize',
+        },
       }),
     });
   } catch {
@@ -123,6 +159,7 @@ Deno.serve(async (req: Request) => {
     studentId?: unknown;
     schoolId?: unknown;
     extensionVersion?: unknown;
+    clientVersion?: unknown;
     cookieId?: unknown;
     platform?: unknown;
   };
@@ -134,12 +171,14 @@ Deno.serve(async (req: Request) => {
 
   const studentId = typeof body.studentId === 'string' ? body.studentId : '';
   const schoolId = typeof body.schoolId === 'number' ? body.schoolId : null;
-  const extensionVersion = typeof body.extensionVersion === 'string' ? body.extensionVersion : null;
-  const platform: Platform = body.platform === 'android'
-    ? 'android'
-    : body.platform === 'ios'
-      ? 'ios'
-      : 'extension';
+  const clientVersion =
+    typeof body.clientVersion === 'string'
+      ? body.clientVersion
+      : typeof body.extensionVersion === 'string'
+        ? body.extensionVersion
+        : null;
+  const platform: Platform =
+    body.platform === 'android' ? 'android' : body.platform === 'ios' ? 'ios' : 'extension';
   const cookieFromBody =
     typeof body.cookieId === 'string' && UUID_RE.test(body.cookieId) ? body.cookieId : null;
 
@@ -173,7 +212,9 @@ Deno.serve(async (req: Request) => {
 
   const { data: student, error: studentErr } = await supabaseAdmin
     .from('students')
-    .select('id, supabase_id, referred_by, extension_installed_at, app_installed_at, name, school_id')
+    .select(
+      'id, supabase_id, referred_by, extension_installed_at, app_installed_at, name, school_id',
+    )
     .eq('id', studentId)
     .maybeSingle();
 
@@ -187,21 +228,52 @@ Deno.serve(async (req: Request) => {
   const responseExtra = cookieFromHeader ? clearCookie : undefined;
 
   if (!cookie) {
-    return jsonResponse(req, { attributed: false, reason: 'no_cookie' satisfies RejectionReason });
+    await recordFinalizationAttempt(supabaseAdmin, {
+      studentId,
+      platform,
+      outcome: 'rejected',
+      reason: 'no_cookie',
+      clientVersion,
+    });
+    return jsonResponse(req, {
+      attributed: false,
+      reason: 'no_cookie' satisfies RejectionReason,
+    });
   }
   if (!UUID_RE.test(cookie)) {
-    return jsonResponse(req,
+    await recordFinalizationAttempt(supabaseAdmin, {
+      studentId,
+      platform,
+      outcome: 'rejected',
+      reason: 'unknown_cookie',
+      clientVersion,
+    });
+    return jsonResponse(
+      req,
       { attributed: false, reason: 'unknown_cookie' satisfies RejectionReason },
       200,
       responseExtra,
     );
   }
 
+  const { data: linkedClick, error: linkedClickError } = await supabaseAdmin
+    .from('referral_clicks')
+    .select('id')
+    .eq('cookie_id', cookie)
+    .maybeSingle();
+  if (linkedClickError) {
+    console.error('[referral-finalize] click lookup for telemetry failed', linkedClickError);
+  }
+
   // The RPC locks the click row and commits student attribution, click
   // conversion, and reward unlock in one database transaction.
   const { data: result, error: finalizeError } = await supabaseAdmin.rpc(
     'finalize_referral_attribution',
-    { p_cookie_id: cookie, p_student_id: studentId, p_platform: platform },
+    {
+      p_cookie_id: cookie,
+      p_student_id: studentId,
+      p_platform: platform,
+    },
   );
   if (finalizeError || !result || typeof result !== 'object') {
     console.error('[referral-finalize] atomic RPC failed', finalizeError);
@@ -209,11 +281,19 @@ Deno.serve(async (req: Request) => {
   }
 
   const payload = result as Record<string, unknown>;
+  await recordFinalizationAttempt(supabaseAdmin, {
+    studentId,
+    referralClickId: linkedClick?.id ?? null,
+    platform,
+    outcome: payload.attributed === true ? 'attributed' : 'rejected',
+    reason: typeof payload.reason === 'string' ? payload.reason : null,
+    clientVersion,
+  });
   if (payload.attributed === true) {
     await capturePostHog('referral attributed', `lectio:${studentId}`, {
       referrer_student_id: payload.referrerStudentId ?? null,
       school_id: schoolId ?? student.school_id ?? null,
-      extension_version: extensionVersion,
+      client_version: clientVersion,
       platform,
       referrer_unlocked: payload.referrerUnlocked === true,
     });

@@ -496,6 +496,8 @@ async function handleProfilePictureSubmit(
     form.set('schoolId', String(msg.schoolId));
     form.set('platform', msg.platform);
     form.set('file', new File([binary], msg.fileName, { type: msg.contentType }));
+    const lectioBinary = Uint8Array.from(atob(msg.lectioDataBase64), (c) => c.charCodeAt(0));
+    form.set('lectioFile', new File([lectioBinary], msg.lectioFileName, { type: msg.lectioContentType }));
     const { data, error } = await supabase.functions.invoke('profile-picture-submit', {
       body: form,
     });

@@ -480,6 +480,7 @@ export type Database = {
           byte_size: number
           created_at: string
           id: string
+          lectio_storage_path: string | null
           mime_type: string
           platform: string
           rejection_reason: string | null
@@ -500,6 +501,7 @@ export type Database = {
           byte_size: number
           created_at?: string
           id?: string
+          lectio_storage_path?: string | null
           mime_type: string
           platform: string
           rejection_reason?: string | null
@@ -520,6 +522,7 @@ export type Database = {
           byte_size?: number
           created_at?: string
           id?: string
+          lectio_storage_path?: string | null
           mime_type?: string
           platform?: string
           rejection_reason?: string | null
@@ -563,6 +566,7 @@ export type Database = {
           expired_at: string | null
           id: string
           ip_hash: string | null
+          is_automated: boolean
           landing_url: string | null
           referer: string | null
           referrer_student_id: string
@@ -579,6 +583,7 @@ export type Database = {
           expired_at?: string | null
           id?: string
           ip_hash?: string | null
+          is_automated?: boolean
           landing_url?: string | null
           referer?: string | null
           referrer_student_id: string
@@ -595,6 +600,7 @@ export type Database = {
           expired_at?: string | null
           id?: string
           ip_hash?: string | null
+          is_automated?: boolean
           landing_url?: string | null
           referer?: string | null
           referrer_student_id?: string
@@ -612,6 +618,54 @@ export type Database = {
           {
             foreignKeyName: "referral_clicks_referrer_student_id_fkey"
             columns: ["referrer_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_finalization_attempts: {
+        Row: {
+          client_version: string | null
+          created_at: string
+          id: number
+          outcome: string
+          platform: string
+          reason: string | null
+          referral_click_id: string | null
+          student_id: string | null
+        }
+        Insert: {
+          client_version?: string | null
+          created_at?: string
+          id?: number
+          outcome: string
+          platform: string
+          reason?: string | null
+          referral_click_id?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          client_version?: string | null
+          created_at?: string
+          id?: number
+          outcome?: string
+          platform?: string
+          reason?: string | null
+          referral_click_id?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_finalization_attempts_referral_click_id_fkey"
+            columns: ["referral_click_id"]
+            isOneToOne: false
+            referencedRelation: "referral_clicks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_finalization_attempts_student_id_fkey"
+            columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["id"]

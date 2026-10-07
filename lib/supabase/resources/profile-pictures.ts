@@ -64,12 +64,37 @@ export async function submitProfilePicture(
   schoolId: number,
   file: File,
 ): Promise<ProfilePictureSubmitResult> {
+  const lectioWindow = window as Window & {
+    __IL_PROFILE_PIC__?: string;
+    __IL_CACHED_PROFILE__?: { pictureUrl?: string | null };
+  };
+  const lectioUrl = lectioWindow.__IL_PROFILE_PIC__ ?? lectioWindow.__IL_CACHED_PROFILE__?.pictureUrl;
+  if (!lectioUrl) {
+    return { ok: false, error: 'Could not find your current Lectio picture. Refresh Lectio and try again.' };
+  }
+  let lectioFile: File;
+  try {
+    const lectioResponse = await fetch(lectioUrl, { credentials: 'include' });
+    if (!lectioResponse.ok) throw new Error('Lectio image request failed');
+    const lectioBlob = await lectioResponse.blob();
+    const lectioType = lectioBlob.type.split(';')[0];
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(lectioType) || lectioBlob.size <= 0 || lectioBlob.size > 5 * 1024 * 1024) {
+      throw new Error('Invalid Lectio image');
+    }
+    const extension = lectioType === 'image/png' ? 'png' : lectioType === 'image/webp' ? 'webp' : 'jpg';
+    lectioFile = new File([lectioBlob], `lectio-profile.${extension}`, { type: lectioType });
+  } catch {
+    return { ok: false, error: 'Could not load your current Lectio picture. Refresh Lectio and try again.' };
+  }
   const response = await sendProfilePictureSubmission({
     studentId,
     schoolId,
     dataBase64: arrayBufferToBase64(await file.arrayBuffer()),
     contentType: file.type,
     fileName: file.name || 'profile-picture',
+    lectioDataBase64: arrayBufferToBase64(await lectioFile.arrayBuffer()),
+    lectioContentType: lectioFile.type,
+    lectioFileName: lectioFile.name,
   });
   if (response.ok) return { ok: true };
   const detail = response.data && typeof response.data === 'object'

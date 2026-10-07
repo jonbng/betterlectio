@@ -109,6 +109,9 @@ export interface ProfilePictureSubmitMessage {
   dataBase64: string;
   contentType: string;
   fileName: string;
+  lectioDataBase64: string;
+  lectioContentType: string;
+  lectioFileName: string;
 }
 
 export type SupabaseMessage =

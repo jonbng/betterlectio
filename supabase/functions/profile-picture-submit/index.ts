@@ -122,6 +122,7 @@ Deno.serve(async (req: Request) => {
   const schoolId = Number(String(form.get('schoolId') ?? ''));
   const platform = String(form.get('platform') ?? '').trim();
   const file = form.get('file');
+  const lectioFile = form.get('lectioFile');
 
   if (!STUDENT_RE.test(studentId) || !Number.isInteger(schoolId) || schoolId <= 0) {
     return error('invalid_request', 'Invalid student');
@@ -131,6 +132,10 @@ Deno.serve(async (req: Request) => {
   }
   if (!(file instanceof File) || file.size <= 0 || file.size > MAX_BYTES) {
     return error('invalid_file', `Choose an image smaller than ${MAX_BYTES / 1024 / 1024} MB`);
+  }
+
+  if (!(lectioFile instanceof File) || lectioFile.size <= 0 || lectioFile.size > MAX_BYTES) {
+    return error('invalid_lectio_image', 'Could not include your current Lectio picture. Refresh Lectio and try again');
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -143,6 +148,19 @@ Deno.serve(async (req: Request) => {
       dimensions.width > MAX_DIMENSION || dimensions.height > MAX_DIMENSION ||
       dimensions.width * dimensions.height > MAX_PIXELS) {
     return error('invalid_file', 'Image dimensions are invalid or exceed the 25 megapixel limit');
+  }
+
+
+  const lectioBytes = new Uint8Array(await lectioFile.arrayBuffer());
+  const lectioMime = detectedMime(lectioBytes);
+  if (!lectioMime || !MIME_EXT[lectioMime] || (lectioFile.type && lectioFile.type !== lectioMime)) {
+    return error('invalid_lectio_image', 'Your current Lectio picture could not be verified');
+  }
+  const lectioDimensions = imageDimensions(lectioBytes, lectioMime);
+  if (!lectioDimensions || lectioDimensions.width <= 0 || lectioDimensions.height <= 0 ||
+      lectioDimensions.width > MAX_DIMENSION || lectioDimensions.height > MAX_DIMENSION ||
+      lectioDimensions.width * lectioDimensions.height > MAX_PIXELS) {
+    return error('invalid_lectio_image', 'Your current Lectio picture could not be verified');
   }
 
   const { data: student, error: studentError } = await admin
@@ -183,6 +201,7 @@ Deno.serve(async (req: Request) => {
 
   const id = crypto.randomUUID();
   const storagePath = `${schoolId}/${studentId}/${id}.${MIME_EXT[mime]}`;
+  const lectioStoragePath = `${schoolId}/${studentId}/${id}-lectio.${MIME_EXT[lectioMime]}`;
   const now = new Date().toISOString();
   const { error: insertError } = await admin.from('profile_picture_submissions').insert({
     id,
@@ -192,6 +211,7 @@ Deno.serve(async (req: Request) => {
     platform,
     status: 'uploading',
     storage_path: storagePath,
+    lectio_storage_path: lectioStoragePath,
     mime_type: mime,
     byte_size: bytes.byteLength,
     created_at: now,
@@ -214,13 +234,25 @@ Deno.serve(async (req: Request) => {
     return error('upload_failed', 'Image upload failed', 500);
   }
 
+
+  const { error: lectioUploadError } = await admin.storage
+    .from('profile-picture-submissions')
+    .upload(lectioStoragePath, lectioBytes, { contentType: lectioMime, upsert: false });
+  if (lectioUploadError) {
+    await admin.storage.from('profile-picture-submissions').remove([storagePath]);
+    await admin.from('profile_picture_submissions')
+      .update({ status: 'failed', updated_at: new Date().toISOString() })
+      .eq('id', id);
+    return error('upload_failed', 'Lectio comparison image upload failed', 500);
+  }
+
   const submittedAt = new Date().toISOString();
   const { error: finalizeError } = await admin.from('profile_picture_submissions')
     .update({ status: 'pending', submitted_at: submittedAt, updated_at: submittedAt })
     .eq('id', id)
     .eq('status', 'uploading');
   if (finalizeError) {
-    await admin.storage.from('profile-picture-submissions').remove([storagePath]);
+    await admin.storage.from('profile-picture-submissions').remove([storagePath, lectioStoragePath]);
     await admin.from('profile_picture_submissions')
       .update({ status: 'failed', updated_at: new Date().toISOString() })
       .eq('id', id);
