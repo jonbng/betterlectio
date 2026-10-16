@@ -124,4 +124,16 @@ describe('getSubjectIdentityKey', () => {
     assert.equal(getSubjectIdentityKey('2hf ks-re'), 'subject:re');
     assert.notEqual(getSubjectIdentityKey('2vhf ks-sa'), getSubjectIdentityKey('2vhf ks-Hi'));
   });
+
+  test('maps hyphen-joined class-subject holds with level letters', () => {
+    assert.equal(getCanonicalHoldKey('1abc-dana'), 'da');
+    assert.equal(getCanonicalHoldKey('1abc-mata'), 'ma');
+    assert.equal(getCanonicalHoldKey('1abc-fysb'), 'fy');
+    assert.equal(getCanonicalHoldKey('1abc-enga'), 'en');
+    assert.equal(getCanonicalHoldKey('1abc-da'), 'da');
+    assert.equal(getCanonicalHoldKey('1abc-idehis'), 'ih');
+    assert.equal(getCanonicalHoldKey('1abc-sop'), 'sop');
+    assert.equal(getCanonicalHoldKey('1abc-proa'), 'pro');
+    assert.equal(getCanonicalHoldKey('3hx-u'), null);
+  });
 });
