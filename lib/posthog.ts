@@ -562,6 +562,9 @@ const AMBIENT_ERROR_SOURCES = new Set([
 ]);
 let _errorCount = 0;
 const _seenErrorSignatures = new Set<string>();
+// Libraries such as iframe-post report a failure and then rethrow it, and
+// their callers report it again. Only the first report of an error object counts.
+const _handledErrorObjects = new WeakSet<object>();
 
 function isAbortOrCancellation(error: unknown): boolean {
   const name = error instanceof Error
@@ -669,7 +672,8 @@ function getExceptionAutoProperties(): Record<string, unknown> {
  * omitted so library-level catches still attribute correctly (no anonymous).
  * Explicit operational failures are retained; noisy global handlers are
  * deterministically sampled to 10%. Everything is deduplicated and capped at
- * five per extension context to protect the quota during error storms.
+ * five per extension context to protect the quota during error storms. A
+ * rethrown error object is handled once, so callers can report it again safely.
  */
 export function captureException(
   error: unknown,
@@ -677,6 +681,10 @@ export function captureException(
   additionalProperties?: Record<string, unknown>,
 ): void {
   try {
+    if (typeof error === 'object' && error !== null) {
+      if (_handledErrorObjects.has(error)) return;
+      _handledErrorObjects.add(error);
+    }
     if (isOptedOut()) return;
     const resolvedId = resolveDistinctIdForCapture(distinctId);
     if (!resolvedId) return;
