@@ -63,6 +63,11 @@ import {
 } from "@/lib/settings-sync";
 import { initBrickTooltips } from "@/lib/brick-tooltip";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
+import { AnnouncementHost } from "@/components/AnnouncementHost";
+import {
+  ExtensionHealthAnnouncement,
+  ExtensionHealthProvider,
+} from "@/components/ExtensionHealth";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
 import { capture, captureException, captureFeatureUsedOncePerSession, captureLoadCompleted, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, getPageSlug, syncOptOutToExtensionStorage } from "@/lib/posthog";
@@ -266,12 +271,16 @@ function DashboardExtras() {
       <AppOverlays />
       <MobileAppDrawer />
       <MobileAppInvitePopup />
-      <FeedbackWidget
-        schoolId={profile?.schoolId}
-        studentId={profile?.studentId}
-        browserInfo={getBrowserInfo()}
-        lectioVersion={getLectioVersion()}
-      />
+      <AnnouncementHost />
+      <ExtensionHealthProvider>
+        <FeedbackWidget
+          schoolId={profile?.schoolId}
+          studentId={profile?.studentId}
+          browserInfo={getBrowserInfo()}
+          lectioVersion={getLectioVersion()}
+        />
+        <ExtensionHealthAnnouncement />
+      </ExtensionHealthProvider>
       <Toaster
         position="bottom-right"
         offset={{ bottom: 80, right: 20 }}
@@ -680,7 +689,8 @@ function initLayout() {
   if (schoolId) {
     const bootstrapStudentId = currentProfile?.studentId ?? undefined;
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
-      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then(() => {
+      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then((authenticated) => {
+        if (!authenticated) return;
         // Retry website login after session bootstrap in case we raced.
         void import('@/lib/website-login').then(({ maybeCompleteWebsiteLogin }) => {
           void maybeCompleteWebsiteLogin({

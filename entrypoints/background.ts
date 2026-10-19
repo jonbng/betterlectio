@@ -1225,6 +1225,36 @@ export default defineBackground(() => {
   initLifecycleTracking();
   initAuthStateListener();
 
+  // User-initiated update checks for version-targeted support notices. This
+  // uses the existing runtime API only: no extra permission or manifest key.
+  browser.runtime.onMessage.addListener((message: any, _sender: any, sendResponse: (response?: any) => void) => {
+    if (message?.type !== 'bl-extension:update-check') return false;
+
+    const requestUpdateCheck = (browser.runtime as unknown as {
+      requestUpdateCheck?: () => Promise<{ status?: string; version?: string }>;
+    }).requestUpdateCheck;
+    if (!requestUpdateCheck) {
+      sendResponse({ ok: false, status: 'unsupported' });
+      return false;
+    }
+
+    Promise.resolve(requestUpdateCheck.call(browser.runtime))
+      .then((result) => {
+        const status = result?.status;
+        if (status === 'update_available' || status === 'no_update' || status === 'throttled') {
+          sendResponse({ ok: true, status, version: result.version });
+          return;
+        }
+        sendResponse({ ok: false, status: 'error', error: 'Unknown update status' });
+      })
+      .catch((error) => sendResponse({
+        ok: false,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Update check failed',
+      }));
+    return true;
+  });
+
   if (import.meta.env.MODE === 'admin') {
     browser.runtime.onMessage.addListener((message: any, sender: any, sendResponse: (response?: any) => void) => {
       if (message?.type !== 'bl-admin:redeem-handoff') return false;

@@ -259,7 +259,12 @@ export async function maybeCompleteWebsiteLogin(opts: {
   showWebsiteLoginOverlay('Logger dig ind på BetterLectio…');
 
   try {
-    await ensureSupabaseSession(schoolId, 'website-login', studentId);
+    const authenticated = await ensureSupabaseSession(schoolId, 'website-login', studentId);
+    if (!authenticated) {
+      showWebsiteLoginOverlay(mintErrorMessage('not_signed_in'));
+      completing = false;
+      return false;
+    }
 
     const session = await getSupabaseSessionMeta();
     if (!session) {
