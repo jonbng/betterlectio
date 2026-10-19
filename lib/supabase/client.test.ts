@@ -4,12 +4,14 @@ import { test } from 'node:test';
 const storage = new Map<string, unknown>();
 let queryCount = 0;
 let cacheReadCount = 0;
+let sendMessageOverride: ((message: { type: string }) => Promise<unknown>) | null = null;
 
 // cachedQuery reaches browser.storage directly, while its network fallback
 // goes through browser.runtime. Keep this mock limited to that boundary.
 (globalThis as typeof globalThis & { browser: unknown }).browser = {
   runtime: {
     async sendMessage(message: { type: string }) {
+      if (sendMessageOverride) return sendMessageOverride(message);
       if (message.type === 'bl-sb:query') {
         queryCount += 1;
         return { ok: true, data: [{ id: 'network-result' }] };
@@ -35,7 +37,7 @@ let cacheReadCount = 0;
   },
 };
 
-const { cachedQuery, isRpcAuthorizationError } = await import('./client');
+const { cachedQuery, isRpcAuthorizationError, sendRpc } = await import('./client');
 const { cacheKey, queryFingerprint, writeCache } = await import('./cache');
 
 test('cachedQuery bypassCache fetches and overwrites the query cache entry', async () => {
@@ -79,4 +81,52 @@ test('isRpcAuthorizationError recognizes ownership and function grant failures',
 test('isRpcAuthorizationError does not retry unrelated RPC failures', () => {
   assert.equal(isRpcAuthorizationError({ ok: false, error: 'invalid input syntax' }), false);
   assert.equal(isRpcAuthorizationError({ ok: true }), false);
+});
+
+const RECEIVING_END_ERROR = 'Could not establish connection. Receiving end does not exist.';
+
+test('send retries once when the background worker has no listener', async () => {
+  let attempts = 0;
+  sendMessageOverride = async () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error(RECEIVING_END_ERROR);
+    return { ok: true, data: 'recovered' };
+  };
+  try {
+    assert.deepEqual(await sendRpc('get_student_lesson_mappings_v2', {}), { ok: true, data: 'recovered' });
+    assert.equal(attempts, 2);
+  } finally {
+    sendMessageOverride = null;
+  }
+});
+
+test('send returns Background not ready when the retry also has no listener', async () => {
+  let attempts = 0;
+  sendMessageOverride = async () => {
+    attempts += 1;
+    throw new Error(RECEIVING_END_ERROR);
+  };
+  try {
+    assert.deepEqual(await sendRpc('get_student_lesson_mappings_v2', {}), {
+      ok: false,
+      error: 'Background not ready',
+    });
+    assert.equal(attempts, 2);
+  } finally {
+    sendMessageOverride = null;
+  }
+});
+
+test('send does not retry other runtime errors', async () => {
+  let attempts = 0;
+  sendMessageOverride = async () => {
+    attempts += 1;
+    throw new Error('Extension context invalidated.');
+  };
+  try {
+    await assert.rejects(sendRpc('get_student_lesson_mappings_v2', {}), /Extension context invalidated/);
+    assert.equal(attempts, 1);
+  } finally {
+    sendMessageOverride = null;
+  }
 });

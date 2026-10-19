@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import {
+  isBackgroundNotReadyError,
   isExtensionContextInvalidatedError,
+  isNonActionableSupabaseError,
   isSessionExpiredAuthError,
   isTransientNetworkError,
 } from './supabase-error-noise';
@@ -43,5 +45,18 @@ describe('isSessionExpiredAuthError', () => {
   test('does not suppress other auth failure stages', () => {
     assert.equal(isSessionExpiredAuthError(new Error('Auth failed: edge-error')), false);
     assert.equal(isSessionExpiredAuthError(new Error('QR code invalid or expired')), false);
+  });
+});
+
+describe('isBackgroundNotReadyError', () => {
+  test('recognizes the proxy response for an unreachable background worker', () => {
+    assert.equal(isBackgroundNotReadyError(new Error('Background not ready')), true);
+    assert.equal(isNonActionableSupabaseError(new Error('Background not ready')), true);
+  });
+
+  test('keeps the raw runtime messaging error reportable', () => {
+    const raw = new Error('Could not establish connection. Receiving end does not exist.');
+    assert.equal(isBackgroundNotReadyError(raw), false);
+    assert.equal(isNonActionableSupabaseError(raw), false);
   });
 });
