@@ -681,15 +681,15 @@ export function captureException(
   additionalProperties?: Record<string, unknown>,
 ): void {
   try {
-    if (typeof error === 'object' && error !== null) {
-      if (_handledErrorObjects.has(error)) return;
-      _handledErrorObjects.add(error);
-    }
     if (isOptedOut()) return;
     const resolvedId = resolveDistinctIdForCapture(distinctId);
     if (!resolvedId) return;
     if (_errorCount >= MAX_ERRORS_PER_CONTEXT) return;
     if (!shouldCaptureException(error, resolvedId, additionalProperties)) return;
+    if (typeof error === 'object' && error !== null) {
+      if (_handledErrorObjects.has(error)) return;
+      _handledErrorObjects.add(error);
+    }
     _errorCount += 1;
     const exceptionProperties: Record<string, unknown> = {
       ...additionalProperties,

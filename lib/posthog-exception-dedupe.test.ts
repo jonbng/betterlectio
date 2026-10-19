@@ -27,3 +27,14 @@ test('still reports a different error object from the same caller', () => {
 
   assert.equal(captured.length, 1);
 });
+
+test('a skipped attempt does not consume the error object', () => {
+  captured.length = 0;
+  const error = new Error('No response HTML after identity becomes available');
+
+  captureException(error, undefined, { source: 'iframe-post' });
+  captureException(error, distinctId, { source: 'iframe-post' });
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].error, error);
+});
