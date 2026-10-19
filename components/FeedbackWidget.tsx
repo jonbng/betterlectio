@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Paperclip,
   Send,
+  TriangleAlert,
   X,
 } from "lucide-react";
 
@@ -26,6 +27,10 @@ import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { FeedbackInbox } from "@/components/FeedbackInbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  ExtensionHealthInlineNotice,
+  useExtensionHealth,
+} from "@/components/ExtensionHealth";
 
 type Props = {
   schoolId: string | number | null | undefined;
@@ -121,6 +126,7 @@ export function FeedbackWidget({
   const [done, setDone] = useState(false);
   const [view, setView] = useState<"compose" | "inbox">("compose");
   const [unreadCount, setUnreadCount] = useState(0);
+  const { health } = useExtensionHealth();
 
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -137,6 +143,9 @@ export function FeedbackWidget({
   }, [schoolId]);
 
   const busy = sending || capturing;
+  const hasHealthWarning = Boolean(
+    health?.updateAvailable || health?.issues.some((issue) => issue.severity !== "info"),
+  );
   const canSubmit =
     Boolean(studentId && schoolIdNum && message.trim()) && !busy;
 
@@ -153,6 +162,13 @@ export function FeedbackWidget({
       // The badge is supplementary; inbox errors are shown when it is opened.
     }
   }, [studentId]);
+
+  useEffect(() => {
+    const openFromAnnouncement = () => setOpen(true);
+    window.addEventListener("betterlectio:openFeedback", openFromAnnouncement);
+    return () =>
+      window.removeEventListener("betterlectio:openFeedback", openFromAnnouncement);
+  }, []);
 
   useEffect(() => {
     void refreshUnreadCount();
@@ -287,7 +303,11 @@ export function FeedbackWidget({
     setSending(true);
     setError(null);
     try {
-      await ensureSupabaseSession(String(schoolIdNum), "unknown", studentId);
+      const authenticated = await ensureSupabaseSession(String(schoolIdNum), "unknown", studentId);
+      if (!authenticated) {
+        setError("Kunne ikke oprette en sikker session. Prøv igen.");
+        return;
+      }
 
       let screenshot: Awaited<ReturnType<typeof fileToBase64>> | null = null;
       if (file) {
@@ -448,6 +468,8 @@ export function FeedbackWidget({
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4">
+              <ExtensionHealthInlineNotice />
+
               {/* Category pills */}
               <div
                 className="grid shrink-0 grid-cols-3 gap-1 rounded-xl bg-muted/70 p-1"
@@ -670,6 +692,14 @@ export function FeedbackWidget({
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </Badge>
+        ) : null}
+        {unreadCount === 0 && hasHealthWarning ? (
+          <span
+            className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm ring-2 ring-background"
+            aria-hidden="true"
+          >
+            <TriangleAlert className="size-2.5" strokeWidth={2.5} />
+          </span>
         ) : null}
         {open ? (
           <X className="size-5 shrink-0" />

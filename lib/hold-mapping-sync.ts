@@ -5,7 +5,6 @@ import {
 } from '@/lib/hold-mapping';
 import { captureException, getDistinctId } from '@/lib/posthog';
 import { getLoggedInUserId } from '@/lib/profile-cache';
-import { isAuthenticated } from '@/lib/supabase/client';
 import { isNonActionableSupabaseError } from '@/lib/supabase-error-noise';
 import {
   getStudentLessonMappingsV2,
@@ -86,20 +85,9 @@ async function getSyncContext() {
 
   if (!schoolId || !studentId) return null;
 
-  // Always run ensureSupabaseSession with the expected studentId so the
-  // background can validate that any existing session is actually owned
-  // by this Lectio user. Otherwise a stale session left over from a
-  // different account would slip past `isAuthenticated()` here and cause
-  // `upsert_user_lesson_override_v2` to raise "Unauthorized" server-side.
-  try {
-    const { ensureSupabaseSession } = await import('@/lib/supabase/session');
-    await ensureSupabaseSession(schoolId, 'hold-mapping-sync', studentId);
-  } catch {
-    // ensureSupabaseSession is fire-and-forget; ignore failures and fall
-    // through to the isAuthenticated gate below.
-  }
-
-  const authenticated = await isAuthenticated();
+  // Validate ownership and token usability before issuing any mapping RPC.
+  const { ensureSupabaseSession } = await import('@/lib/supabase/session');
+  const authenticated = await ensureSupabaseSession(schoolId, 'hold-mapping-sync', studentId);
   if (!authenticated) return null;
 
   return { schoolId, studentId };

@@ -37,7 +37,12 @@ let sendMessageOverride: ((message: { type: string }) => Promise<unknown>) | nul
   },
 };
 
-const { cachedQuery, isRpcAuthorizationError, sendRpc } = await import('./client');
+const {
+  cachedQuery,
+  isRpcAuthorizationError,
+  isSessionUsable,
+  sendRpc,
+} = await import('./client');
 const { cacheKey, queryFingerprint, writeCache } = await import('./cache');
 
 test('cachedQuery bypassCache fetches and overwrites the query cache entry', async () => {
@@ -129,4 +134,12 @@ test('send does not retry other runtime errors', async () => {
   } finally {
     sendMessageOverride = null;
   }
+});
+
+test('isSessionUsable rejects missing, expired, and nearly-expired sessions', () => {
+  const now = 1_800_000_000;
+  assert.equal(isSessionUsable(null, now), false);
+  assert.equal(isSessionUsable({ expires_at: now - 1 }, now), false);
+  assert.equal(isSessionUsable({ expires_at: now + 30 }, now), false);
+  assert.equal(isSessionUsable({ expires_at: now + 31 }, now), true);
 });

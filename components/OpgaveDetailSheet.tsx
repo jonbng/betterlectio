@@ -41,6 +41,7 @@ import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { cn } from '@/lib/utils';
+import { LectioUploadError } from '@/lib/lectio-file-upload';
 import { getDisplayNameFromLookupId, getPictureUrlFromLookupId, useSchoolStudents, type StudentsMap } from '@/lib/supabase/student-lookup';
 import { useTranslation, type TFunction } from '@/lib/i18n';
 
@@ -270,6 +271,15 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
       if (err instanceof LectioSubmissionError) {
         toast.error(t('opgaveDetail.errors.sendFailed'), {
           description: err.message,
+        });
+      } else if (err instanceof LectioUploadError) {
+        captureException(err, undefined, { source: 'opgave-submit', ...err.telemetry });
+        toast.error(t('opgaveDetail.errors.sendFailed'), {
+          description: err.code === 'session_expired'
+            ? t('opgaveDetail.errors.sessionExpired')
+            : err.code === 'lectio_rejected'
+              ? t('opgaveDetail.errors.uploadRejected')
+              : t('opgaveDetail.errors.uploadUnreadable'),
         });
       } else {
         captureException(err, undefined, { source: 'opgave-submit' });

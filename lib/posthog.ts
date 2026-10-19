@@ -562,6 +562,9 @@ const AMBIENT_ERROR_SOURCES = new Set([
 ]);
 let _errorCount = 0;
 const _seenErrorSignatures = new Set<string>();
+// Helpers may report an error and rethrow it to a caller that also reports it.
+// Only an error object that passed every capture guard counts as handled.
+const _handledErrorObjects = new WeakSet<object>();
 
 function isAbortOrCancellation(error: unknown): boolean {
   const name = error instanceof Error
@@ -604,9 +607,10 @@ function semanticExceptionFingerprint(
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 300);
+  const messageClass = stableFingerprintHash(normalizedMessage || type);
   const failureClass = code == null
-    ? stableFingerprintHash(normalizedMessage || type)
-    : String(code).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80);
+    ? messageClass
+    : `${String(code).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 64)}-${messageClass}`;
   return `betterlectio:${source || 'unknown'}:${type || 'error'}:${failureClass}`;
 }
 
@@ -669,7 +673,8 @@ function getExceptionAutoProperties(): Record<string, unknown> {
  * omitted so library-level catches still attribute correctly (no anonymous).
  * Explicit operational failures are retained; noisy global handlers are
  * deterministically sampled to 10%. Everything is deduplicated and capped at
- * five per extension context to protect the quota during error storms.
+ * five per extension context to protect the quota during error storms. A
+ * rethrown error object is handled once, so callers can report it again safely.
  */
 export function captureException(
   error: unknown,
@@ -682,6 +687,10 @@ export function captureException(
     if (!resolvedId) return;
     if (_errorCount >= MAX_ERRORS_PER_CONTEXT) return;
     if (!shouldCaptureException(error, resolvedId, additionalProperties)) return;
+    if (typeof error === 'object' && error !== null) {
+      if (_handledErrorObjects.has(error)) return;
+      _handledErrorObjects.add(error);
+    }
     _errorCount += 1;
     const exceptionProperties: Record<string, unknown> = {
       ...additionalProperties,

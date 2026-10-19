@@ -14,6 +14,37 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcement_contents: {
+        Row: { announcement_id: string; author_avatar_url: string | null; author_name: string | null; author_role: string | null; body: Json; cover_alt: string | null; cta_label: string | null; eyebrow: string | null; locale: string; title: string }
+        Insert: { announcement_id: string; author_avatar_url?: string | null; author_name?: string | null; author_role?: string | null; body: Json; cover_alt?: string | null; cta_label?: string | null; eyebrow?: string | null; locale: string; title: string }
+        Update: { announcement_id?: string; author_avatar_url?: string | null; author_name?: string | null; author_role?: string | null; body?: Json; cover_alt?: string | null; cta_label?: string | null; eyebrow?: string | null; locale?: string; title?: string }
+        Relationships: [{ foreignKeyName: "announcement_contents_announcement_id_fkey"; columns: ["announcement_id"]; isOneToOne: false; referencedRelation: "announcements"; referencedColumns: ["id"] }]
+      }
+      announcement_deliveries: {
+        Row: { announcement_id: string; browser: string; claim_context: string; claim_token: string; claimed_at: string; claimed_until: string; clicked_at: string | null; created_at: string; dismissed_at: string | null; extension_version: string; id: string; locale: string; seen_at: string | null; student_id: string; updated_at: string }
+        Insert: { announcement_id: string; browser: string; claim_context: string; claim_token?: string; claimed_at?: string; claimed_until: string; clicked_at?: string | null; created_at?: string; dismissed_at?: string | null; extension_version: string; id?: string; locale: string; seen_at?: string | null; student_id: string; updated_at?: string }
+        Update: { announcement_id?: string; browser?: string; claim_context?: string; claim_token?: string; claimed_at?: string; claimed_until?: string; clicked_at?: string | null; created_at?: string; dismissed_at?: string | null; extension_version?: string; id?: string; locale?: string; seen_at?: string | null; student_id?: string; updated_at?: string }
+        Relationships: [
+          { foreignKeyName: "announcement_deliveries_announcement_id_fkey"; columns: ["announcement_id"]; isOneToOne: false; referencedRelation: "announcements"; referencedColumns: ["id"] },
+          { foreignKeyName: "announcement_deliveries_student_id_fkey"; columns: ["student_id"]; isOneToOne: false; referencedRelation: "students"; referencedColumns: ["id"] },
+        ]
+      }
+      announcement_targets: {
+        Row: { announcement_id: string; class_name: string | null; id: number; is_exclusion: boolean; kind: string; school_id: number | null; student_id: string | null }
+        Insert: { announcement_id: string; class_name?: string | null; id?: never; is_exclusion?: boolean; kind: string; school_id?: number | null; student_id?: string | null }
+        Update: { announcement_id?: string; class_name?: string | null; id?: never; is_exclusion?: boolean; kind?: string; school_id?: number | null; student_id?: string | null }
+        Relationships: [
+          { foreignKeyName: "announcement_targets_announcement_id_fkey"; columns: ["announcement_id"]; isOneToOne: false; referencedRelation: "announcements"; referencedColumns: ["id"] },
+          { foreignKeyName: "announcement_targets_school_id_fkey"; columns: ["school_id"]; isOneToOne: false; referencedRelation: "schools"; referencedColumns: ["id"] },
+          { foreignKeyName: "announcement_targets_student_id_fkey"; columns: ["student_id"]; isOneToOne: false; referencedRelation: "students"; referencedColumns: ["id"] },
+        ]
+      }
+      announcements: {
+        Row: { active_within_days: number | null; allowed_pages: string[]; app_state: string; audience_all: boolean; avoid_class_time: boolean; avoid_quiet_hours: boolean; browsers: string[]; cover_path: string | null; cover_url: string | null; created_at: string; created_by: string | null; cta_kind: string; cta_target: string | null; design: string; ends_at: string | null; id: string; internal_name: string; kind: string; max_extension_version: string | null; min_extension_version: string | null; min_install_age_days: number | null; paused_at: string | null; presentation: string; priority: number; published_at: string | null; revision: number; rollout_percent: number; starts_at: string | null; status: string; theme: string; updated_at: string; updated_by: string | null }
+        Insert: { active_within_days?: number | null; allowed_pages?: string[]; app_state?: string; audience_all?: boolean; avoid_class_time?: boolean; avoid_quiet_hours?: boolean; browsers?: string[]; cover_path?: string | null; cover_url?: string | null; created_at?: string; created_by?: string | null; cta_kind?: string; cta_target?: string | null; design?: string; ends_at?: string | null; id?: string; internal_name: string; kind?: string; max_extension_version?: string | null; min_extension_version?: string | null; min_install_age_days?: number | null; paused_at?: string | null; presentation?: string; priority?: number; published_at?: string | null; revision?: number; rollout_percent?: number; starts_at?: string | null; status?: string; theme?: string; updated_at?: string; updated_by?: string | null }
+        Update: { active_within_days?: number | null; allowed_pages?: string[]; app_state?: string; audience_all?: boolean; avoid_class_time?: boolean; avoid_quiet_hours?: boolean; browsers?: string[]; cover_path?: string | null; cover_url?: string | null; created_at?: string; created_by?: string | null; cta_kind?: string; cta_target?: string | null; design?: string; ends_at?: string | null; id?: string; internal_name?: string; kind?: string; max_extension_version?: string | null; min_extension_version?: string | null; min_install_age_days?: number | null; paused_at?: string | null; presentation?: string; priority?: number; published_at?: string | null; revision?: number; rollout_percent?: number; starts_at?: string | null; status?: string; theme?: string; updated_at?: string; updated_by?: string | null }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -1170,6 +1201,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_announcement_status: {
+        Args: { p_actor: string; p_announcement_id: string; p_status: string }
+        Returns: Json
+      }
+      claim_next_announcement: {
+        Args: { p_browser: string; p_context_id: string; p_extension_version: string; p_locale: string; p_page: string }
+        Returns: Json
+      }
+      get_extension_health: {
+        Args: { p_browser: string; p_installed_version: string }
+        Returns: Json
+      }
+      record_announcement_event: {
+        Args: { p_announcement_id: string; p_claim_token: string; p_event: string }
+        Returns: boolean
+      }
       get_my_feedback_thread: {
         Args: { p_feedback_id: string }
         Returns: Json

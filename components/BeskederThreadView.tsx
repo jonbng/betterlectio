@@ -46,6 +46,7 @@ import {
 } from '@/lib/findskema-storage';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { formatMessageDate, getInitials, nameToHue } from '@/lib/beskeder-helpers';
+import { LectioUploadError } from '@/lib/lectio-file-upload';
 import { formatEditedTime } from '@/lib/message-edit-audit';
 import { fetchUnreadCount, broadcastUnreadCount } from '@/lib/unread-messages';
 import { cn } from '@/lib/utils';
@@ -1054,7 +1055,11 @@ export function BeskederThreadView({ data, schoolId }: BeskederThreadViewProps) 
       .catch((err) => {
         console.error('[BetterLectio] File upload failed:', err);
         setUploadingFileName(null);
-        setError(t('beskeder.errors.fileUpload'));
+        setError(
+          err instanceof LectioUploadError && err.code === 'session_expired'
+            ? t('beskeder.errors.sessionExpired')
+            : t('beskeder.errors.fileUpload'),
+        );
       });
   }, [replyTargets, schoolId, formState, pendingReaction, t]);
 

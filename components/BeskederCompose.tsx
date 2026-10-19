@@ -16,6 +16,7 @@ import {
   type AttachedFile,
 } from '@/lib/beskeder-submit';
 import { fetchBeskederRecipientItems } from '@/lib/beskeder-recipients-cache';
+import { LectioUploadError } from '@/lib/lectio-file-upload';
 import { getRecentRecipients, addRecentRecipient, type RecentRecipient } from '@/lib/beskeder-compose-recents';
 import { fetchPictureUrl, getCachedPictureUrl, isPictureCacheStale } from '@/lib/findskema-storage';
 import { normalizeString, fuzzyMatch } from '@/lib/fuzzy-search';
@@ -468,7 +469,11 @@ export function BeskederComposePage({ data, schoolId }: BeskederComposePageProps
       .catch((err) => {
         console.error('[BetterLectio] File upload failed:', err);
         setUploadingFileName(null);
-        setError(t('beskeder.errors.fileUpload'));
+        setError(
+          err instanceof LectioUploadError && err.code === 'session_expired'
+            ? t('beskeder.errors.sessionExpired')
+            : t('beskeder.errors.fileUpload'),
+        );
       });
   }, [attachPostbackTarget, attachDocIdFieldName, schoolId, formState, formStateWithNoReply, t]);
 

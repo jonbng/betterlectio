@@ -278,7 +278,15 @@ export async function getSession(): Promise<{
 
 export async function isAuthenticated(): Promise<boolean> {
   const session = await getSession();
-  return session !== null;
+  return isSessionUsable(session);
+}
+
+/** A cached session object is not authentication once its access token expired. */
+export function isSessionUsable(
+  session: { expires_at: number } | null,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): boolean {
+  return Boolean(session?.expires_at && session.expires_at > nowSeconds + 30);
 }
 
 export async function signOut(): Promise<void> {

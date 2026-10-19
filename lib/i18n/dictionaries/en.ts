@@ -569,6 +569,8 @@ export const en = {
       sendFailed: 'Could not send entry',
       fileTooLarge: 'File is too large (max 50 MB)',
       sendError: 'An error occurred while sending',
+      uploadRejected: 'Lectio rejected the file. Try a different file name or format, or submit directly in Lectio.',
+      uploadUnreadable: 'Lectio did not respond as expected to the file upload. Try again, or submit directly in Lectio.',
       groupAddFailed: 'Could not add group member',
       groupRemoveFailed: 'Could not remove group member',
       groupError: 'An error occurred',
