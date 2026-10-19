@@ -567,6 +567,8 @@ export const da = {
       sendFailed: 'Kunne ikke sende indlæg',
       fileTooLarge: 'Filen er for stor (max 50 MB)',
       sendError: 'Der opstod en fejl ved afsendelse',
+      uploadRejected: 'Lectio afviste filen. Prøv et andet filnavn eller filformat, eller aflever direkte i Lectio.',
+      uploadUnreadable: 'Lectio svarede ikke som forventet på filuploadet. Prøv igen, eller aflever direkte i Lectio.',
       groupAddFailed: 'Kunne ikke tilføje gruppemedlem',
       groupRemoveFailed: 'Kunne ikke fjerne gruppemedlem',
       groupError: 'Der opstod en fejl',
