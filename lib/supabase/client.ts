@@ -13,13 +13,34 @@ import type {
   SupabaseResponse,
 } from './messages';
 import { cacheKey, queryFingerprint, readCache, writeCache, invalidateTable } from './cache';
+import { BACKGROUND_NOT_READY, extractSupabaseErrorMessage } from '../supabase-error-noise';
 
 // ── Message sender ──────────────────────────────────────────────────
 
+const BACKGROUND_RETRY_DELAY_MS = 1000;
+
+// Chrome rejects with "Receiving end does not exist" while the MV3 worker has
+// no listener (restart, reload, update). No listener received the message, so
+// one retry is safe even for mutations.
+function isBackgroundUnreachable(error: unknown): boolean {
+  return /receiving end does not exist/i.test(extractSupabaseErrorMessage(error));
+}
+
 async function send(msg: SupabaseMessage): Promise<SupabaseResponse> {
-  const resp = await browser.runtime.sendMessage(msg);
+  let resp: SupabaseResponse | undefined;
+  try {
+    resp = await browser.runtime.sendMessage(msg);
+  } catch (error) {
+    if (!isBackgroundUnreachable(error)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, BACKGROUND_RETRY_DELAY_MS));
+    try {
+      resp = await browser.runtime.sendMessage(msg);
+    } catch (retryError) {
+      if (!isBackgroundUnreachable(retryError)) throw retryError;
+    }
+  }
   // Firefox can return undefined if background script hasn't loaded yet
-  if (!resp) return { ok: false, error: 'Background not ready' };
+  if (!resp) return { ok: false, error: BACKGROUND_NOT_READY };
   return resp;
 }
 

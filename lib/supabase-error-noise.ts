@@ -75,6 +75,16 @@ export function isExtensionContextInvalidatedError(error: unknown): boolean {
   return /extension context invalidated/i.test(message);
 }
 
+// The content-script Supabase proxy returns this when the background worker
+// cannot receive messages, even after one retry. Sync recovers on the next
+// hydrate. Only this exact message matches: the raw Chrome "Could not
+// establish connection" text stays reportable outside that proxy.
+export const BACKGROUND_NOT_READY = 'Background not ready';
+
+export function isBackgroundNotReadyError(error: unknown): boolean {
+  return extractSupabaseErrorMessage(error) === BACKGROUND_NOT_READY;
+}
+
 // The `lectio-auth` edge function returns stage "session-expired" when the
 // QR-minted Lectio cookie jar is already dead server-side (the schedule page
 // redirects back to the Lectio login). This is a user session state, not an
@@ -88,13 +98,14 @@ export function isSessionExpiredAuthError(error: unknown): boolean {
 }
 
 // The union guard: true for any Supabase error that is not worth reporting —
-// unauthorized ownership rejections, expired JWTs (incl. PGRST301), and
-// transient network failures. Use this at capture sites that report Supabase
-// errors from the content script / sync libs.
+// unauthorized ownership rejections, expired JWTs (incl. PGRST301), transient
+// network failures, and an unreachable background worker. Use this at capture
+// sites that report Supabase errors from the content script / sync libs.
 export function isNonActionableSupabaseError(error: unknown): boolean {
   return (
     isTransientNetworkError(error) ||
     isExpiredJwtError(error) ||
-    isAuthOwnershipError(error)
+    isAuthOwnershipError(error) ||
+    isBackgroundNotReadyError(error)
   );
 }
