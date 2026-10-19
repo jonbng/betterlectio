@@ -99,12 +99,15 @@ export async function postFormViaHiddenIframe(
 
         resolve(resultDoc);
       } catch (err) {
+        // Null for a cross-origin response, e.g. the browser's own error page.
+        const responseDocumentAccessible = iframe.contentDocument != null;
         clearTimeout(timeout);
         cleanup();
         captureException(err, getContentDistinctId(), {
           source: 'iframe-post',
           iframe_action: action,
           iframe_fields: Object.keys(fields).join(','),
+          iframe_document_accessible: responseDocumentAccessible,
         });
         reject(err);
       }
