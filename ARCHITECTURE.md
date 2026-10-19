@@ -112,7 +112,7 @@ Legacy: `verify-lectio-auth` (extension QR, camelCase response) and `token-for-a
 **Background auth orchestration** (`entrypoints/background.ts` + `lib/supabase/session.ts`):
 
 - `entrypoints/content.tsx` is the primary auth bootstrapper on page load
-- Feature modules only call `ensureSupabaseSession(...)` as a fallback
+- Feature modules only call `ensureSupabaseSession(...)` as a fallback and gate authenticated work on its boolean result; `false` means renewal failed and no RPC/query should be issued
 - Background dedupes concurrent auth attempts per `schoolId:userId` and shares one in-flight promise across callers, preventing duplicate `generateLink` / `verifyOtp` races
 - Auth analytics include a `source` property so callsites can be traced in PostHog
 

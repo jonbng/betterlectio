@@ -35,7 +35,7 @@ let cacheReadCount = 0;
   },
 };
 
-const { cachedQuery, isRpcAuthorizationError } = await import('./client');
+const { cachedQuery, isRpcAuthorizationError, isSessionUsable } = await import('./client');
 const { cacheKey, queryFingerprint, writeCache } = await import('./cache');
 
 test('cachedQuery bypassCache fetches and overwrites the query cache entry', async () => {
@@ -79,4 +79,12 @@ test('isRpcAuthorizationError recognizes ownership and function grant failures',
 test('isRpcAuthorizationError does not retry unrelated RPC failures', () => {
   assert.equal(isRpcAuthorizationError({ ok: false, error: 'invalid input syntax' }), false);
   assert.equal(isRpcAuthorizationError({ ok: true }), false);
+});
+
+test('isSessionUsable rejects missing, expired, and nearly-expired sessions', () => {
+  const now = 1_800_000_000;
+  assert.equal(isSessionUsable(null, now), false);
+  assert.equal(isSessionUsable({ expires_at: now - 1 }, now), false);
+  assert.equal(isSessionUsable({ expires_at: now + 30 }, now), false);
+  assert.equal(isSessionUsable({ expires_at: now + 31 }, now), true);
 });

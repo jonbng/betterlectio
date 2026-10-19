@@ -287,7 +287,11 @@ export function FeedbackWidget({
     setSending(true);
     setError(null);
     try {
-      await ensureSupabaseSession(String(schoolIdNum), "unknown", studentId);
+      const authenticated = await ensureSupabaseSession(String(schoolIdNum), "unknown", studentId);
+      if (!authenticated) {
+        setError("Kunne ikke oprette en sikker session. Prøv igen.");
+        return;
+      }
 
       let screenshot: Awaited<ReturnType<typeof fileToBase64>> | null = null;
       if (file) {
