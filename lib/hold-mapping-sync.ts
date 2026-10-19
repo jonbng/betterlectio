@@ -85,10 +85,7 @@ async function getSyncContext() {
 
   if (!schoolId || !studentId) return null;
 
-  // Always run ensureSupabaseSession with the expected studentId so the
-  // background can validate that any existing session is actually owned
-  // by this Lectio user. Authenticated work is gated directly on its result;
-  // a cached but expired session must never reach the mapping RPCs.
+  // Validate ownership and token usability before issuing any mapping RPC.
   const { ensureSupabaseSession } = await import('@/lib/supabase/session');
   const authenticated = await ensureSupabaseSession(schoolId, 'hold-mapping-sync', studentId);
   if (!authenticated) return null;

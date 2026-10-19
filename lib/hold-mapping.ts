@@ -163,7 +163,7 @@ const SUBJECT_DICTIONARY: Record<string, string> = {
   afs: 'Afsætning',
   in: 'Innovation',
   mak: 'Makroøkonomisk analyse',
-  idehis: 'Idehistorie',
+  idehis: 'Idéhistorie',
   sop: 'Studieområdeprojekt',
 };
 

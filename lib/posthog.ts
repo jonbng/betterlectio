@@ -673,7 +673,8 @@ function getExceptionAutoProperties(): Record<string, unknown> {
  * omitted so library-level catches still attribute correctly (no anonymous).
  * Explicit operational failures are retained; noisy global handlers are
  * deterministically sampled to 10%. Everything is deduplicated and capped at
- * five per extension context to protect the quota during error storms.
+ * five per extension context to protect the quota during error storms. A
+ * rethrown error object is handled once, so callers can report it again safely.
  */
 export function captureException(
   error: unknown,
