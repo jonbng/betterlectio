@@ -680,7 +680,8 @@ function initLayout() {
   if (schoolId) {
     const bootstrapStudentId = currentProfile?.studentId ?? undefined;
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
-      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then(() => {
+      void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then((authenticated) => {
+        if (!authenticated) return;
         // Retry website login after session bootstrap in case we raced.
         void import('@/lib/website-login').then(({ maybeCompleteWebsiteLogin }) => {
           void maybeCompleteWebsiteLogin({

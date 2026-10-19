@@ -79,12 +79,9 @@ async function getSyncContext(): Promise<SyncContext | null> {
   const studentId = getLoggedInUserId();
   if (!schoolId || !studentId) return null;
 
-  try {
-    const { ensureSupabaseSession } = await import('@/lib/supabase/session');
-    await ensureSupabaseSession(schoolId, 'settings-sync', studentId);
-  } catch {
-    // Fall through and let the auth gate below catch a missing session.
-  }
+  const { ensureSupabaseSession } = await import('@/lib/supabase/session');
+  const authenticated = await ensureSupabaseSession(schoolId, 'settings-sync', studentId);
+  if (!authenticated) return null;
 
   const session = await getSession();
   if (!session?.user_id) return null;

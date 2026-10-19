@@ -607,9 +607,10 @@ function semanticExceptionFingerprint(
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 300);
+  const messageClass = stableFingerprintHash(normalizedMessage || type);
   const failureClass = code == null
-    ? stableFingerprintHash(normalizedMessage || type)
-    : String(code).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80);
+    ? messageClass
+    : `${String(code).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 64)}-${messageClass}`;
   return `betterlectio:${source || 'unknown'}:${type || 'error'}:${failureClass}`;
 }
 

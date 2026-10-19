@@ -16,7 +16,7 @@ type AuthSource =
 // Dedupe is keyed by `schoolId:studentId` (or `schoolId:` when unknown) so
 // a later call that supplies a studentId doesn't reuse an earlier unchecked
 // promise and skip the ownership validation on an existing stale session.
-const inFlightAuthByKey = new Map<string, Promise<void>>();
+const inFlightAuthByKey = new Map<string, Promise<boolean>>();
 
 // Separate dedupe for forced reauth — it actively signs out the current
 // session, so it must never share a promise with the permissive
@@ -46,8 +46,9 @@ export async function getSupabaseSessionMeta(): Promise<{
 }
 
 /**
- * Ensures a valid Supabase session exists. Runs silently — never throws.
- * Safe to call fire-and-forget from any content script.
+ * Ensures a valid Supabase session exists. Runs silently — never throws — and
+ * returns true only when the background confirmed a usable, owned session.
+ * Callers that are about to perform authenticated work must gate on the result.
  *
  * When `studentId` (raw Lectio elevid) is provided, the background will
  * additionally verify that any existing session is actually owned by that
@@ -58,7 +59,7 @@ export async function ensureSupabaseSession(
   schoolId: string,
   source: AuthSource = 'unknown',
   studentId?: string,
-): Promise<void> {
+): Promise<boolean> {
   const dedupeKey = `${schoolId}:${studentId ?? ''}`;
   const existing = inFlightAuthByKey.get(dedupeKey);
   if (existing) {
@@ -76,13 +77,13 @@ export async function ensureSupabaseSession(
         expectedStudentId: studentId,
         source,
       });
-      if (quick?.ok) return;
+      if (quick?.ok) return true;
 
       // Fetch QR data from Lectio (requires page cookies — must run in content script)
       const qrUrl = await fetchQrUrl(schoolId);
       if (!qrUrl) {
         console.warn('[BetterLectio] Auto Supabase auth: could not fetch QR URL');
-        return;
+        return false;
       }
 
       const url = new URL(qrUrl);
@@ -90,7 +91,7 @@ export async function ensureSupabaseSession(
       const qrId = url.searchParams.get('QrId');
       if (!userId || !qrId) {
         console.warn('[BetterLectio] Auto Supabase auth: invalid QR URL format');
-        return;
+        return false;
       }
 
       // Keep all Supabase auth in one background request so the one-time
@@ -105,9 +106,12 @@ export async function ensureSupabaseSession(
 
       if (!result.ok) {
         console.warn('[BetterLectio] Auto Supabase auth failed:', result.error);
+        return false;
       }
+      return true;
     } catch (err) {
       console.warn('[BetterLectio] Auto Supabase auth error:', err);
+      return false;
     }
   })().finally(() => {
     if (inFlightAuthByKey.get(dedupeKey) === promise) {
