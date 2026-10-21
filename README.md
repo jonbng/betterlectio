@@ -13,6 +13,12 @@
 </p>
 
 <p align="center">
+  BetterLectio keeps the school data students already use in Lectio, then gives it a faster, calmer interface with a better schedule, homework overview, messages, search, and profiles.
+</p>
+
+![BetterLectio browser extension](screenshots/promo-marquee.png)
+
+<p align="center">
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#development">Development</a> •
@@ -23,17 +29,16 @@
 
 ## Features
 
-- **Modern Sidebar** — Clean navigation with collapsible sections for schedules and changes
-- **Fast Search** — Quickly find students, teachers, rooms, and classes with keyboard shortcuts (Cmd/Ctrl+K)
-- **Smart Prefetching** — Pages load instantly using Speculation Rules API and hover prefetching
-- **Improved Messages** — Two-column layout with folder tree, auto-redirects to newest messages
-- **Profile Pictures** — Click to enlarge any profile picture to full size
-- **Skeleton Loading** — Smooth transitions with no flash of unstyled content
-- **Cross-Page Profiles** — Your profile stays visible when viewing other students' schedules
+- **Modern sidebar:** clean navigation with collapsible sections for schedules and changes.
+- **Fast search:** find students, teachers, rooms, and classes with Cmd/Ctrl+K.
+- **Smart prefetching:** commonly used pages are ready before the student opens them.
+- **Improved messages:** a two-column inbox with folders and direct access to the newest message.
+- **Better profiles:** clearer student profiles and full-size profile pictures.
+- **Polished loading:** skeleton states prevent flashes of unfinished content.
 
 ## Installation
 
-Download [her](https://betterlectio.dk/download)
+Download BetterLectio from [betterlectio.dk/download](https://betterlectio.dk/download).
 
 ### From Source
 
@@ -92,7 +97,7 @@ For local development, start the admin app on port 3000, then run
 `bun run dev:admin` here. It builds the complete static manifest for
 `https://admin.betterlectio.dk` and opens `/lectio-sessions` in a separate Chrome
 development profile. Use `bun run dev:admin:hot` only when working on extension
-code—the WXT hot-reload variant depends on dynamic content-script registration.
+code. The WXT hot-reload variant depends on dynamic content-script registration.
 
 ## Tech Stack
 
