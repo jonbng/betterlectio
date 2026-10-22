@@ -20,6 +20,8 @@
   "scripts": {
     "dev": "wxt",
     "dev:admin": "VITE_ADMIN_API_ORIGIN=https://admin.betterlectio.dk bun run build:admin && bun run ./tools/run-admin-extension.mjs",
+    "dev:admin:anon": "bun run dev:admin:anonymized",
+    "dev:admin:anonymized": "VITE_ADMIN_API_ORIGIN=https://admin.betterlectio.dk bun run build:admin:anonymized && BETTERLECTIO_ANONYMIZED_BUILD=true bun run ./tools/run-admin-extension.mjs",
     "dev:admin:hot": "BETTERLECTIO_ADMIN_BUILD=true wxt --mode admin",
     "dev:firefox": "wxt -b firefox",
     "dev:safari": "wxt -b safari --mv3",
@@ -28,6 +30,7 @@
     "cleanup:legacy-profile-pictures": "bun run ./tools/cleanup-legacy-profile-pictures.mjs",
     "build": "wxt build",
     "build:admin": "BETTERLECTIO_ADMIN_BUILD=true wxt build --mode admin",
+    "build:admin:anonymized": "BETTERLECTIO_ADMIN_BUILD=true BETTERLECTIO_ANONYMIZED_BUILD=true wxt build --mode admin",
     "build:admin:firefox": "BETTERLECTIO_ADMIN_BUILD=true wxt build -b firefox --mode admin",
     "build:firefox": "wxt build -b firefox",
     "build:safari": "wxt build -b safari --mv3",

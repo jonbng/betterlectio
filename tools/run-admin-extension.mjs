@@ -2,7 +2,9 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const sourceDir = '.output-admin/chrome-mv3-admin';
+const sourceDir = process.env.BETTERLECTIO_ANONYMIZED_BUILD === 'true'
+  ? '.output-admin-anonymized/chrome-mv3-admin'
+  : '.output-admin/chrome-mv3-admin';
 const manifest = JSON.parse(await readFile(path.join(sourceDir, 'manifest.json'), 'utf8'));
 const bridge = manifest.content_scripts?.find((entry) =>
   entry.js?.some((file) => file.includes('admin-handoff')),

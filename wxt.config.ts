@@ -5,6 +5,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 
 const isAdminBuild = process.env.BETTERLECTIO_ADMIN_BUILD === 'true';
+const isAnonymizedAdminBuild = isAdminBuild && process.env.BETTERLECTIO_ANONYMIZED_BUILD === 'true';
 const uploadPostHogSourceMaps = process.env.POSTHOG_UPLOAD_SOURCEMAPS === 'true';
 const adminApiOrigin = process.env.VITE_ADMIN_API_ORIGIN?.replace(/\/$/, '') || 'http://localhost:3000';
 const adminChromePublicKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1jb6R9h8tEiyHAsEzouUaoY8BGMJrqDc7g4jbMKvZzxABDMkx43V46Q7aD6mIO1sBClitguOEgQoLPj9iKMNJJIk+ZUHUQTifCfQH7tOEYHKzono//E2FhlQfLgOY+mQ+T9hF32CQo93ha/w4xenFqQNdnOB4nLDUxmvaYQ+/Iwi/ok6B36/0mqJiUp42+OC6YD+ISiAWao/6PE0FMCywwAOA6ozSuutaG3RkhehhL5rCZey6wcvv03dcjvVdt0rJbClWjN/4YsFoj77fYMVP2zYi37L+iE3FrMgrM/UvdlKj/vYXdCB8HFlEc8bsH37UzE5iOJJ+49IhnTZ4PUf4QIDAQAB';
@@ -69,9 +70,11 @@ async function injectAndUploadPostHogSourceMaps(outDir: string, browser: string)
 export default defineConfig({
   // Admin builds are intentionally written outside the release workflow's
   // .output directory so they cannot be picked up by a store upload.
-  outDir: isAdminBuild ? '.output-admin' : '.output',
+  outDir: isAnonymizedAdminBuild ? '.output-admin-anonymized' : isAdminBuild ? '.output-admin' : '.output',
   manifest: {
-    name: isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
+    name: isAnonymizedAdminBuild
+      ? 'Better Lectio Admin (Anonymized)'
+      : isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
     ...(isAdminBuild ? { key: adminChromePublicKey, incognito: 'not_allowed' as const } : {}),
     description: 'Gør Lectio suverent bedre. Installér mobil appen også!',
     // No `version` key — WXT falls back to package.json's version, which
@@ -79,7 +82,9 @@ export default defineConfig({
     author: 'Jonathan Bangert',
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
-      default_title: isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
+      default_title: isAnonymizedAdminBuild
+        ? 'Better Lectio Admin (Anonymized)'
+        : isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
     },
     permissions: isAdminBuild
       ? ['activeTab', 'storage', 'cookies']
@@ -124,6 +129,14 @@ export default defineConfig({
       if (!isAdminBuild) {
         const bridgeIndex = entrypoints.findIndex((entrypoint) => entrypoint.name === 'admin-handoff');
         if (bridgeIndex >= 0) entrypoints.splice(bridgeIndex, 1);
+      }
+
+      // Privacy mode is a development-only admin variant. Keeping its DOM
+      // rewriter out of every other artifact makes accidental activation in a
+      // normal/store build impossible.
+      if (!isAnonymizedAdminBuild) {
+        const anonymizerIndex = entrypoints.findIndex((entrypoint) => entrypoint.name === 'admin-anonymize');
+        if (anonymizerIndex >= 0) entrypoints.splice(anonymizerIndex, 1);
       }
     },
     // Keep WXT 0.20 compiler options. v0.21's generated tsconfig turns on
@@ -224,6 +237,7 @@ export default defineConfig({
     excludeSources: [
       '**/*.test.ts',
       ...(!isAdminBuild ? ['entrypoints/admin-handoff.content.ts', 'lib/admin-session-handoff.ts'] : []),
+      ...(!isAnonymizedAdminBuild ? ['entrypoints/admin-anonymize.content.ts'] : []),
       'styles/globals.before-restore-recovery.css',
     ],
   },

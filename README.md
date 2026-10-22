@@ -64,6 +64,7 @@ bun install
 # Start development server
 bun run dev          # Chrome
 bun run dev:admin    # Chrome with the complete admin build
+bun run dev:admin:anonymized # Admin Chrome with names/photos anonymized
 bun run dev:firefox  # Firefox
 
 # Build for production
@@ -98,6 +99,10 @@ For local development, start the admin app on port 3000, then run
 `https://admin.betterlectio.dk` and opens `/lectio-sessions` in a separate Chrome
 development profile. Use `bun run dev:admin:hot` only when working on extension
 code. The WXT hot-reload variant depends on dynamic content-script registration.
+
+Use `bun run dev:admin:anonymized` when recording or sharing the admin browser.
+It uses a separate build directory and continuously replaces student/teacher
+names and profile photos on Lectio pages, including UI rendered after navigation.
 
 ## Tech Stack
 
