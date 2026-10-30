@@ -87,8 +87,8 @@ export default defineConfig({
         : isAdminBuild ? 'Better Lectio Admin' : 'Better Lectio',
     },
     permissions: isAdminBuild
-      ? ['activeTab', 'storage', 'cookies']
-      : ['activeTab', 'storage'],
+      ? ['storage', 'cookies']
+      : ['storage'],
     host_permissions: [
       `${process.env.VITE_SUPABASE_URL || 'https://*.supabase.co'}/*`,
       'https://eu.i.posthog.com/*',
