@@ -10,9 +10,11 @@ import {
   CheckCircle2,
   Info,
   Loader2,
+  PartyPopper,
 } from 'lucide-react';
 import { getHoldHue, getHoldDisplayName, getSubjectIdentityKey, registerHold } from '@/lib/hold-mapping';
 import {
+  absenceRecordKey,
   type FravaerPageData,
   type FravaerHoldEntry,
   type FravaerRecord,
@@ -70,12 +72,15 @@ function schoolYearStartLectio(todayISO: string): string {
 
 function parsePct(str: string): number {
   if (!str) return 0;
-  return parseFloat(str.replace('%', '').replace(',', '.')) || 0;
+  const match = str.trim().match(/^(\d+(?:[.,]\d+)?)\s*%$/);
+  return match ? Number(match[1].replace(',', '.')) : 0;
 }
 
 function parseFraction(str: string): { amount: number; total: number } {
   if (!str) return { amount: 0, total: 0 };
-  const [amountPart = '', totalPart = ''] = str.split('/');
+  const match = str.trim().match(/^(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)$/);
+  if (!match) return { amount: 0, total: 0 };
+  const [, amountPart, totalPart] = match;
   return {
     amount: parseFloat(amountPart.trim().replace(',', '.')) || 0,
     total: parseFloat(totalPart.trim().replace(',', '.')) || 0,
@@ -122,8 +127,10 @@ function statusLabelKey(pct: number): StatusKey {
 
 function hasHoldAbsence(hold: FravaerHoldEntry): boolean {
   return (
+    parsePct(hold.almPeriodePct) > 0 ||
     parsePct(hold.almOpgjortPct) > 0 ||
     parsePct(hold.almAarPct) > 0 ||
+    parsePct(hold.skrPeriodePct) > 0 ||
     parsePct(hold.skrOpgjortPct) > 0 ||
     parsePct(hold.skrAarPct) > 0
   );
@@ -241,10 +248,25 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
   // ── Derived data ─────────────────────────────────────────────────────
 
   const almOpgjort = parsePct(data.totals?.almOpgjortPct || '');
+  const almPeriode = parsePct(data.totals?.almPeriodePct || '');
   const almAar = parsePct(data.totals?.almAarPct || '');
   const skrOpgjort = parsePct(data.totals?.skrOpgjortPct || '');
+  const skrPeriode = parsePct(data.totals?.skrPeriodePct || '');
   const skrAar = parsePct(data.totals?.skrAarPct || '');
-  const hasSkr = skrOpgjort > 0 || skrAar > 0 || data.holds.some(h => parsePct(h.skrOpgjortPct) > 0 || parsePct(h.skrAarPct) > 0);
+  const hasSkr = skrOpgjort > 0 || skrPeriode > 0 || skrAar > 0 ||
+    data.holds.some(h => parsePct(h.skrOpgjortPct) > 0 || parsePct(h.skrPeriodePct) > 0 || parsePct(h.skrAarPct) > 0);
+  const hasSkrData = !!data.totals && [
+    data.totals.skrOpgjortPct,
+    data.totals.skrOpgjortTid,
+    data.totals.skrPeriodePct,
+    data.totals.skrPeriodeTid,
+    data.totals.skrAarPct,
+    data.totals.skrAarTid,
+  ].some(value => value.trim().length > 0);
+
+  const uniqueRecordCount = new Set(
+    [...data.records, ...data.missingReasons].map(absenceRecordKey),
+  ).size;
 
   const subjectsWithAbsence = data.holds
     .filter(hasHoldAbsence)
@@ -264,7 +286,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
     ? data.missingReasons
     : [...data.missingReasons, ...data.records].filter(
         (record, index, records) =>
-          records.findIndex(c => c.absid === record.absid) === index,
+          records.findIndex(c => absenceRecordKey(c) === absenceRecordKey(record)) === index,
       );
   const queryLower = recordSearch.toLowerCase().trim();
 
@@ -314,7 +336,7 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
           <h1 className="text-[2rem] font-[800] tracking-[-0.02em] text-foreground">{t('fravaerPage.title')}</h1>
           <p className="mt-1 text-base text-muted-foreground">
             {data.studentName && <>{data.studentName} &middot; </>}
-            {t('fravaerPage.subjectCount', { n: String(data.holds.length) })} &middot; {t('fravaerPage.recordCount', { n: String(data.records.length + data.missingReasons.length) })}
+            {t('fravaerPage.subjectCount', { n: String(data.holds.length) })} &middot; {t('fravaerPage.recordCount', { n: String(uniqueRecordCount) })}
           </p>
         </div>
         {(data.period.start || data.period.end) && (
@@ -339,13 +361,15 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
         <section className="mb-8 animate-[bl-fade-in_350ms_var(--ease-out)_both]">
           <div className={cn(
             'grid gap-5',
-            hasSkr ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2',
+            distribution.length > 0 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2',
           )}>
             {/* Almindeligt card */}
             <SummaryCard
               title={t('fravaerPage.regularAbsence')}
               opgjortPct={almOpgjort}
               opgjortDetail={data.totals.almOpgjortModuler}
+              periodePct={almPeriode}
+              periodeDetail={data.totals.almPeriodeModuler}
               aarPct={almAar}
               aarDetail={data.totals.almAarModuler}
               opgjortLabel={t('fravaerPage.assessed')}
@@ -354,18 +378,22 @@ export function FravaerPage({ data: initialData, schoolId }: FravaerPageProps) {
             />
 
             {/* Skriftligt card */}
-            {hasSkr && (
+            {hasSkr ? (
               <SummaryCard
                 title={t('fravaerPage.writtenAbsence')}
                 opgjortPct={skrOpgjort}
                 opgjortDetail={data.totals.skrOpgjortTid}
+                periodePct={skrPeriode}
+                periodeDetail={data.totals.skrPeriodeTid}
                 aarPct={skrAar}
                 aarDetail={data.totals.skrAarTid}
                 opgjortLabel={t('fravaerPage.assessed')}
                 aarLabel={t('fravaerPage.forTheYear')}
                 unitLabel={t('fravaerPage.studentHours')}
               />
-            )}
+            ) : hasSkrData ? (
+              <WrittenAbsenceCelebrationCard />
+            ) : null}
 
             {/* Distribution donut */}
             {distribution.length > 0 && (
@@ -651,6 +679,8 @@ function SummaryCard({
   title,
   opgjortPct,
   opgjortDetail,
+  periodePct,
+  periodeDetail,
   aarPct,
   aarDetail,
   opgjortLabel,
@@ -660,6 +690,8 @@ function SummaryCard({
   title: string;
   opgjortPct: number;
   opgjortDetail: string;
+  periodePct: number;
+  periodeDetail: string;
   aarPct: number;
   aarDetail: string;
   opgjortLabel: string;
@@ -684,7 +716,7 @@ function SummaryCard({
       <div className="flex flex-1 flex-col gap-3 pt-1">
         <span className="text-sm font-semibold text-foreground">{title}</span>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <span className="text-xs text-muted-foreground">{opgjortLabel}</span>
             <div className="mt-0.5 flex items-baseline gap-1.5">
@@ -694,6 +726,18 @@ function SummaryCard({
             </div>
             {opgjortDetail && (
               <span className="text-xs tabular-nums text-muted-foreground">{opgjortDetail} {unitLabel}</span>
+            )}
+          </div>
+
+          <div>
+            <span className="text-xs text-muted-foreground">{t('fravaerPage.period')}</span>
+            <div className="mt-0.5 flex items-baseline gap-1.5">
+              <span className={cn('text-base font-bold tabular-nums', absenceColorClass(periodePct))}>
+                {periodeDetail || periodePct > 0 ? formatPct(periodePct) : '—'}
+              </span>
+            </div>
+            {periodeDetail && (
+              <span className="text-xs tabular-nums text-muted-foreground">{periodeDetail} {unitLabel}</span>
             )}
           </div>
 
@@ -709,6 +753,39 @@ function SummaryCard({
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function WrittenAbsenceCelebrationCard() {
+  const { t } = useTranslation();
+  return (
+    <div className="relative flex min-h-36 items-center gap-5 overflow-hidden rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-card to-cyan-500/10 p-5 shadow-[0_1px_0_oklch(1_0_0/0.08)_inset]">
+      <span className="absolute right-5 top-4 size-1.5 rotate-12 rounded-sm bg-amber-400/70" aria-hidden="true" />
+      <span className="absolute right-12 top-8 h-1.5 w-3 -rotate-12 rounded-full bg-sky-400/60" aria-hidden="true" />
+      <span className="absolute bottom-5 right-8 size-2 rotate-45 rounded-sm bg-fuchsia-400/55" aria-hidden="true" />
+
+      <div className="relative flex size-24 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 ring-1 ring-inset ring-emerald-500/20 dark:text-emerald-300">
+        <PartyPopper size={38} strokeWidth={1.8} aria-hidden="true" />
+        <span className="absolute -bottom-1 -right-1 flex size-8 items-center justify-center rounded-full bg-card text-emerald-600 shadow-sm ring-1 ring-emerald-500/20 dark:text-emerald-300">
+          <CheckCircle2 size={19} strokeWidth={2} aria-hidden="true" />
+        </span>
+      </div>
+
+      <div className="relative min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700/80 dark:text-emerald-300/80">
+          {t('fravaerPage.writtenAbsence')}
+        </p>
+        <h2 className="mt-1 text-balance text-lg font-bold tracking-tight text-foreground">
+          {t('fravaerPage.noWrittenAbsenceCelebration')}
+        </h2>
+        <p className="mt-1 text-pretty text-sm text-muted-foreground">
+          {t('fravaerPage.noWrittenAbsenceDetail')}
+        </p>
+        <span className="mt-3 inline-flex rounded-full bg-emerald-500/12 px-2.5 py-1 text-xs font-bold tabular-nums text-emerald-700 ring-1 ring-inset ring-emerald-500/20 dark:text-emerald-300">
+          0% {t('fravaerPage.assessed').toLocaleLowerCase()}
+        </span>
       </div>
     </div>
   );
@@ -1001,9 +1078,11 @@ function SubjectRow({
 
       {isExpanded && (
         <div className="border-t border-border/50 bg-muted/20 px-5 py-4">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+            <DetailCell label={`${t('fravaerPage.regularAbsence')} · ${t('fravaerPage.period')}`} value={hold.almPeriodePct} detail={hold.almPeriodeModuler} />
             <DetailCell label={t('fravaerPage.almAssessed')} value={hold.almOpgjortPct} detail={hold.almOpgjortModuler} />
             <DetailCell label={t('fravaerPage.almForYear')} value={hold.almAarPct} detail={hold.almAarModuler} />
+            <DetailCell label={`${t('fravaerPage.writtenAbsence')} · ${t('fravaerPage.period')}`} value={hold.skrPeriodePct} detail={hold.skrPeriodeTid} />
             <DetailCell label={t('fravaerPage.skrAssessed')} value={hold.skrOpgjortPct} detail={hold.skrOpgjortTid} />
             <DetailCell label={t('fravaerPage.skrForYear')} value={hold.skrAarPct} detail={hold.skrAarTid} />
           </div>

@@ -764,6 +764,8 @@ export const en = {
     recordCount: '{n} records',
     regularAbsence: 'Regular absence',
     writtenAbsence: 'Written absence',
+    noWrittenAbsenceCelebration: 'Yay, no written absence!',
+    noWrittenAbsenceDetail: 'Lectio shows no assessed written absence.',
     assessed: 'Assessed',
     forTheYear: 'For the year',
     modules: 'modules',

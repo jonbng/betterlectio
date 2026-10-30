@@ -762,6 +762,8 @@ export const da = {
     recordCount: '{n} registreringer',
     regularAbsence: 'Almindeligt fravær',
     writtenAbsence: 'Skriftligt fravær',
+    noWrittenAbsenceCelebration: 'Yay, intet skriftligt fravær!',
+    noWrittenAbsenceDetail: 'Lectio viser ingen opgjort skriftligt fravær.',
     assessed: 'Opgjort',
     forTheYear: 'For året',
     modules: 'moduler',

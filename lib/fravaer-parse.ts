@@ -10,10 +10,14 @@ export interface FravaerHoldEntry {
   hold: string;
   holdUrl: string;
   holdelementId: string | null;
+  almPeriodePct: string;
+  almPeriodeModuler: string;
   almOpgjortPct: string;
   almOpgjortModuler: string;
   almAarPct: string;
   almAarModuler: string;
+  skrPeriodePct: string;
+  skrPeriodeTid: string;
   skrOpgjortPct: string;
   skrOpgjortTid: string;
   skrAarPct: string;
@@ -21,14 +25,79 @@ export interface FravaerHoldEntry {
 }
 
 export interface FravaerTotals {
+  almPeriodePct: string;
+  almPeriodeModuler: string;
   almOpgjortPct: string;
   almOpgjortModuler: string;
   almAarPct: string;
   almAarModuler: string;
+  skrPeriodePct: string;
+  skrPeriodeTid: string;
   skrOpgjortPct: string;
   skrOpgjortTid: string;
   skrAarPct: string;
   skrAarTid: string;
+}
+
+interface ParsedMetric {
+  pct: string;
+  fraction: string;
+}
+
+interface ParsedMetricGroup {
+  period: ParsedMetric;
+  assessed: ParsedMetric;
+  year: ParsedMetric;
+}
+
+const emptyMetric = (): ParsedMetric => ({ pct: '', fraction: '' });
+
+function metricFromTooltip(tooltip: string, label: string): ParsedMetric | null {
+  const nextLabel = '(?=Opgjort:|Periode:|For året:|$)';
+  const match = tooltip.match(new RegExp(
+    `${label}:\\s*(?:(\\d+(?:[.,]\\d+)?)%\\s+(\\d+(?:[.,]\\d+)?\\s*\\/\\s*\\d+(?:[.,]\\d+)?)|${nextLabel})`,
+    'i',
+  ));
+  if (!match) return null;
+  return {
+    pct: match[1] ? `${match[1]}%` : '',
+    fraction: match[2]?.replace(/\s+/g, '') || '',
+  };
+}
+
+function metricTooltip(cells: HTMLTableCellElement[]): string {
+  for (const cell of cells) {
+    const titled = cell.matches('[title]') ? cell : cell.querySelector<HTMLElement>('[title]');
+    const title = titled?.getAttribute('title') || '';
+    if (/Opgjort:|Periode:|For året:/i.test(title)) return title;
+  }
+  return '';
+}
+
+function parseModernMetricGroup(cells: HTMLTableCellElement[]): ParsedMetricGroup {
+  const texts = cells.map(cell => cell.textContent?.replace(/\s+/g, ' ').trim() || '');
+  const tooltip = metricTooltip(cells);
+  const result: ParsedMetricGroup = {
+    period: metricFromTooltip(tooltip, 'Periode') || emptyMetric(),
+    assessed: metricFromTooltip(tooltip, 'Opgjort') || emptyMetric(),
+    year: metricFromTooltip(tooltip, 'For året') || emptyMetric(),
+  };
+
+  const isPct = (value: string) => /^\d+(?:[.,]\d+)?\s*%$/.test(value);
+  const isFraction = (value: string) => /^\d+(?:[.,]\d+)?\s*\/\s*\d+(?:[.,]\d+)?$/.test(value);
+
+  // Compact: Periode fraction | Opgjort percent.
+  // Expanded: Periode fraction | Periode percent | Opgjort fraction | Opgjort percent.
+  if (!result.period.fraction) result.period.fraction = texts.find(isFraction) || '';
+  if (!result.assessed.pct) result.assessed.pct = [...texts].reverse().find(isPct) || '';
+  if (cells.length >= 4) {
+    if (!result.period.pct) result.period.pct = texts.slice(0, 2).find(isPct) || '';
+    if (!result.assessed.fraction) {
+      result.assessed.fraction = texts.slice(2).find(isFraction) || '';
+    }
+  }
+
+  return result;
 }
 
 export interface FravaerRecord {
@@ -77,7 +146,7 @@ export interface FravaerPageData {
 
 // ── Oversigt Parser ────────────────────────────────────────────────────
 
-function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
+export function parseFravaerOverview(root: Document | Element): Partial<FravaerPageData> {
   const holds: FravaerHoldEntry[] = [];
   let totals: FravaerTotals | null = null;
 
@@ -104,6 +173,14 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
   );
   if (table) {
     const rows = Array.from(table.querySelectorAll('tr'));
+    const headerText = Array.from(table.querySelectorAll('th'))
+      .map(header => header.textContent?.replace(/\s+/g, ' ').trim() || '')
+      .join(' ');
+    const isModernLayout = /Periode/i.test(headerText) && /Opgjort/i.test(headerText);
+    const topGroupHeaders = Array.from(table.querySelectorAll('tr'))[0]
+      ?.querySelectorAll<HTMLTableCellElement>('th') || [];
+    const ordinaryColspan = Number(topGroupHeaders[1]?.getAttribute('colspan')) || 0;
+    const writtenColspan = Number(topGroupHeaders[2]?.getAttribute('colspan')) || 0;
 
     for (const row of rows) {
       const cells = Array.from(row.querySelectorAll<HTMLTableCellElement>('td'));
@@ -116,9 +193,9 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
       //     It dropped the separate "år" percent column entirely. We classify
       //     each cell by its content (% vs fraction) instead of trusting a
       //     fixed index, since Lectio keeps reshuffling these columns.
-      const isLegacy = cells.length >= 9;
-      const isCompact = cells.length === 5;
-      if (!isLegacy && !isCompact) continue;
+      const isLegacy = !isModernLayout && cells.length >= 9;
+      const isModern = isModernLayout && cells.length >= 5;
+      if (!isLegacy && !isModern) continue;
 
       const holdCell = cells[0];
       const holdLink = holdCell.querySelector<HTMLAnchorElement>('a');
@@ -131,36 +208,42 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
 
       const cellTexts = cells.map(c => c.textContent?.trim() || '');
 
-      const entry = isLegacy
+      const entry: FravaerTotals = isLegacy
         ? {
+            almPeriodePct: '',
+            almPeriodeModuler: '',
             almOpgjortPct: cellTexts[1],
             almOpgjortModuler: cellTexts[2],
             almAarPct: cellTexts[3],
             almAarModuler: cellTexts[4],
+            skrPeriodePct: '',
+            skrPeriodeTid: '',
             skrOpgjortPct: cellTexts[5],
             skrOpgjortTid: cellTexts[6],
             skrAarPct: cellTexts[7],
             skrAarTid: cellTexts[8],
           }
         : (() => {
-            // 4 data cells = 2 almindeligt + 2 skriftligt. Within each pair,
-            // the cell containing '%' is the assessed (Opgjort) percentage and
-            // the cell containing '/' is the period count (moduler / elevtid).
-            const data = cellTexts.slice(1);
-            const mid = Math.ceil(data.length / 2);
-            const almCells = data.slice(0, mid);
-            const skrCells = data.slice(mid);
-            const pct = (cs: string[]) => cs.find(c => c.includes('%')) || '';
-            const frac = (cs: string[]) => cs.find(c => c.includes('/')) || '';
+            const dataCells = cells.slice(1);
+            const ordinaryCount = ordinaryColspan || Math.floor(dataCells.length / 2);
+            const writtenCount = writtenColspan || dataCells.length - ordinaryCount;
+            const ordinary = parseModernMetricGroup(dataCells.slice(0, ordinaryCount));
+            const written = parseModernMetricGroup(
+              dataCells.slice(ordinaryCount, ordinaryCount + writtenCount),
+            );
             return {
-              almOpgjortPct: pct(almCells),
-              almOpgjortModuler: frac(almCells),
-              almAarPct: '',
-              almAarModuler: '',
-              skrOpgjortPct: pct(skrCells),
-              skrOpgjortTid: frac(skrCells),
-              skrAarPct: '',
-              skrAarTid: '',
+              almPeriodePct: ordinary.period.pct,
+              almPeriodeModuler: ordinary.period.fraction,
+              almOpgjortPct: ordinary.assessed.pct,
+              almOpgjortModuler: ordinary.assessed.fraction,
+              almAarPct: ordinary.year.pct,
+              almAarModuler: ordinary.year.fraction,
+              skrPeriodePct: written.period.pct,
+              skrPeriodeTid: written.period.fraction,
+              skrOpgjortPct: written.assessed.pct,
+              skrOpgjortTid: written.assessed.fraction,
+              skrAarPct: written.year.pct,
+              skrAarTid: written.year.fraction,
             };
           })();
 
@@ -180,6 +263,15 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
           ...entry,
         });
       }
+    }
+
+    // Lectio's visible summary island is its authoritative assessed total.
+    const summary = root.querySelector('[id$="_FravaerSamlet_Samletfravaer_pa"]');
+    const summaryValues = Array.from(summary?.querySelectorAll('.title-large') || [])
+      .map(value => value.textContent?.trim() || '');
+    if (totals && summaryValues.length >= 2) {
+      totals.almOpgjortPct = summaryValues[0];
+      totals.skrOpgjortPct = summaryValues[1];
     }
   }
 
@@ -214,7 +306,13 @@ function parseOversigt(root: Document | Element): Partial<FravaerPageData> {
 
 // ── Fraværsårsager Parser ──────────────────────────────────────────────
 
-function parseFravaersaarsager(root: Document | Element): {
+export function absenceRecordKey(record: FravaerRecord): string {
+  const registrationId = record.editUrl.match(/[?&]id=([^&#]+)/i)?.[1];
+  return registrationId || record.editUrl || record.absid ||
+    `${record.dateISO}|${record.module}|${record.hold}`;
+}
+
+export function parseFravaersaarsager(root: Document | Element): {
   records: FravaerRecord[];
   missingReasons: FravaerRecord[];
   totals?: Partial<FravaerTotals>;
@@ -228,8 +326,18 @@ function parseFravaersaarsager(root: Document | Element): {
   const skrSpan = root.querySelector('#s_m_Content_Content_SkriftligFravaer');
   if (almSpan || skrSpan) {
     totals = {
+      almPeriodePct: '',
+      almPeriodeModuler: '',
       almOpgjortPct: almSpan?.textContent?.trim() || '',
+      almOpgjortModuler: '',
+      almAarPct: '',
+      almAarModuler: '',
+      skrPeriodePct: '',
+      skrPeriodeTid: '',
       skrOpgjortPct: skrSpan?.textContent?.trim() || '',
+      skrOpgjortTid: '',
+      skrAarPct: '',
+      skrAarTid: '',
     };
   }
 
@@ -249,7 +357,15 @@ function parseFravaersaarsager(root: Document | Element): {
     parseRecordTable(recordsTable, records);
   }
 
-  return { records, missingReasons, totals };
+  // Lectio repeats every missing-reason row in the complete registrations
+  // table. Keep it in the actionable missing list only, keyed by the edit
+  // endpoint's stable registration id rather than the lesson activity id.
+  const missingKeys = new Set(missingReasons.map(absenceRecordKey));
+  return {
+    records: records.filter(record => !missingKeys.has(absenceRecordKey(record))),
+    missingReasons,
+    totals,
+  };
 }
 
 function parseRecordTable(table: HTMLTableElement, out: FravaerRecord[]) {
@@ -426,7 +542,7 @@ export function parseFravaerFromDOM(): Partial<FravaerPageData> {
   );
 
   if (isOversigt) {
-    return parseOversigt(document);
+    return parseFravaerOverview(document);
   } else if (isFravaersaarsager) {
     const { records, missingReasons, totals } = parseFravaersaarsager(document);
     const titleEl = document.querySelector('#s_m_HeaderContent_MainTitle');
@@ -451,7 +567,7 @@ export async function fetchCombinedFravaerData(): Promise<FravaerPageData> {
   let recordsData: { records: FravaerRecord[]; missingReasons: FravaerRecord[] };
 
   if (isOversigt) {
-    oversigtData = parseOversigt(document);
+    oversigtData = parseFravaerOverview(document);
     const otherDoc = await fetchOtherPage(window.location.pathname);
     if (otherDoc) {
       const parsed = parseFravaersaarsager(otherDoc);
@@ -464,7 +580,7 @@ export async function fetchCombinedFravaerData(): Promise<FravaerPageData> {
     recordsData = { records: parsed.records, missingReasons: parsed.missingReasons };
     const otherDoc = await fetchOtherPage(window.location.pathname);
     if (otherDoc) {
-      oversigtData = parseOversigt(otherDoc);
+      oversigtData = parseFravaerOverview(otherDoc);
     } else {
       const titleEl = document.querySelector('#s_m_HeaderContent_MainTitle');
       oversigtData = {
@@ -592,7 +708,7 @@ export async function submitPeriodChange(
     const html = await response.text();
     const parser = new DOMParser();
     const oversigtDoc = parser.parseFromString(html, 'text/html');
-    const oversigtData = parseOversigt(oversigtDoc);
+    const oversigtData = parseFravaerOverview(oversigtDoc);
 
     // Cache fresh form fields from POST response for subsequent period changes
     cachedOversigtFields = extractFormFields(oversigtDoc);
