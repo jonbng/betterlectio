@@ -691,6 +691,16 @@ function initLayout() {
     import('@/lib/supabase/session').then(({ ensureSupabaseSession }) => {
       void ensureSupabaseSession(schoolId, 'bootstrap', bootstrapStudentId).then((authenticated) => {
         if (!authenticated) return;
+
+        // Do not race authenticated RPCs against session bootstrap. When these
+        // ran in parallel, PostgREST received the heartbeat as `anon` and
+        // logged `permission denied for function touch_student_last_seen`.
+        if (bootstrapStudentId) {
+          void import('@/lib/supabase/resources/student-activity').then(({ maybeTouchLastSeen }) => {
+            void maybeTouchLastSeen(bootstrapStudentId, schoolId);
+          }).catch(() => {});
+        }
+
         // Retry website login after session bootstrap in case we raced.
         void import('@/lib/website-login').then(({ maybeCompleteWebsiteLogin }) => {
           void maybeCompleteWebsiteLogin({
@@ -700,15 +710,6 @@ function initLayout() {
         }).catch(() => {});
       });
     }).catch(() => {});
-
-    // Stamp `students.last_seen_at` once per day so SQL consumers can answer
-    // "still active". Throttled client-side via localStorage; server enforces a
-    // 12h backstop. Heartbeat must never block rendering.
-    if (bootstrapStudentId) {
-      import('@/lib/supabase/resources/student-activity').then(({ maybeTouchLastSeen }) => {
-        void maybeTouchLastSeen(bootstrapStudentId, schoolId);
-      }).catch(() => {});
-    }
   }
 
   // Update page title to cleaner format

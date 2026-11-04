@@ -79,7 +79,7 @@ export default defineConfig({
     description: 'Gør Lectio suverent bedre. Installér mobil appen også!',
     // No `version` key — WXT falls back to package.json's version, which
     // .github/workflows/release.yml bumps. Keeping it in one place only.
-    author: 'Jonathan Bangert',
+    author: 'Jonathan Bangert' as never,
     homepage_url: 'https://github.com/jonbng/betterlectio',
     action: {
       default_title: isAnonymizedAdminBuild
@@ -242,7 +242,7 @@ export default defineConfig({
     ],
   },
   vite: () => ({
-    plugins: [tailwindcss()],
+    plugins: tailwindcss(),
     build: uploadPostHogSourceMaps ? { sourcemap: 'hidden' } : undefined,
     resolve: {
       // Use posthog-node's edge build (no Node.js-specific APIs like async_hooks)

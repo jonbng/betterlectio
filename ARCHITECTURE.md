@@ -216,7 +216,7 @@ PostHog telemetry is limited to successful attribution; operational reporting co
 
 ### Schedule & Activities
 
-Remote mobile schedule writes use `sync_student_week(...)`. Since `20261007100000_skip_unchanged_lesson_updates.sql`, conflict rows are updated only when a business field changed; client-generated `source_updated_at` timestamps alone do not create heap/index/WAL/trigger work, and omitted content continues to preserve stored content.
+Remote mobile schedule writes use `sync_student_week(...)`; lesson-content writes use `update_student_lesson_content(...)`. Both iOS and Android require a current Supabase session and use these ownership-validating RPCs instead of writing `lessons`, `student_lessons`, or `week_sync` directly. Since `20261007100000_skip_unchanged_lesson_updates.sql`, conflict rows are updated only when a business field changed; client-generated `source_updated_at` timestamps alone do not create heap/index/WAL/trigger work, and omitted content continues to preserve stored content.
 
 | File                            | Purpose                                                                                                                                                                                                                                                                                                            |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
