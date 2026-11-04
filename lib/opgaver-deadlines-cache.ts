@@ -1,5 +1,6 @@
 import { parseFormTokensFromDoc } from '@/lib/iframe-post';
 import { parseOpgaverFromDOM, type OpgaveEntry } from '@/components/OpgaverPage';
+import { teacherReturnFromListFields } from '@/lib/opgave-return';
 
 const CACHE_KEY = 'bl-opgaver-deadlines';
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
@@ -21,7 +22,16 @@ function serialize(entries: OpgaveEntry[]): SerializedOpgave[] {
 }
 
 function revive(entries: SerializedOpgave[]): OpgaveEntry[] {
-  return entries.map((e) => ({ ...e, deadline: new Date(e.deadline) }));
+  return entries.map((e) => ({
+    ...e,
+    deadline: new Date(e.deadline),
+    studentNote: e.studentNote ?? '',
+    teacherReturn: e.teacherReturn || teacherReturnFromListFields({
+      grade: e.grade,
+      gradeNote: e.gradeExtra,
+      studentNote: e.studentNote,
+    }),
+  }));
 }
 
 /** Read cached opgaver list — returns null if missing, expired, or wrong school. */

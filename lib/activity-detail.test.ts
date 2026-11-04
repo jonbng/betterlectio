@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { DOMParser } from 'linkedom';
-import { extractWebvisningUrl, sanitizeActivityHtml } from './activity-detail';
+import {
+  extractWebvisningUrl,
+  markAdaptiveActivityText,
+  sanitizeActivityHtml,
+} from './activity-detail';
 
 const BASE_URL = 'https://www.lectio.dk/lectio/94/aktivitet/aktivitetforside2.aspx?absid=1';
 
@@ -44,5 +48,34 @@ describe('Webvisning links', () => {
     const anchor = root.querySelector('a')!;
     assert.equal(anchor.getAttribute('href'), null);
     assert.equal(anchor.getAttribute('onclick'), null);
+  });
+});
+
+describe('adaptive activity rich text', () => {
+  test('marks explicit black foregrounds without changing other authored styling', () => {
+    const root = fragment(`
+      <span id="hex" style="font-weight: bold; color: #000000">Black</span>
+      <span id="rgb" style="color: rgb(0, 0, 0)">Black RGB</span>
+      <font id="legacy" color="black">Legacy black</font>
+      <span id="background" style="background-color: #000000">Black background</span>
+      <span id="red" style="color: #c00000">Red</span>
+    `);
+
+    sanitizeActivityHtml(root, BASE_URL);
+
+    assert.equal(root.querySelector('#hex')?.hasAttribute('data-bl-adaptive-text'), true);
+    assert.equal(root.querySelector('#rgb')?.hasAttribute('data-bl-adaptive-text'), true);
+    assert.equal(root.querySelector('#legacy')?.hasAttribute('data-bl-adaptive-text'), true);
+    assert.equal(root.querySelector('#background')?.hasAttribute('data-bl-adaptive-text'), false);
+    assert.equal(root.querySelector('#red')?.hasAttribute('data-bl-adaptive-text'), false);
+    assert.equal(root.querySelector<HTMLElement>('#hex')?.style.color, '#000000');
+    assert.equal(root.querySelector<HTMLElement>('#red')?.style.color, '#c00000');
+  });
+
+  test('can mark Lectio rich text already present on a direct activity page', () => {
+    const root = fragment('<article><p style="color: black">Native activity text</p></article>');
+
+    assert.equal(markAdaptiveActivityText(root), 1);
+    assert.equal(root.querySelector('p')?.hasAttribute('data-bl-adaptive-text'), true);
   });
 });

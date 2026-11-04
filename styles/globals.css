@@ -1760,6 +1760,14 @@ html {
     pointer-events: none;
   }
 
+  /* Lectio's rich-text editor commonly persists an explicit black foreground
+     around activity/homework text. Keep that authored color in light mode, but
+     let the activity sheet's foreground token win in dark mode. Scope this to
+     known black values so intentional coloured emphasis remains intact. */
+  .dark .il-activity-rich-text [data-bl-adaptive-text] {
+    color: inherit !important;
+  }
+
   /* ========================================
      Forside Page (forside.aspx) Styles
      ======================================== */

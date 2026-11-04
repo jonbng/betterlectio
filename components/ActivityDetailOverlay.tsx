@@ -1,22 +1,24 @@
-import { useEffect, useMemo, useState, useCallback } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { createPortal } from "preact/compat";
 import {
   ArrowRightLeft,
   Ban,
   BookOpen,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
   ExternalLink,
   FileText,
+  GraduationCap,
   Layers,
   Link2,
   List,
   MapPin,
+  Maximize2,
   PanelRightOpen,
   RefreshCw,
-  Sparkles,
   StickyNote,
   User,
   Users,
@@ -48,14 +50,23 @@ import {
   lightboxKindForExtension,
 } from "@/components/Lightbox";
 
-interface ActivityClassFullModalProps {
+export type ActivityDetailViewMode = "modal" | "sheet";
+
+interface ActivityDetailOverlayProps {
   open: boolean;
   url: string | null;
+  mode: ActivityDetailViewMode;
   onOpenChange: (open: boolean) => void;
   onSwapViewMode?: () => void;
 }
 
-export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode }: ActivityClassFullModalProps) {
+export function ActivityDetailOverlay({
+  open,
+  url,
+  mode,
+  onOpenChange,
+  onSwapViewMode,
+}: ActivityDetailOverlayProps) {
   const { t } = useTranslation();
   const [detail, setDetail] = useState<ActivityDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,6 +79,10 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
   const [lightboxItem, setLightboxItem] = useState<LightboxItem | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const lightboxOpenRef = useRef(false);
+  lightboxOpenRef.current = lightboxItem !== null;
 
   useEffect(() => {
     if (!open || !url) return;
@@ -100,14 +115,53 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
 
   useEffect(() => {
     if (!open) return;
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onOpenChange(false);
+      // The nested Lightbox owns its own Escape/keyboard handling while open.
+      if (lightboxOpenRef.current) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onOpenChange(false);
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute("hidden") && element.offsetParent !== null);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === first || activeElement === dialogRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (activeElement === last || !dialogRef.current.contains(activeElement))
+      ) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     document.body.style.overflow = "hidden";
+    requestAnimationFrame(() => dialogRef.current?.focus());
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = "";
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
     };
   }, [open, onOpenChange]);
 
@@ -226,15 +280,16 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
   const extraTabs = activityTabsExcludingElevfeedback(detail?.tabs ?? []).filter((t) => !t.active && t.url);
   const hasPrimary =
     !!detail?.note ||
-    (detail?.homework.length ?? 0) > 0 ||
-    (detail?.related.length ?? 0) > 0 ||
-    !!detail?.elevfeedback;
+    (detail?.homework.length ?? 0) > 0;
   const hasSecondary =
     (detail?.presentation?.length ?? 0) > 0 ||
-    (detail?.otherContent?.length ?? 0) > 0 ||
+    (detail?.otherContent?.length ?? 0) > 0;
+  const hasSupplemental =
+    (detail?.related.length ?? 0) > 0 ||
+    !!detail?.elevfeedback ||
     !!detail?.phase ||
     extraTabs.length > 0;
-  const hasContent = hasPrimary || hasSecondary;
+  const hasContent = hasPrimary || hasSecondary || hasSupplemental;
 
   const accentStyle = { "--accent-hue": holdHue } as Record<string, string | number>;
 
@@ -242,20 +297,35 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
 
   const modal = (
     <div
-      className="fixed inset-0 z-200 flex items-center justify-center pointer-events-auto"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('activityModal.ariaLabel')}
+      className={cn(
+        "fixed inset-0 z-200 flex pointer-events-auto",
+        mode === "sheet" ? "justify-end" : "items-center justify-center",
+      )}
       style={accentStyle}
     >
       <div
-        className="absolute inset-0 bg-[oklch(0_0_0/0.55)] backdrop-blur-md animate-[act-sheet-fade-in_0.18s_ease-out]"
+        className={cn(
+          "absolute inset-0 animate-[act-sheet-fade-in_0.18s_ease-out]",
+          mode === "sheet"
+            ? "bg-[oklch(0_0_0/0.42)] backdrop-blur-[6px]"
+            : "bg-[oklch(0_0_0/0.52)] backdrop-blur-md",
+        )}
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
 
       <div
-        className="relative z-10 mx-4 flex w-full max-w-[1200px] max-h-[92vh] flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-[0_32px_72px_-24px_oklch(0_0_0/0.45),0_12px_24px_-12px_oklch(0_0_0/0.22)] animate-[bl-act-pop_0.26s_cubic-bezier(0.23,1,0.32,1)] motion-reduce:animate-[act-sheet-fade-in_0.2s_ease-out]"
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="activity-detail-title"
+        className={cn(
+          "relative z-10 flex w-full flex-col overflow-hidden border-border bg-background text-foreground outline-none",
+          mode === "sheet"
+            ? "h-screen max-w-[640px] border-l shadow-[-12px_0_48px_oklch(0_0_0/0.12)] animate-[act-sheet-slide-in_0.3s_cubic-bezier(0.16,1,0.3,1)] dark:shadow-[-12px_0_48px_oklch(0_0_0/0.45)] max-[680px]:absolute max-[680px]:bottom-0 max-[680px]:right-0 max-[680px]:h-auto max-[680px]:max-h-[92vh] max-[680px]:max-w-none max-[680px]:rounded-t-2xl max-[680px]:border-l-0 max-[680px]:border-t max-[680px]:animate-[act-sheet-mobile-in_0.3s_cubic-bezier(0.16,1,0.3,1)]"
+            : "mx-4 max-h-[92vh] max-w-[1200px] rounded-2xl border bg-card shadow-[0_24px_64px_-28px_oklch(0_0_0/0.38),0_8px_20px_-14px_oklch(0_0_0/0.2)] animate-[bl-act-pop_0.26s_cubic-bezier(0.23,1,0.32,1)] motion-reduce:animate-[act-sheet-fade-in_0.2s_ease-out]",
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Hold-hue accent rail along the top edge */}
@@ -263,16 +333,6 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.7_0.14_var(--accent-hue))]"
         />
-        {/* Soft hold-hue glow behind the hero */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-64 w-[640px] rounded-full opacity-50 blur-3xl"
-          style={{
-            background:
-              "radial-gradient(closest-side, oklch(0.85 0.16 var(--accent-hue) / 0.45), transparent 70%)",
-          }}
-        />
-
         {navigating && (
           <div className="absolute inset-x-0 top-[3px] z-20 h-0.5 overflow-hidden">
             <div className="h-full w-[35%] rounded-sm bg-[oklch(0.62_0.18_var(--accent-hue))] animate-[act-sheet-progress-slide_1.4s_ease-in-out_infinite]" />
@@ -280,16 +340,23 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
         )}
 
         {loading || !detail ? (
-          <ModalSkeleton />
+          <ModalSkeleton mode={mode} />
         ) : (
           <>
-            <header className="relative shrink-0 border-b border-border/70 px-8 pb-7 pt-9 max-[720px]:px-6 max-[720px]:pb-5 max-[720px]:pt-7 animate-[bl-rise_0.32s_cubic-bezier(0.23,1,0.32,1)]">
+            <header
+              className={cn(
+                "relative shrink-0 border-b border-border/70 animate-[bl-rise_0.32s_cubic-bezier(0.23,1,0.32,1)]",
+                mode === "sheet"
+                  ? "px-7 pb-5 pt-6 max-[600px]:px-5 max-[600px]:pb-4 max-[600px]:pt-5"
+                  : "px-8 pb-6 pt-7 max-[720px]:px-6 max-[720px]:pb-5 max-[720px]:pt-6",
+              )}
+            >
               {/* Top row: eyebrow + controls */}
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {detail.meta.hold ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold tracking-[0.06em] text-[oklch(0.4_0.14_var(--accent-hue))] bg-[oklch(0.95_0.06_var(--accent-hue))] dark:text-[oklch(0.78_0.13_var(--accent-hue))] dark:bg-[oklch(0.26_0.06_var(--accent-hue))]">
-                      <Sparkles size={12} />
+                      <GraduationCap size={13} />
                       {holdDisplayName || detail.meta.hold}
                     </span>
                   ) : null}
@@ -324,10 +391,10 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                       <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
                       <IconButton
                         onClick={onSwapViewMode}
-                        aria-label={t('activityModal.swapToSheet')}
-                        title={t('activityModal.swapToSheet')}
+                        aria-label={mode === "sheet" ? t('activityModal.swapToModal') : t('activityModal.swapToSheet')}
+                        title={mode === "sheet" ? t('activityModal.swapToModal') : t('activityModal.swapToSheet')}
                       >
-                        <PanelRightOpen size={16} />
+                        {mode === "sheet" ? <Maximize2 size={16} /> : <PanelRightOpen size={16} />}
                       </IconButton>
                     </>
                   ) : null}
@@ -340,14 +407,22 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
 
               {/* Title */}
               <h2
-                id="activity-modal-title"
-                className="m-0 text-4xl font-semibold leading-[1.08] tracking-tight text-balance text-foreground md:text-5xl"
+                id="activity-detail-title"
+                className={cn(
+                  "m-0 font-semibold tracking-tight text-balance text-foreground",
+                  mode === "sheet" ? "text-3xl leading-tight" : "text-4xl leading-[1.1] max-[720px]:text-3xl",
+                )}
               >
                 {resolvedTitle}
               </h2>
 
               {/* Meta row */}
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-lg text-muted-foreground">
+              <div
+                className={cn(
+                  "flex flex-wrap items-center gap-x-5 gap-y-2.5 text-muted-foreground",
+                  mode === "sheet" ? "mt-4 text-base" : "mt-5 text-lg",
+                )}
+              >
                 {metaLine ? (
                   <span className="inline-flex items-center gap-2">
                     <CalendarDays size={16} className="opacity-70" />
@@ -396,6 +471,10 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                     <Users size={14} />
                     {t('activityModal.participants')}
                     {members ? <span className="text-sm font-semibold opacity-60">{members.length}</span> : null}
+                    <ChevronDown
+                      size={14}
+                      className={cn("transition-transform duration-200", membersOpen && "rotate-180")}
+                    />
                   </button>
                 ) : null}
               </div>
@@ -439,116 +518,119 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
               ) : null}
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-8 py-7 max-[720px]:px-6 max-[720px]:py-5">
+            <div
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+                mode === "sheet"
+                  ? "px-7 py-6 max-[600px]:px-5 max-[600px]:py-5"
+                  : "px-8 py-7 max-[720px]:px-6 max-[720px]:py-5",
+              )}
+            >
               {!hasContent ? (
                 <div className="flex flex-col items-center justify-center gap-3.5 py-16 text-center text-muted-foreground">
                   <FileText size={32} strokeWidth={1.2} />
                   <p className="m-0 text-lg leading-relaxed text-pretty">{t('activityModal.noContent')}</p>
                 </div>
               ) : (
-                <div
-                  className={cn(
-                    "grid gap-x-10 gap-y-8",
-                    hasPrimary && hasSecondary ? "md:[grid-template-columns:minmax(0,1.55fr)_minmax(0,1fr)]" : "grid-cols-1",
-                  )}
-                >
-                  {hasPrimary ? (
-                    <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.4s_cubic-bezier(0.23,1,0.32,1)_60ms_both]">
-                      {detail.note ? (
-                        <NoteSection note={detail.note} />
-                      ) : null}
+                <div className="flex flex-col gap-7">
+                  <div
+                    className={cn(
+                      "grid gap-x-10 gap-y-7",
+                      mode === "modal" && hasPrimary && hasSecondary
+                        ? "md:[grid-template-columns:minmax(0,1.55fr)_minmax(0,1fr)]"
+                        : "grid-cols-1",
+                    )}
+                  >
+                    {hasPrimary ? (
+                      <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.36s_cubic-bezier(0.23,1,0.32,1)_40ms_both]">
+                        {detail.note ? <NoteSection note={detail.note} /> : null}
 
-                      {detail.homework.length > 0 ? (
-                        <Section
-                          icon={<BookOpen size={14} />}
-                          label={t('activityModal.homework')}
-                          count={detail.homework.length}
-                          accent
-                        >
-                          <div className="flex flex-col gap-3">
-                            {detail.homework.map((item) => (
-                              <ContentCard key={item.id} item={item} primary onOpenLightbox={setLightboxItem} />
-                            ))}
-                          </div>
-                        </Section>
-                      ) : null}
+                        {detail.homework.length > 0 ? (
+                          <Section
+                            icon={<BookOpen size={14} />}
+                            label={t('activityModal.homework')}
+                            count={detail.homework.length}
+                            accent
+                          >
+                            <div className="flex flex-col gap-3">
+                              {detail.homework.map((item) => (
+                                <ContentCard key={item.id} item={item} primary onOpenLightbox={setLightboxItem} />
+                              ))}
+                            </div>
+                          </Section>
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                      {detail.related.length > 0 ? (
-                        <Section icon={<Link2 size={14} />} label={t('activityModal.related')}>
-                          <div className="flex flex-col gap-2">
-                            {detail.related.map((item, index) => (
-                              <RelatedRow key={`${item.label}-${index}`} item={item} />
-                            ))}
-                          </div>
-                        </Section>
-                      ) : null}
+                    {hasSecondary ? (
+                      <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.36s_cubic-bezier(0.23,1,0.32,1)_80ms_both]">
+                        {detail.presentation.length > 0 ? (
+                          <Section icon={<Layers size={14} />} label={t('activityModal.presentation')} count={detail.presentation.length}>
+                            <div className="flex flex-col gap-3">
+                              {detail.presentation.map((item) => (
+                                <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
+                              ))}
+                            </div>
+                          </Section>
+                        ) : null}
 
-                      {detail.elevfeedback ? (
-                        <ElevfeedbackSection
-                          refInfo={detail.elevfeedback}
-                          studentsMap={studentsMap}
-                          className="mb-0"
-                        />
-                      ) : null}
-                    </div>
+                        {(detail.otherContent?.length ?? 0) > 0 ? (
+                          <Section icon={<StickyNote size={14} />} label={t('activityModal.otherContent')} count={detail.otherContent.length}>
+                            <div className="flex flex-col gap-3">
+                              {detail.otherContent.map((item) => (
+                                <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
+                              ))}
+                            </div>
+                          </Section>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {detail.elevfeedback ? (
+                    <ElevfeedbackSection
+                      refInfo={detail.elevfeedback}
+                      studentsMap={studentsMap}
+                      className="mb-0"
+                    />
                   ) : null}
 
-                  {hasSecondary ? (
-                    <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.4s_cubic-bezier(0.23,1,0.32,1)_120ms_both]">
-                      {detail.presentation.length > 0 ? (
-                        <Section icon={<Layers size={14} />} label={t('activityModal.presentation')} count={detail.presentation.length}>
-                          <div className="flex flex-col gap-3">
-                            {detail.presentation.map((item) => (
-                              <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
-                            ))}
-                          </div>
-                        </Section>
-                      ) : null}
+                  {detail.related.length > 0 ? (
+                    <Section icon={<Link2 size={14} />} label={t('activityModal.related')}>
+                      <div className={cn("grid gap-2", mode === "modal" && "md:grid-cols-2")}>
+                        {detail.related.map((item, index) => (
+                          <RelatedRow key={`${item.label}-${index}`} item={item} />
+                        ))}
+                      </div>
+                    </Section>
+                  ) : null}
 
-                      {(detail.otherContent?.length ?? 0) > 0 ? (
-                        <Section icon={<StickyNote size={14} />} label={t('activityModal.otherContent')} count={detail.otherContent.length}>
-                          <div className="flex flex-col gap-3">
-                            {detail.otherContent.map((item) => (
-                              <ContentCard key={item.id} item={item} onOpenLightbox={setLightboxItem} />
-                            ))}
-                          </div>
-                        </Section>
-                      ) : null}
-
-                      {detail.phase || extraTabs.length > 0 ? (
-                        <Section icon={<Link2 size={14} />} label={t('activityModal.activityLinks')}>
-                          <div className="flex flex-wrap gap-2">
-                            {detail.phase ? (
-                              <a
-                                href={detail.phase.url}
-                                data-no-activity-modal="true"
-                                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-background/60 px-3.5 py-1.5 text-base text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
-                              >
-                                <BookOpen size={14} />
-                                {detail.phase.title}
-                              </a>
-                            ) : null}
-                            {extraTabs.map((tab) => (
-                                <a
-                                  key={tab.label}
-                                  href={tab.url}
-                                  data-no-activity-modal="true"
-                                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-background/60 px-3.5 py-1.5 text-base text-muted-foreground no-underline transition-colors duration-150 hover:bg-muted hover:text-foreground"
-                                >
-                                  <Link2 size={14} />
-                                  {tab.label}
-                                </a>
-                              ))}
-                          </div>
-                        </Section>
-                      ) : null}
-                    </div>
+                  {detail.phase || extraTabs.length > 0 ? (
+                    <Section icon={<Link2 size={14} />} label={t('activityModal.activityLinks')}>
+                      <div className="flex flex-wrap gap-2">
+                        {detail.phase ? (
+                          <ActivityLink href={detail.phase.url} icon={<BookOpen size={14} />}>
+                            {detail.phase.title}
+                          </ActivityLink>
+                        ) : null}
+                        {extraTabs.map((tab) => (
+                          <ActivityLink key={tab.label} href={tab.url} icon={<Link2 size={14} />}>
+                            {tab.label}
+                          </ActivityLink>
+                        ))}
+                      </div>
+                    </Section>
                   ) : null}
                 </div>
               )}
             </div>
 
-            <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-[color-mix(in_oklch,var(--muted)_30%,transparent)] px-8 py-3 max-[720px]:px-6">
+            <footer
+              className={cn(
+                "flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-[color-mix(in_oklch,var(--muted)_30%,transparent)] py-3",
+                mode === "sheet" ? "px-7 max-[600px]:px-5" : "px-8 max-[720px]:px-6",
+              )}
+            >
               <div className="flex items-center gap-1">
                 <FooterControl
                   onClick={() => navigateByPostback(detail.navigation.hold.prevEventTarget)}
@@ -578,7 +660,7 @@ export function ActivityClassFullModal({ open, url, onOpenChange, onSwapViewMode
                 >
                   <ChevronRight size={15} />
                 </FooterControl>
-                <span className="ml-2 text-base text-muted-foreground/80 max-[720px]:hidden">
+                <span className={cn("ml-2 text-base text-muted-foreground/80", mode === "sheet" && "hidden", "max-[720px]:hidden")}>
                   {t('activityModal.holdNavLabel')}
                 </span>
               </div>
@@ -695,17 +777,34 @@ function Section({
   );
 }
 
+function ActivityLink({
+  href,
+  icon,
+  children,
+}: {
+  href: string;
+  icon: preact.ComponentChildren;
+  children: preact.ComponentChildren;
+}) {
+  return (
+    <a
+      href={href}
+      data-no-activity-modal="true"
+      className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-background/60 px-3.5 py-1.5 text-base text-muted-foreground no-underline transition-[background-color,color,transform] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      {icon}
+      {children}
+    </a>
+  );
+}
+
 function NoteSection({ note }: { note: string }) {
   const { t } = useTranslation();
   return (
     <section
       aria-label={t('activityModal.note')}
-      className="relative overflow-hidden rounded-2xl border border-border bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] px-5 py-4"
+      className="rounded-xl border border-border bg-[color-mix(in_oklch,var(--muted)_45%,transparent)] px-5 py-4"
     >
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-[3px] bg-[oklch(0.62_0.18_var(--accent-hue))] dark:bg-[oklch(0.55_0.13_var(--accent-hue))]"
-      />
       <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.1em] text-muted-foreground">
         <StickyNote size={13} className="opacity-80" />
         {t('activityModal.note')}
@@ -808,7 +907,7 @@ function ContentCard({
 
       {hasContent ? (
         <div
-          className="overflow-wrap-anywhere px-5 py-4 text-lg leading-[1.65] text-foreground text-pretty [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[480px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
+          className="il-activity-rich-text overflow-wrap-anywhere px-5 py-4 text-lg leading-[1.65] text-foreground text-pretty [&_a]:text-[oklch(0.5_0.15_255)] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-4 [&_h1]:mb-2 [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:text-lg [&_h3]:font-semibold [&_img]:mt-2 [&_img]:h-auto [&_img]:max-h-[480px] [&_img]:max-w-full [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:border-border [&_img]:object-contain [&_li]:mb-1.5 [&_ol]:my-2.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p:last-child]:mb-0 [&_section]:grid [&_section]:gap-3 [&_ul]:my-2.5 [&_ul]:list-disc [&_ul]:pl-5 dark:[&_a]:text-[oklch(0.75_0.06_265)]"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.contentHtml) }}
         />
       ) : null}
@@ -846,13 +945,13 @@ function ContentCard({
   );
 }
 
-function ModalSkeleton() {
+function ModalSkeleton({ mode }: { mode: ActivityDetailViewMode }) {
   return (
     <div className="flex flex-col gap-5 px-8 py-9 max-[720px]:px-6 max-[720px]:py-7">
       <div className="h-3 w-28 rounded-full bg-[linear-gradient(90deg,var(--muted),color-mix(in_oklch,var(--muted)_55%,var(--background)),var(--muted))] bg-size-[200%_100%] animate-[act-sheet-shimmer_1.3s_linear_infinite]" />
       <div className="h-9 w-[60%] rounded-xl bg-[linear-gradient(90deg,var(--muted),color-mix(in_oklch,var(--muted)_55%,var(--background)),var(--muted))] bg-size-[200%_100%] animate-[act-sheet-shimmer_1.3s_linear_infinite]" />
       <div className="h-4 w-[45%] rounded-lg bg-[linear-gradient(90deg,var(--muted),color-mix(in_oklch,var(--muted)_55%,var(--background)),var(--muted))] bg-size-[200%_100%] animate-[act-sheet-shimmer_1.3s_linear_infinite]" />
-      <div className="mt-4 grid gap-6 md:[grid-template-columns:1.5fr_1fr]">
+      <div className={cn("mt-4 grid gap-6", mode === "modal" && "md:[grid-template-columns:1.5fr_1fr]")}>
         <div className="space-y-3">
           <div className="h-3 w-24 rounded-full bg-muted" />
           <div className="h-32 rounded-xl bg-[linear-gradient(90deg,var(--muted),color-mix(in_oklch,var(--muted)_55%,var(--background)),var(--muted))] bg-size-[200%_100%] animate-[act-sheet-shimmer_1.3s_linear_infinite]" />

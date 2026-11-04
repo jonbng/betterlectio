@@ -609,7 +609,7 @@ export const da = {
       gradeLabel: 'Karakter',
       teacherFeedback: 'Lærerens kommentar',
       returnedFile: 'Rettet version',
-      teacherNote: 'Lærerens note',
+      teacherNote: 'Opgavenote',
       taskFiles: 'Opgavebeskrivelse',
     },
     empty: {

@@ -315,7 +315,10 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
 
         // A teacher can return text feedback without attaching a corrected
         // file. Those rows are feedback too and must be featured in the UI.
-        const isReturn = isTeacher && (!!comment || !!documentName || row.classList.contains('separationCell'));
+        // Row striping/separation classes are presentation only. A return needs
+        // meaningful teacher-authored content; otherwise an empty teacher row
+        // would create a false permanent "Retur fra lærer" state.
+        const isReturn = isTeacher && (!!comment || !!documentName);
 
         entries.push({
           timestamp,
@@ -431,28 +434,40 @@ export function parseOpgaveDetail(doc: Document, pageUrl: string): OpgaveDetail 
 
 // ── Fetch ──────────────────────────────────────────────────────────────
 
+const detailRequests = new Map<string, Promise<OpgaveDetail>>();
+
 export async function fetchOpgaveDetail(url: string): Promise<OpgaveDetail> {
-  try {
-    const absoluteUrl = new URL(url, window.location.origin).href;
-    const response = await fetch(absoluteUrl, { credentials: 'include' });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`);
-    }
-    const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+  const absoluteUrl = new URL(url, window.location.origin).href;
+  const existing = detailRequests.get(absoluteUrl);
+  if (existing) return existing;
 
-    // Check for session expiry - if there's no title element, page is likely a login redirect
-    if (!doc.querySelector('#m_Content_NameLbl')) {
-      throw new Error('SESSION_EXPIRED');
-    }
+  const request = (async () => {
+    try {
+      const response = await fetch(absoluteUrl, { credentials: 'include' });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`);
+      }
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
 
-    return parseOpgaveDetail(doc, absoluteUrl);
-  } catch (err) {
-    if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
-    captureException(err, undefined, { source: 'opgave-detail', url });
-    throw err;
-  }
+      // Check for session expiry - if there's no title element, page is likely a login redirect
+      if (!doc.querySelector('#m_Content_NameLbl')) {
+        throw new Error('SESSION_EXPIRED');
+      }
+
+      return parseOpgaveDetail(doc, absoluteUrl);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'SESSION_EXPIRED') throw err;
+      captureException(err, undefined, { source: 'opgave-detail', url });
+      throw err;
+    } finally {
+      detailRequests.delete(absoluteUrl);
+    }
+  })();
+
+  detailRequests.set(absoluteUrl, request);
+  return request;
 }
 
 // ── Submission ─────────────────────────────────────────────────────────

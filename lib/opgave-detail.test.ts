@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { DOMParser } from 'linkedom';
 import { isMeaningfulAssignmentGrade, parseOpgaveDetail } from './opgave-detail';
+import { summarizeTeacherReturn, teacherReturnFromListFields } from './opgave-return';
 import { extractLectioError } from './lectio-error-popup';
 
 describe('extractLectioError', () => {
@@ -114,6 +115,22 @@ describe('parseOpgaveDetail group removal', () => {
 });
 
 describe('parseOpgaveDetail assignment feedback', () => {
+  test('recognizes list-visible grade and note evidence without using Afventer', () => {
+    assert.equal(teacherReturnFromListFields({}).state, 'unknown');
+    assert.deepEqual(
+      teacherReturnFromListFields({ grade: '12', studentNote: 'Flot arbejde' }),
+      {
+        state: 'returned',
+        kinds: ['grade', 'comment'],
+        grade: '12',
+        teacherName: '',
+        returnedAt: '',
+        commentCount: 1,
+        fileCount: 0,
+      },
+    );
+  });
+
   test('strips duplicated mobile labels and display units from assignment metadata', () => {
     const doc = new DOMParser().parseFromString(`
       <html><body><form id="aspnetForm">
@@ -195,5 +212,35 @@ describe('parseOpgaveDetail assignment feedback', () => {
       documentName: 'Forsøg rettet.pdf',
       documentUrl: 'https://www.lectio.dk/lectio/94/ExerciseFileGet.aspx?entryid=7',
     });
+    assert.deepEqual(summarizeTeacherReturn(detail), {
+      state: 'returned',
+      kinds: ['comment', 'file'],
+      grade: '',
+      teacherName: 'Lise Lærer',
+      returnedAt: '24/9-2026 10:15',
+      commentCount: 1,
+      fileCount: 1,
+    });
+  });
+
+  test('does not treat an empty striped teacher row as a return', () => {
+    const doc = new DOMParser().parseFromString(`
+      <html><body><form id="aspnetForm">
+        <span id="m_Content_NameLbl">Opgave</span>
+        <table id="m_Content_RecipientGV">
+          <tr><th></th><th>Tidspunkt</th><th>Bruger</th><th>Indlæg</th><th>Dokument</th></tr>
+          <tr class="separationCell">
+            <td class="OnlyMobile"></td>
+            <td class="OnlyDesktop">24/9-2026 10:15</td>
+            <td class="OnlyDesktop"><span data-lectioContextCard="T99" title="Lise Lærer">LL</span></td>
+            <td class="OnlyDesktop"></td><td class="OnlyDesktop"></td>
+          </tr>
+        </table>
+      </form></body></html>
+    `, 'text/html') as unknown as Document;
+
+    const detail = parseOpgaveDetail(doc, 'https://www.lectio.dk/lectio/94/ElevAflevering.aspx?exerciseid=1');
+    assert.equal(detail.entries[0].isReturn, false);
+    assert.equal(summarizeTeacherReturn(detail).state, 'none');
   });
 });

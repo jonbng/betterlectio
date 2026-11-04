@@ -470,7 +470,7 @@ export function PrivatAftaleDialog({
     </div>
   );
 
-  // Portal into #il-root so Tailwind styles apply (same pattern as ActivityClassModal)
+  // Portal into #il-root so Tailwind styles apply (same pattern as ActivityDetailOverlay)
   const portalTarget = document.getElementById("il-root") || document.body;
   return createPortal(dialog, portalTarget);
 }

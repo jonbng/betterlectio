@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCachedProfile } from '@/lib/profile-cache';
 import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { SettingsModal } from './SettingsModal';
-import { ActivityClassModal } from './ActivityClassModal';
-import { ActivityClassFullModal } from './ActivityClassFullModal';
+import { ActivityDetailOverlay } from './ActivityDetailOverlay';
 import { PrivatAftaleDialog } from './PrivatAftaleDialog';
 import { OpgaveDetailSheet } from './OpgaveDetailSheet';
 import type { OpgaveEntry } from './OpgaverPage';
@@ -113,6 +112,11 @@ export function AppOverlays() {
     try { localStorage.setItem(WELCOME_STORAGE_KEY, 'true'); } catch { /* non-critical */ }
   };
 
+  const closeActivity = useCallback((open: boolean) => {
+    setActivityOpen(open);
+    if (!open) setActivityUrl(null);
+  }, []);
+
   const swapActivityView = () => {
     const next = activityViewMode === 'modal' ? 'sheet' : 'modal';
     setActivityViewMode(next);
@@ -143,21 +147,13 @@ export function AppOverlays() {
         portalTarget={portalTarget}
         onOpenSettings={() => { closeWelcome(); setSettingsOpen(true); }}
       />
-      {activityViewMode === 'modal' ? (
-        <ActivityClassFullModal
-          open={activityOpen}
-          url={activityUrl}
-          onOpenChange={(open) => { setActivityOpen(open); if (!open) setActivityUrl(null); }}
-          onSwapViewMode={swapActivityView}
-        />
-      ) : (
-        <ActivityClassModal
-          open={activityOpen}
-          url={activityUrl}
-          onOpenChange={(open) => { setActivityOpen(open); if (!open) setActivityUrl(null); }}
-          onSwapViewMode={swapActivityView}
-        />
-      )}
+      <ActivityDetailOverlay
+        open={activityOpen}
+        url={activityUrl}
+        mode={activityViewMode}
+        onOpenChange={closeActivity}
+        onSwapViewMode={swapActivityView}
+      />
       {privateUrl && (
         <PrivatAftaleDialog
           open={privateOpen}

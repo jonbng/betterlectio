@@ -20,6 +20,11 @@ import { getSettings, updateSetting } from '@/lib/settings-storage';
 import { getHoldHue, getHoldDisplayName, getSubjectIdentityKey } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
 import { saveCachedOpgaver } from '@/lib/opgaver-deadlines-cache';
+import {
+  enrichTeacherReturns,
+  teacherReturnFromListFields,
+  type TeacherReturnSummary,
+} from '@/lib/opgave-return';
 import { cn } from '@/lib/utils';
 import { useTranslation, formatMonth, formatWeekday } from '@/lib/i18n';
 
@@ -39,6 +44,8 @@ export interface OpgaveEntry {
   note: string;
   grade: string;
   gradeExtra: string;
+  studentNote: string;
+  teacherReturn: TeacherReturnSummary;
 }
 
 // ── Week helpers ──────────────────────────────────────────────────────
@@ -176,12 +183,11 @@ function hasAssignmentFravaer(entry: Pick<OpgaveEntry, 'status' | 'absence' | 's
   return /frav[æa]r/i.test(entry.statusText);
 }
 
-// Teacher returned feedback/corrected version: Lectio sets `awaiting` to "Elev"
-// on an `afleveret` row once the teacher acts (return file, add note, grade).
-// When there's no grade yet, this is the only signal in the list view that
-// something is waiting for the student to review.
-function hasTeacherReturn(entry: Pick<OpgaveEntry, 'status' | 'awaiting'>): boolean {
-  return entry.status === 'afleveret' && /^elev$/i.test(entry.awaiting.trim());
+// Permanent teacher-return state comes from explicit grade/note evidence or
+// background enrichment of the detail page. `Afventer` is workflow routing,
+// not proof that the teacher responded.
+function hasTeacherReturn(entry: Pick<OpgaveEntry, 'teacherReturn'>): boolean {
+  return entry.teacherReturn?.state === 'returned';
 }
 
 function getAssignmentFravaerLabel(entry: Pick<OpgaveEntry, 'absence'>): string {
@@ -311,6 +317,14 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
 
   const entries: OpgaveEntry[] = [];
   const rows = table.querySelectorAll('tr');
+  const normalizeHeader = (value: string | null | undefined) => (value || '')
+    .replace(/\u00ad/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('da-DK');
+  const headerIndexes = new Map<string, number>();
+  table.querySelectorAll<HTMLTableCellElement>('tr:first-child th.OnlyDesktop')
+    .forEach((header, index) => headerIndexes.set(normalizeHeader(header.textContent), index));
 
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r];
@@ -318,30 +332,44 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
 
     const cells = row.querySelectorAll<HTMLTableCellElement>('td.OnlyDesktop');
     if (cells.length < 11) continue;
+    const cellFor = (header: string, fallback: number): HTMLTableCellElement => {
+      const index = headerIndexes.get(normalizeHeader(header));
+      return cells[index ?? fallback] || cells[fallback];
+    };
 
-    const hold = cells[1].textContent?.trim() || '';
+    const holdCell = cellFor('Hold', 1);
+    const titleCell = cellFor('Opgavetitel', 2);
+    const deadlineCell = cellFor('Frist', 3);
+    const studentTimeCell = cellFor('Elevtid', 4);
+    const statusCell = cellFor('Status', 5);
+    const absenceCell = cellFor('Fravær', 6);
+    const awaitingCell = cellFor('Afventer', 7);
+    const noteCell = cellFor('Opgavenote', 8);
+    const gradeCell = cellFor('Karakter', 9);
+    const studentNoteCell = cellFor('Elevnote', 10);
 
-    const titleLink = cells[2].querySelector<HTMLAnchorElement>('a');
+    const hold = holdCell.textContent?.trim() || '';
+
+    const titleLink = titleCell.querySelector<HTMLAnchorElement>('a');
     const title =
-      titleLink?.textContent?.trim() || cells[2].textContent?.trim() || '';
+      titleLink?.textContent?.trim() || titleCell.textContent?.trim() || '';
     const url = titleLink?.getAttribute('href') || '';
 
-    const deadlineText = cells[3].textContent?.trim() || '';
+    const deadlineText = deadlineCell.textContent?.trim() || '';
     const deadline = parseDeadline(deadlineText);
 
-    const studentTime = cells[4].textContent?.trim() || '';
+    const studentTime = studentTimeCell.textContent?.trim() || '';
 
-    const statusText = cells[5].textContent?.trim() || '';
-    const isWaiting = !!cells[5].querySelector('.exercisewait');
-    const isMissing = !!cells[5].querySelector('.exercisemissing');
+    const statusText = statusCell.textContent?.trim() || '';
+    const isWaiting = !!statusCell.querySelector('.exercisewait');
+    const isMissing = !!statusCell.querySelector('.exercisemissing');
 
-    const absence = cells[6].textContent?.trim() || '';
-    const awaiting = cells[7].textContent?.trim() || '';
+    const absence = absenceCell.textContent?.trim() || '';
+    const awaiting = awaitingCell.textContent?.trim() || '';
 
     const status = classifyStatus(statusText, isWaiting, isMissing);
-    const note = cells[8].textContent?.trim() || '';
+    const note = noteCell.textContent?.trim() || '';
 
-    const gradeCell = cells[9];
     const gradeHtml = gradeCell.innerHTML;
     let grade = '';
     let gradeExtra = '';
@@ -358,6 +386,13 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
       grade = gradeCell.textContent?.trim() || '';
     }
 
+    const studentNote = studentNoteCell.textContent?.trim() || '';
+    const teacherReturn = teacherReturnFromListFields({
+      grade,
+      gradeNote: gradeExtra,
+      studentNote,
+    });
+
     entries.push({
       title,
       url,
@@ -372,6 +407,8 @@ export function parseOpgaverFromDOM(root: Document | Element = document): Opgave
       note,
       grade,
       gradeExtra,
+      studentNote,
+      teacherReturn,
     });
   }
 
@@ -492,6 +529,8 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
     () => new Set(getSettings().assignments.hiddenSubjectKeys),
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null);
+  const [teacherReturnOnly, setTeacherReturnOnly] = useState(false);
+  const [enrichedReturns, setEnrichedReturns] = useState<Record<string, TeacherReturnSummary>>({});
   const [selectedEntry, setSelectedEntry] = useState<OpgaveEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [opgaveViewMode, setOpgaveViewMode] = useState<'modal' | 'sheet'>(
@@ -512,7 +551,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const searchRef = useRef<HTMLInputElement>(null);
   const subjectPillsRef = useRef<HTMLDivElement>(null);
 
-  const entries = submittedOverrides.size === 0
+  const baseEntries = submittedOverrides.size === 0
     ? entriesProp
     : entriesProp.map((e) => {
         const eid = getExerciseIdFromUrl(e.url);
@@ -521,6 +560,17 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
         }
         return e;
       });
+  const entries = baseEntries.map(entry => ({
+    ...entry,
+    studentNote: entry.studentNote ?? '',
+    teacherReturn: enrichedReturns[entry.url]
+      || entry.teacherReturn
+      || teacherReturnFromListFields({
+        grade: entry.grade,
+        gradeNote: entry.gradeExtra,
+        studentNote: entry.studentNote,
+      }),
+  }));
 
   useEffect(() => {
     setIgnoredMissingIds(loadIgnoredMissingIds(schoolId));
@@ -624,6 +674,36 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
   const entriesForSelectedYear = selectedSchoolYear === null
     ? visibleEntries
     : visibleEntries.filter(e => getSchoolYear(e.deadline) === selectedSchoolYear);
+  const enrichmentKey = entriesForSelectedYear
+    .filter(entry => entry.status === 'afleveret' && !!entry.url)
+    .map(entry => entry.url)
+    .sort()
+    .join('|');
+
+  useEffect(() => {
+    if (!enrichmentKey) return;
+    let current = true;
+    const urls = enrichmentKey.split('|');
+    void enrichTeacherReturns(urls, schoolId, (url, summary) => {
+      if (!current) return;
+      setEnrichedReturns(previous => {
+        const existing = previous[url];
+        if (existing && JSON.stringify(existing) === JSON.stringify(summary)) return previous;
+        return { ...previous, [url]: summary };
+      });
+    });
+    return () => { current = false; };
+  }, [enrichmentKey, schoolId]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const payload = (event as CustomEvent<{ url?: string; summary?: TeacherReturnSummary }>).detail;
+      if (!payload?.url || !payload.summary) return;
+      setEnrichedReturns(previous => ({ ...previous, [payload.url!]: payload.summary! }));
+    };
+    window.addEventListener('betterlectio:opgaveReturnUpdated', handler as EventListener);
+    return () => window.removeEventListener('betterlectio:opgaveReturnUpdated', handler as EventListener);
+  }, []);
   const hiddenSubjectsInSelectedYear = new Set(
     entries
       .filter(entry => selectedSchoolYear === null || getSchoolYear(entry.deadline) === selectedSchoolYear)
@@ -702,6 +782,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
 
   const filtered = visibleEntries.filter(e => {
     if (!matchesNonStatusFilters(e)) return false;
+    if (teacherReturnOnly && !hasTeacherReturn(e)) return false;
     if (statusFilter) {
       if (e.status !== statusFilter) return false;
       // When filtering to "mangler", exclude ignored so the list matches the count.
@@ -746,8 +827,9 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
 
   const submittedCount = countScope.filter(e => e.status === 'afleveret').length;
   const waitingCount = countScope.filter(e => e.status === 'venter').length;
+  const returnedCount = countScope.filter(hasTeacherReturn).length;
 
-  const hasActiveFilters = selectedSubjectKey !== null || queryLower !== '' || statusFilter !== null || selectedSchoolYear !== currentSchoolYear;
+  const hasActiveFilters = selectedSubjectKey !== null || queryLower !== '' || statusFilter !== null || teacherReturnOnly || selectedSchoolYear !== currentSchoolYear;
 
   const selectSchoolYear = (year: number | null) => {
     setSelectedSchoolYear(year);
@@ -815,6 +897,21 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
                       showOnlyLabel={t('opgaverPage.showOnly')}
                     >
                       <span className="tabular-nums">{submittedCount}</span> {t('opgaverPage.submitted')}
+                    </StatusPill>
+                  </>
+                )}
+                {returnedCount > 0 && (
+                  <>
+                    <span aria-hidden className="text-muted-foreground/30">&middot;</span>
+                    <StatusPill
+                      tone="returned"
+                      active={teacherReturnOnly}
+                      onToggle={() => setTeacherReturnOnly(value => !value)}
+                      removeFilterLabel={t('opgaverPage.removeFilter')}
+                      showOnlyLabel={t('opgaverPage.showOnly')}
+                    >
+                      <CornerDownLeft size={13} aria-hidden />
+                      <span className="tabular-nums">{returnedCount}</span> {t('opgaverPage.returnedBadge')}
                     </StatusPill>
                   </>
                 )}
@@ -1006,7 +1103,7 @@ export function OpgaverPage({ entries: entriesProp, schoolId }: OpgaverPageProps
                     <button
                       type="button"
                       className="mt-6 rounded-xl border border-border bg-background px-6 py-3 text-base font-medium transition-[background-color,transform] duration-150 hover:bg-accent active:scale-[0.97]"
-                      onClick={() => { setSearchQuery(''); setSelectedSubjectKey(null); setStatusFilter(null); setSelectedSchoolYear(currentSchoolYear); }}
+                      onClick={() => { setSearchQuery(''); setSelectedSubjectKey(null); setStatusFilter(null); setTeacherReturnOnly(false); setSelectedSchoolYear(currentSchoolYear); }}
                     >
                       {t('opgaverPage.reset')}
                     </button>
@@ -1172,22 +1269,13 @@ function AssignmentRow({
   const hue = getHoldHue(entry.hold);
   const hasHours = entry.studentTime && parseStudentTimeHours(entry.studentTime) > 0;
 
-  const borderClass =
-    hasFravaer
-      ? 'border-l-[5px] border-l-[oklch(0.60_0.20_25)] dark:border-l-[oklch(0.58_0.18_25)]'
-      : isMissing
-        ? 'border-l-4 border-l-[oklch(0.65_0.16_50)] dark:border-l-[oklch(0.58_0.14_50)]'
-        : entry.status === 'venter'
-          ? 'border-l-4 border-l-[oklch(0.65_0.14_80)] dark:border-l-[oklch(0.55_0.12_80)]'
-          : entry.status === 'afleveret'
-            ? 'border-l-[3px] border-l-[oklch(0.72_0.14_145)] dark:border-l-[oklch(0.50_0.10_145)]'
-            : '';
-
   const bgClass =
     hasFravaer
       ? 'bg-[oklch(0.99_0.008_25)] dark:bg-[oklch(0.14_0.01_25)]'
       : isMissing
         ? 'bg-[oklch(0.995_0.004_50)] dark:bg-[oklch(0.14_0.006_50)]'
+        : hasTeacherReturn(entry)
+          ? 'bg-[oklch(0.985_0.012_210)] dark:bg-[oklch(0.17_0.018_210)]'
         : 'bg-card';
 
   return (
@@ -1196,7 +1284,6 @@ function AssignmentRow({
       className={cn(
         'group flex items-start gap-4 rounded-xl border border-border px-5 py-3.5 no-underline transition-[background-color,transform] duration-150 ease-out hover:bg-accent/30 active:scale-[0.995]',
         'animate-[bl-fade-in_300ms_var(--ease-out)_both]',
-        borderClass,
         bgClass,
         isIgnored && 'opacity-50',
       )}
@@ -1209,6 +1296,8 @@ function AssignmentRow({
           <AlertTriangle size={18} className="text-[oklch(0.55_0.20_25)] dark:text-[oklch(0.72_0.18_25)]" />
         ) : isMissing ? (
           <XCircle size={18} className="text-[oklch(0.58_0.16_50)] dark:text-[oklch(0.72_0.14_50)]" />
+        ) : hasTeacherReturn(entry) ? (
+          <CornerDownLeft size={18} className="text-[oklch(0.50_0.15_210)] dark:text-[oklch(0.72_0.12_210)]" />
         ) : entry.status === 'venter' ? (
           <Clock size={18} className="text-[oklch(0.55_0.14_80)] dark:text-[oklch(0.70_0.12_80)]" />
         ) : entry.status === 'afleveret' ? (
@@ -1339,7 +1428,7 @@ function AssignmentRow({
 // in and a small × slides in to clear. No new toolbar row, no layout shift —
 // the information *is* the interaction.
 
-type StatusTone = 'waiting' | 'missing' | 'done';
+type StatusTone = 'waiting' | 'missing' | 'done' | 'returned';
 
 const STATUS_PILL_STYLES: Record<StatusTone, { inactive: string; active: string }> = {
   // hue 80 — amber/yellow-green for venter
@@ -1368,6 +1457,14 @@ const STATUS_PILL_STYLES: Record<StatusTone, { inactive: string; active: string 
     active:
       'bg-[oklch(0.93_0.075_145)] text-[oklch(0.34_0.15_145)] shadow-[inset_0_0_0_1px_oklch(0.80_0.09_145)] '
       + 'dark:bg-[oklch(0.28_0.08_145)] dark:text-[oklch(0.82_0.15_145)] dark:shadow-[inset_0_0_0_1px_oklch(0.40_0.10_145)]',
+  },
+  returned: {
+    inactive:
+      'text-[oklch(0.48_0.14_210)] hover:bg-[oklch(0.95_0.035_210)] hover:text-[oklch(0.39_0.16_210)] '
+      + 'dark:text-[oklch(0.72_0.12_210)] dark:hover:bg-[oklch(0.25_0.045_210)] dark:hover:text-[oklch(0.82_0.12_210)]',
+    active:
+      'bg-[oklch(0.92_0.065_210)] text-[oklch(0.34_0.16_210)] shadow-[inset_0_0_0_1px_oklch(0.78_0.08_210)] '
+      + 'dark:bg-[oklch(0.29_0.07_210)] dark:text-[oklch(0.84_0.13_210)] dark:shadow-[inset_0_0_0_1px_oklch(0.43_0.09_210)]',
   },
 };
 

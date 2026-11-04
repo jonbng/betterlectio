@@ -129,6 +129,22 @@ function normalizeWebvisningLinks(fragmentRoot: ParentNode, baseUrl: string): vo
   });
 }
 
+function isExplicitBlackColor(value: string): boolean {
+  const compact = value.trim().toLowerCase().replace(/\s+/g, "");
+  return /^(?:black|#000(?:000)?|rgb\(0,0,0\)|rgba\(0,0,0,(?:1|1\.0+)\))$/.test(compact);
+}
+
+export function markAdaptiveActivityText(fragmentRoot: ParentNode): number {
+  let marked = 0;
+  fragmentRoot.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    const legacyFontColor = el.tagName.toLowerCase() === "font" ? el.getAttribute("color") || "" : "";
+    if (!isExplicitBlackColor(el.style.color) && !isExplicitBlackColor(legacyFontColor)) return;
+    el.setAttribute("data-bl-adaptive-text", "");
+    marked += 1;
+  });
+  return marked;
+}
+
 export function sanitizeActivityHtml(
   fragmentRoot: ParentNode,
   baseUrl = window.location.origin,
@@ -168,6 +184,11 @@ export function sanitizeActivityHtml(
       el.style.backgroundImage = "";
     }
   });
+
+  // CKEditor commonly persists a black foreground around otherwise ordinary
+  // activity text. Mark only that foreground so dark mode can adapt it without
+  // changing authored colours, backgrounds, or light-mode rendering.
+  markAdaptiveActivityText(fragmentRoot);
 }
 
 function parseTooltipMeta(rawTooltip: string | null): Partial<ActivityMeta> {

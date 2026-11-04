@@ -23,6 +23,7 @@ import {
   PanelRightOpen,
   Maximize2,
   Sparkles,
+  CornerDownLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -39,6 +40,7 @@ import type { OpgaveDetail, AvailableGroupStudent } from '@/lib/opgave-detail';
 import { fetchPictureUrl, getCachedPictureUrl, isPictureCacheStale } from '@/lib/findskema-storage';
 import { getHoldHue, getHoldDisplayName } from '@/lib/hold-mapping';
 import { getExerciseIdFromUrl, loadIgnoredMissingIds } from '@/lib/opgaver-ignored';
+import { cacheTeacherReturn, summarizeTeacherReturn } from '@/lib/opgave-return';
 import { sanitizeHtml } from '@/lib/sanitize-html';
 import { cn } from '@/lib/utils';
 import { LectioUploadError } from '@/lib/lectio-file-upload';
@@ -187,6 +189,11 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
     try {
       const fetched = await fetchOpgaveDetail(url);
       setDetail(fetched);
+      const summary = summarizeTeacherReturn(fetched);
+      cacheTeacherReturn(url, schoolId, summary);
+      window.dispatchEvent(new CustomEvent('betterlectio:opgaveReturnUpdated', {
+        detail: { url, summary },
+      }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Ukendt fejl';
       if (message === 'SESSION_EXPIRED') {
@@ -197,7 +204,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [schoolId, t]);
 
   useEffect(() => {
     if (open && entry?.url) {
@@ -488,6 +495,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
     || latestReturn?.comment
     || latestReturn?.documentName
   );
+  const hasTeacherReturnContent = !!(displayGrade || hasTeacherFeedback);
   const effectiveStatus: DerivedStatus | null = displayGrade ? 'bedoemt' : derivedStatus;
 
   const showCustomGradeScale = !!detail?.gradeScale
@@ -604,9 +612,7 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
   // ── Modal-layout content flags ───────────────────────────────────────
   const hasBrief = !!detail && (!!detail.note || detail.descriptionFiles.length > 0);
   const hasGroup = !!detail && (detail.groupMembers.length > 0 || detail.hasGroupForm);
-  const hasGradeHeroContent = effectiveStatus === 'bedoemt' && !!displayGrade;
-  const hasFeedbackCard = !hasGradeHeroContent && hasTeacherFeedback;
-  const hasLeftColumn = hasGradeHeroContent || hasFeedbackCard || hasBrief;
+  const hasLeftColumn = hasTeacherReturnContent || hasBrief;
   const hasRightColumn = !!detail && (detail.hasSubmissionForm || hasGroup || timelineEntries.length > 0);
   const emptyCopy = effectiveStatus === 'mangler' || effectiveStatus === 'venter'
     ? t('opgaveDetail.empty.pendingCopy')
@@ -827,24 +833,13 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
           )}
 
           {detail && !loading && !error && (() => {
-            const hasGradeHero = effectiveStatus === 'bedoemt' && !!displayGrade;
-            const bodyIsEmpty = !hasGradeHero && !hasFeedbackCard && !hasBrief && !hasGroup && timelineEntries.length === 0;
+            const bodyIsEmpty = !hasTeacherReturnContent && !hasBrief && !hasGroup && timelineEntries.length === 0;
 
             return (
             <>
-              {/* Grade hero — primary for graded assignments */}
-              {effectiveStatus === 'bedoemt' && displayGrade && (
-                <GradeHero
+              {hasTeacherReturnContent && (
+                <TeacherReturnPanel
                   grade={displayGrade}
-                  gradeNote={gradeNote}
-                  studentNote={studentNote}
-                  latestReturn={latestReturn}
-                  t={t}
-                />
-              )}
-
-              {hasFeedbackCard && (
-                <TeacherFeedbackCard
                   gradeNote={gradeNote}
                   studentNote={studentNote}
                   latestReturn={latestReturn}
@@ -1177,18 +1172,9 @@ export function OpgaveDetailSheet({ open, onOpenChange, entry, schoolId, viewMod
                   {/* LEFT — the task & feedback */}
                   {hasLeftColumn && (
                     <div className="flex min-w-0 flex-col gap-7 animate-[bl-rise_0.4s_cubic-bezier(0.23,1,0.32,1)_60ms_both]">
-                      {hasGradeHeroContent && (
-                        <GradeHero
+                      {hasTeacherReturnContent && (
+                        <TeacherReturnPanel
                           grade={displayGrade}
-                          gradeNote={gradeNote}
-                          studentNote={studentNote}
-                          latestReturn={latestReturn}
-                          t={t}
-                        />
-                      )}
-
-                      {hasFeedbackCard && (
-                        <TeacherFeedbackCard
                           gradeNote={gradeNote}
                           studentNote={studentNote}
                           latestReturn={latestReturn}
@@ -1339,7 +1325,7 @@ function StatusChip({ status, t }: { status: DerivedStatus; t: TFunction }) {
   );
 }
 
-function GradeHero({
+function TeacherReturnPanel({
   grade,
   gradeNote,
   studentNote,
@@ -1352,94 +1338,68 @@ function GradeHero({
   latestReturn: OpgaveDetail['entries'][number] | null;
   t: TFunction;
 }) {
-  const hue = getGradeHue(grade);
+  const hue = grade ? getGradeHue(grade) : 145;
   const hasWrittenFeedback = !!(gradeNote || studentNote || latestReturn?.comment);
   return (
-    <div
-      className="overflow-hidden rounded-xl border bg-card"
-      style={{ borderColor: `oklch(0.75 0.12 ${hue} / 0.45)` }}
-    >
-      <div className="flex items-stretch gap-4 p-4">
-        <div
-          className="flex size-24 shrink-0 items-center justify-center rounded-xl text-4xl font-bold tracking-tight"
-          style={{
-            background: `oklch(0.96 0.05 ${hue})`,
-            color: `oklch(0.32 0.14 ${hue})`,
-          }}
-        >
-          {grade}
+    <section className="overflow-hidden rounded-xl border border-[oklch(0.72_0.12_210/0.5)] bg-card dark:border-[oklch(0.55_0.10_210/0.45)]">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border bg-[oklch(0.96_0.035_210)] px-4 py-3 dark:bg-[oklch(0.25_0.035_210)]">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-[oklch(0.36_0.14_210)] dark:text-[oklch(0.82_0.11_210)]">
+          <CornerDownLeft size={15} aria-hidden />
+          {t('opgaveDetail.timeline.teacherReturn')}
         </div>
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-          <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('opgaveDetail.primary.gradeLabel')}
+        {latestReturn && (latestReturn.user || latestReturn.timestamp) && (
+          <div className="text-sm text-[oklch(0.43_0.07_210)] dark:text-[oklch(0.74_0.07_210)]">
+            {[latestReturn.user, latestReturn.timestamp].filter(Boolean).join(' · ')}
           </div>
-          {gradeNote && <div className="whitespace-pre-wrap text-base font-medium text-foreground">{gradeNote}</div>}
-          {studentNote && <div className="whitespace-pre-wrap text-sm text-muted-foreground">{studentNote}</div>}
-        </div>
-      </div>
+        )}
+      </header>
 
-      {(latestReturn?.comment || latestReturn?.documentName) && (
-        <div className="border-t border-border bg-background/40 p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            <GraduationCap size={14} />
-            {t(hasWrittenFeedback ? 'opgaveDetail.primary.teacherFeedback' : 'opgaveDetail.primary.returnedFile')}
+      <div className="flex flex-col gap-4 p-4">
+        {grade && (
+          <div className="flex items-center gap-4">
+            <div
+              className="flex size-20 shrink-0 items-center justify-center rounded-xl text-3xl font-bold tracking-tight"
+              style={{
+                background: `oklch(0.96 0.05 ${hue})`,
+                color: `oklch(0.32 0.14 ${hue})`,
+              }}
+            >
+              {grade}
+            </div>
+            <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('opgaveDetail.primary.gradeLabel')}
+            </div>
           </div>
-          {latestReturn.comment && (
-            <p className="whitespace-pre-wrap text-base text-foreground leading-relaxed">
-              {latestReturn.comment}
-            </p>
-          )}
-          {latestReturn.documentName && (
+        )}
+
+        {hasWrittenFeedback && (
+          <div className="flex flex-col gap-2 border-t border-border pt-4 first:border-0 first:pt-0">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <MessageSquare size={14} aria-hidden />
+              {t('opgaveDetail.primary.teacherFeedback')}
+            </div>
+            {gradeNote && <p className="m-0 whitespace-pre-wrap text-base font-medium leading-relaxed text-foreground">{gradeNote}</p>}
+            {studentNote && <p className="m-0 whitespace-pre-wrap text-base leading-relaxed text-foreground">{studentNote}</p>}
+            {latestReturn?.comment && <p className="m-0 whitespace-pre-wrap text-base leading-relaxed text-foreground">{latestReturn.comment}</p>}
+          </div>
+        )}
+
+        {latestReturn?.documentName && (
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <FileDown size={14} aria-hidden />
+              {t('opgaveDetail.primary.returnedFile')}
+            </div>
             <a
               href={latestReturn.documentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
+              className="inline-flex min-h-11 items-center gap-2 self-start rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
-              <FileDown size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <FileDown size={15} className="shrink-0 text-muted-foreground" />
               <span className="line-clamp-2 min-w-0 break-words">{latestReturn.documentName}</span>
             </a>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TeacherFeedbackCard({
-  gradeNote,
-  studentNote,
-  latestReturn,
-  t,
-}: {
-  gradeNote: string;
-  studentNote: string;
-  latestReturn: OpgaveDetail['entries'][number] | null;
-  t: TFunction;
-}) {
-  const hasWrittenFeedback = !!(gradeNote || studentNote || latestReturn?.comment);
-  return (
-    <section className="overflow-hidden rounded-xl border border-[oklch(0.72_0.14_145/0.45)] bg-card">
-      <div className="flex items-center gap-2 border-b border-border bg-[oklch(0.96_0.04_145)] px-4 py-3 text-sm font-semibold text-[oklch(0.36_0.12_145)] dark:bg-[oklch(0.28_0.04_145/0.55)] dark:text-[oklch(0.82_0.12_145)]">
-        <GraduationCap size={15} />
-        {t(hasWrittenFeedback ? 'opgaveDetail.primary.teacherFeedback' : 'opgaveDetail.primary.returnedFile')}
-      </div>
-      <div className="space-y-2 p-4">
-        {gradeNote && <p className="m-0 whitespace-pre-wrap text-base font-medium text-foreground">{gradeNote}</p>}
-        {studentNote && <p className="m-0 whitespace-pre-wrap text-base text-foreground">{studentNote}</p>}
-        {latestReturn?.comment && (
-          <p className="m-0 whitespace-pre-wrap text-base leading-relaxed text-foreground">{latestReturn.comment}</p>
-        )}
-        {latestReturn?.documentName && (
-          <a
-            href={latestReturn.documentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2 text-base font-medium text-foreground no-underline transition-[color,background-color] duration-150 hover:bg-accent/40"
-          >
-            <FileDown size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
-            <span className="line-clamp-2 min-w-0 break-words">{latestReturn.documentName}</span>
-          </a>
+          </div>
         )}
       </div>
     </section>
@@ -1461,15 +1421,15 @@ function TimelineEntryCard({
       className={cn(
         "rounded-xl border px-4 py-3",
         entry.isReturn
-          ? "border-[oklch(0.72_0.14_145/0.55)] bg-[oklch(0.96_0.04_145)] dark:border-[oklch(0.58_0.14_145/0.45)] dark:bg-[oklch(0.28_0.04_145/0.5)]"
+          ? "border-[oklch(0.72_0.12_210/0.55)] bg-[oklch(0.97_0.025_210)] dark:border-[oklch(0.55_0.10_210/0.45)] dark:bg-[oklch(0.24_0.035_210)]"
           : entry.isTeacher
             ? "border-border/70 bg-muted/30"
             : "border-border bg-card",
       )}
     >
       {entry.isReturn && (
-        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.72_0.14_145/0.6)] bg-[oklch(0.98_0.02_145)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.38_0.12_145)] dark:border-[oklch(0.58_0.14_145/0.5)] dark:bg-[oklch(0.32_0.06_145/0.6)] dark:text-[oklch(0.82_0.12_145)]">
-          <GraduationCap size={12} />
+        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.72_0.12_210/0.6)] bg-[oklch(0.98_0.018_210)] px-2 py-0.5 text-xs font-semibold text-[oklch(0.38_0.14_210)] dark:border-[oklch(0.55_0.10_210/0.5)] dark:bg-[oklch(0.29_0.05_210)] dark:text-[oklch(0.82_0.11_210)]">
+          <CornerDownLeft size={12} />
           {t('opgaveDetail.timeline.teacherReturn')}
         </div>
       )}
@@ -1491,7 +1451,7 @@ function TimelineEntryCard({
           className={cn(
             "mt-3 inline-flex items-start gap-2 rounded-md border px-3 py-2 text-base font-medium no-underline transition-[color,background-color] duration-150",
             entry.isReturn
-              ? "border-[oklch(0.72_0.14_145/0.5)] bg-background text-foreground hover:bg-[oklch(0.98_0.02_145)] dark:border-[oklch(0.58_0.14_145/0.4)] dark:hover:bg-[oklch(0.32_0.06_145/0.4)]"
+              ? "border-[oklch(0.72_0.12_210/0.5)] bg-background text-foreground hover:bg-[oklch(0.97_0.025_210)] dark:border-[oklch(0.55_0.10_210/0.4)] dark:hover:bg-[oklch(0.29_0.05_210)]"
               : "border-border bg-background text-foreground hover:bg-accent/40",
           )}
         >

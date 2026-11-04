@@ -611,7 +611,7 @@ export const en = {
       gradeLabel: 'Grade',
       teacherFeedback: "Teacher's comment",
       returnedFile: 'Returned version',
-      teacherNote: "Teacher's note",
+      teacherNote: 'Assignment note',
       taskFiles: 'Assignment description',
     },
     empty: {
@@ -743,7 +743,7 @@ export const en = {
     hours: 'h',
     fravaerBadge: 'Absence',
     manglerBadge: 'Missing',
-    returnedBadge: 'Returned',
+    returnedBadge: 'Teacher return',
     ignored: 'Ignored',
     ignore: 'Ignore',
     show: 'Show',

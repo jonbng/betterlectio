@@ -133,6 +133,20 @@ describe("prepareElevfeedbackIframeDocument", () => {
     assert.equal(doc.querySelectorAll("#bl-elevfeedback-nyt").length, 1);
   });
 
+  test("installs the complete dark editor surface when requested", () => {
+    const doc = parse(editorPageHtml());
+    prepareElevfeedbackIframeDocument(doc, true);
+
+    assert.ok(doc.documentElement.classList.contains("dark"));
+    const css = doc.getElementById("bl-elevfeedback-frame")?.textContent ?? "";
+    assert.match(css, /\.cke_contents/);
+    assert.match(css, /\.cke_wysiwyg_frame/);
+    assert.match(css, /\.cke_wysiwyg_div\.cke_editable/);
+    assert.match(css, /\.cke_button_icon/);
+    assert.match(css, /#ElevContentContainer/);
+    assert.match(css, /#bl-elevfeedback-nyt a/);
+  });
+
   test("classifies editor, view, login, and unexpected documents", () => {
     assert.equal(getElevfeedbackFrameState(parse(editorPageHtml())), "edit");
     assert.equal(

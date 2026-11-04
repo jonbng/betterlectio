@@ -79,6 +79,7 @@ import { isExtensionContextInvalidatedError, isNonActionableSupabaseError } from
 import { safeGetManifest, safeRuntimeUrl } from "@/lib/safe-runtime";
 import { isBypassActive, disableBypass, getBypassRemainingMs } from "@/lib/bypass-redesigns";
 import { watchCKEditorDarkMode } from "@/lib/ckeditor-dark";
+import { markAdaptiveActivityText } from "@/lib/activity-detail";
 import { t as tLocale } from "@/lib/i18n/t";
 import { toast } from "sonner";
 import {
@@ -1092,6 +1093,16 @@ function initLayout() {
         pathnameLower.includes("/skema/skema1dag.aspx") ||
         pathnameLower.includes("findskema.aspx");
       const isForsidePage = pathnameLower.includes("forside.aspx");
+      const isActivityPage = pathnameLower.includes("/aktivitet/aktivitetforside2.aspx");
+
+      // Direct activity URLs keep Lectio's native rich-text DOM instead of
+      // opening our activity sheet. Apply the same adaptive foreground marker
+      // to that surface so CKEditor's persisted black text remains readable in
+      // dark mode as well.
+      if (isActivityPage) {
+        wrapper.classList.add("il-activity-rich-text");
+        markAdaptiveActivityText(wrapper);
+      }
 
       // Only run schedule brick transforms on schedule pages.
       // Running these on lektier can mutate activity bricks we parse.
