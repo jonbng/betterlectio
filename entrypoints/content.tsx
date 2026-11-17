@@ -70,6 +70,7 @@ import {
 } from "@/components/ExtensionHealth";
 import { ScheduleToolbar, parseScheduleToolbar } from "@/components/ScheduleToolbar";
 import { getSchoolYearFromClassName } from "@/lib/class-name";
+import { isExtensionRejection, isExtensionWindowError } from "@/lib/page-error-origin";
 import { capture, captureException, captureFeatureUsedOncePerSession, captureLoadCompleted, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, getPageSlug, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
@@ -784,6 +785,7 @@ function initLayout() {
     // Capture uncaught errors and console.error to PostHog
     window.addEventListener('error', (e) => {
       if (isIgnorableCapturedError(e.error)) return;
+      if (!isExtensionWindowError(e.filename, e.error)) return;
       const err =
         e.error instanceof Error
           ? e.error
@@ -799,6 +801,7 @@ function initLayout() {
     });
     window.addEventListener('unhandledrejection', (e) => {
       if (isIgnorableCapturedError(e.reason)) return;
+      if (!isExtensionRejection(e.reason)) return;
       captureException(e.reason, phDistinctId, { source: 'unhandledrejection' });
     });
     let _blConsoleErrorCaptures = 0;
