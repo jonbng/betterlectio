@@ -144,6 +144,26 @@ describe('sanitizeLectioUploadFilename', () => {
     assert.equal(err.code, 'unparseable_response');
   });
 
+  it('records metadata-only diagnostics for HTTP failures', async () => {
+    const err = await rejectionFor(
+      new Response('<html>Request Entity Too Large</html>', {
+        status: 413,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      }),
+      new File(['x'.repeat(200_000)], 'private-name.mov', { type: 'video/quicktime' }),
+    );
+    assert.equal(err.code, 'http_error');
+    assert.deepEqual(err.telemetry, {
+      failure_code: 'http_error',
+      http_status: 413,
+      content_type: 'text/html',
+      body_length: 37,
+      redirected: false,
+      file_mime_type: 'video/quicktime',
+      file_size_bucket: '100KB-1MB',
+    });
+  });
+
   it('keeps upload telemetry free of the body, URL and filename', async () => {
     const err = await rejectionFor(
       redirectedResponse('<html>secret</html>', 'https://www.lectio.dk/lectio/21/fejl.aspx?id=1', 'text/html'),

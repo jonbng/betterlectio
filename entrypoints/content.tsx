@@ -73,7 +73,7 @@ import { getSchoolYearFromClassName } from "@/lib/class-name";
 import { capture, captureException, captureFeatureUsedOncePerSession, captureLoadCompleted, captureOncePerSession, captureOncePerSessionByKey, captureOncePerSessionWindow, identifyIfNeeded, getDistinctId, getPageSlug, syncOptOutToExtensionStorage } from "@/lib/posthog";
 import { consumeLifecycleEvents } from "@/lib/posthog-lifecycle";
 import { installLectioErrorDetector } from "@/lib/lectio-error-popup";
-import { describeLectioHttpError, isReportableLectioHttpStatus } from "@/lib/lectio-http-error";
+import { describeLectioHttpError, isLectioUploadRequest, isReportableLectioHttpStatus } from "@/lib/lectio-http-error";
 import { pushUrlToHistory, getRecentUrls } from "@/lib/url-history";
 import { isExtensionContextInvalidatedError, isNonActionableSupabaseError } from "@/lib/supabase-error-noise";
 import { safeGetManifest, safeRuntimeUrl } from "@/lib/safe-runtime";
@@ -891,8 +891,13 @@ function initLayout() {
         const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof URL ? args[0].href : req!.url;
         // Drop transient Lectio gateway/availability failures (502–504).
         // Keep 4xx and other 5xx responses: those may expose a bad request
-        // made by extension code.
-        if (isLectioUrl(url) && isReportableLectioHttpStatus(res.status)) {
+        // made by extension code. Upload failures are reported by the upload
+        // helper's callers with upload diagnostics.
+        if (
+          isLectioUrl(url)
+          && isReportableLectioHttpStatus(res.status)
+          && !isLectioUploadRequest(url, window.location.origin)
+        ) {
           const opts = args[1];
           const method = opts?.method ?? req?.method ?? 'GET';
           const bodyMetadata = describeBody(opts?.body ?? req?.body);

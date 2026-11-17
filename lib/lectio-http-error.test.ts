@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 
 import {
   describeLectioHttpError,
+  isLectioUploadRequest,
   isReportableLectioHttpStatus,
 } from './lectio-http-error';
 
@@ -61,5 +62,17 @@ describe('describeLectioHttpError', () => {
   test('falls back to a placeholder for an unparseable URL', () => {
     const { message } = describeLectioHttpError(404, 'not a url');
     assert.equal(message, 'HTTP 404 unknown');
+  });
+});
+
+describe('isLectioUploadRequest', () => {
+  test('matches the document upload endpoint for any school', () => {
+    assert.equal(isLectioUploadRequest(`${BASE}/lectio/681/dokumentupload.aspx`), true);
+    assert.equal(isLectioUploadRequest('/lectio/42/DokumentUpload.aspx', BASE), true);
+  });
+
+  test('does not match other endpoints', () => {
+    assert.equal(isLectioUploadRequest(`${BASE}/lectio/681/beskeder2.aspx`), false);
+    assert.equal(isLectioUploadRequest('not a url'), false);
   });
 });
