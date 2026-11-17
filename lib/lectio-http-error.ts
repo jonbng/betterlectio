@@ -43,6 +43,16 @@ function lectioHttpEndpoint(rawUrl: string, base?: string): string {
 }
 
 /**
+ * Whether a failed request is a document upload. `uploadDocumentToLectio`
+ * owns the fetch to this endpoint, and its callers report each failure with
+ * metadata-only upload diagnostics, so the generic monitor must not report it
+ * a second time without them.
+ */
+export function isLectioUploadRequest(rawUrl: string, base?: string): boolean {
+  return lectioHttpEndpoint(rawUrl, base).toLowerCase() === 'dokumentupload.aspx';
+}
+
+/**
  * Stable error message and fingerprint for a failed Lectio request. Carrying
  * the endpoint in the message and pinning `$exception_fingerprint` keeps
  * repeats of the same failure in one issue instead of one per occurrence.

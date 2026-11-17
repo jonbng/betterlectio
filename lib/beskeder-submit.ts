@@ -6,7 +6,7 @@
 
 import { postFormViaHiddenIframe, parseFormTokensFromDoc, isSessionExpired } from './iframe-post';
 import { captureException } from './posthog';
-import { uploadDocumentToLectio } from './lectio-file-upload';
+import { LectioUploadError, uploadDocumentToLectio } from './lectio-file-upload';
 import {
   parseFoldersFromDOM,
   parseThreadsFromDOM,
@@ -989,7 +989,14 @@ export async function uploadFileToLectio(
   file: File,
   schoolId: string,
 ): Promise<string> {
-  return (await uploadDocumentToLectio(file, schoolId)).serializedId;
+  try {
+    return (await uploadDocumentToLectio(file, schoolId)).serializedId;
+  } catch (err) {
+    if (err instanceof LectioUploadError) {
+      captureException(err, undefined, { source: 'lectio-file-upload', ...err.telemetry });
+    }
+    throw err;
+  }
 }
 
 /**

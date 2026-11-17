@@ -112,7 +112,11 @@ export async function uploadDocumentToLectio(
     credentials: 'include',
     body: formData,
   });
-  const fileTelemetry = {
+  const body = await response.text();
+  const responseTelemetry = {
+    content_type: (response.headers.get('content-type') || 'none').split(';')[0].trim().toLowerCase(),
+    body_length: body.length,
+    redirected: response.redirected,
     file_mime_type: file.type || 'unknown',
     file_size_bucket: fileSizeBucket(file.size),
   };
@@ -120,11 +124,10 @@ export async function uploadDocumentToLectio(
     throw new LectioUploadError(
       `File upload failed with HTTP ${response.status}`,
       'http_error',
-      { failure_code: 'http_error', http_status: response.status, ...fileTelemetry },
+      { failure_code: 'http_error', http_status: response.status, ...responseTelemetry },
     );
   }
 
-  const body = await response.text();
   let serializedId = '';
   try {
     serializedId = JSON.parse(body)?.serializedId || '';
@@ -134,13 +137,7 @@ export async function uploadDocumentToLectio(
   }
   if (!serializedId) {
     const { code, message } = classifyUploadFailure(response, body);
-    throw new LectioUploadError(message, code, {
-      failure_code: code,
-      content_type: (response.headers.get('content-type') || 'none').split(';')[0].trim().toLowerCase(),
-      body_length: body.length,
-      redirected: response.redirected,
-      ...fileTelemetry,
-    });
+    throw new LectioUploadError(message, code, { failure_code: code, ...responseTelemetry });
   }
 
   return {
