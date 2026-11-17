@@ -11,26 +11,21 @@ export function isExtensionScriptUrl(url: unknown): boolean {
   return typeof url === 'string' && EXTENSION_URL_PATTERN.test(url);
 }
 
-function readStack(value: unknown): string {
+function hasExtensionStackFrame(value: unknown): boolean {
   try {
-    const stack = (value as { stack?: unknown } | null | undefined)?.stack;
-    return typeof stack === 'string' ? stack : '';
+    return isExtensionScriptUrl((value as { stack?: unknown } | null | undefined)?.stack);
   } catch {
-    return '';
+    return false;
   }
 }
 
-export function hasExtensionStackFrame(value: unknown): boolean {
-  return isExtensionScriptUrl(readStack(value));
+/** True only when an unhandled rejection reason has an extension stack frame. */
+export function isExtensionRejection(reason: unknown): boolean {
+  return hasExtensionStackFrame(reason);
 }
 
 /** True only when a global `error` event comes from extension code. */
 export function isExtensionWindowError(filename: unknown, error: unknown): boolean {
   if (typeof filename === 'string' && filename) return isExtensionScriptUrl(filename);
   return hasExtensionStackFrame(error);
-}
-
-/** True only when an unhandled rejection reason has an extension stack frame. */
-export function isExtensionRejection(reason: unknown): boolean {
-  return hasExtensionStackFrame(reason);
 }
