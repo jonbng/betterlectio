@@ -21,6 +21,10 @@ describe('isReportableLectioHttpStatus', () => {
     assert.equal(isReportableLectioHttpStatus(505), true);
   });
 
+  test('drops proxy authentication errors from the user network', () => {
+    assert.equal(isReportableLectioHttpStatus(407), false);
+  });
+
   test('drops transient gateway and availability errors', () => {
     assert.equal(isReportableLectioHttpStatus(502), false);
     assert.equal(isReportableLectioHttpStatus(503), false);
