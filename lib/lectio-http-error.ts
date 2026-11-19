@@ -21,10 +21,13 @@
  * Whether a failed Lectio HTTP response is worth reporting to error tracking.
  *
  * Client errors (4xx), HTTP 500, and less common 5xx statuses can flag a
- * request our own code got wrong, so we keep them. Only gateway/availability
- * failures (502–504) are unambiguously transient upstream noise.
+ * request our own code got wrong, so we keep them. Gateway/availability
+ * failures (502–504) are transient upstream noise, and 407 Proxy
+ * Authentication Required comes from a proxy on the user's own network, not
+ * from Lectio.
  */
 export function isReportableLectioHttpStatus(status: number): boolean {
+  if (status === 407) return false;
   return status >= 400 && (status < 502 || status > 504);
 }
 
